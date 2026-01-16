@@ -1,0 +1,16 @@
+<Project>
+
+	<!-- Builds the tool once so the next target can execute it. -->
+	<Target Name="Tools_Build_IfAvailable"
+			BeforeTargets="PrepareForBuild"
+			Condition="'$(DesignTimeBuild)' != 'true'
+			And '$(FuxionToolsVersioningEnabled)' != 'false'
+			And !Exists('$(ToolsProjectArtifact)')
+			And Exists('$(ToolsProjectPath)')">
+		<!--<Exec Command="dotnet build &quot;$(ToolsProjectPath)&quot; -c $(Configuration)" />-->
+		<MSBuild Projects="$(ToolsProjectPath)"
+		         Targets="Build"
+		         RemoveProperties="TargetFramework;TargetFrameworks;RuntimeIdentifier;RuntimeIdentifiers"
+		         Properties="Configuration=$(Configuration);TargetFramework=$(LatestCoreFramework)" />
+	</Target>
+</Project>

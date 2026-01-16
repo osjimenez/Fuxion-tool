@@ -1,0 +1,185 @@
+using System;
+using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading;
+using Fuxion.Tools.Core.Configuration;
+using Fuxion.Tools.Core.StaticMetadata;
+using Fuxion.Tools.Core.Versioning;
+using LibGit2Sharp;
+using Spectre.Console;
+using Spectre.Console.Cli;
+
+namespace Fuxion.Tools.Cli.Metadata;
+
+public sealed class MetadataCommand : Command<MetadataCommandSettings>
+{
+	public override int Execute(CommandContext context, MetadataCommandSettings settings, CancellationToken ct)
+	{
+		if (string.IsNullOrWhiteSpace(settings.OutputPath))
+		{
+			AnsiConsole.MarkupLine("[red]Missing[/] [yellow]--output[/].");
+			return 2;
+		}
+
+		var config = FuxionToolsConfigLoader.LoadOrDefault(settings.ConfigPath);
+		var staticCfg = config.StaticMetadata;
+		if (staticCfg?.Enabled != true)
+		{
+			StaticMetadataFileGenerator.DeleteIfExists(settings.OutputPath);
+			if (!settings.NonInteractive)
+				AnsiConsole.MarkupLine("[yellow]StaticMetadata disabled[/].");
+			return 0;
+		}
+
+		var isCi = IsCiBuild();
+		var isPacking = IsTrue(Environment.GetEnvironmentVariable("IsPacking"));
+		if (!ShouldGenerate(staticCfg.Generation, isCi, isPacking))
+		{
+			StaticMetadataFileGenerator.DeleteIfExists(settings.OutputPath);
+			if (!settings.NonInteractive)
+				AnsiConsole.MarkupLine("[yellow]StaticMetadata skipped[/].");
+			return 0;
+		}
+
+		VersionProps? versionProps = null;
+		if (config.Versioning is not null)
+		{
+			var inputs = VersioningInputsFactory.Create(config, settings.ConfigPath);
+			versionProps = DefaultVersionPropsProvider.FromInputs(inputs);
+		}
+
+		var projectName = settings.ProjectName
+			?? Environment.GetEnvironmentVariable("MSBuildProjectName")
+			?? "<unknown>";
+		var ns = string.IsNullOrWhiteSpace(staticCfg.Namespace) ? "Fx.Metadata" : staticCfg.Namespace.Trim();
+		var (branch, commit, repositoryPath, originUrlSha256, firstCommit) = TryGetGitInfo(config, settings.ConfigPath);
+
+		var updated = StaticMetadataFileGenerator.Generate(new(
+			OutputPath: settings.OutputPath,
+			ProjectName: projectName,
+			Namespace: ns,
+			VersionProps: versionProps,
+			BuildDateUtc: ResolveBuildDateUtc(),
+			Branch: branch,
+			Commit: commit,
+			OriginUrlSHA256: originUrlSha256,
+			FirstCommit: firstCommit,
+			RepositoryPath: repositoryPath,
+			TargetFramework: Environment.GetEnvironmentVariable("TargetFramework") ?? Environment.GetEnvironmentVariable("TARGET_FRAMEWORK"),
+			Configuration: Environment.GetEnvironmentVariable("Configuration"),
+			IsCiBuild: isCi,
+			IsPacking: isPacking
+		));
+
+		if (settings.NonInteractive)
+		{
+			Console.WriteLine($"[Info] - {projectName} - Metadata: {(updated ? "Updated" : "Up-to-date")}");
+			return 0;
+		}
+
+		var table = new Table().RoundedBorder().BorderColor(Color.Grey);
+		table.AddColumn("Property");
+		table.AddColumn("Value");
+		table.AddRow("Output", settings.OutputPath);
+		table.AddRow("Namespace", ns);
+		table.AddRow("Class", StaticMetadataFileGenerator.GetClassName(projectName));
+		table.AddRow("Version", versionProps?.Version ?? "(none)");
+		table.AddRow("Branch", branch ?? "(none)");
+		table.AddRow("Commit", commit ?? "(none)");
+		table.AddRow("OriginUrlSHA256", originUrlSha256 ?? "(none)");
+		table.AddRow("FirstCommit", firstCommit ?? "(none)");
+		table.AddRow("Written", updated ? "Yes" : "No (up-to-date)");
+		AnsiConsole.Write(table);
+		return 0;
+	}
+
+	static bool ShouldGenerate(string? generation, bool isCi, bool isPacking)
+		=> (generation ?? "ciOrPack").Trim().ToLowerInvariant() switch
+		{
+			"always" => true,
+			"ci" => isCi,
+			"pack" => isPacking,
+			"ciorpack" => isCi || isPacking,
+			_ => isCi || isPacking
+		};
+
+	static bool IsCiBuild()
+		=> IsTrue(Environment.GetEnvironmentVariable("CI"))
+		   || IsTrue(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"))
+		   || IsTrue(Environment.GetEnvironmentVariable("ContinuousIntegrationBuild"));
+
+	static bool IsTrue(string? value)
+		=> string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
+		   || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
+		   || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase);
+
+	static string ResolveBuildDateUtc()
+	{
+		var sourceDateEpoch = Environment.GetEnvironmentVariable("SOURCE_DATE_EPOCH");
+		if (long.TryParse(sourceDateEpoch, out var epochSeconds) && epochSeconds >= 0)
+			return DateTimeOffset.FromUnixTimeSeconds(epochSeconds).UtcDateTime.ToString("O");
+		return DateTimeOffset.UtcNow.UtcDateTime.ToString("O");
+	}
+
+	static (string? Branch, string? Commit, string? RepositoryPath, string? OriginUrlSHA256, string? FirstCommit) TryGetGitInfo(FuxionToolsConfig config, string? configPath)
+	{
+		try
+		{
+			var repositoryPath = ResolveRepositoryPath((config.Versioning as GitVersioningConfig)?.RepositoryPath, configPath);
+			var discovered = Repository.Discover(repositoryPath);
+			if (string.IsNullOrWhiteSpace(discovered))
+				return (null, null, null, null, null);
+
+			using var repo = new Repository(discovered);
+			var originUrl = repo.Network.Remotes["origin"]?.Url;
+			var normalizedOrigin = NormalizeOriginUrl(originUrl);
+			var originUrlSha256 = string.IsNullOrWhiteSpace(normalizedOrigin) ? null : ComputeSha256(normalizedOrigin);
+			var firstCommit = repo.Head?.Tip is null
+				? null
+				: repo.Commits.QueryBy(new CommitFilter
+				{
+					IncludeReachableFrom = repo.Head.Tip,
+					SortBy = CommitSortStrategies.Topological | CommitSortStrategies.Reverse
+				}).FirstOrDefault()?.Sha;
+
+			return (repo.Head?.FriendlyName, repo.Head?.Tip?.Sha, repo.Info.WorkingDirectory, originUrlSha256, firstCommit);
+		}
+		catch
+		{
+			return (null, null, null, null, null);
+		}
+	}
+
+	static string? NormalizeOriginUrl(string? originUrl)
+	{
+		if (string.IsNullOrWhiteSpace(originUrl))
+			return null;
+
+		var normalized = originUrl.Trim();
+		if (normalized.EndsWith(".git", StringComparison.OrdinalIgnoreCase))
+			normalized = normalized[..^4];
+		return normalized.TrimEnd('/').ToLowerInvariant();
+	}
+
+	static string ComputeSha256(string value)
+		=> Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
+
+	static string ResolveRepositoryPath(string? repositoryPath, string? configPath)
+	{
+		if (string.IsNullOrWhiteSpace(repositoryPath))
+			return Directory.GetCurrentDirectory();
+
+		if (Path.IsPathRooted(repositoryPath))
+			return repositoryPath;
+
+		var baseDir = !string.IsNullOrWhiteSpace(configPath)
+			? Path.GetDirectoryName(Path.GetFullPath(configPath))
+			: Directory.GetCurrentDirectory();
+
+		return string.IsNullOrWhiteSpace(baseDir)
+			? Directory.GetCurrentDirectory()
+			: Path.GetFullPath(Path.Combine(baseDir, repositoryPath));
+	}
+}

@@ -1,0 +1,12 @@
+{
+	"version": 1,
+	"isRoot": true,
+	"tools": {
+		"fuxion.tools": {
+			"version": "0.1.0-local",
+			"commands": [
+				"fx"
+			]
+		}
+	}
+}

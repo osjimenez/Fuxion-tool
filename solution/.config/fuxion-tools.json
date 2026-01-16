@@ -1,0 +1,13 @@
+{
+	"versioning": {
+		"mode": "git",
+		"forceCIEnvironment": true,
+		"failOnError": true,
+		"repositoryPath": "..\\"
+	},
+	"staticMetadata": {
+		"enabled": true,
+		"namespace": "Fx.Metadata",
+		"generation": "always"
+	}
+}

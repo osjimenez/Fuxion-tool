@@ -1,0 +1,44 @@
+<Project>
+
+	<Target Name="Tools_GenerateVersionProps_IfAvailable"
+			BeforeTargets="PrepareForBuild"
+			AfterTargets="Tools_Build_IfAvailable"
+			Condition="'$(DesignTimeBuild)' != 'true'
+			And '$(TargetFramework)' != ''
+			And '$(FuxionToolsVersioningEnabled)' != 'false'">
+		<MakeDir Directories="$(Tools_Cache_Directory)" />
+		<Exec Command="dotnet exec &quot;$(ToolsProjectArtifact)&quot; version --output &quot;$(Tools_Generated_Props_File)&quot; --project-name &quot;$(MSBuildProjectName)&quot; --config &quot;$(Tools_Config_File)&quot; --non-interactive"
+			  EnvironmentVariables="TargetFramework=$(TargetFramework);TargetFrameworkIdentifier=$(TargetFrameworkIdentifier);TargetFrameworkVersion=$(TargetFrameworkVersion);MSBuildProjectName=$(MSBuildProjectName)" />
+	</Target>
+
+	<Target Name="Tools_GenerateStaticMetadata_IfAvailable"
+			BeforeTargets="PrepareForBuild"
+			AfterTargets="Tools_GenerateVersionProps_IfAvailable"
+			Condition="'$(DesignTimeBuild)' != 'true'
+			And '$(TargetFramework)' != ''
+			And '$(FuxionToolsVersioningEnabled)' != 'false'">
+		<Exec Command="dotnet exec &quot;$(ToolsProjectArtifact)&quot; metadata --output &quot;$(IntermediateOutputPath)Fuxion.StaticMetadata.g.cs&quot; --project-name &quot;$(MSBuildProjectName)&quot; --config &quot;$(Tools_Config_File)&quot; --non-interactive"
+			  EnvironmentVariables="TargetFramework=$(TargetFramework);TargetFrameworkIdentifier=$(TargetFrameworkIdentifier);TargetFrameworkVersion=$(TargetFrameworkVersion);MSBuildProjectName=$(MSBuildProjectName);Configuration=$(Configuration);IsPacking=$(IsPacking);ContinuousIntegrationBuild=$(ContinuousIntegrationBuild)" />
+	</Target>
+
+	<Target Name="Tools_IncludeStaticMetadata_IfPresent"
+			BeforeTargets="CoreCompile"
+			Condition="'$(FuxionToolsVersioningEnabled)' != 'false'
+			And '$(TargetFramework)' != ''">
+		<ItemGroup Condition="Exists('$(IntermediateOutputPath)Fuxion.StaticMetadata.g.cs')">
+			<Compile Include="$(IntermediateOutputPath)Fuxion.StaticMetadata.g.cs" Visible="false" />
+		</ItemGroup>
+	</Target>
+
+	<Import Project="$(Tools_Generated_Props_File)"
+	        Condition="'$(FuxionToolsVersioningEnabled)' != 'false' And Exists('$(Tools_Generated_Props_File)')" />
+
+	<Target Name="Tools_ValidateVersionProps"
+	        AfterTargets="Tools_GenerateVersionProps_IfAvailable"
+	        BeforeTargets="CoreCompile"
+	        Condition="'$(FuxionToolsVersioningEnabled)' != 'false' And '$(TargetFramework)' != ''">
+		<Error Condition="!Exists('$(Tools_Generated_Props_File)')"
+		       Text="Missing generated version props: $(Tools_Generated_Props_File)" />
+	</Target>
+
+</Project>
