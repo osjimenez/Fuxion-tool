@@ -62,7 +62,7 @@ public sealed class VersionCommand : Command<VersionCommandSettings>
 			targetFramework ??= "(unknown)";
 
 			var fullVersion = props.InformationalVersion;
-			Console.WriteLine($"[Info] - {projectName} - Version: {fullVersion} - Target: {targetFramework}");
+			Console.WriteLine($"[Info] - {projectName} ({targetFramework}) - Version: {fullVersion}");
 			return 0;
 		}
 

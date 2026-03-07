@@ -33,16 +33,6 @@ public sealed class MetadataCommand : Command<MetadataCommandSettings>
 			return 0;
 		}
 
-		var isCi = IsCiBuild();
-		var isPacking = IsTrue(Environment.GetEnvironmentVariable("IsPacking"));
-		if (!ShouldGenerate(staticCfg.Generation, isCi, isPacking))
-		{
-			StaticMetadataFileGenerator.DeleteIfExists(settings.OutputPath);
-			if (!settings.NonInteractive)
-				AnsiConsole.MarkupLine("[yellow]StaticMetadata skipped[/].");
-			return 0;
-		}
-
 		VersionProps? versionProps = null;
 		if (config.Versioning is not null)
 		{
@@ -54,8 +44,9 @@ public sealed class MetadataCommand : Command<MetadataCommandSettings>
 			?? Environment.GetEnvironmentVariable("MSBuildProjectName")
 			?? "<unknown>";
 		var ns = string.IsNullOrWhiteSpace(staticCfg.Namespace) ? "Fx.Metadata" : staticCfg.Namespace.Trim();
-		var (branch, commit, repositoryPath, originUrlSha256, firstCommit) = TryGetGitInfo(config, settings.ConfigPath);
-
+		var (branch, commit,  originUrlSha256, firstCommit) = TryGetGitInfo(config, settings.ConfigPath);
+		var targetFramework = Environment.GetEnvironmentVariable("TargetFramework") ??
+		                      Environment.GetEnvironmentVariable("TARGET_FRAMEWORK");
 		var updated = StaticMetadataFileGenerator.Generate(new(
 			OutputPath: settings.OutputPath,
 			ProjectName: projectName,
@@ -66,16 +57,13 @@ public sealed class MetadataCommand : Command<MetadataCommandSettings>
 			Commit: commit,
 			OriginUrlSHA256: originUrlSha256,
 			FirstCommit: firstCommit,
-			RepositoryPath: repositoryPath,
-			TargetFramework: Environment.GetEnvironmentVariable("TargetFramework") ?? Environment.GetEnvironmentVariable("TARGET_FRAMEWORK"),
-			Configuration: Environment.GetEnvironmentVariable("Configuration"),
-			IsCiBuild: isCi,
-			IsPacking: isPacking
+			TargetFramework: targetFramework,
+			Configuration: Environment.GetEnvironmentVariable("Configuration")
 		));
 
 		if (settings.NonInteractive)
 		{
-			Console.WriteLine($"[Info] - {projectName} - Metadata: {(updated ? "Updated" : "Up-to-date")}");
+			Console.WriteLine($"[Info] - {projectName} ({targetFramework}) - Metadata: {(updated ? "UPDATED" : "SKIP")}");
 			return 0;
 		}
 
@@ -95,26 +83,6 @@ public sealed class MetadataCommand : Command<MetadataCommandSettings>
 		return 0;
 	}
 
-	static bool ShouldGenerate(string? generation, bool isCi, bool isPacking)
-		=> (generation ?? "ciOrPack").Trim().ToLowerInvariant() switch
-		{
-			"always" => true,
-			"ci" => isCi,
-			"pack" => isPacking,
-			"ciorpack" => isCi || isPacking,
-			_ => isCi || isPacking
-		};
-
-	static bool IsCiBuild()
-		=> IsTrue(Environment.GetEnvironmentVariable("CI"))
-		   || IsTrue(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"))
-		   || IsTrue(Environment.GetEnvironmentVariable("ContinuousIntegrationBuild"));
-
-	static bool IsTrue(string? value)
-		=> string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
-		   || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
-		   || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase);
-
 	static string ResolveBuildDateUtc()
 	{
 		var sourceDateEpoch = Environment.GetEnvironmentVariable("SOURCE_DATE_EPOCH");
@@ -123,14 +91,14 @@ public sealed class MetadataCommand : Command<MetadataCommandSettings>
 		return DateTimeOffset.UtcNow.UtcDateTime.ToString("O");
 	}
 
-	static (string? Branch, string? Commit, string? RepositoryPath, string? OriginUrlSHA256, string? FirstCommit) TryGetGitInfo(FuxionToolsConfig config, string? configPath)
+	static (string? Branch, string? Commit, string? OriginUrlSHA256, string? FirstCommit) TryGetGitInfo(FuxionToolsConfig config, string? configPath)
 	{
 		try
 		{
 			var repositoryPath = ResolveRepositoryPath((config.Versioning as GitVersioningConfig)?.RepositoryPath, configPath);
 			var discovered = Repository.Discover(repositoryPath);
 			if (string.IsNullOrWhiteSpace(discovered))
-				return (null, null, null, null, null);
+				return (null, null, null, null);
 
 			using var repo = new Repository(discovered);
 			var originUrl = repo.Network.Remotes["origin"]?.Url;
@@ -144,11 +112,11 @@ public sealed class MetadataCommand : Command<MetadataCommandSettings>
 					SortBy = CommitSortStrategies.Topological | CommitSortStrategies.Reverse
 				}).FirstOrDefault()?.Sha;
 
-			return (repo.Head?.FriendlyName, repo.Head?.Tip?.Sha, repo.Info.WorkingDirectory, originUrlSha256, firstCommit);
+			return (repo.Head?.FriendlyName, repo.Head?.Tip?.Sha, originUrlSha256, firstCommit);
 		}
 		catch
 		{
-			return (null, null, null, null, null);
+			return (null, null, null, null);
 		}
 	}
 

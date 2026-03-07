@@ -5,40 +5,54 @@
 			AfterTargets="Tools_Build_IfAvailable"
 			Condition="'$(DesignTimeBuild)' != 'true'
 			And '$(TargetFramework)' != ''
-			And '$(FuxionToolsVersioningEnabled)' != 'false'">
+			And '$(FuxionToolsVersioningEnabled)' != 'false'
+			And !Exists('$(Tools_Generated_Props_File)')">
 		<MakeDir Directories="$(Tools_Cache_Directory)" />
 		<Exec Command="dotnet exec &quot;$(ToolsProjectArtifact)&quot; version --output &quot;$(Tools_Generated_Props_File)&quot; --project-name &quot;$(MSBuildProjectName)&quot; --config &quot;$(Tools_Config_File)&quot; --non-interactive"
 			  EnvironmentVariables="TargetFramework=$(TargetFramework);TargetFrameworkIdentifier=$(TargetFrameworkIdentifier);TargetFrameworkVersion=$(TargetFrameworkVersion);MSBuildProjectName=$(MSBuildProjectName)" />
-	</Target>
-
-	<Target Name="Tools_GenerateStaticMetadata_IfAvailable"
-			BeforeTargets="PrepareForBuild"
-			AfterTargets="Tools_GenerateVersionProps_IfAvailable"
-			Condition="'$(DesignTimeBuild)' != 'true'
-			And '$(TargetFramework)' != ''
-			And '$(FuxionToolsVersioningEnabled)' != 'false'">
-		<Exec Command="dotnet exec &quot;$(ToolsProjectArtifact)&quot; metadata --output &quot;$(IntermediateOutputPath)Fuxion.StaticMetadata.g.cs&quot; --project-name &quot;$(MSBuildProjectName)&quot; --config &quot;$(Tools_Config_File)&quot; --non-interactive"
-			  EnvironmentVariables="TargetFramework=$(TargetFramework);TargetFrameworkIdentifier=$(TargetFrameworkIdentifier);TargetFrameworkVersion=$(TargetFrameworkVersion);MSBuildProjectName=$(MSBuildProjectName);Configuration=$(Configuration);IsPacking=$(IsPacking);ContinuousIntegrationBuild=$(ContinuousIntegrationBuild)" />
-	</Target>
-
-	<Target Name="Tools_IncludeStaticMetadata_IfPresent"
-			BeforeTargets="CoreCompile"
-			Condition="'$(FuxionToolsVersioningEnabled)' != 'false'
-			And '$(TargetFramework)' != ''">
-		<ItemGroup Condition="Exists('$(IntermediateOutputPath)Fuxion.StaticMetadata.g.cs')">
-			<Compile Include="$(IntermediateOutputPath)Fuxion.StaticMetadata.g.cs" Visible="false" />
-		</ItemGroup>
 	</Target>
 
 	<Import Project="$(Tools_Generated_Props_File)"
 	        Condition="'$(FuxionToolsVersioningEnabled)' != 'false' And Exists('$(Tools_Generated_Props_File)')" />
 
 	<Target Name="Tools_ValidateVersionProps"
-	        AfterTargets="Tools_GenerateVersionProps_IfAvailable"
 	        BeforeTargets="CoreCompile"
 	        Condition="'$(FuxionToolsVersioningEnabled)' != 'false' And '$(TargetFramework)' != ''">
 		<Error Condition="!Exists('$(Tools_Generated_Props_File)')"
 		       Text="Missing generated version props: $(Tools_Generated_Props_File)" />
+	</Target>
+
+	<Target Name="Tools_RefreshVersionPropsBeforePack"
+	        BeforeTargets="GenerateNuspec"
+	        Condition="'$(FuxionToolsVersioningEnabled)' != 'false'
+        And Exists('$(Tools_Generated_Props_File)')">
+		<XmlPeek XmlInputPath="$(Tools_Generated_Props_File)"
+		         Query="/Project/PropertyGroup/PackageVersion/text()">
+			<Output TaskParameter="Result" ItemName="_Version" />
+		</XmlPeek>
+		<XmlPeek XmlInputPath="$(Tools_Generated_Props_File)"
+		         Query="/Project/PropertyGroup/Version/text()">
+			<Output TaskParameter="Result" ItemName="_PackageVersion" />
+		</XmlPeek>
+		<XmlPeek XmlInputPath="$(Tools_Generated_Props_File)"
+		         Query="/Project/PropertyGroup/AssemblyVersion/text()">
+			<Output TaskParameter="Result" ItemName="_AssemblyVersion" />
+		</XmlPeek>
+		<XmlPeek XmlInputPath="$(Tools_Generated_Props_File)"
+		         Query="/Project/PropertyGroup/FileVersion/text()">
+			<Output TaskParameter="Result" ItemName="_FileVersion" />
+		</XmlPeek>
+		<XmlPeek XmlInputPath="$(Tools_Generated_Props_File)"
+		         Query="/Project/PropertyGroup/InformationalVersion/text()">
+			<Output TaskParameter="Result" ItemName="_InformationalVersion" />
+		</XmlPeek>
+		<PropertyGroup>
+			<Version Condition="'@(_Version)' != ''">@(_Version)</Version>
+			<PackageVersion Condition="'@(_PackageVersion)' != ''">@(_PackageVersion)</PackageVersion>
+			<AssemblyVersion Condition="'@(_AssemblyVersion)' != ''">@(_AssemblyVersion)</AssemblyVersion>
+			<FileVersion Condition="'@(_FileVersion)' != ''">@(_FileVersion)</FileVersion>
+			<InformationalVersion Condition="'@(_InformationalVersion)' != ''">@(_InformationalVersion)</InformationalVersion>
+		</PropertyGroup>
 	</Target>
 
 </Project>

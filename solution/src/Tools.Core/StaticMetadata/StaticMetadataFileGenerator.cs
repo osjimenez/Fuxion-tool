@@ -16,11 +16,8 @@ public sealed record StaticMetadataRequest(
 	string? Commit,
 	string? OriginUrlSHA256,
 	string? FirstCommit,
-	string? RepositoryPath,
 	string? TargetFramework,
-	string? Configuration,
-	bool IsCiBuild,
-	bool IsPacking
+	string? Configuration
 );
 
 public static class StaticMetadataFileGenerator
@@ -108,14 +105,6 @@ public static class StaticMetadataFileGenerator
 					/// The UTC date and time when the build was performed. This is generated at build time using the current UTC date and time, and can be used for various purposes, such as logging, diagnostics, or displaying in the application. The value is represented as a DateTimeOffset to include both the date and time along with the offset from UTC (which is zero in this case). Note that this value is generated at build time, so it will reflect the time when the build was performed, not necessarily the time when the application is running.
 					/// </summary>
 					public static readonly global::System.DateTime BuildDateUtc = new global::System.DateTime({{DateTimeOffset.UtcNow.Ticks}}L);
-					/// <summary>
-					/// Indicates whether the build is a Continuous Integration (CI) build. This is generated at build time based on the IsCiBuild property of the build request, and can be used for various purposes, such as logging, diagnostics, or displaying in the application. The value is a boolean that indicates whether the build is a CI build (true) or not (false). Note that this value is generated at build time, so it will reflect whether the build was a CI build or not, not necessarily whether the currently running application was built as a CI build.
-					/// </summary>
-					public static readonly bool IsCiBuild = {{request.IsCiBuild.ToString().ToLower()}};
-					/// <summary>
-					/// Indicates whether the build is a packing build. This is generated at build time based on the IsPacking property of the build request, and can be used for various purposes, such as logging, diagnostics, or displaying in the application. The value is a boolean that indicates whether the build is a packing build (true) or not (false). Note that this value is generated at build time, so it will reflect whether the build was a packing build or not, not necessarily whether the currently running application was built as a packing build.
-					/// </summary>
-					public static readonly bool IsPacking = {{request.IsPacking.ToString().ToLower()}};
 				}
 			""");
 
@@ -148,10 +137,6 @@ public static class StaticMetadataFileGenerator
 						/// The informational version of the project. This is generated at build time based on the InformationalVersion property of the VersionProps provided in the build request, and can be used for various purposes, such as logging, diagnostics, or displaying in the application. The value is a string that represents the informational version, which can include additional information such as pre-release labels or build metadata (e.g., "1.0.0-beta+exp.sha.5114f85"). Note that this value is generated at build time, so it will reflect the informational version for which the project was built, not necessarily the informational version of the currently running application (if different).
 						/// </summary>
 						public static readonly string InformationalVersion = "{{Escape(request.VersionProps.InformationalVersion)}}";
-						/// <summary>
-						/// The fingerprint of the project. This is generated at build time based on the Fingerprint property of the VersionProps provided in the build request, and can be used for various purposes, such as logging, diagnostics, or displaying in the application. The value is a string that represents a unique identifier or hash that can be used to identify a specific build or version of the project. Note that this value is generated at build time, so it will reflect the fingerprint for which the project was built, not necessarily the fingerprint of the currently running application (if different).
-						/// </summary>
-						public static readonly string Fingerprint = "{{Escape(request.VersionProps.Fingerprint)}}";
 					}
 				""");
 		// REPOSITORY
@@ -178,10 +163,6 @@ public static class StaticMetadataFileGenerator
 					/// First commit SHA reachable in repository history.
 					/// </summary>
 					public static readonly string FirstCommit = "{{Escape(request.FirstCommit)}}";
-					/// <summary>
-					/// The path to the repository from which the project was built. This is generated at build time based on the RepositoryPath property of the build request, and can be used for various purposes, such as logging, diagnostics, or displaying in the application. The value is a string that represents the path to the repository, which can be a local file system path or a URL to a remote repository. Note that this value is generated at build time, so it will reflect the repository path from which the project was built, not necessarily the repository path of the currently running application (if different).
-					/// </summary>
-					public static readonly string RepositoryPath = "{{Escape(request.RepositoryPath)}}";
 				}
 			""");
 
@@ -203,24 +184,20 @@ public static class StaticMetadataFileGenerator
 							"Build": {
 								"TargetFramework": "{{Build.TargetFramework}}",
 								"Configuration": "{{Build.Configuration}}",
-								"BuildDateUtc": "{{Build.BuildDateUtc:O}}",
-								"IsCiBuild": {{Build.IsCiBuild.ToString().ToLower()}},
-								"IsPacking": {{Build.IsPacking.ToString().ToLower()}}
+								"BuildDateUtc": "{{Build.BuildDateUtc:O}}"
 							},
 							"Versioning": {
 								"Version": "{{Versioning.Version}}",
 								"PackageVersion": "{{Versioning.PackageVersion}}",
 								"AssemblyVersion": "{{Versioning.AssemblyVersion}}",
 								"FileVersion": "{{Versioning.FileVersion}}",
-								"InformationalVersion": "{{Versioning.InformationalVersion}}",
-								"Fingerprint": "{{Versioning.Fingerprint}}"
+								"InformationalVersion": "{{Versioning.InformationalVersion}}"
 							},
 							"Repository": {
 								"Branch": "{{Repository.Branch}}",
 								"Commit": "{{Repository.Commit}}",
 								"OriginUrlSHA256": "{{Repository.OriginUrlSHA256}}",
-								"FirstCommit": "{{Repository.FirstCommit}}",
-								"RepositoryPath": "{{Repository.RepositoryPath}}"
+								"FirstCommit": "{{Repository.FirstCommit}}"
 							}
 						}
 						""";
