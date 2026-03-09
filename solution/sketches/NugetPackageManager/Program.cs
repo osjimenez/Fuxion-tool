@@ -9,6 +9,8 @@ List<Package> packages =
 [
 	new("Fuxion", ListMatch, DeprecationMatch),
 	new("Fuxion.Application", ListMatch, DeprecationMatch),
+	new("Fuxion.Analyzers", ListMatch, DeprecationMatch),
+	new("Fuxion.Analyzers.Abstractions", ListMatch, DeprecationMatch),
 	new("Fuxion.AspNet", ListMatch, DeprecationMatch),
 	new("Fuxion.AspNetCore", ListMatch, DeprecationMatch),
 	new("Fuxion.AutoMapper", ListMatch, DeprecationMatch),
@@ -98,6 +100,7 @@ if (toUnlist.Any())
 				Console.WriteLine($"Error unlisting {version.Package.Id} {version.Version}: {res.Message}");
 				if (res.Message.IsNeitherNullNorWhiteSpace())
 				{
+					// { "statusCode": 403, "message": "Out of call volume quota. Quota will be replenished in 00:33:45." }
 					var panel = new Panel(XElement.Load(res.Message).ToString());
 					AnsiConsole.Write(panel);
 				}
@@ -118,11 +121,11 @@ return;
 // To list versions less than 8.2.14 except 0.2.0 and 0.2.1
 bool ListMatch(SemanticVersion version)
 {
-	return version >= "8.2.14" || version == "0.2.0" || version == "0.2.1";
+	return version != "10.0.1" && version >= "9.3.34" || version == "8.2.14" || version == "0.2.0" || version == "0.2.1";
 }
 
 // To deprecate versions less than 9.0.0
 bool DeprecationMatch(SemanticVersion version)
 {
-	return version < "9.0.0";
+	return version < "10.0.2";
 }
