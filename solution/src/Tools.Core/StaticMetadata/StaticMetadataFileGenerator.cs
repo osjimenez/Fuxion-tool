@@ -105,6 +105,10 @@ public static class StaticMetadataFileGenerator
 					/// The UTC date and time when the build was performed. This is generated at build time using the current UTC date and time, and can be used for various purposes, such as logging, diagnostics, or displaying in the application. The value is represented as a DateTimeOffset to include both the date and time along with the offset from UTC (which is zero in this case). Note that this value is generated at build time, so it will reflect the time when the build was performed, not necessarily the time when the application is running.
 					/// </summary>
 					public static readonly global::System.DateTime BuildDateUtc = new global::System.DateTime({{DateTimeOffset.UtcNow.Ticks}}L);
+					/// <summary>
+					/// Gets the assembly of the build class. This can be useful for scenarios where you want to access assembly-level attributes or metadata related to the build. The Assembly property returns the assembly that contains the Build class, which is the assembly generated for this static metadata. Note that this assembly will contain the static metadata for the build, and may not necessarily be the same as the assembly of the currently running application (if different).
+					/// </summary>
+					public static global::System.Reflection.Assembly Assembly => typeof(Build).Assembly;
 				}
 			""");
 
