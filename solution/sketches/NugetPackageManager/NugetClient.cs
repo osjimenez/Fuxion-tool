@@ -100,10 +100,10 @@ internal class NugetClient
 			}
 		}
 	}
-	public async Task<Response> List(PackageVersion version) =>
+	public async Task<IResponse> List(PackageVersion version) =>
 		await _client.PostAsync($"https://www.nuget.org/api/v2/package/{version.Package.Id}/{version.Version}", null).AsResponseAsync();
 
-	public async Task<Response> Unlist(PackageVersion version) =>
+	public async Task<IResponse> Unlist(PackageVersion version) =>
 		await _client.DeleteAsync($"https://www.nuget.org/api/v2/package/{version.Package.Id}/{version.Version}").AsResponseAsync();
 
 	public async Task ApplyListUnlistAsync(List<Package> packages)
