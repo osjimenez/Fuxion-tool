@@ -15,7 +15,7 @@ namespace Fuxion.Tools.Cli.Metadata;
 
 public sealed class MetadataCommand : Command<MetadataCommandSettings>
 {
-	public override int Execute(CommandContext context, MetadataCommandSettings settings, CancellationToken ct)
+	protected override int Execute(CommandContext context, MetadataCommandSettings settings, CancellationToken ct)
 	{
 		if (string.IsNullOrWhiteSpace(settings.OutputPath))
 		{

@@ -9,7 +9,7 @@ namespace Fuxion.Tools.Cli.Version;
 
 public sealed class VersionCommand : Command<VersionCommandSettings>
 {
-	public override int Execute(CommandContext context, VersionCommandSettings settings, CancellationToken ct)
+	protected override int Execute(CommandContext context, VersionCommandSettings settings, CancellationToken ct)
 	{
 		if (string.IsNullOrWhiteSpace(settings.OutputPath))
 		{
