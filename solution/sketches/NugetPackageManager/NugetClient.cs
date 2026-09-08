@@ -40,7 +40,7 @@ internal class NugetClient
 				.AsResponseAsync<JsonNode>();
 			if (!response.IsSuccess) continue;
 
-			var items = ((JsonArray?)response.Payload.Root["items"])?.WhereNotNull();
+			var items = ((JsonArray?)response.SuccessOrThrow().Root["items"])?.WhereNotNull();
 			//var pages = ((JsonArray?)response.Payload.Root["items"])?.WhereNotNull()
 			//	.Select(n => n["@id"]?.GetValue<string>());
 			if (items is null) continue;
@@ -55,7 +55,7 @@ internal class NugetClient
 					if (page.IsNullOrWhiteSpace()) continue;
 					response = await _client.GetAsync(page).AsResponseAsync<JsonNode>();
 					if (!response.IsSuccess) continue;
-					array = response.Payload.Root["items"]?.AsArray();
+					array = response.SuccessOrThrow().Root["items"]?.AsArray();
 					if (array is null) continue;
 				}
 
@@ -100,11 +100,11 @@ internal class NugetClient
 			}
 		}
 	}
-	public async Task<IResponse> List(PackageVersion version) =>
-		await _client.PostAsync($"https://www.nuget.org/api/v2/package/{version.Package.Id}/{version.Version}", null).AsResponseAsync();
+	public async Task<ResponseMaybe<Unit>> List(PackageVersion version) =>
+		await _client.PostAsync($"https://www.nuget.org/api/v2/package/{version.Package.Id}/{version.Version}", null).AsResponseAsync<Unit>();
 
-	public async Task<IResponse> Unlist(PackageVersion version) =>
-		await _client.DeleteAsync($"https://www.nuget.org/api/v2/package/{version.Package.Id}/{version.Version}").AsResponseAsync();
+	public async Task<ResponseMaybe<Unit>> Unlist(PackageVersion version) =>
+		await _client.DeleteAsync($"https://www.nuget.org/api/v2/package/{version.Package.Id}/{version.Version}").AsResponseAsync<Unit>();
 
 	public async Task ApplyListUnlistAsync(List<Package> packages)
 	{
@@ -113,14 +113,14 @@ internal class NugetClient
 			foreach (var version in package.Versions.Where(v => v.Action.HasFlag(NugetAction.List)))
 			{
 				var response = await List(version);
-				if(response.IsError)
-					Console.WriteLine($"Error listing {version.Package.Id} {version.Version}: {response.Message}");
+				if(response is Error error)
+					Console.WriteLine($"Error listing {version.Package.Id} {version.Version}: {error.Message}");
 			}
 			foreach (var version in package.Versions.Where(v => v.Action.HasFlag(NugetAction.Unlist)))
 			{
 				var response = await Unlist(version);
-				if(response.IsError)
-					Console.WriteLine($"Error unlisting {version.Package.Id} {version.Version}: {response.Message}");
+				if(response is Error error)
+					Console.WriteLine($"Error unlisting {version.Package.Id} {version.Version}: {error.Message}");
 			}
 		}
 

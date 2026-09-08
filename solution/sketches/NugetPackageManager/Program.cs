@@ -58,14 +58,14 @@ if (toList.Any())
 		foreach (var version in toList)
 		{
 			var res = await client.List(version);
-			if (res.IsSuccess)
+			if (res is not Error error)
 				Console.WriteLine($"Listed {version.Package.Id} {version.Version}");
 			else
 			{
-				Console.WriteLine($"Error listing {version.Package.Id} {version.Version}: {res.Message}");
-				if (res.Message.IsNeitherNullNorWhiteSpace())
+				Console.WriteLine($"Error listing {version.Package.Id} {version.Version}: {error.Message}");
+				if (error.Message.IsNeitherNullNorWhiteSpace())
 				{
-					var panel = new Panel(XElement.Load(res.Message).ToString());
+					var panel = new Panel(XElement.Load(error.Message).ToString());
 					AnsiConsole.Write(panel);
 				}
 			}
@@ -93,15 +93,15 @@ if (toUnlist.Any())
 		foreach (var version in toUnlist)
 		{
 			var res = await client.Unlist(version);
-			if (res.IsSuccess)
+			if (res is not Error error)
 				Console.WriteLine($"Unlisted {version.Package.Id} {version.Version}");
 			else
 			{
-				Console.WriteLine($"Error unlisting {version.Package.Id} {version.Version}: {res.Message}");
-				if (res.Message.IsNeitherNullNorWhiteSpace())
+				Console.WriteLine($"Error unlisting {version.Package.Id} {version.Version}: {error.Message}");
+				if (error.Message.IsNeitherNullNorWhiteSpace())
 				{
 					// { "statusCode": 403, "message": "Out of call volume quota. Quota will be replenished in 00:33:45." }
-					var panel = new Panel(XElement.Load(res.Message).ToString());
+					var panel = new Panel(XElement.Load(error.Message).ToString());
 					AnsiConsole.Write(panel);
 				}
 			}
