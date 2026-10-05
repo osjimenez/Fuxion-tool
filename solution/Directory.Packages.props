@@ -14,7 +14,7 @@
 		<!-- Fuxion 10 until a Fuxion 11 is published (plan K) -->
 		<PackageVersion Include="Fuxion" Version="10.0.18" />
 		<PackageVersion Include="Spectre.Console" Version="0.57.2" />
-		<PackageVersion Include="Spectre.Console.Cli" Version="0.55.0" />
+		<PackageVersion Include="System.CommandLine" Version="2.0.12" />
 	</ItemGroup>
 
 	<!-- Tests (the versions oss uses) -->

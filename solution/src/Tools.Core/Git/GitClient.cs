@@ -110,6 +110,9 @@ public sealed class GitClient
 
 	public string? RemoteUrl(string remote) => Optional("config", "--get", $"remote.{remote}.url");
 
+	/// <summary>Creates a lightweight tag. Local only: nothing is pushed.</summary>
+	public void CreateTag(string name, string commit) => Required("tag", name, commit);
+
 	/// <summary>The commit a reverse topological walk from <paramref name="tip"/> starts with: a root commit.</summary>
 	public string? FirstCommit(string tip) => Lines(Required("rev-list", "--topo-order", "--reverse", tip)).FirstOrDefault();
 

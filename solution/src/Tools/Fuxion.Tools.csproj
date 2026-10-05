@@ -5,6 +5,8 @@
 		<TargetFramework>$(LatestCoreFramework)</TargetFramework>
 		<PackAsTool>true</PackAsTool>
 		<ToolCommandName>fx</ToolCommandName>
+		<!-- the executable is fx (fx.exe), as the command (design D-24) -->
+		<AssemblyName>fx</AssemblyName>
 		<PackageId>Fuxion.Tools</PackageId>
 		<PackageVersion>0.1.0-local</PackageVersion>
 	</PropertyGroup>
@@ -15,7 +17,7 @@
 
 	<ItemGroup>
 		<PackageReference Include="Spectre.Console" />
-		<PackageReference Include="Spectre.Console.Cli" />
+		<PackageReference Include="System.CommandLine" />
 	</ItemGroup>
 
 </Project>

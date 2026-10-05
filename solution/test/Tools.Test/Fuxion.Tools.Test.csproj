@@ -13,6 +13,8 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\Tools.Core\Fuxion.Tools.Core.csproj" />
+		<!-- the CLI runs in process (FxApp.Run) -->
+		<ProjectReference Include="..\..\src\Tools\Fuxion.Tools.csproj" />
 	</ItemGroup>
 
 </Project>

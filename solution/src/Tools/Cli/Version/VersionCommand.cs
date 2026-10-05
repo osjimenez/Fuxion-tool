@@ -1,88 +1,140 @@
-using System;
-using System.Threading;
+using System.CommandLine;
+using System.Text.Json;
 using Fuxion.Tools.Core.Configuration;
 using Fuxion.Tools.Core.Versioning;
 using Spectre.Console;
-using Spectre.Console.Cli;
 
 namespace Fuxion.Tools.Cli.Version;
 
-public sealed class VersionCommand : Command<VersionCommandSettings>
+public sealed record VersionSettings(GlobalSettings Global, bool Explain);
+
+/// <summary><c>fx version [--explain]</c>: the version the repository would build now (design §9, §10.2).</summary>
+public static class VersionCommand
 {
-	protected override int Execute(CommandContext context, VersionCommandSettings settings, CancellationToken ct)
+	public const string Schema = "fx-version/1";
+
+	public static Command Create(GlobalOptions global, string currentDirectory)
 	{
-		if (string.IsNullOrWhiteSpace(settings.OutputPath))
+		var explain = new Option<bool>("--explain") { Description = "Show how the version was calculated." };
+		var command = new Command("version", "The version this repository would build now, from its git history.")
 		{
-			AnsiConsole.MarkupLine("[red]Missing[/] [yellow]--output[/].");
-			return 2;
-		}
-
-		var config = FuxionToolsConfigLoader.LoadOrDefault(settings.ConfigPath);
-		var inputs = VersioningInputsFactory.Create(config, settings.ConfigPath);
-
-		if (!settings.NonInteractive)
+			explain,
+			VersionTagCommand.Create(global, currentDirectory)
+		};
+		command.SetAction(result =>
 		{
-			AnsiConsole.Write(new Rule("Versioning"));
+			var settings = new VersionSettings(global.Bind(result, currentDirectory), result.GetValue(explain));
+			var console = new FxConsole(result.InvocationConfiguration.Output, result.InvocationConfiguration.Error, settings.Global);
+			return Run(settings, console);
+		});
+		return command;
+	}
 
-			var table = new Table().RoundedBorder().BorderColor(Color.Grey);
-			table.AddColumn("Setting");
-			table.AddColumn("Value");
-			table.AddRow("Config", settings.ConfigPath);
-			table.AddRow("Output", settings.OutputPath);
-			table.AddRow("Mode", config.Versioning?.GetType().Name ?? "(default)");
-			table.AddRow("BaseVersion", inputs.BaseVersion);
-			table.AddRow("InformationalSuffix", inputs.InformationalSuffix);
-			AnsiConsole.Write(table);
-
-			var proceed = AnsiConsole.Confirm("Generate/refresh version props?", defaultValue: true);
-			if (!proceed)
+	public static int Run(VersionSettings settings, FxConsole console)
+	{
+		VersioningResult result;
+		try
+		{
+			result = VersioningInputsFactory.Calculate(new FuxionToolsConfig
 			{
-				AnsiConsole.MarkupLine("[yellow]Cancelled[/].");
-				return 0;
-			}
+				Versioning = new GitVersioningConfig { RepositoryPath = settings.Global.Directory, FailOnError = true }
+			});
 		}
-
-		var changed = VersioningOrchestrator.EnsurePropsUpToDate(settings.OutputPath, inputs);
-		var props = DefaultVersionPropsProvider.FromInputs(inputs);
-
-		if (settings.NonInteractive)
+		catch (VersioningException ex)
 		{
-			var projectName = settings.ProjectName
-			                  ?? Environment.GetEnvironmentVariable("MSBuildProjectName")
-			                  ?? "<unknown>";
-			var targetFramework = Environment.GetEnvironmentVariable("TargetFramework")
-				?? Environment.GetEnvironmentVariable("TARGET_FRAMEWORK");
-			if (string.IsNullOrWhiteSpace(targetFramework))
-			{
-				var tfmId = Environment.GetEnvironmentVariable("TargetFrameworkIdentifier");
-				var tfmVer = Environment.GetEnvironmentVariable("TargetFrameworkVersion");
-				if (!string.IsNullOrWhiteSpace(tfmId) && !string.IsNullOrWhiteSpace(tfmVer))
-					targetFramework = $"{tfmId}{tfmVer}";
-			}
-			targetFramework ??= "(unknown)";
-
-			var fullVersion = props.InformationalVersion;
-			Console.WriteLine($"[Info] - {projectName} ({targetFramework}) - Version: {fullVersion}");
-			return 0;
+			Diagnostic[] errors = [Diagnostic.Error(ex.Code, ex.Message)];
+			if (settings.Global.Output == OutputFormat.Json)
+				console.WriteJson(Schema, errors);
+			return console.Report(errors);
 		}
 
-		if (!settings.NonInteractive)
-		{
-			AnsiConsole.Write(new Rule("Result"));
-
-			var result = new Table().RoundedBorder().BorderColor(Color.Grey);
-			result.AddColumn("Property");
-			result.AddColumn("Value");
-			result.AddRow("Written", changed ? "Yes" : "No (up-to-date)");
-			result.AddRow("Version", props.Version);
-			result.AddRow("PackageVersion", props.PackageVersion);
-			result.AddRow("AssemblyVersion", props.AssemblyVersion);
-			result.AddRow("FileVersion", props.FileVersion);
-			result.AddRow("InformationalVersion", props.InformationalVersion);
-			result.AddRow("Fingerprint", props.Fingerprint);
-			AnsiConsole.Write(result);
-		}
-
+		var props = DefaultVersionPropsProvider.FromInputs(result.Inputs);
+		if (settings.Global.Output == OutputFormat.Json)
+			console.WriteJson(Schema, [], json => WriteJson(json, props, result.Details));
+		else if (settings.Explain)
+			WriteExplanation(console.Out, props, result.Details);
+		else
+			console.Out.WriteLine(props.Version);
 		return 0;
 	}
+
+	static void WriteJson(Utf8JsonWriter json, VersionProps props, GitVersionDetails? details)
+	{
+		json.WriteString("version", props.Version);
+		json.WriteString("packageVersion", props.PackageVersion);
+		json.WriteString("assemblyVersion", props.AssemblyVersion);
+		json.WriteString("fileVersion", props.FileVersion);
+		json.WriteString("informationalVersion", props.InformationalVersion);
+		if (details is null)
+			return;
+		json.WriteStartObject("git");
+		json.WriteString("repository", details.Repository);
+		json.WriteString("branch", details.Branch);
+		json.WriteString("rule", RuleName(details.Rule));
+		json.WriteString("head", details.Head);
+		json.WriteString("stableTip", details.StableTip);
+		if (details.MergeBase is null)
+			json.WriteNull("mergeBase");
+		else
+			json.WriteString("mergeBase", details.MergeBase);
+		json.WriteStartObject("tag");
+		json.WriteString("name", details.TagName);
+		json.WriteString("commit", details.TagCommit);
+		json.WriteEndObject();
+		json.WriteNumber("commitsSinceTag", details.CommitsSinceTag);
+		if (details.BranchCommits is { } branchCommits)
+			json.WriteNumber("branchCommits", branchCommits);
+		else
+			json.WriteNull("branchCommits");
+		json.WriteEndObject();
+	}
+
+	static void WriteExplanation(IAnsiConsole console, VersionProps props, GitVersionDetails? details)
+	{
+		var grid = new Grid().AddColumn(new GridColumn().NoWrap()).AddColumn();
+		void Row(string name, string value) => grid.AddRow(new Spectre.Console.Text(name, new Style(decoration: Decoration.Bold)), new Spectre.Console.Text(value));
+
+		Row("Version", props.Version);
+		Row("Informational", props.InformationalVersion);
+		Row("Assembly", props.AssemblyVersion);
+		if (details is not null)
+		{
+			Row("Repository", details.Repository);
+			Row("Branch", details.Branch);
+			Row("Rule", $"{RuleName(details.Rule)}: {RuleDescription(details.Rule)}");
+			Row("HEAD", Short(details.Head));
+			Row("Tag", $"{details.TagName} at {Short(details.TagCommit)}");
+			if (details.Rule == GitVersionRule.Feature)
+			{
+				Row("Merge base", $"{Short(details.MergeBase!)} with {Short(details.StableTip)}");
+				Row("Tag → merge base", $"{details.CommitsSinceTag} commits");
+				Row("On the branch", $"{details.BranchCommits} commits since main was last merged");
+			}
+			else
+				Row("Tag → HEAD", $"{details.CommitsSinceTag} commits");
+		}
+		console.Write(grid);
+	}
+
+	public static string RuleName(GitVersionRule rule) => rule switch
+	{
+		GitVersionRule.Stable => "stable",
+		GitVersionRule.Develop => "develop",
+		GitVersionRule.Feature => "feature",
+		GitVersionRule.Release => "release",
+		GitVersionRule.Preview => "preview",
+		_ => "other"
+	};
+
+	static string RuleDescription(GitVersionRule rule) => rule switch
+	{
+		GitVersionRule.Stable => "X.Y.{commits since the tag}",
+		GitVersionRule.Develop => "X.Y.{commits since the tag}-alpha",
+		GitVersionRule.Feature => "X.Y.{tag → merge base}-feature.{name}.{commits since main was last merged}",
+		GitVersionRule.Release => "{tag}-rc.{name}.{commits since the tag}",
+		GitVersionRule.Preview => "{tag}-preview.{name}.{commits since the tag}",
+		_ => "X.Y.{commits since the tag}-{branch}"
+	};
+
+	static string Short(string commit) => commit.Length > 7 ? commit[..7] : commit;
 }

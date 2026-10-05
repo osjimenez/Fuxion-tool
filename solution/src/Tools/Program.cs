@@ -1,29 +1,7 @@
-﻿using System;
-using Fuxion.Tools.Cli.Metadata;
-using Fuxion.Tools.Cli.Version;
-using Spectre.Console;
-using Spectre.Console.Cli;
+using System;
+using System.IO;
+using System.Text;
+using Fuxion.Tools.Cli;
 
-var app = new CommandApp();
-
-app.Configure(config =>
-{
-	config.SetApplicationName("fuxion-tools");
-	config.SetApplicationVersion("0.1.0");
-
-	config.AddCommand<VersionCommand>("version")
-		.WithDescription("Generate MSBuild props file with version information.");
-
-	config.AddCommand<MetadataCommand>("metadata")
-		.WithDescription("Generate per-project static metadata source file.");
-});
-
-try
-{
-	return app.Run(args);
-}
-catch (Exception ex)
-{
-	AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything | ExceptionFormats.ShowLinks);
-	return 1;
-}
+Console.OutputEncoding = Encoding.UTF8;
+return FxApp.Run(args, Console.Out, Console.Error, Directory.GetCurrentDirectory());

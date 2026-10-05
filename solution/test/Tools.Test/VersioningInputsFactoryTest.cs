@@ -225,8 +225,9 @@ public sealed class VersioningInputsFactoryTest
 	{
 		using var ci = CiEnvironment.Local();
 		using var repo = TaggedMain("version/1.2.3");
-		var ex = Assert.Throws<InvalidOperationException>(() => FromGit(repo, failOnError: false));
+		var ex = Assert.Throws<VersioningException>(() => FromGit(repo, failOnError: false));
 		Assert.Equal("Git versioning failed: tag 'version/1.2.3' patch must be 0.", ex.Message);
+		Assert.Equal(VersioningErrorCodes.InvalidTag, ex.Code);
 	}
 
 	// Errors
@@ -237,8 +238,9 @@ public sealed class VersioningInputsFactoryTest
 		using var ci = CiEnvironment.Local();
 		using var repo = new TempGitRepository();
 		repo.Commit("c1");
-		var ex = Assert.Throws<InvalidOperationException>(() => FromGit(repo));
+		var ex = Assert.Throws<VersioningException>(() => FromGit(repo));
 		Assert.StartsWith("Git versioning failed: No version tag found for stable branch in repo '", ex.Message);
+		Assert.Equal(VersioningErrorCodes.NoTag, ex.Code);
 	}
 
 	[Fact(DisplayName = "no version tag: 0.1.0 without failOnError")]
@@ -255,8 +257,9 @@ public sealed class VersioningInputsFactoryTest
 	{
 		using var ci = CiEnvironment.Local();
 		using var repo = new TempGitRepository();
-		var ex = Assert.Throws<InvalidOperationException>(() => FromGit(repo));
+		var ex = Assert.Throws<VersioningException>(() => FromGit(repo));
 		Assert.Equal("Git versioning failed: Git HEAD not available (repository has no commits).", ex.Message);
+		Assert.Equal(VersioningErrorCodes.NoCommits, ex.Code);
 	}
 
 	[Fact(DisplayName = "not a repository: fails")]
@@ -264,8 +267,9 @@ public sealed class VersioningInputsFactoryTest
 	{
 		using var ci = CiEnvironment.Local();
 		using var folder = new TempGitRepository(init: false);
-		var ex = Assert.Throws<InvalidOperationException>(() => FromGit(folder));
-		Assert.Equal("Git versioning failed: Git repository not found (Repository.Discover returned null).", ex.Message);
+		var ex = Assert.Throws<VersioningException>(() => FromGit(folder));
+		Assert.Equal("Git versioning failed: Git repository not found.", ex.Message);
+		Assert.Equal(VersioningErrorCodes.RepositoryNotFound, ex.Code);
 	}
 
 	// Repository path
