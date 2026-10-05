@@ -18,6 +18,12 @@
 		<PackageVersion Include="Spectre.Console.Cli" Version="0.55.0" />
 	</ItemGroup>
 
+	<!-- Tests (the versions oss uses) -->
+	<ItemGroup>
+		<PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.11.2" />
+		<PackageVersion Include="xunit.v3" Version="4.0.0" />
+	</ItemGroup>
+
 	<!-- Only for sketches/NugetPackageManager, which is in no solution (it needs Fuxion 11) -->
 	<ItemGroup>
 		<PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.12" />

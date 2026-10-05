@@ -1,13 +1,8 @@
 using System;
-using System.IO;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading;
 using Fuxion.Tools.Core.Configuration;
 using Fuxion.Tools.Core.StaticMetadata;
 using Fuxion.Tools.Core.Versioning;
-using LibGit2Sharp;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -44,7 +39,7 @@ public sealed class MetadataCommand : Command<MetadataCommandSettings>
 			?? Environment.GetEnvironmentVariable("MSBuildProjectName")
 			?? "<unknown>";
 		var ns = string.IsNullOrWhiteSpace(staticCfg.Namespace) ? "Fx.Metadata" : staticCfg.Namespace.Trim();
-		var (branch, commit,  originUrlSha256, firstCommit) = TryGetGitInfo(config, settings.ConfigPath);
+		var (branch, commit,  originUrlSha256, firstCommit) = RepositoryInfoReader.TryRead(config, settings.ConfigPath);
 		var targetFramework = Environment.GetEnvironmentVariable("TargetFramework") ??
 		                      Environment.GetEnvironmentVariable("TARGET_FRAMEWORK");
 		var updated = StaticMetadataFileGenerator.Generate(new(
@@ -91,63 +86,4 @@ public sealed class MetadataCommand : Command<MetadataCommandSettings>
 		return DateTimeOffset.UtcNow.UtcDateTime.ToString("O");
 	}
 
-	static (string? Branch, string? Commit, string? OriginUrlSHA256, string? FirstCommit) TryGetGitInfo(FuxionToolsConfig config, string? configPath)
-	{
-		try
-		{
-			var repositoryPath = ResolveRepositoryPath((config.Versioning as GitVersioningConfig)?.RepositoryPath, configPath);
-			var discovered = Repository.Discover(repositoryPath);
-			if (string.IsNullOrWhiteSpace(discovered))
-				return (null, null, null, null);
-
-			using var repo = new Repository(discovered);
-			var originUrl = repo.Network.Remotes["origin"]?.Url;
-			var normalizedOrigin = NormalizeOriginUrl(originUrl);
-			var originUrlSha256 = string.IsNullOrWhiteSpace(normalizedOrigin) ? null : ComputeSha256(normalizedOrigin);
-			var firstCommit = repo.Head?.Tip is null
-				? null
-				: repo.Commits.QueryBy(new CommitFilter
-				{
-					IncludeReachableFrom = repo.Head.Tip,
-					SortBy = CommitSortStrategies.Topological | CommitSortStrategies.Reverse
-				}).FirstOrDefault()?.Sha;
-
-			return (repo.Head?.FriendlyName, repo.Head?.Tip?.Sha, originUrlSha256, firstCommit);
-		}
-		catch
-		{
-			return (null, null, null, null);
-		}
-	}
-
-	static string? NormalizeOriginUrl(string? originUrl)
-	{
-		if (string.IsNullOrWhiteSpace(originUrl))
-			return null;
-
-		var normalized = originUrl.Trim();
-		if (normalized.EndsWith(".git", StringComparison.OrdinalIgnoreCase))
-			normalized = normalized[..^4];
-		return normalized.TrimEnd('/').ToLowerInvariant();
-	}
-
-	static string ComputeSha256(string value)
-		=> Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
-
-	static string ResolveRepositoryPath(string? repositoryPath, string? configPath)
-	{
-		if (string.IsNullOrWhiteSpace(repositoryPath))
-			return Directory.GetCurrentDirectory();
-
-		if (Path.IsPathRooted(repositoryPath))
-			return repositoryPath;
-
-		var baseDir = !string.IsNullOrWhiteSpace(configPath)
-			? Path.GetDirectoryName(Path.GetFullPath(configPath))
-			: Directory.GetCurrentDirectory();
-
-		return string.IsNullOrWhiteSpace(baseDir)
-			? Directory.GetCurrentDirectory()
-			: Path.GetFullPath(Path.Combine(baseDir, repositoryPath));
-	}
 }

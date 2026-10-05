@@ -19,4 +19,7 @@
     <Project Path="solution/src/Tools.MSBuild/Fuxion.Tools.MSBuild.csproj" />
     <Project Path="solution/src/Tools/Fuxion.Tools.csproj" />
   </Folder>
+  <Folder Name="/test/">
+    <Project Path="solution/test/Tools.Test/Fuxion.Tools.Test.csproj" />
+  </Folder>
 </Solution>
