@@ -4,12 +4,15 @@ using System.IO;
 using System.Linq;
 using Fuxion;
 using Fuxion.Tools.Core.Configuration;
-using LibGit2Sharp;
+using Fuxion.Tools.Core.Git;
 
 namespace Fuxion.Tools.Core.Versioning;
 
 public static class VersioningInputsFactory
 {
+	/// <summary>The branch name of a detached HEAD (the name LibGit2Sharp gave it, kept so versions do not change).</summary>
+	const string DetachedBranchName = "(no branch)";
+
 	public static VersioningInputs Create(FuxionToolsConfig config, string? configPath = null)
 	{
 		config ??= new();
@@ -38,23 +41,23 @@ public static class VersioningInputsFactory
 		var suffix = ResolveInformationalSuffix(cfg.InformationalSuffix, cfg.ForceCIEnvironment);
 		try
 		{
-			var repoPath = Repository.Discover(ResolveRepositoryPath(cfg.RepositoryPath, configPath));
-			if (string.IsNullOrWhiteSpace(repoPath))
+			var git = GitClient.Discover(ResolveRepositoryPath(cfg.RepositoryPath, configPath));
+			if (git is null)
 				return FailOrDefault(cfg, suffix, "Git repository not found (Repository.Discover returned null).", null);
 
-			using var repo = new Repository(repoPath);
-			if (repo.Head?.Tip is null)
+			var head = git.Head();
+			if (head is null)
 				return FailOrDefault(cfg, suffix, "Git HEAD not available (repository has no commits).", null);
 
-			var branchName = repo.Head.FriendlyName ?? "detached";
-			var stableBranch = GetStableBranch(repo) ?? repo.Head;
+			var branchName = git.CurrentBranch() ?? DetachedBranchName;
+			var stableTip = git.BranchTip("master") ?? git.BranchTip("main") ?? head;
 
 			if (IsPreviewBranch(branchName))
 			{
-				if (!TryGetLastVersionTag(repo, repo.Head.Tip, out var tagVersion, out var tagCommit))
-					return FailOrDefault(cfg, suffix, $"No version tag found for preview branch '{branchName}' in repo '{repo.Info.WorkingDirectory}'.", null);
+				if (!TryGetLastVersionTag(git, head, out var tagVersion, out var tagCommit))
+					return FailOrDefault(cfg, suffix, $"No version tag found for preview branch '{branchName}' in repo '{git.Root}'.", null);
 				var previewId = GetBranchSuffix(branchName, "preview/");
-				var commitCount = CountCommits(repo, repo.Head.Tip, tagCommit);
+				var commitCount = CountCommits(git, head, tagCommit);
 				var baseVersion = $"{tagVersion.Major}.{tagVersion.Minor}.{tagVersion.Patch}";
 				var prerelease = $"preview.{previewId}.{commitCount}";
 				return new($"{baseVersion}-{prerelease}", suffix);
@@ -62,10 +65,10 @@ public static class VersioningInputsFactory
 
 			if (IsReleaseBranch(branchName))
 			{
-				if (!TryGetLastVersionTag(repo, repo.Head.Tip, out var tagVersion, out var tagCommit))
-					return FailOrDefault(cfg, suffix, $"No version tag found for release branch '{branchName}' in repo '{repo.Info.WorkingDirectory}'.", null);
+				if (!TryGetLastVersionTag(git, head, out var tagVersion, out var tagCommit))
+					return FailOrDefault(cfg, suffix, $"No version tag found for release branch '{branchName}' in repo '{git.Root}'.", null);
 				var releaseId = GetBranchSuffix(branchName, "release/");
-				var commitCount = CountCommits(repo, repo.Head.Tip, tagCommit);
+				var commitCount = CountCommits(git, head, tagCommit);
 				var baseVersion = $"{tagVersion.Major}.{tagVersion.Minor}.{tagVersion.Patch}";
 				var prerelease = $"rc.{releaseId}.{commitCount}";
 				return new($"{baseVersion}-{prerelease}", suffix);
@@ -73,39 +76,39 @@ public static class VersioningInputsFactory
 
 			if (IsFeatureBranch(branchName))
 			{
-				var mergeBase = repo.ObjectDatabase.FindMergeBase(repo.Head.Tip, stableBranch.Tip) ?? stableBranch.Tip;
-				if (!TryGetLastVersionTag(repo, mergeBase, out var tagVersion, out var tagCommit))
-					return FailOrDefault(cfg, suffix, $"No version tag found on feature branch history for feature versioning (branch '{branchName}', repo '{repo.Info.WorkingDirectory}').", null);
-				var stablePatch = CountCommits(repo, mergeBase, tagCommit);
+				var mergeBase = git.MergeBase(head, stableTip) ?? stableTip;
+				if (!TryGetLastVersionTag(git, mergeBase, out var tagVersion, out var tagCommit))
+					return FailOrDefault(cfg, suffix, $"No version tag found on feature branch history for feature versioning (branch '{branchName}', repo '{git.Root}').", null);
+				var stablePatch = CountCommits(git, mergeBase, tagCommit);
 				var baseVersion = $"{tagVersion.Major}.{tagVersion.Minor}.{stablePatch}";
 				var featureName = GetBranchSuffix(branchName, "feature/");
-				var delta = CountCommitsSinceLastStableMerge(repo, repo.Head.Tip, stableBranch.Tip, mergeBase);
+				var delta = CountCommitsSinceLastStableMerge(git, head, stableTip, mergeBase);
 				var prerelease = $"feature.{featureName}.{delta}";
 				return new($"{baseVersion}-{prerelease}", suffix);
 			}
 
 			if (IsDevelopBranch(branchName))
 			{
-				if (!TryGetLastVersionTag(repo, repo.Head.Tip, out var tagVersion, out var tagCommit))
-					return FailOrDefault(cfg, suffix, $"No version tag found for develop branch in repo '{repo.Info.WorkingDirectory}'.", null);
-				var patch = CountCommits(repo, repo.Head.Tip, tagCommit);
+				if (!TryGetLastVersionTag(git, head, out var tagVersion, out var tagCommit))
+					return FailOrDefault(cfg, suffix, $"No version tag found for develop branch in repo '{git.Root}'.", null);
+				var patch = CountCommits(git, head, tagCommit);
 				var baseVersion = $"{tagVersion.Major}.{tagVersion.Minor}.{patch}";
 				return new($"{baseVersion}-alpha", suffix);
 			}
 
 			if (IsStableBranch(branchName))
 			{
-				if (!TryGetLastVersionTag(repo, repo.Head.Tip, out var tagVersion, out var tagCommit))
-					return FailOrDefault(cfg, suffix, $"No version tag found for stable branch in repo '{repo.Info.WorkingDirectory}'.", null);
-				var patch = CountCommits(repo, repo.Head.Tip, tagCommit);
+				if (!TryGetLastVersionTag(git, head, out var tagVersion, out var tagCommit))
+					return FailOrDefault(cfg, suffix, $"No version tag found for stable branch in repo '{git.Root}'.", null);
+				var patch = CountCommits(git, head, tagCommit);
 				var baseVersion = $"{tagVersion.Major}.{tagVersion.Minor}.{patch}";
 				return new(baseVersion, suffix);
 			}
 
-			if (!TryGetLastVersionTag(repo, repo.Head.Tip, out var fallbackVersion, out var fallbackCommit))
-				return FailOrDefault(cfg, suffix, $"No version tag found for branch '{branchName}' in repo '{repo.Info.WorkingDirectory}'.", null);
+			if (!TryGetLastVersionTag(git, head, out var fallbackVersion, out var fallbackCommit))
+				return FailOrDefault(cfg, suffix, $"No version tag found for branch '{branchName}' in repo '{git.Root}'.", null);
 
-			var fallbackPatch = CountCommits(repo, repo.Head.Tip, fallbackCommit);
+			var fallbackPatch = CountCommits(git, head, fallbackCommit);
 			var fallbackBaseVersion = $"{fallbackVersion.Major}.{fallbackVersion.Minor}.{fallbackPatch}";
 			var fallbackBranch = SanitizeIdentifier(branchName);
 			return new($"{fallbackBaseVersion}-{fallbackBranch}", suffix);
@@ -168,9 +171,6 @@ public static class VersioningInputsFactory
 		throw new InvalidOperationException($"Git versioning failed: {reason} ({exception.GetType().Name}: {exception.Message})", exception);
 	}
 
-	static Branch? GetStableBranch(Repository repo)
-		=> repo.Branches["master"] ?? repo.Branches["main"];
-
 	static bool IsStableBranch(string branchName)
 		=> string.Equals(branchName, "master", StringComparison.OrdinalIgnoreCase)
 		   || string.Equals(branchName, "main", StringComparison.OrdinalIgnoreCase);
@@ -214,107 +214,65 @@ public static class VersioningInputsFactory
 		return string.IsNullOrWhiteSpace(cleaned) ? "branch" : cleaned;
 	}
 
-	static int CountBranchDelta(Repository repo, Commit branchTip, Commit stableTip)
+	/// <summary>
+	/// Commits on the branch since main was last merged into it (the merge included), or since it left main if it
+	/// never was. Commits only reachable from main do not count.
+	/// </summary>
+	static int CountCommitsSinceLastStableMerge(GitClient git, string branchTip, string stableTip, string mergeBase)
 	{
-		var mergeBase = repo.ObjectDatabase.FindMergeBase(branchTip, stableTip) ?? stableTip;
-		var filter = new CommitFilter
-		{
-			IncludeReachableFrom = branchTip,
-			ExcludeReachableFrom = mergeBase
-		};
-		return repo.Commits.QueryBy(filter).Count();
-	}
-
-	static int CountCommitsSinceLastStableMerge(Repository repo, Commit branchTip, Commit stableTip, Commit mergeBase)
-	{
-		if (branchTip.Id == stableTip.Id)
+		if (branchTip == stableTip)
 			return 0;
-		var lastMerge = FindLastStableMergeCommit(repo, branchTip, stableTip);
-		var exclude = new List<Commit> { stableTip };
+		var lastMerge = FindLastStableMergeCommit(git, branchTip, stableTip);
+		var exclude = new List<string> { stableTip };
 		if (lastMerge is null)
-		{
 			exclude.Add(mergeBase);
-		}
 		else
-		{
-			exclude.AddRange(lastMerge.Parents);
-		}
-		var filter = new CommitFilter
-		{
-			IncludeReachableFrom = branchTip,
-			ExcludeReachableFrom = exclude
-		};
-		return repo.Commits.QueryBy(filter).Count();
+			exclude.AddRange(lastMerge.Value.Parents);
+		return git.Count(branchTip, exclude);
 	}
 
-	static Commit? FindLastStableMergeCommit(Repository repo, Commit branchTip, Commit stableTip)
+	/// <summary>The newest merge commit with a parent that is already in main.</summary>
+	static (string Commit, string[] Parents)? FindLastStableMergeCommit(GitClient git, string branchTip, string stableTip)
 	{
-		var filter = new CommitFilter
-		{
-			IncludeReachableFrom = branchTip,
-			SortBy = CommitSortStrategies.Topological | CommitSortStrategies.Time
-		};
-		foreach (var commit in repo.Commits.QueryBy(filter))
-		{
-			if (commit.Parents.Count() < 2)
-				continue;
-			foreach (var parent in commit.Parents)
-			{
-				var common = repo.ObjectDatabase.FindMergeBase(parent, stableTip);
-				if (common is not null && common.Id == parent.Id)
-					return commit;
-			}
-		}
+		foreach (var merge in git.MergesByDate(branchTip))
+			foreach (var parent in merge.Parents)
+				if (git.IsAncestor(parent, stableTip))
+					return merge;
 		return null;
 	}
 
-	static int CountCommits(Repository repo, Commit tip, Commit baseCommit)
-	{
-		if (tip == baseCommit)
-			return 0;
-		var filter = new CommitFilter
-		{
-			IncludeReachableFrom = tip,
-			ExcludeReachableFrom = baseCommit
-		};
-		return repo.Commits.QueryBy(filter).Count();
-	}
+	static int CountCommits(GitClient git, string tip, string baseCommit)
+		=> tip == baseCommit ? 0 : git.Count(tip, baseCommit);
 
-	static bool TryGetLastVersionTag(Repository repo, Commit tip, out SemanticVersion version, out Commit tagCommit)
+	/// <summary>
+	/// The nearest commit, walking back from <paramref name="tip"/> by date, with a <c>version/X.Y.0</c> tag; the highest
+	/// version if it has several. A version tag with a patch other than 0 is an error.
+	/// </summary>
+	static bool TryGetLastVersionTag(GitClient git, string tip, out SemanticVersion version, out string tagCommit)
 	{
 		version = null!;
 		tagCommit = null!;
 		const string prefix = "version/";
-		var tagVersions = new Dictionary<ObjectId, SemanticVersion>();
-		foreach (var tag in repo.Tags)
+		var tagVersions = new Dictionary<string, SemanticVersion>();
+		foreach (var tag in git.Tags())
 		{
-			var name = tag.FriendlyName;
-			if (!name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+			if (!tag.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
 				continue;
-			var value = name[prefix.Length..];
+			var value = tag.Name[prefix.Length..];
 			if (!SemanticVersion.TryParse(value, out var semver))
 				continue;
 			if (semver.Patch != 0)
-				throw new InvalidOperationException($"Git versioning failed: tag '{name}' patch must be 0.");
-			var commit = GetTagCommit(tag.Target);
-			if (commit is null)
-				continue;
-			if (!tagVersions.TryGetValue(commit.Id, out var current) || semver.CompareTo(current) > 0)
-				tagVersions[commit.Id] = semver;
+				throw new InvalidOperationException($"Git versioning failed: tag '{tag.Name}' patch must be 0.");
+			if (!tagVersions.TryGetValue(tag.Commit, out var current) || semver.CompareTo(current) > 0)
+				tagVersions[tag.Commit] = semver;
 		}
 
 		if (tagVersions.Count == 0)
 			return false;
 
-		var filter = new CommitFilter
+		foreach (var commit in git.CommitsByDate(tip))
 		{
-			IncludeReachableFrom = tip,
-			SortBy = CommitSortStrategies.Topological | CommitSortStrategies.Time
-		};
-
-		foreach (var commit in repo.Commits.QueryBy(filter))
-		{
-			if (!tagVersions.TryGetValue(commit.Id, out var semver))
+			if (!tagVersions.TryGetValue(commit, out var semver))
 				continue;
 			version = semver;
 			tagCommit = commit;
@@ -323,12 +281,4 @@ public static class VersioningInputsFactory
 
 		return false;
 	}
-
-	static Commit? GetTagCommit(GitObject target)
-		=> target switch
-		{
-			Commit commit => commit,
-			TagAnnotation annotation when annotation.Target is Commit commit => commit,
-			_ => null
-		};
 }

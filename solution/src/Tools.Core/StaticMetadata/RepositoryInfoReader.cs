@@ -1,10 +1,9 @@
 using System;
 using System.IO;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using Fuxion.Tools.Core.Configuration;
-using LibGit2Sharp;
+using Fuxion.Tools.Core.Git;
 
 namespace Fuxion.Tools.Core.StaticMetadata;
 
@@ -13,7 +12,7 @@ public sealed record RepositoryInfo(string? Branch, string? Commit, string? Orig
 	public static RepositoryInfo None { get; } = new(null, null, null, null);
 }
 
-// Moved from the metadata command (plan K, K2.1) so it can be tested; logic unchanged.
+// Moved from the metadata command (plan K, K2.1) so it can be tested; on the git executable since K2.2.
 public static class RepositoryInfoReader
 {
 	public static RepositoryInfo TryRead(FuxionToolsConfig config, string? configPath)
@@ -21,23 +20,16 @@ public static class RepositoryInfoReader
 		try
 		{
 			var repositoryPath = ResolveRepositoryPath((config.Versioning as GitVersioningConfig)?.RepositoryPath, configPath);
-			var discovered = Repository.Discover(repositoryPath);
-			if (string.IsNullOrWhiteSpace(discovered))
+			var git = GitClient.Discover(repositoryPath);
+			if (git is null)
 				return RepositoryInfo.None;
 
-			using var repo = new Repository(discovered);
-			var originUrl = repo.Network.Remotes["origin"]?.Url;
-			var normalizedOrigin = NormalizeOriginUrl(originUrl);
+			var normalizedOrigin = NormalizeOriginUrl(git.RemoteUrl("origin"));
 			var originUrlSha256 = string.IsNullOrWhiteSpace(normalizedOrigin) ? null : ComputeSha256(normalizedOrigin);
-			var firstCommit = repo.Head?.Tip is null
-				? null
-				: repo.Commits.QueryBy(new CommitFilter
-				{
-					IncludeReachableFrom = repo.Head.Tip,
-					SortBy = CommitSortStrategies.Topological | CommitSortStrategies.Reverse
-				}).FirstOrDefault()?.Sha;
-
-			return new(repo.Head?.FriendlyName, repo.Head?.Tip?.Sha, originUrlSha256, firstCommit);
+			var head = git.Head();
+			var firstCommit = head is null ? null : git.FirstCommit(head);
+			// a detached HEAD is named as LibGit2Sharp named it, so the generated metadata does not change
+			return new(git.CurrentBranch() ?? "(no branch)", head, originUrlSha256, firstCommit);
 		}
 		catch
 		{

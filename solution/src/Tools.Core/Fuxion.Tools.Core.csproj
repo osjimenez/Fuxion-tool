@@ -6,7 +6,6 @@
 
 	<ItemGroup>
 		<PackageReference Include="Fuxion" />
-		<PackageReference Include="LibGit2Sharp" />
 	</ItemGroup>
 
 </Project>
