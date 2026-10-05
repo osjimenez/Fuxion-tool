@@ -1,0 +1,27 @@
+<Project>
+
+	<!--
+		PROVISIONAL (plan K): the versions are the ones Fuxion-plus used when the tool was extracted. Once
+		Fuxion.Tools.Sdk exists, the common ones come from the workspace dotnet.yaml (design §7.3).
+	-->
+
+	<PropertyGroup>
+		<ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+		<CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- Fuxion 10 until a Fuxion 11 is published (plan K) -->
+		<PackageVersion Include="Fuxion" Version="10.0.18" />
+		<PackageVersion Include="LibGit2Sharp" Version="0.32.0" />
+		<PackageVersion Include="Spectre.Console" Version="0.57.2" />
+		<PackageVersion Include="Spectre.Console.Cli" Version="0.55.0" />
+	</ItemGroup>
+
+	<!-- Only for sketches/NugetPackageManager, which is in no solution (it needs Fuxion 11) -->
+	<ItemGroup>
+		<PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.12" />
+		<PackageVersion Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.12" />
+	</ItemGroup>
+
+</Project>

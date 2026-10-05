@@ -12,10 +12,8 @@
 		<PackageReference Include="Microsoft.Extensions.Configuration" />
 		<PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" />
 		<PackageReference Include="Spectre.Console" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <ProjectReference Include="$(FuxionProjectPath)" />
+		<!-- Needs Fuxion 11 (Responses); until one is published this project is in no solution (plan K) -->
+		<PackageReference Include="Fuxion" />
 	</ItemGroup>
 
 </Project>

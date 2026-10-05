@@ -5,15 +5,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<Compile Include="..\..\..\oss\solution\src\Fuxion\FuxionException.cs" Link=".Fuxion\FuxionException.cs" />
-		<Compile Include="..\..\..\oss\solution\src\Fuxion\SemanticVersion.cs" Link=".Fuxion\SemanticVersion.cs" />
-		<Compile Include="..\..\..\oss\solution\src\Fuxion\SemanticVersion.Exception.cs" Link=".Fuxion\SemanticVersion.Exception.cs" />
-		<Compile Include="..\..\..\oss\solution\src\Fuxion\SemanticVersion.Identifier.cs" Link=".Fuxion\SemanticVersion.Identifier.cs" />
-		<Compile Include="..\..\..\oss\solution\src\Fuxion\SemanticVersion.IdentifierCollection.cs" Link=".Fuxion\SemanticVersion.IdentifierCollection.cs" />
-		<Compile Include="..\..\..\oss\solution\src\Fuxion\String.EXT.cs" Link=".Fuxion\String.EXT.cs" />
-	</ItemGroup>
-
-	<ItemGroup>
+		<PackageReference Include="Fuxion" />
 		<PackageReference Include="LibGit2Sharp" />
 	</ItemGroup>
 

@@ -1,0 +1,33 @@
+<Project>
+
+	<!--
+		PROVISIONAL (plan K): the minimum this repo needs to build on its own, until Fuxion.Tools.Sdk is published and
+		this repo uses it like any other (design §7.1). Copied from Fuxion's oss/solution/.config
+		(Core.Frameworks.props, Project.Default.props); no path to any other repo.
+	-->
+
+	<PropertyGroup>
+
+		<!-- Frameworks -->
+		<LatestCoreFramework>net11.0</LatestCoreFramework>
+
+		<!-- Language -->
+		<LangVersion>preview</LangVersion>
+
+		<!-- Nullable -->
+		<Nullable>enable</Nullable>
+
+		<!-- Usings -->
+		<ImplicitUsings>disable</ImplicitUsings>
+
+		<!-- Packable -->
+		<IsPackable>false</IsPackable>
+
+		<!-- Warnings -->
+		<WarningsAsErrors>Nullable</WarningsAsErrors>
+		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+	</PropertyGroup>
+
+</Project>

@@ -1,0 +1,22 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".gitignore" />
+    <File Path="global.json" />
+    <File Path="LICENSE" />
+    <File Path="README.md" />
+    <File Path="solution/Directory.Build.props" />
+    <File Path="solution/Directory.Packages.props" />
+  </Folder>
+  <Folder Name="/.config/">
+    <File Path="solution/.config/dotnet-tools.json" />
+    <File Path="solution/.config/fuxion-tools.json" />
+    <File Path="solution/.config/targets/Tools.Build.targets" />
+    <File Path="solution/.config/targets/Tools.Metadata.targets" />
+    <File Path="solution/.config/targets/Tools.Versioning.targets" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="solution/src/Tools.Core/Fuxion.Tools.Core.csproj" />
+    <Project Path="solution/src/Tools.MSBuild/Fuxion.Tools.MSBuild.csproj" />
+    <Project Path="solution/src/Tools/Fuxion.Tools.csproj" />
+  </Folder>
+</Solution>

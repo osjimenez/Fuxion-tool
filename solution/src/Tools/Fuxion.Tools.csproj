@@ -10,7 +10,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="$(Tools_CoreProjectPath)" />
+		<ProjectReference Include="..\Tools.Core\Fuxion.Tools.Core.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
