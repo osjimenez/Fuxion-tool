@@ -2,6 +2,8 @@
 
 	<PropertyGroup>
 		<TargetFramework>$(LatestCoreFramework)</TargetFramework>
+		<!-- fx is published with native AOT: the analyzers keep this library free of trimming and AOT warnings -->
+		<IsAotCompatible>true</IsAotCompatible>
 	</PropertyGroup>
 
 	<ItemGroup>

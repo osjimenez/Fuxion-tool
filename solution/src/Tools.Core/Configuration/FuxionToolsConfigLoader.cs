@@ -13,12 +13,7 @@ public static class FuxionToolsConfigLoader
 		try
 		{
 			var json = File.ReadAllText(configPath);
-			var cfg = JsonSerializer.Deserialize<FuxionToolsConfig>(json, new JsonSerializerOptions
-			{
-				PropertyNameCaseInsensitive = true,
-				ReadCommentHandling = JsonCommentHandling.Skip,
-				AllowTrailingCommas = true
-			});
+			var cfg = JsonSerializer.Deserialize(json, FuxionToolsConfigJsonContext.Default.FuxionToolsConfig);
 
 			return cfg ?? new();
 		}
