@@ -130,6 +130,18 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		Assert.False(Directory.Exists(Path.Combine(repo.Path, "~$publish")));
 	}
 
+	[Fact(DisplayName = "pack in a workspace from a repo not at <name>/repo (a submodule): <workspace>/~$publish/<folder>/nupkgs")]
+	public void Pack_WorkspaceSubmodule()
+	{
+		var workspace = Directory.CreateDirectory(Path.Combine(fixture.Root, "ws-" + Guid.NewGuid().ToString("N")[..8])).FullName;
+		Directory.CreateDirectory(Path.Combine(workspace, "_fx"));
+		File.WriteAllText(Path.Combine(workspace, "_fx", "workspace.yaml"), "version: 1\n");
+		using var repo = Sample(path: Path.Combine(workspace, "plus", "repo", "lib"));
+		Succeeded(fixture.Build(Lib(repo), "-t:Pack"));
+
+		Assert.True(File.Exists(Path.Combine(workspace, "~$publish", "lib", "nupkgs", "Lib.2.3.1.nupkg")));
+	}
+
 	[Fact(DisplayName = "FxVersioningEnabled=false: the SDK leaves the version and the metadata alone")]
 	public void VersioningDisabled()
 	{

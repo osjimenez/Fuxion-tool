@@ -33,8 +33,11 @@
 		<FxRepositoryRoot Condition="'$(FxRepositoryRoot)' == '' And '$(_FxGlobalJsonDirectory)' != ''">$([MSBuild]::NormalizeDirectory('$(_FxGlobalJsonDirectory)'))</FxRepositoryRoot>
 		<_FxWorkspaceDirectory Condition="'$(FxWorkspaceRoot)' == '' And '$(FxRepositoryRoot)' != ''">$([MSBuild]::GetDirectoryNameOfFileAbove($([MSBuild]::NormalizeDirectory('$(FxRepositoryRoot)', '..')), '_fx/workspace.yaml'))</_FxWorkspaceDirectory>
 		<FxWorkspaceRoot Condition="'$(FxWorkspaceRoot)' == '' And '$(_FxWorkspaceDirectory)' != ''">$([MSBuild]::NormalizeDirectory('$(_FxWorkspaceDirectory)'))</FxWorkspaceRoot>
-		<!-- In a workspace a repo is mounted at <name>/repo: its name is the folder above -->
-		<FxRepositoryName Condition="'$(FxRepositoryName)' == '' And '$(FxWorkspaceRoot)' != ''">$([System.IO.Path]::GetFileName($([System.IO.Path]::GetDirectoryName($(FxRepositoryRoot.TrimEnd('\').TrimEnd('/'))))))</FxRepositoryName>
+		<!-- The name of the repo in a workspace: mounted at <name>/repo, the folder above; otherwise (a submodule, like
+		     plus/repo/oss) its own folder -->
+		<_FxRepositoryFolder Condition="'$(FxRepositoryRoot)' != ''">$([System.IO.Path]::GetFileName($(FxRepositoryRoot.TrimEnd('\').TrimEnd('/'))))</_FxRepositoryFolder>
+		<FxRepositoryName Condition="'$(FxRepositoryName)' == '' And '$(FxWorkspaceRoot)' != '' And '$(_FxRepositoryFolder)' == 'repo'">$([System.IO.Path]::GetFileName($([System.IO.Path]::GetDirectoryName($(FxRepositoryRoot.TrimEnd('\').TrimEnd('/'))))))</FxRepositoryName>
+		<FxRepositoryName Condition="'$(FxRepositoryName)' == '' And '$(FxWorkspaceRoot)' != ''">$(_FxRepositoryFolder)</FxRepositoryName>
 
 		<!-- Packages: <workspace>/~$publish/<repo>/nupkgs, or <repo>/~$publish/nupkgs outside a workspace (D-36) -->
 		<FxPublishDirectory Condition="'$(FxPublishDirectory)' == '' And '$(FxWorkspaceRoot)' != ''">$([MSBuild]::NormalizeDirectory('$(FxWorkspaceRoot)', '~$publish', '$(FxRepositoryName)'))</FxPublishDirectory>
