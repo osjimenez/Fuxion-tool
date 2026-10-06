@@ -1,7 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>$(LatestCoreFramework)</TargetFramework>
+		<!-- net10.0: the SDK tasks run this on the .NET task host of MSBuild, which is .NET 10 with the SDK 10 of a
+		     stable Visual Studio (plan K, K3.1) -->
+		<TargetFramework>net10.0</TargetFramework>
 		<!-- fx is published with native AOT: the analyzers keep this library free of trimming and AOT warnings -->
 		<IsAotCompatible>true</IsAotCompatible>
 	</PropertyGroup>

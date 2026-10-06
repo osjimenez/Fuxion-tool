@@ -110,6 +110,13 @@ public sealed class GitClient
 
 	public string? RemoteUrl(string remote) => Optional("config", "--get", $"remote.{remote}.url");
 
+	/// <summary>Committer date of a commit.</summary>
+	public DateTimeOffset? CommitDate(string commit)
+		=> Optional("show", "-s", "--format=%cI", commit) is { } date
+		   && DateTimeOffset.TryParse(date, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsed)
+			? parsed
+			: null;
+
 	/// <summary>Creates a lightweight tag. Local only: nothing is pushed.</summary>
 	public void CreateTag(string name, string commit) => Required("tag", name, commit);
 

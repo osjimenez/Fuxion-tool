@@ -1,0 +1,11 @@
+<Project>
+
+	<!-- Fuxion.Tools.Sdk in the outer build of a multi-targeted project (the one that packs it): hooked by Sdk.props as
+	     CustomAfterMicrosoftCommonCrossTargetingTargets, keeping whatever was there before. -->
+
+	<Import Project="$(_FxPreviousCustomAfterCrossTargetingTargets)"
+	        Condition="'$(_FxPreviousCustomAfterCrossTargetingTargets)' != '' And Exists('$(_FxPreviousCustomAfterCrossTargetingTargets)')" />
+
+	<Import Project="$(MSBuildThisFileDirectory)Fuxion.Tools.Sdk.targets" />
+
+</Project>

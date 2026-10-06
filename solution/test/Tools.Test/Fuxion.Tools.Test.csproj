@@ -15,6 +15,8 @@
 		<ProjectReference Include="..\..\src\Tools.Core\Fuxion.Tools.Core.csproj" />
 		<!-- the CLI runs in process (FxApp.Run) -->
 		<ProjectReference Include="..\..\src\Tools\Fuxion.Tools.csproj" />
+		<!-- built before the tests, which pack it (SdkFixture) -->
+		<ProjectReference Include="..\..\src\Tools.Sdk\Fuxion.Tools.Sdk.csproj" ReferenceOutputAssembly="false" />
 	</ItemGroup>
 
 </Project>

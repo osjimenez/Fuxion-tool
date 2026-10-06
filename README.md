@@ -22,15 +22,48 @@ Global options: --root <path>, --output human|json, --verbose, --plain
 - `--output json` writes one document on stdout with a versioned schema (`fx-version/1`, `fx-version-tag/1`) and the
   diagnostics, each with a stable code (`version.no-tag`…). Exit code 1 only with errors.
 
+## `Fuxion.Tools.Sdk`
+
+An MSBuild SDK with what every Fuxion repo shares. A repo pins it in the `global.json` at its root and imports it in
+`Directory.Build.props`, after the properties of the area:
+
+```json
+{ "msbuild-sdks": { "Fuxion.Tools.Sdk": "0.1.0" } }
+```
+
+```xml
+<Project>
+	<PropertyGroup>
+		<FxPackable>true</FxPackable>
+	</PropertyGroup>
+	<Import Project="Sdk.props" Sdk="Fuxion.Tools.Sdk" />
+</Project>
+```
+
+- **Version from git**, the same as `fx version`, set before anything reads it (assembly attributes, package):
+  calculated once per repository and build. `FxVersioningEnabled=false` turns it off.
+- **Static metadata**: `Fx.Metadata.<Project>.{Project, Build, Versioning, Repository, Json}`, generated in `obj/`. The
+  build date is the date of the HEAD commit (or `SOURCE_DATE_EPOCH`), so the file only changes with the commit.
+- **Defaults** of the Fuxion repos (C# preview, nullable, warnings as errors…), **packages** (`FxPackable`: XML docs,
+  symbols, `PACKAGE_README.md`, `FxPackageIconFile`), **test projects** (`FxTestProject`: xUnit v3 on Microsoft.Testing
+  Platform, with coverage), **PolySharp** on netstandard and .NET Framework, and translated XML docs
+  (`FxDocumentationLanguages`).
+- Packages go to `<workspace>/~$publish/<repo>/nupkgs` inside a Fuxion workspace, or `<repo>/~$publish/nupkgs`.
+- The tasks run on the .NET task host of MSBuild: in process under `dotnet build`, out of process under Visual Studio
+  (its MSBuild is .NET Framework). That is why they, and `Fuxion.Tools.Core`, target `net10.0`.
+
+The settings are listed at the top of `solution/src/Tools.Sdk/Sdk/Sdk.props`.
+
 ## Layout
 
 - `FxTool.slnx` at the root; projects under `solution/src` (`Fuxion.Tools`, the `fx` command; `Fuxion.Tools.Core`,
-  the logic; `Fuxion.Tools.MSBuild`, empty, the future `Fuxion.Tools.Sdk`) and tests under `solution/test`.
-- `solution/Directory.Build.props` and `solution/Directory.Packages.props` are provisional until `Fuxion.Tools.Sdk` is
-  published.
+  the logic; `Fuxion.Tools.Sdk`, the SDK) and tests under `solution/test`.
+- `solution/Directory.Build.props` and `solution/Directory.Packages.props` are provisional: this repo does not use its
+  own SDK yet.
 - `solution/sketches/NugetPackageManager` (list, unlist and deprecate Fuxion packages on nuget.org) is in no solution
   yet: it needs Fuxion 11.
-- `solution/.config` keeps the MSBuild targets that integrate the tool in the Fuxion build today: the seed of the SDK.
+- `solution/.config` keeps the MSBuild targets that integrate the old tool in the Fuxion-plus build, which the SDK
+  replaces.
 
 ## Build, test, publish
 
@@ -41,7 +74,8 @@ dotnet publish solution/src/Tools/Fuxion.Tools.csproj -c Release -r win-x64 -o <
 ```
 
 The tests build throwaway git repositories under the temp folder with the real `git`, isolated from the user's git
-configuration. Publishing needs the C++ build tools of Visual Studio (native AOT); from Git Bash, add
+configuration; the SDK tests pack the SDK and build sample repositories with it (`dotnet build` and, if Visual
+Studio is installed, its `MSBuild.exe`). Publishing needs the C++ build tools of Visual Studio (native AOT); from Git Bash, add
 `C:\Program Files (x86)\Microsoft Visual Studio\Installer` to the `PATH` so the linker finds `vswhere.exe`.
 
 Licensed under the [MIT license](LICENSE).

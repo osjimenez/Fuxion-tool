@@ -13,6 +13,8 @@
 	<ItemGroup>
 		<!-- Fuxion 10 until a Fuxion 11 is published (plan K) -->
 		<PackageVersion Include="Fuxion" Version="10.0.18" />
+		<!-- the SDK tasks compile against it (18.0: the first with net10.0); at run time MSBuild provides it -->
+		<PackageVersion Include="Microsoft.Build.Utilities.Core" Version="18.0.2" />
 		<PackageVersion Include="Spectre.Console" Version="0.57.2" />
 		<PackageVersion Include="System.CommandLine" Version="2.0.12" />
 	</ItemGroup>

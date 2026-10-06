@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+		Fuxion.Tools.Sdk, the MSBuild SDK of the Fuxion repos (design §7, D-35). A repo pins it in global.json
+		(msbuild-sdks) and imports it with <Sdk Name="Fuxion.Tools.Sdk" /> in its Directory.Build.props.
+		The tasks run on the .NET task host of MSBuild (UsingTask Runtime="NET"): in process under dotnet build, out of
+		process under Visual Studio (plan K, K3.1). That is why this project and Core are net10.0.
+	-->
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<PackageId>Fuxion.Tools.Sdk</PackageId>
+		<Description>MSBuild SDK of the Fuxion repos: shared build settings, versioning from git and static metadata.</Description>
+		<PackageType>MSBuildSdk</PackageType>
+		<IsPackable>true</IsPackable>
+		<!-- the tasks and everything they need go to tasks/net10.0; the package has no dependencies -->
+		<BuildOutputTargetFolder>tasks</BuildOutputTargetFolder>
+		<SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);_FxIncludeTaskDependencies</TargetsForTfmSpecificBuildOutput>
+		<!-- NU5100: the assemblies are in tasks/, not lib/, on purpose; NU5128: no lib/ to match the dependencies -->
+		<NoWarn>$(NoWarn);NU5100;NU5128</NoWarn>
+		<Version>0.1.0-local</Version>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Build.Utilities.Core" PrivateAssets="all" ExcludeAssets="runtime" />
+		<ProjectReference Include="..\Tools.Core\Fuxion.Tools.Core.csproj" PrivateAssets="all" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="Sdk\**" Pack="true" PackagePath="Sdk" />
+		<None Include="build\**" Pack="true" PackagePath="build" />
+	</ItemGroup>
+
+	<!-- Core, Fuxion and the rest of the copy-local assemblies next to the tasks (MSBuild provides its own) -->
+	<Target Name="_FxIncludeTaskDependencies" DependsOnTargets="ResolveReferences">
+		<ItemGroup>
+			<BuildOutputInPackage Include="@(ReferenceCopyLocalPaths)"
+			                      TargetPath="%(ReferenceCopyLocalPaths.DestinationSubDirectory)%(ReferenceCopyLocalPaths.Filename)%(ReferenceCopyLocalPaths.Extension)"
+			                      Condition="'%(ReferenceCopyLocalPaths.Extension)' == '.dll' And !$([System.String]::Copy('%(Filename)').StartsWith('Microsoft.Build'))" />
+		</ItemGroup>
+	</Target>
+
+</Project>

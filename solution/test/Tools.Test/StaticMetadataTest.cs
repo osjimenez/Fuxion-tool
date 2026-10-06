@@ -112,26 +112,38 @@ public sealed class StaticMetadataTest : IDisposable
 		Assert.False(StaticMetadataFileGenerator.DeleteIfExists(path));
 	}
 
-	// Known bugs, pinned as they are: K3 fixes them when the generation moves to the SDK tasks.
+	// Two bugs that K2.1 pinned as they were (KNOWN BUG) and K3.2 fixed.
 
-	[Fact(DisplayName = "KNOWN BUG (K3): the build date of the request is ignored, so the file is rewritten on every build")]
-	public void KnownBug_BuildDateIgnored()
+	[Fact(DisplayName = "the build date is the one of the request, so the same request does not rewrite the file")]
+	public void BuildDate_FromRequest()
 	{
 		var request = Request(DefaultVersionPropsProvider.FromInputs(new("1.2.3", "+local")));
 		Assert.True(StaticMetadataFileGenerator.Generate(request));
-		Assert.DoesNotContain($"new global::System.DateTime({new DateTime(2020, 1, 1).Ticks}L)", File.ReadAllText(request.OutputPath));
+		Assert.Contains($"new global::System.DateTime({new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc).Ticks}L, global::System.DateTimeKind.Utc)",
+			File.ReadAllText(request.OutputPath));
 		Thread.Sleep(20);
-		Assert.True(StaticMetadataFileGenerator.Generate(request));
+		Assert.False(StaticMetadataFileGenerator.Generate(request));
 	}
 
-	[Fact(DisplayName = "KNOWN BUG (K3): without version, the Json class still references Versioning")]
-	public void KnownBug_JsonWithoutVersioning()
+	[Fact(DisplayName = "without version, neither the Versioning class nor its section in the Json class")]
+	public void JsonWithoutVersioning()
 	{
 		var request = Request(version: null);
 		StaticMetadataFileGenerator.Generate(request);
 		var source = File.ReadAllText(request.OutputPath);
 		Assert.DoesNotContain("public static partial class Versioning", source);
-		Assert.Contains("{{Versioning.Version}}", source);
+		Assert.DoesNotContain("{{Versioning.", source);
+		Assert.Contains("{{Repository.Branch}}", source);
+	}
+
+	[Fact(DisplayName = "with version, the Versioning section of the Json class")]
+	public void JsonWithVersioning()
+	{
+		var request = Request(DefaultVersionPropsProvider.FromInputs(new("1.2.3", "+local")));
+		StaticMetadataFileGenerator.Generate(request);
+		var source = File.ReadAllText(request.OutputPath).Replace("\r\n", "\n");
+		Assert.Contains("\t\t\t\t\"Versioning\": {\n\t\t\t\t\t\"Version\": \"{{Versioning.Version}}\",", source);
+		Assert.Contains("\t\t\t\t},\n\t\t\t\t\"Repository\": {", source);
 	}
 
 	static string Sha256(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));

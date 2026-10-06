@@ -1,0 +1,123 @@
+<Project>
+
+	<!--
+		Fuxion.Tools.Sdk: the late part, after the project file, imported by Fuxion.Tools.Sdk.Inner.targets (each target
+		framework) and Fuxion.Tools.Sdk.Outer.targets (the outer build of a multi-targeted project).
+	-->
+
+	<!-- Variables of the repo that depend on the target framework, generated from _fx/dotnet.yaml (design §7.3) -->
+	<Import Project="$(FxRepositoryRoot)_fx\dotnet.g.targets" Condition="'$(FxRepositoryRoot)' != '' And Exists('$(FxRepositoryRoot)_fx\dotnet.g.targets')" />
+
+	<PropertyGroup>
+		<FxVersioningEnabled Condition="'$(FxVersioningEnabled)' == '' And '$(FxRepositoryRoot)' != ''">true</FxVersioningEnabled>
+		<FxVersionFailOnError Condition="'$(FxVersionFailOnError)' == ''">true</FxVersionFailOnError>
+		<FxStaticMetadataEnabled Condition="'$(FxStaticMetadataEnabled)' == ''">$(FxVersioningEnabled)</FxStaticMetadataEnabled>
+		<FxStaticMetadataNamespace Condition="'$(FxStaticMetadataNamespace)' == ''">Fx.Metadata</FxStaticMetadataNamespace>
+		<FxStaticMetadataFile>$(IntermediateOutputPath)Fuxion.StaticMetadata.g.cs</FxStaticMetadataFile>
+		<FxPolySharp Condition="'$(FxPolySharp)' == ''">true</FxPolySharp>
+		<FxDocumentationDirectory Condition="'$(FxDocumentationDirectory)' == ''">$(MSBuildProjectDirectory)\~$docs\</FxDocumentationDirectory>
+		<_FxTasksAssembly>$(MSBuildThisFileDirectory)..\tasks\net10.0\Fuxion.Tools.Sdk.dll</_FxTasksAssembly>
+	</PropertyGroup>
+
+	<!-- In process under dotnet build; on the .NET task host of MSBuild under Visual Studio (plan K, K3.1) -->
+	<UsingTask TaskName="Fuxion.Tools.Sdk.FxVersion" AssemblyFile="$(_FxTasksAssembly)" Runtime="NET" />
+	<UsingTask TaskName="Fuxion.Tools.Sdk.FxStaticMetadata" AssemblyFile="$(_FxTasksAssembly)" Runtime="NET" />
+
+	<!-- ====================================================================================================== -->
+	<!-- Version from git (design §9): before anything reads it, as MinVer and Nerdbank.GitVersioning do. Once per -->
+	<!-- repo and build: the task caches it for the whole build.                                                -->
+	<!-- ====================================================================================================== -->
+	<Target Name="FxVersion"
+	        BeforeTargets="GetAssemblyVersion;GenerateNuspec;_GetProjectVersion"
+	        Condition="'$(FxVersioningEnabled)' == 'true' And '$(DesignTimeBuild)' != 'true'">
+		<Fuxion.Tools.Sdk.FxVersion RepositoryRoot="$(FxRepositoryRoot)"
+		                            FailOnError="$(FxVersionFailOnError)"
+		                            ForceCi="$(FxVersionForceCi)"
+		                            InformationalSuffix="$(FxInformationalSuffix)">
+			<Output TaskParameter="Version" PropertyName="Version" />
+			<Output TaskParameter="PackageVersion" PropertyName="PackageVersion" />
+			<Output TaskParameter="AssemblyVersion" PropertyName="AssemblyVersion" />
+			<Output TaskParameter="FileVersion" PropertyName="FileVersion" />
+			<Output TaskParameter="InformationalVersion" PropertyName="InformationalVersion" />
+		</Fuxion.Tools.Sdk.FxVersion>
+		<PropertyGroup>
+			<_FxVersionCalculated>true</_FxVersionCalculated>
+		</PropertyGroup>
+	</Target>
+
+	<!-- ====================================================================================================== -->
+	<!-- Static metadata: Fx.Metadata.<Project>.{Project, Build, Versioning, Repository, Json} in obj/           -->
+	<!-- ====================================================================================================== -->
+	<Target Name="FxStaticMetadata"
+	        BeforeTargets="CoreCompile"
+	        DependsOnTargets="FxVersion"
+	        Condition="'$(FxStaticMetadataEnabled)' == 'true' And '$(DesignTimeBuild)' != 'true' And '$(TargetFramework)' != '' And '$(Language)' == 'C#'">
+		<Fuxion.Tools.Sdk.FxStaticMetadata RepositoryRoot="$(FxRepositoryRoot)"
+		                                   OutputPath="$(FxStaticMetadataFile)"
+		                                   ProjectName="$(MSBuildProjectName)"
+		                                   Namespace="$(FxStaticMetadataNamespace)"
+		                                   TargetFramework="$(TargetFramework)"
+		                                   Configuration="$(Configuration)"
+		                                   VersionCalculated="$(_FxVersionCalculated)"
+		                                   Version="$(Version)"
+		                                   PackageVersion="$(PackageVersion)"
+		                                   AssemblyVersion="$(AssemblyVersion)"
+		                                   FileVersion="$(FileVersion)"
+		                                   InformationalVersion="$(InformationalVersion)" />
+	</Target>
+
+	<!-- Also in design-time builds, so IntelliSense sees the classes once a build has generated them -->
+	<Target Name="FxIncludeStaticMetadata"
+	        BeforeTargets="CoreCompile"
+	        AfterTargets="FxStaticMetadata"
+	        Condition="'$(FxStaticMetadataEnabled)' == 'true' And '$(TargetFramework)' != '' And '$(Language)' == 'C#'">
+		<ItemGroup Condition="Exists('$(FxStaticMetadataFile)')">
+			<Compile Include="$(FxStaticMetadataFile)" Visible="false" />
+			<FileWrites Include="$(FxStaticMetadataFile)" />
+		</ItemGroup>
+	</Target>
+
+	<!-- ====================================================================================================== -->
+	<!-- Packages, tests, PolySharp, documentation                                                              -->
+	<!-- ====================================================================================================== -->
+	<PropertyGroup Condition="'$(FxPackable)' == 'true'">
+		<PackageReadmeFile Condition="'$(PackageReadmeFile)' == '' And Exists('$(MSBuildProjectDirectory)\PACKAGE_README.md')">PACKAGE_README.md</PackageReadmeFile>
+		<PackageIcon Condition="'$(PackageIcon)' == '' And '$(FxPackageIconFile)' != ''">$([System.IO.Path]::GetFileName('$(FxPackageIconFile)'))</PackageIcon>
+		<TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);FxIncludeTranslatedDocumentation</TargetsForTfmSpecificContentInPackage>
+	</PropertyGroup>
+
+	<ItemGroup Condition="'$(FxPackable)' == 'true'">
+		<None Include="$(MSBuildProjectDirectory)\PACKAGE_README.md" Pack="true" PackagePath="\" Condition="'$(PackageReadmeFile)' == 'PACKAGE_README.md'" />
+		<None Include="$(FxPackageIconFile)" Pack="true" PackagePath="\" Visible="false" Condition="'$(FxPackageIconFile)' != ''" />
+	</ItemGroup>
+
+	<!-- xUnit v3 on Microsoft.Testing.Platform; item conditions see what the project set (helper libraries in a test
+	     area set OutputType=Library, executables that are not tests set IsTestProject=false) -->
+	<ItemGroup Condition="'$(FxTestProject)' == 'true' And '$(OutputType)' == 'Exe' And '$(IsTestProject)' != 'false'">
+		<PackageReference Include="xunit.v3" />
+		<PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+	</ItemGroup>
+
+	<!-- The latest language features on netstandard and .NET Framework -->
+	<ItemGroup Condition="'$(FxPolySharp)' == 'true' And ($(TargetFramework.StartsWith('netstandard')) Or $(TargetFramework.StartsWith('net4')))">
+		<PackageReference Include="PolySharp" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+	</ItemGroup>
+
+	<!-- The English XML documentation is copied to ~$docs/en for the translators; ~$docs/<lang>/<Assembly>.xml is
+	     packed for each language of FxDocumentationLanguages (from oss/solution/.config/targets/Documentation.targets) -->
+	<Target Name="FxCopyEnglishDocumentation"
+	        AfterTargets="CoreCompile"
+	        Condition="'$(GenerateDocumentationFile)' == 'true' And '$(TargetFramework)' != '' And '$(FxDocumentationLanguages)' != ''">
+		<Copy SourceFiles="@(DocFileItem)" DestinationFolder="$(FxDocumentationDirectory)en" SkipUnchangedFiles="true" Condition="Exists('@(DocFileItem)')" />
+	</Target>
+
+	<Target Name="FxIncludeTranslatedDocumentation">
+		<ItemGroup>
+			<_FxDocumentationLanguage Include="$(FxDocumentationLanguages)" />
+			<TfmSpecificPackageFile Include="$(FxDocumentationDirectory)%(_FxDocumentationLanguage.Identity)\$(AssemblyName).xml"
+			                        PackagePath="lib/$(TargetFramework)/%(_FxDocumentationLanguage.Identity)"
+			                        Condition="Exists('$(FxDocumentationDirectory)%(_FxDocumentationLanguage.Identity)\$(AssemblyName).xml')" />
+		</ItemGroup>
+	</Target>
+
+</Project>

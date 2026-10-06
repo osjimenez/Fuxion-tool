@@ -7,7 +7,8 @@ using Fuxion.Tools.Core.Git;
 
 namespace Fuxion.Tools.Core.StaticMetadata;
 
-public sealed record RepositoryInfo(string? Branch, string? Commit, string? OriginUrlSHA256, string? FirstCommit)
+/// <param name="CommitDateUtc">Committer date of HEAD: the build date of a reproducible build (plan K, K3.2).</param>
+public sealed record RepositoryInfo(string? Branch, string? Commit, string? OriginUrlSHA256, string? FirstCommit, DateTimeOffset? CommitDateUtc = null)
 {
 	public static RepositoryInfo None { get; } = new(null, null, null, null);
 }
@@ -29,7 +30,7 @@ public static class RepositoryInfoReader
 			var head = git.Head();
 			var firstCommit = head is null ? null : git.FirstCommit(head);
 			// a detached HEAD is named as LibGit2Sharp named it, so the generated metadata does not change
-			return new(git.CurrentBranch() ?? "(no branch)", head, originUrlSha256, firstCommit);
+			return new(git.CurrentBranch() ?? "(no branch)", head, originUrlSha256, firstCommit, head is null ? null : git.CommitDate(head)?.ToUniversalTime());
 		}
 		catch
 		{

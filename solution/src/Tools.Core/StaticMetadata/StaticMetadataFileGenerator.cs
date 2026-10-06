@@ -104,7 +104,7 @@ public static class StaticMetadataFileGenerator
 					/// <summary>
 					/// The UTC date and time when the build was performed. This is generated at build time using the current UTC date and time, and can be used for various purposes, such as logging, diagnostics, or displaying in the application. The value is represented as a DateTimeOffset to include both the date and time along with the offset from UTC (which is zero in this case). Note that this value is generated at build time, so it will reflect the time when the build was performed, not necessarily the time when the application is running.
 					/// </summary>
-					public static readonly global::System.DateTime BuildDateUtc = new global::System.DateTime({{DateTimeOffset.UtcNow.Ticks}}L);
+					public static readonly global::System.DateTime BuildDateUtc = new global::System.DateTime({{ParseBuildDate(request.BuildDateUtc).Ticks}}L, global::System.DateTimeKind.Utc);
 					/// <summary>
 					/// Gets the assembly of the build class. This can be useful for scenarios where you want to access assembly-level attributes or metadata related to the build. The Assembly property returns the assembly that contains the Build class, which is the assembly generated for this static metadata. Note that this assembly will contain the static metadata for the build, and may not necessarily be the same as the assembly of the currently running application (if different).
 					/// </summary>
@@ -190,14 +190,7 @@ public static class StaticMetadataFileGenerator
 								"Configuration": "{{Build.Configuration}}",
 								"BuildDateUtc": "{{Build.BuildDateUtc:O}}"
 							},
-							"Versioning": {
-								"Version": "{{Versioning.Version}}",
-								"PackageVersion": "{{Versioning.PackageVersion}}",
-								"AssemblyVersion": "{{Versioning.AssemblyVersion}}",
-								"FileVersion": "{{Versioning.FileVersion}}",
-								"InformationalVersion": "{{Versioning.InformationalVersion}}"
-							},
-							"Repository": {
+			__VERSIONING__				"Repository": {
 								"Branch": "{{Repository.Branch}}",
 								"Commit": "{{Repository.Commit}}",
 								"OriginUrlSHA256": "{{Repository.OriginUrlSHA256}}",
@@ -206,7 +199,7 @@ public static class StaticMetadataFileGenerator
 						}
 						""";
 				}
-			"""");
+			"""".Replace("__VERSIONING__", request.VersionProps is null ? "" : VersioningJson, StringComparison.Ordinal));
 
 		// FOOTER
 		b.AppendLine("""
@@ -215,6 +208,25 @@ public static class StaticMetadataFileGenerator
 
 		return b.ToString();
 	}
+
+	// The Versioning section of the JSON, only when there is a version: without it the Json class referenced a
+	// Versioning class that was not generated (a KNOWN BUG of K2.1, fixed in K3.2).
+	const string VersioningJson = """
+					"Versioning": {
+						"Version": "{{Versioning.Version}}",
+						"PackageVersion": "{{Versioning.PackageVersion}}",
+						"AssemblyVersion": "{{Versioning.AssemblyVersion}}",
+						"FileVersion": "{{Versioning.FileVersion}}",
+						"InformationalVersion": "{{Versioning.InformationalVersion}}"
+					},
+
+	""";
+
+	// The build date comes from the request (the caller decides: SOURCE_DATE_EPOCH, the commit date…), so the same
+	// inputs give the same file and it is not rewritten on every build (a KNOWN BUG of K2.1, fixed in K3.2).
+	static DateTime ParseBuildDate(string value)
+		=> DateTimeOffset.Parse(value, System.Globalization.CultureInfo.InvariantCulture,
+			System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal).UtcDateTime;
 
 	private static string? GetTargetFrameworkSymbol(string? targetFramework)
 	{

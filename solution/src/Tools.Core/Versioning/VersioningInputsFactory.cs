@@ -17,13 +17,13 @@ public static class VersioningInputsFactory
 		=> Calculate(config, configPath).Inputs;
 
 	/// <summary>The version and, when it comes from git, how it was calculated.</summary>
-	public static VersioningResult Calculate(FuxionToolsConfig config, string? configPath = null)
+	public static VersioningResult Calculate(FuxionToolsConfig config, string? configPath = null, Action<string>? warn = null)
 	{
 		config ??= new();
 		return config.Versioning switch
 		{
 			FixedVersioningConfig fixedCfg => new(CreateFixed(fixedCfg), null),
-			GitVersioningConfig gitCfg => CreateGit(gitCfg, configPath),
+			GitVersioningConfig gitCfg => CreateGit(gitCfg, configPath, warn ?? (message => Console.Error.WriteLine(message))),
 			_ => new(VersioningInputs.Default, null)
 		};
 	}
@@ -35,18 +35,18 @@ public static class VersioningInputsFactory
 		return new(version, suffix);
 	}
 
-	static VersioningResult CreateGit(GitVersioningConfig cfg, string? configPath)
+	static VersioningResult CreateGit(GitVersioningConfig cfg, string? configPath, Action<string> warn)
 	{
 		var suffix = ResolveInformationalSuffix(cfg.InformationalSuffix, cfg.ForceCIEnvironment);
 		try
 		{
 			var git = GitClient.Discover(ResolveRepositoryPath(cfg.RepositoryPath, configPath));
 			if (git is null)
-				return FailOrDefault(cfg, suffix, VersioningErrorCodes.RepositoryNotFound, "Git repository not found.");
+				return FailOrDefault(cfg, suffix, warn, VersioningErrorCodes.RepositoryNotFound, "Git repository not found.");
 
 			var head = git.Head();
 			if (head is null)
-				return FailOrDefault(cfg, suffix, VersioningErrorCodes.NoCommits, "Git HEAD not available (repository has no commits).");
+				return FailOrDefault(cfg, suffix, warn, VersioningErrorCodes.NoCommits, "Git HEAD not available (repository has no commits).");
 
 			var branchName = git.CurrentBranch() ?? DetachedBranchName;
 			var stableTip = git.BranchTip("master") ?? git.BranchTip("main") ?? head;
@@ -54,7 +54,7 @@ public static class VersioningInputsFactory
 			VersioningResult Result(string version, GitVersionRule rule, LastVersionTag tag, int commitsSinceTag, string? mergeBase = null, int? branchCommits = null)
 				=> new(new(version, suffix), new(git.Root, branchName, rule, head, stableTip, mergeBase, tag.Name, tag.Commit, commitsSinceTag, branchCommits));
 
-			VersioningResult NoTag(string reason) => FailOrDefault(cfg, suffix, VersioningErrorCodes.NoTag, reason);
+			VersioningResult NoTag(string reason) => FailOrDefault(cfg, suffix, warn, VersioningErrorCodes.NoTag, reason);
 
 			if (IsPreviewBranch(branchName))
 			{
@@ -116,7 +116,7 @@ public static class VersioningInputsFactory
 		}
 		catch (Exception ex)
 		{
-			return FailOrDefault(cfg, suffix, VersioningErrorCodes.GitFailed, ex.ToString());
+			return FailOrDefault(cfg, suffix, warn, VersioningErrorCodes.GitFailed, ex.ToString());
 		}
 	}
 
@@ -155,11 +155,11 @@ public static class VersioningInputsFactory
 			: Path.GetFullPath(Path.Combine(baseDir, repositoryPath));
 	}
 
-	static VersioningResult FailOrDefault(GitVersioningConfig cfg, string suffix, string code, string reason)
+	static VersioningResult FailOrDefault(GitVersioningConfig cfg, string suffix, Action<string> warn, string code, string reason)
 	{
 		if (!cfg.FailOnError)
 		{
-			Console.Error.WriteLine($"[Warn] Git versioning fallback: {reason}");
+			warn($"[Warn] Git versioning fallback: {reason}");
 			return new(new(VersioningInputs.Default.BaseVersion, suffix), null);
 		}
 		throw new VersioningException(code, $"Git versioning failed: {reason}");

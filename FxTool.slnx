@@ -16,7 +16,7 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="solution/src/Tools.Core/Fuxion.Tools.Core.csproj" />
-    <Project Path="solution/src/Tools.MSBuild/Fuxion.Tools.MSBuild.csproj" />
+    <Project Path="solution/src/Tools.Sdk/Fuxion.Tools.Sdk.csproj" />
     <Project Path="solution/src/Tools/Fuxion.Tools.csproj" />
   </Folder>
   <Folder Name="/test/">

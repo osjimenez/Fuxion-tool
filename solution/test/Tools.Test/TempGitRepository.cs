@@ -15,9 +15,11 @@ public sealed class TempGitRepository : IDisposable
 	readonly string _emptyConfig;
 	DateTimeOffset _clock = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
 
-	public TempGitRepository(bool init = true)
+	/// <param name="init">Run <c>git init</c> (otherwise it is just an empty folder).</param>
+	/// <param name="path">Where (a new folder under %TEMP% by default); it is deleted on dispose.</param>
+	public TempGitRepository(bool init = true, string? path = null)
 	{
-		Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "fx-test-" + Guid.NewGuid().ToString("N")[..12]);
+		Path = path ?? System.IO.Path.Combine(System.IO.Path.GetTempPath(), "fx-test-" + Guid.NewGuid().ToString("N")[..12]);
 		Directory.CreateDirectory(Path);
 		_emptyConfig = Path + ".gitconfig";
 		File.WriteAllText(_emptyConfig, "");
@@ -33,6 +35,25 @@ public sealed class TempGitRepository : IDisposable
 		Git("commit", "--quiet", "--allow-empty", "-m", message);
 		return Head();
 	}
+
+	/// <summary>Writes a file (relative to the repository) without committing it.</summary>
+	public string WriteFile(string relativePath, string content)
+	{
+		var path = System.IO.Path.Combine(Path, relativePath);
+		Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path)!);
+		File.WriteAllText(path, content);
+		return path;
+	}
+
+	/// <summary>Commits everything in the working tree.</summary>
+	public string CommitAll(string message = "commit")
+	{
+		Git("add", "-A");
+		return Commit(message);
+	}
+
+	/// <summary>Committer date of the last commit (the clock of this repository).</summary>
+	public DateTimeOffset LastCommitDate => _clock;
 
 	public string Head() => Git("rev-parse", "HEAD").Trim();
 

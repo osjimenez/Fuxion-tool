@@ -1,0 +1,11 @@
+<Project>
+
+	<!-- Fuxion.Tools.Sdk in each target framework build: hooked by Sdk.props as CustomBeforeDirectoryBuildTargets
+	     (keeping whatever was there before), so it comes after the project file and before Directory.Build.targets. -->
+
+	<Import Project="$(_FxPreviousCustomBeforeDirectoryBuildTargets)"
+	        Condition="'$(_FxPreviousCustomBeforeDirectoryBuildTargets)' != '' And Exists('$(_FxPreviousCustomBeforeDirectoryBuildTargets)')" />
+
+	<Import Project="$(MSBuildThisFileDirectory)Fuxion.Tools.Sdk.targets" />
+
+</Project>
