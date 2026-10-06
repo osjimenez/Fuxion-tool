@@ -1,0 +1,55 @@
+name: CI
+
+# Build and test on every push and pull request; on Windows, also the native fx.exe as an artifact.
+# Nothing is published here: releases come later (plan K, K5).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: 1
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # the version comes from the tags and the commits since (fx version)
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          # the SDK 11 builds; the runtime 10 runs the net10.0 sample projects of the tests
+          dotnet-version: |
+            10.0.x
+            11.0.100-rc.1.26425.128
+
+      - name: Build
+        run: dotnet build FxTool.slnx -c Release
+
+      - name: Test
+        run: dotnet test --solution FxTool.slnx -c Release --no-build
+
+      - name: Publish fx (native AOT)
+        if: runner.os == 'Windows'
+        run: dotnet publish solution/src/Tools/Fuxion.Tools.csproj -c Release -r win-x64 -o artifacts/fx/win-x64
+
+      - name: Upload fx
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fx-win-x64
+          path: artifacts/fx/win-x64/fx.exe

@@ -43,7 +43,10 @@ public sealed class SdkFixture : IDisposable
 	/// <summary>Version of the packed SDK.</summary>
 	public string Version { get; }
 
-	/// <summary>MSBuild.exe of the newest Visual Studio (the .NET Framework MSBuild the IDE uses), if there is one.</summary>
+	/// <summary>
+	/// MSBuild.exe of the newest Visual Studio 18 or later (the .NET Framework MSBuild the IDE uses; the .NET task host the SDK
+	/// needs is MSBuild 18), if there is one.
+	/// </summary>
 	public string? MSBuildExe { get; }
 
 	/// <summary>global.json, nuget.config and Directory.Build.props of a repository that uses the SDK.</summary>
@@ -115,7 +118,7 @@ public sealed class SdkFixture : IDisposable
 		if (!OperatingSystem.IsWindows() || !File.Exists(vswhere))
 			return null;
 		var result = ProcessRunner.Run(vswhere, Path.GetTempPath(),
-			["-latest", "-prerelease", "-requires", "Microsoft.Component.MSBuild", "-find", @"MSBuild\**\Bin\MSBuild.exe"], TimeSpan.FromSeconds(30));
+			["-latest", "-prerelease", "-version", "[18.0,", "-requires", "Microsoft.Component.MSBuild", "-find", @"MSBuild\**\Bin\MSBuild.exe"], TimeSpan.FromSeconds(30));
 		return result.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
 			.FirstOrDefault(File.Exists);
 	}
