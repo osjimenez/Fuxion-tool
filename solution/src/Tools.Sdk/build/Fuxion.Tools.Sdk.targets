@@ -105,9 +105,12 @@
 
 	<!-- The English XML documentation is copied to ~$docs/en for the translators; ~$docs/<lang>/<Assembly>.xml is
 	     packed for each language of FxDocumentationLanguages (from oss/solution/.config/targets/Documentation.targets) -->
+	<!-- Only the first target framework copies it: the builds of each framework run in parallel and the file would be
+	     contended (and it is the same documentation) -->
 	<Target Name="FxCopyEnglishDocumentation"
 	        AfterTargets="CoreCompile"
-	        Condition="'$(GenerateDocumentationFile)' == 'true' And '$(TargetFramework)' != '' And '$(FxDocumentationLanguages)' != ''">
+	        Condition="'$(GenerateDocumentationFile)' == 'true' And '$(TargetFramework)' != '' And '$(FxDocumentationLanguages)' != ''
+	                   And ('$(TargetFrameworks)' == '' Or $(TargetFrameworks.Trim().StartsWith('$(TargetFramework)')))">
 		<Copy SourceFiles="@(DocFileItem)" DestinationFolder="$(FxDocumentationDirectory)en" SkipUnchangedFiles="true" Condition="Exists('@(DocFileItem)')" />
 	</Target>
 

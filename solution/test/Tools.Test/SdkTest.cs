@@ -142,6 +142,20 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		Assert.True(File.Exists(Path.Combine(workspace, "~$publish", "lib", "nupkgs", "Lib.2.3.1.nupkg")));
 	}
 
+	[Fact(DisplayName = "FxDocumentationLanguages: the English XML copied to ~$docs/en, the translations packed")]
+	public void TranslatedDocumentation()
+	{
+		using var repo = Sample(properties: "<FxDocumentationLanguages>es</FxDocumentationLanguages>");
+		repo.WriteFile(Path.Combine("solution", "src", "Lib", "~$docs", "es", "Lib.xml"), "<doc>es</doc>");
+		Succeeded(fixture.Build(Lib(repo), "-t:Pack"));
+
+		Assert.True(File.Exists(Path.Combine(Lib(repo), "~$docs", "en", "Lib.xml")));
+		using var zip = ZipFile.OpenRead(Path.Combine(repo.Path, "~$publish", "nupkgs", "Lib.2.3.1.nupkg"));
+		var entries = zip.Entries.Select(e => e.FullName).ToList();
+		Assert.Contains("lib/net10.0/es/Lib.xml", entries);
+		Assert.Contains("lib/net11.0/es/Lib.xml", entries);
+	}
+
 	[Fact(DisplayName = "FxVersioningEnabled=false: the SDK leaves the version and the metadata alone")]
 	public void VersioningDisabled()
 	{
