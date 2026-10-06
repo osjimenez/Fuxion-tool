@@ -83,6 +83,19 @@ dotnet test --solution FxTool.slnx
 dotnet publish solution/src/Tools/Fuxion.Tools.csproj -c Release -r win-x64 -o <folder>
 ```
 
+**Versions**: this repo versions itself from its `version/X.Y.0` tags (`fx version`; `main` gives `0.1.{commits}`).
+While it does not build with its own SDK, the version is passed when packing or publishing.
+
+**Publishing locally** (inside the Fuxion workspace, design D-36):
+
+```bash
+V=$(fx version)
+dotnet pack solution/src/Tools.Sdk/Fuxion.Tools.Sdk.csproj -c Release -p:Version=$V -o ../../~\$publish/tool/nupkgs
+dotnet publish solution/src/Tools/Fuxion.Tools.csproj -c Release -r win-x64 -p:Version=$V -o ../../~\$publish/tool/fx/win-x64
+```
+
+Publish from a clean commit: NuGet caches packages by version, so the same version must not change.
+
 The tests build throwaway git repositories under the temp folder with the real `git`, isolated from the user's git
 configuration; the SDK tests pack the SDK and build sample repositories with it (`dotnet build` and, if Visual
 Studio is installed, its `MSBuild.exe`). Publishing needs the C++ build tools of Visual Studio (native AOT); from Git Bash, add
