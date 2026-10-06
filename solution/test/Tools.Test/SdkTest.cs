@@ -301,7 +301,8 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 	{
 		Assert.SkipWhen(fixture.MSBuildExe is null, "Visual Studio (MSBuild.exe) is not installed");
 		using var repo = Sample();
-		Succeeded(fixture.BuildWithVisualStudio(Lib(repo)));
+		// net10.0 only: the stable Visual Studio of a CI runner uses the stable .NET SDK, which cannot build net11.0
+		Succeeded(fixture.BuildWithVisualStudio(Lib(repo), "-p:TargetFrameworks=net10.0"));
 		Assert.Equal("2.3.1.0", Assembly(repo).FileVersion);
 		Assert.Contains("public static readonly string Version = \"2.3.1\";", File.ReadAllText(MetadataFile(repo)));
 	}

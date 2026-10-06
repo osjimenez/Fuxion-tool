@@ -143,6 +143,9 @@ public static class VersioningInputsFactory
 		if (string.IsNullOrWhiteSpace(repositoryPath))
 			return Directory.GetCurrentDirectory();
 
+		// "..\" in a fuxion-tools.json written on Windows must also work on Linux
+		repositoryPath = repositoryPath.Replace('\\', Path.DirectorySeparatorChar);
+
 		if (Path.IsPathRooted(repositoryPath))
 			return repositoryPath;
 

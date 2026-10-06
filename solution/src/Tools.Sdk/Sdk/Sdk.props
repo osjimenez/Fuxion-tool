@@ -28,17 +28,18 @@
 		<FuxionToolsSdkImported>true</FuxionToolsSdkImported>
 
 		<!-- The repo: where its global.json is (design D-33). The workspace, if the repo is mounted in one (D-36). -->
-		<FxRepositoryRoot Condition="'$(FxRepositoryRoot)' == ''">$([MSBuild]::GetDirectoryNameOfFileAbove('$(MSBuildProjectDirectory)', 'global.json'))</FxRepositoryRoot>
-		<FxRepositoryRoot Condition="'$(FxRepositoryRoot)' != '' And !HasTrailingSlash('$(FxRepositoryRoot)')">$(FxRepositoryRoot)\</FxRepositoryRoot>
-		<FxWorkspaceRoot Condition="'$(FxWorkspaceRoot)' == '' And '$(FxRepositoryRoot)' != ''">$([MSBuild]::GetDirectoryNameOfFileAbove($([System.IO.Path]::GetFullPath('$(FxRepositoryRoot)..')), '_fx\workspace.yaml'))</FxWorkspaceRoot>
-		<FxWorkspaceRoot Condition="'$(FxWorkspaceRoot)' != '' And !HasTrailingSlash('$(FxWorkspaceRoot)')">$(FxWorkspaceRoot)\</FxWorkspaceRoot>
+		<!-- (paths with NormalizeDirectory and '/', so they work on Windows and on Linux) -->
+		<_FxGlobalJsonDirectory>$([MSBuild]::GetDirectoryNameOfFileAbove('$(MSBuildProjectDirectory)', 'global.json'))</_FxGlobalJsonDirectory>
+		<FxRepositoryRoot Condition="'$(FxRepositoryRoot)' == '' And '$(_FxGlobalJsonDirectory)' != ''">$([MSBuild]::NormalizeDirectory('$(_FxGlobalJsonDirectory)'))</FxRepositoryRoot>
+		<_FxWorkspaceDirectory Condition="'$(FxWorkspaceRoot)' == '' And '$(FxRepositoryRoot)' != ''">$([MSBuild]::GetDirectoryNameOfFileAbove($([MSBuild]::NormalizeDirectory('$(FxRepositoryRoot)', '..')), '_fx/workspace.yaml'))</_FxWorkspaceDirectory>
+		<FxWorkspaceRoot Condition="'$(FxWorkspaceRoot)' == '' And '$(_FxWorkspaceDirectory)' != ''">$([MSBuild]::NormalizeDirectory('$(_FxWorkspaceDirectory)'))</FxWorkspaceRoot>
 		<!-- In a workspace a repo is mounted at <name>/repo: its name is the folder above -->
-		<FxRepositoryName Condition="'$(FxRepositoryName)' == '' And '$(FxWorkspaceRoot)' != ''">$([System.IO.Path]::GetFileName($([System.IO.Path]::GetDirectoryName($(FxRepositoryRoot.TrimEnd('\'))))))</FxRepositoryName>
+		<FxRepositoryName Condition="'$(FxRepositoryName)' == '' And '$(FxWorkspaceRoot)' != ''">$([System.IO.Path]::GetFileName($([System.IO.Path]::GetDirectoryName($(FxRepositoryRoot.TrimEnd('\').TrimEnd('/'))))))</FxRepositoryName>
 
 		<!-- Packages: <workspace>/~$publish/<repo>/nupkgs, or <repo>/~$publish/nupkgs outside a workspace (D-36) -->
-		<FxPublishDirectory Condition="'$(FxPublishDirectory)' == '' And '$(FxWorkspaceRoot)' != ''">$(FxWorkspaceRoot)~$publish\$(FxRepositoryName)\</FxPublishDirectory>
-		<FxPublishDirectory Condition="'$(FxPublishDirectory)' == '' And '$(FxRepositoryRoot)' != ''">$(FxRepositoryRoot)~$publish\</FxPublishDirectory>
-		<PackageOutputPath Condition="'$(FxPublishDirectory)' != ''">$(FxPublishDirectory)nupkgs\</PackageOutputPath>
+		<FxPublishDirectory Condition="'$(FxPublishDirectory)' == '' And '$(FxWorkspaceRoot)' != ''">$([MSBuild]::NormalizeDirectory('$(FxWorkspaceRoot)', '~$publish', '$(FxRepositoryName)'))</FxPublishDirectory>
+		<FxPublishDirectory Condition="'$(FxPublishDirectory)' == '' And '$(FxRepositoryRoot)' != ''">$([MSBuild]::NormalizeDirectory('$(FxRepositoryRoot)', '~$publish'))</FxPublishDirectory>
+		<PackageOutputPath Condition="'$(FxPublishDirectory)' != ''">$([MSBuild]::NormalizeDirectory('$(FxPublishDirectory)', 'nupkgs'))</PackageOutputPath>
 
 		<!-- Defaults of every project (from oss/solution/.config/props/Project.Default.props) -->
 		<LangVersion>preview</LangVersion>
@@ -70,15 +71,15 @@
 	</PropertyGroup>
 
 	<!-- Variables of the repo, generated from _fx/dotnet.yaml (design §7.3) -->
-	<Import Project="$(FxRepositoryRoot)_fx\dotnet.g.props" Condition="'$(FxRepositoryRoot)' != '' And Exists('$(FxRepositoryRoot)_fx\dotnet.g.props')" />
+	<Import Project="$(FxRepositoryRoot)_fx/dotnet.g.props" Condition="'$(FxRepositoryRoot)' != '' And Exists('$(FxRepositoryRoot)_fx/dotnet.g.props')" />
 
 	<!-- The late part, after the project file: in each target framework build (Microsoft.Common.targets) and in the
 	     outer build of a multi-targeted project (Microsoft.Common.CrossTargeting.targets), which packs it -->
 	<PropertyGroup>
 		<_FxPreviousCustomBeforeDirectoryBuildTargets>$(CustomBeforeDirectoryBuildTargets)</_FxPreviousCustomBeforeDirectoryBuildTargets>
-		<CustomBeforeDirectoryBuildTargets>$(MSBuildThisFileDirectory)..\build\Fuxion.Tools.Sdk.Inner.targets</CustomBeforeDirectoryBuildTargets>
+		<CustomBeforeDirectoryBuildTargets>$(MSBuildThisFileDirectory)../build/Fuxion.Tools.Sdk.Inner.targets</CustomBeforeDirectoryBuildTargets>
 		<_FxPreviousCustomAfterCrossTargetingTargets>$(CustomAfterMicrosoftCommonCrossTargetingTargets)</_FxPreviousCustomAfterCrossTargetingTargets>
-		<CustomAfterMicrosoftCommonCrossTargetingTargets>$(MSBuildThisFileDirectory)..\build\Fuxion.Tools.Sdk.Outer.targets</CustomAfterMicrosoftCommonCrossTargetingTargets>
+		<CustomAfterMicrosoftCommonCrossTargetingTargets>$(MSBuildThisFileDirectory)../build/Fuxion.Tools.Sdk.Outer.targets</CustomAfterMicrosoftCommonCrossTargetingTargets>
 	</PropertyGroup>
 
 </Project>

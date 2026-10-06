@@ -228,8 +228,9 @@ public static partial class DotnetModule
 		var project = ProjectElement().Match(text);
 		if (!project.Success)
 			return;
-		var toRoot = Path.GetRelativePath(Path.GetDirectoryName(path)!, root).Replace('/', '\\');
-		var target = toRoot == "." ? @"_fx\packages.g.props" : $@"{toRoot}\_fx\packages.g.props";
+		// with '/': MSBuild takes it on Windows and on Linux
+		var toRoot = Path.GetRelativePath(Path.GetDirectoryName(path)!, root).Replace('\\', '/');
+		var target = toRoot == "." ? "_fx/packages.g.props" : $"{toRoot}/_fx/packages.g.props";
 		var newline = text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
 		var import = $"{newline}{newline}\t<!-- The packages governed by _fx/dotnet.yaml (fx sync dotnet, design §7.3) -->{newline}" +
 		             $"\t<Import Project=\"$(MSBuildThisFileDirectory){target}\" Condition=\"Exists('$(MSBuildThisFileDirectory){target}')\" />";

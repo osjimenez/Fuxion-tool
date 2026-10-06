@@ -217,7 +217,7 @@ public sealed class DotnetTest
 		var global = JsonDocument.Parse(repo.Read("global.json")).RootElement;
 		Assert.Equal("0.1.0", global.GetProperty("msbuild-sdks").GetProperty("Fuxion.Tools.Sdk").GetString());
 		Assert.Equal("Microsoft.Testing.Platform", global.GetProperty("test").GetProperty("runner").GetString());
-		Assert.Contains(@"<Import Project=""$(MSBuildThisFileDirectory)..\_fx\packages.g.props""", repo.Read("solution/Directory.Packages.props"));
+		Assert.Contains("<Import Project=\"$(MSBuildThisFileDirectory)../_fx/packages.g.props\"", repo.Read("solution/Directory.Packages.props"));
 
 		var again = DotnetModule.Sync(repo.Git.Path, dryRun: false);
 		Assert.All(again.Files, f => Assert.Equal(SyncFileStatus.Unchanged, f.Status));
