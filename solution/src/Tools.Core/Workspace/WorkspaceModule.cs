@@ -174,6 +174,7 @@ public static class WorkspaceModule
 		var mounted = repositories.Where(r => r.Mounted && (r.Present || actions.Any(a => a.Repository == r.Repository.Name && a.Action == "cloned"))).Select(r => r.Repository).ToList();
 		Generate(root, ".gitignore", Gitignore(manifest), "#", write, options.Adopt, files, diagnostics);
 		Generate(root, SolutionGenerator.FileName, SolutionGenerator.Generate(manifest, mounted, diagnostics), "<!--", write, options.Adopt, files, diagnostics);
+		Generate(root, WorkspacePropsGenerator.FileName, WorkspacePropsGenerator.Generate(manifest, mounted, diagnostics), "<!--", write, options.Adopt, files, diagnostics);
 		if (write)
 			Save(Path.Combine(root, "_fx", "~$workspace.yaml"), state.ToYaml());
 
@@ -186,7 +187,7 @@ public static class WorkspaceModule
 	static void Check(WorkspaceManifest manifest, IReadOnlyList<RepositoryState> repositories, List<SyncFile> files, List<FxDiagnostic> diagnostics, bool offline)
 	{
 		foreach (var file in files.Where(f => f.Status == SyncFileStatus.WouldWrite))
-			diagnostics.Add(file.Path == SolutionGenerator.FileName
+			diagnostics.Add(file.Path is SolutionGenerator.FileName or WorkspacePropsGenerator.FileName
 				? FxDiagnostic.Warning(Outdated, "Out of date with the manifest and the solutions of the repositories: run fx sync workspace.", file.Path)
 				: FxDiagnostic.Error(Outdated, "Out of date with _fx/workspace.yaml: run fx sync workspace.", file.Path));
 

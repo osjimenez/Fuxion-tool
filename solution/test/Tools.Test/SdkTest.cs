@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Text.Json;
 using Fuxion.Tools.Cli;
 using Fuxion.Tools.Core.Processes;
 using Xunit;
@@ -175,9 +176,9 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 	}
 
 	/// <summary>A repository with central package management and the versions the SDK's packages need.</summary>
-	TempGitRepository CentralPackages(string properties)
+	TempGitRepository CentralPackages(string properties, string? path = null, string packages = "")
 	{
-		var repo = new TempGitRepository();
+		var repo = new TempGitRepository(path: path);
 		fixture.SetUp(repo, $"""
 			<Project>
 				<PropertyGroup>
@@ -186,7 +187,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 				<Import Project="Sdk.props" Sdk="Fuxion.Tools.Sdk" />
 			</Project>
 			""");
-		repo.WriteFile(Path.Combine("solution", "Directory.Packages.props"), """
+		repo.WriteFile(Path.Combine("solution", "Directory.Packages.props"), $"""
 			<Project>
 				<PropertyGroup>
 					<ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
@@ -195,6 +196,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 					<PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.11.2" />
 					<PackageVersion Include="PolySharp" Version="1.16.0" />
 					<PackageVersion Include="xunit.v3" Version="4.0.0" />
+					{packages}
 				</ItemGroup>
 			</Project>
 			""");
@@ -320,6 +322,77 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		Assert.Contains("IsNet11[net10.0]=false", result.StandardOutput);
 		Assert.Contains("\"Spectre.Console/0.57.2\"", File.ReadAllText(Path.Combine(repo.Path, "solution", "src", "App", "obj", "project.assets.json")));
 		Assert.Equal(0, FxApp.Run(["doctor"], new StringWriter(), new StringWriter(), repo.Path));
+	}
+
+	[Fact(DisplayName = "FuxionReference: a project in the workspace, a package outside it, and a clear error when it needs the workspace")]
+	public void FuxionReference()
+	{
+		using var workspace = new TempGitRepository(path: Path.Combine(fixture.Root, "ws-" + Guid.NewGuid().ToString("N")[..8]));
+		workspace.WriteFile(Path.Combine("_fx", "workspace.yaml"), """
+			version: 1
+			repositories:
+			  - name: lib
+			    path: lib/repo
+			    url: https://example.invalid/lib.git
+			    mount: mandatory
+			    solution: Lib.slnx
+			  - name: app
+			    path: app/repo
+			    url: https://example.invalid/app.git
+			    mount: mandatory
+			    solution: App.slnx
+			""");
+		using var lib = Sample(path: Path.Combine(workspace.Path, "lib", "repo"));
+		lib.WriteFile("Lib.slnx", """<Solution><Project Path="solution/src/Lib/Lib.csproj" /></Solution>""");
+		using var app = CentralPackages("", Path.Combine(workspace.Path, "app", "repo"), """<PackageVersion Include="Lib" Version="2.3.1" />""");
+		app.WriteFile("App.slnx", """<Solution><Project Path="solution/src/App/App.csproj" /></Solution>""");
+		app.WriteFile(Path.Combine("solution", "src", "App", "App.csproj"), """
+			<Project Sdk="Microsoft.NET.Sdk">
+				<PropertyGroup>
+					<TargetFramework>net10.0</TargetFramework>
+				</PropertyGroup>
+				<ItemGroup>
+					<FuxionReference Include="Lib" />
+				</ItemGroup>
+			</Project>
+			""");
+		app.WriteFile(Path.Combine("solution", "src", "App", "Use.cs"), """
+			namespace App;
+
+			/// <summary>Uses the library of the other repository.</summary>
+			public static class Use
+			{
+				/// <summary>Its version.</summary>
+				public static string Version => Lib.Info.Version;
+			}
+			""");
+		app.CommitAll("c1");
+		app.Tag("version/1.0.0");
+		var appProject = Path.Combine(app.Path, "solution", "src", "App");
+
+		// In the workspace: fx sync writes the map, and Lib is a project
+		Assert.Equal(0, FxApp.Run(["sync", "workspace", "--offline"], new StringWriter(), new StringWriter(), workspace.Path));
+		Assert.Contains("Include=\"Lib\" Repository=\"lib\"", File.ReadAllText(Path.Combine(workspace.Path, "_fx", "~$workspace.props")));
+		Succeeded(fixture.Build(appProject));
+		Assert.Equal("project", LibraryType(app, "Lib"));
+		Assert.True(File.Exists(Path.Combine(appProject, "bin", "Debug", "net10.0", "Lib.dll")));
+
+		// Outside it (FuxionUsePackages, as a CI would): Lib is the package
+		Succeeded(fixture.Build(Lib(lib), "-t:Pack", $"-p:PackageOutputPath={fixture.Feed}"));
+		Succeeded(fixture.Build(appProject, "-p:FuxionUsePackages=true"));
+		Assert.Equal("package", LibraryType(app, "Lib"));
+
+		// A repo that only builds in the workspace says so, instead of NuGet not finding a package
+		var result = fixture.Build(appProject, "-p:FuxionUsePackages=true", "-p:FxRequiresWorkspace=true");
+		Assert.NotEqual(0, result.ExitCode);
+		Assert.Contains("FX0001", result.StandardOutput);
+	}
+
+	static string LibraryType(TempGitRepository repo, string library)
+	{
+		var assets = JsonDocument.Parse(File.ReadAllText(Path.Combine(repo.Path, "solution", "src", "App", "obj", "project.assets.json")));
+		return assets.RootElement.GetProperty("libraries").EnumerateObject()
+			.Single(l => l.Name.StartsWith(library + "/", StringComparison.Ordinal)).Value.GetProperty("type").GetString()!;
 	}
 
 	[Fact(DisplayName = "the MSBuild of Visual Studio (.NET Framework): the tasks run on the .NET task host")]

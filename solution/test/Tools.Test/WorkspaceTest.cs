@@ -173,6 +173,10 @@ public sealed class WorkspaceTest
 		Assert.Contains("<Platform Name=\"Any CPU\" />", solution);
 
 		Assert.Contains("name: plus\n    mount: true", ws.Read("_fx/~$workspace.yaml"));
+
+		var map = ws.Read("_fx/~$workspace.props");
+		Assert.Contains("<FuxionWorkspaceProject Include=\"plus\" Repository=\"plus\"", map);
+		Assert.Contains("<ProjectReference Include=\"@(FuxionReference->WithMetadataValue('Identity', 'plus')->'", map);
 		var again = WorkspaceModule.Sync(ws.Root, new());
 		Assert.All(again.Files, f => Assert.Equal(SyncFileStatus.Unchanged, f.Status));
 	}
@@ -217,14 +221,15 @@ public sealed class WorkspaceTest
 	[Fact(DisplayName = "Fuxion.slnx: solutionExclude leaves projects out; a project two repos bring appears once")]
 	public void Solution_ExcludeAndDedupe()
 	{
-		using var ws = new Workspace(("plus", "mandatory"), ("tool", "mandatory"));
-		ws.WriteManifest(("plus", "mandatory", "    solutionExclude: [solution/tools]\n"), ("tool", "mandatory", ""));
+		using var ws = new Workspace(("plus", "mandatory"), ("tools", "mandatory"));
+		ws.WriteManifest(("plus", "mandatory", "    solutionExclude: [solution/tools]\n"), ("tools", "mandatory", ""));
 		Assert.Empty(WorkspaceModule.Sync(ws.Root, new()).Diagnostics);
 		var solution = ws.Read("Fuxion.slnx");
 		Assert.DoesNotContain("plus/repo/solution/tools", solution);
-		Assert.Contains("tool/repo/solution/tools/Tool/Tool.csproj", solution);
+		Assert.Contains("tools/repo/solution/tools/Tool/Tool.csproj", solution);
 		Assert.DoesNotContain("<Folder Name=\"/plus/tools/\"", solution);
-		Assert.Contains("<Folder Name=\"/tool/tools/\">", solution);
+		Assert.Contains("<Folder Name=\"/tools/tools/\">", solution);
+		Assert.Contains("<FuxionWorkspaceProject Include=\"Tool\" Repository=\"tools\"", ws.Read("_fx/~$workspace.props"));
 	}
 
 	[Fact(DisplayName = "fx repo unmount: fx stops managing it, nothing is deleted; mount brings it back")]
