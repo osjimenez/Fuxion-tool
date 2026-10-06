@@ -1,5 +1,6 @@
 using System.CommandLine;
 using System.IO;
+using Fuxion.Tools.Cli.Repo;
 using Fuxion.Tools.Cli.Sync;
 using Fuxion.Tools.Cli.Version;
 
@@ -15,6 +16,7 @@ public static class FxApp
 		{
 			SyncCommand.CreateSync(global, currentDirectory),
 			SyncCommand.CreateDoctor(global, currentDirectory),
+			RepoCommand.Create(global, currentDirectory),
 			VersionCommand.Create(global, currentDirectory)
 		};
 		global.AddTo(root);

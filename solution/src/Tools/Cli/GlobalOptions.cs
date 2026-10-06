@@ -50,9 +50,16 @@ public sealed class GlobalOptions
 		return option;
 	}
 
+	public Option<bool> Workspace { get; } = new("--workspace", "-w")
+	{
+		Description = "Act on the whole workspace, from anywhere inside it.",
+		Recursive = true
+	};
+
 	public void AddTo(Command command)
 	{
 		command.Add(Root);
+		command.Add(Workspace);
 		command.Add(Output);
 		command.Add(Verbose);
 		command.Add(Plain);
@@ -61,8 +68,11 @@ public sealed class GlobalOptions
 	public GlobalSettings Bind(ParseResult result, string currentDirectory)
 	{
 		var root = result.GetValue(Root);
+		var directory = string.IsNullOrWhiteSpace(root) ? currentDirectory : Path.GetFullPath(root, currentDirectory);
+		if (result.GetValue(Workspace) && Fuxion.Tools.Core.Workspace.WorkspaceManifest.FindRoot(directory) is { } workspace)
+			directory = workspace;
 		return new(
-			string.IsNullOrWhiteSpace(root) ? currentDirectory : Path.GetFullPath(root, currentDirectory),
+			directory,
 			result.GetValue(Output) == "json" ? OutputFormat.Json : OutputFormat.Human,
 			result.GetValue(Verbose),
 			result.GetValue(Plain));

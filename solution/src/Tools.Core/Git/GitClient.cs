@@ -8,6 +8,9 @@ namespace Fuxion.Tools.Core.Git;
 
 public sealed record GitTag(string Name, string Commit);
 
+/// <summary>The state of a working tree: branch (null if detached), upstream, commits ahead and behind it, and changes.</summary>
+public sealed record GitStatus(string? Branch, bool Detached, string? Upstream, int Ahead, int Behind, int Changes);
+
 /// <summary>
 /// Reads a repository with the git executable (design D-25): the same behavior as the user's git (configuration,
 /// worktrees, credentials) and no native library. Every call runs <c>git -C &lt;root&gt;</c> with a timeout.
@@ -123,6 +126,56 @@ public sealed class GitClient
 		   && DateTimeOffset.TryParse(date, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsed)
 			? parsed
 			: null;
+
+	/// <summary>Branch, changes and position against the upstream (<c>git status --porcelain --branch</c>).</summary>
+	public GitStatus Status()
+	{
+		var lines = Required("status", "--porcelain=v1", "--branch").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+		var header = lines.FirstOrDefault()?.TrimEnd('\r') ?? "## HEAD (no branch)";
+		var detached = header.StartsWith("## HEAD (no branch)", StringComparison.Ordinal);
+		string? branch = null;
+		string? upstream = null;
+		int ahead = 0, behind = 0;
+		if (!detached && header.Length > 3)
+		{
+			var info = header[3..];
+			var bracket = info.IndexOf(" [", StringComparison.Ordinal);
+			var refs = bracket < 0 ? info : info[..bracket];
+			var dots = refs.IndexOf("...", StringComparison.Ordinal);
+			branch = dots < 0 ? refs.Replace("No commits yet on ", "", StringComparison.Ordinal) : refs[..dots];
+			upstream = dots < 0 ? null : refs[(dots + 3)..];
+			if (bracket >= 0)
+			{
+				var counts = info[(bracket + 2)..].TrimEnd(']');
+				foreach (var part in counts.Split(", "))
+					if (part.StartsWith("ahead ", StringComparison.Ordinal)) ahead = int.Parse(part[6..]);
+					else if (part.StartsWith("behind ", StringComparison.Ordinal)) behind = int.Parse(part[7..]);
+			}
+		}
+		return new(branch, detached, upstream, ahead, behind, lines.Length - 1);
+	}
+
+	/// <summary><c>git fetch --all --prune</c>, with its own timeout (the network can be slow, or not there).</summary>
+	public ProcessResult Fetch(TimeSpan timeout) => Run(Root, timeout, "fetch", "--all", "--prune", "--quiet");
+
+	/// <summary><c>git pull --ff-only</c>: never a merge, never a rebase.</summary>
+	public ProcessResult PullFastForward(TimeSpan timeout) => Run(Root, timeout, "pull", "--ff-only", "--quiet");
+
+	/// <summary>Whether this repository ignores <paramref name="relativePath"/> (<c>git check-ignore</c>).</summary>
+	public bool Ignores(string relativePath)
+		=> Run(Root, _timeout, "check-ignore", "--quiet", "--no-index", relativePath).ExitCode == 0;
+
+	/// <summary><c>git clone</c> (with long paths on), run in the parent folder of <paramref name="path"/>.</summary>
+	public static ProcessResult Clone(string url, string path, TimeSpan timeout)
+	{
+		var parent = System.IO.Path.GetDirectoryName(System.IO.Path.TrimEndingDirectorySeparator(path))!;
+		Directory.CreateDirectory(parent);
+		return ProcessRunner.Run("git", parent, ["-c", "core.longpaths=true", "clone", "--quiet", url, path], timeout, Environment);
+	}
+
+	/// <summary><c>git ls-remote</c> of a URL: whether it answers, without cloning anything.</summary>
+	public static ProcessResult LsRemote(string url, TimeSpan timeout)
+		=> ProcessRunner.Run("git", System.IO.Path.GetTempPath(), ["ls-remote", "--quiet", url, "HEAD"], timeout, Environment);
 
 	/// <summary>Creates a lightweight tag. Local only: nothing is pushed.</summary>
 	public void CreateTag(string name, string commit) => Required("tag", name, commit);
