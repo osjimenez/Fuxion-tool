@@ -280,6 +280,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 			    when: "'$(TargetFramework)' == 'net10.0'"
 			  - name: IsNet11
 			    when: "'$(TargetFramework)' == 'net11.0'"
+			    define: NET11_ONLY;PREVIEW_FRAMEWORK
 			packages:
 			  - ids: [Spectre.Console]
 			    versions:
@@ -307,6 +308,24 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 			{
 				/// <summary>Markup.</summary>
 				public static string Text => Spectre.Console.Markup.Escape("[hello]");
+			#if NET11_ONLY && PREVIEW_FRAMEWORK
+				/// <summary>Only where dotnet.yaml defines the constants.</summary>
+				public const string Framework = "net11";
+			#endif
+			}
+			""");
+		repo.WriteFile(Path.Combine("solution", "src", "App", "Check.cs"), """
+			namespace App;
+
+			/// <summary>The constants of dotnet.yaml, per framework.</summary>
+			public static class Check
+			{
+			#if NET11_0
+				/// <summary>Defined on net11.0 only.</summary>
+				public const string Framework = Hello.Framework;
+			#elif NET11_ONLY
+				#error NET11_ONLY outside net11.0
+			#endif
 			}
 			""");
 
@@ -353,6 +372,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 				</PropertyGroup>
 				<ItemGroup>
 					<FuxionReference Include="Lib" />
+					<FuxionReference Include="OnlyInTheWorkspace" Package="false" />
 				</ItemGroup>
 			</Project>
 			""");
@@ -386,6 +406,8 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		var result = fixture.Build(appProject, "-p:FuxionUsePackages=true", "-p:FxRequiresWorkspace=true");
 		Assert.NotEqual(0, result.ExitCode);
 		Assert.Contains("FX0001", result.StandardOutput);
+		// Package="false" (the analyzers of oss): only in the workspace; never a package, never the error
+		Assert.DoesNotContain("OnlyInTheWorkspace", result.StandardOutput);
 	}
 
 	static string LibraryType(TempGitRepository repo, string library)

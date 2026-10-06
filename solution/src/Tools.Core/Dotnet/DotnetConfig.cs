@@ -4,8 +4,11 @@ using System.Linq;
 
 namespace Fuxion.Tools.Core.Dotnet;
 
-/// <summary>A variable of <c>dotnet.yaml</c> (design §7.3): a <c>value</c>, or a <c>when</c> condition.</summary>
-public sealed record DotnetVariable(string Name, string? Value, string? When, IReadOnlyList<string> Tags, string Source, int Line)
+/// <summary>
+/// A variable of <c>dotnet.yaml</c> (design §7.3): a <c>value</c>, or a <c>when</c> condition; a <c>when</c> one can also
+/// <c>define</c> compilation constants (<c>OLD_FRAMEWORKS</c>, for <c>#if</c>) where its condition holds.
+/// </summary>
+public sealed record DotnetVariable(string Name, string? Value, string? When, IReadOnlyList<string> Tags, string Source, int Line, string? Define = null)
 {
 	public bool IsWhen => When is not null;
 }

@@ -113,11 +113,15 @@ public sealed class GitClient
 
 	public string? RemoteUrl(string remote) => Optional("config", "--get", $"remote.{remote}.url");
 
-	/// <summary>Tracked files (and untracked ones not ignored) matching the pathspecs, relative to the root, with '/'.</summary>
+	/// <summary>
+	/// The files of the working tree matching the pathspecs: tracked (except those deleted and not committed yet) and
+	/// untracked ones not ignored; relative to the root, with '/'.
+	/// </summary>
 	public IReadOnlyList<string> ListFiles(params string[] pathspecs)
 		=> Required(["ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", .. pathspecs])
 			.Split('\0', StringSplitOptions.RemoveEmptyEntries)
 			.Distinct(StringComparer.Ordinal)
+			.Where(f => File.Exists(Path.Combine(Root, f)))
 			.ToList();
 
 	/// <summary>Committer date of a commit.</summary>

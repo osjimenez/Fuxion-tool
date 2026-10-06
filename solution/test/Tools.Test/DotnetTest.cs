@@ -72,6 +72,8 @@ public sealed class DotnetTest
 	[InlineData("other: 1\n", "Unknown section 'other'", 1)]
 	[InlineData("variables:\n  - name: A\n    value: 1\n  - name: a\n    value: 2\n", "defined more than once", 4)]
 	[InlineData("variables: [\n", "", 2)]
+	[InlineData("variables:\n  - name: X\n    value: a\n    define: X\n", "'define' needs 'when'", 2)]
+	[InlineData("variables:\n  - name: X\n    when: a\n    define: OLD-FRAMEWORKS\n", "compilation constants separated by ';'", 2)]
 	public void Read_Invalid(string yaml, string message, int line)
 	{
 		var ex = Assert.Throws<DotnetConfigException>(() => DotnetYamlReader.Read(yaml, "dotnet.yaml"));
@@ -222,6 +224,16 @@ public sealed class DotnetTest
 		var again = DotnetModule.Sync(repo.Git.Path, dryRun: false);
 		Assert.All(again.Files, f => Assert.Equal(SyncFileStatus.Unchanged, f.Status));
 		Assert.Empty(DotnetModule.Doctor(repo.Git.Path).Diagnostics);
+	}
+
+	[Fact(DisplayName = "sync: a build file deleted and not committed yet is not read")]
+	public void DeletedFile()
+	{
+		using var repo = new Repo();
+		repo.Git.WriteFile(Path.Combine("solution", "src", "Directory.Build.targets"), "<Project />");
+		repo.Git.CommitAll("c1");
+		File.Delete(repo.At(Path.Combine("solution", "src", "Directory.Build.targets")));
+		Assert.Empty(DotnetModule.Sync(repo.Git.Path, dryRun: false).Diagnostics);
 	}
 
 	[Fact(DisplayName = "sync --dry-run writes nothing; doctor reports every outdated file")]

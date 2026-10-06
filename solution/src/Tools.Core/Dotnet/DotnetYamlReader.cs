@@ -26,6 +26,9 @@ public static partial class DotnetYamlReader
 	[GeneratedRegex(@"^[A-Za-z_][A-Za-z0-9_\-]*$")]
 	private static partial Regex PropertyName();
 
+	[GeneratedRegex(@"^[A-Za-z_][A-Za-z0-9_]*$")]
+	private static partial Regex ConstantName();
+
 	public static DotnetConfig ReadFile(string path) => Read(File.ReadAllText(path), path);
 
 	public static DotnetConfig Read(string yaml, string source)
@@ -117,9 +120,14 @@ public static partial class DotnetYamlReader
 			error(node, $"Variable '{name}' needs exactly one of 'value' or 'when'.");
 			return null;
 		}
-		foreach (var key in map.Children.Keys.Select(Scalar).Where(k => k is not ("name" or "value" or "when" or "tags")))
+		foreach (var key in map.Children.Keys.Select(Scalar).Where(k => k is not ("name" or "value" or "when" or "define" or "tags")))
 			error(node, $"Variable '{name}': unknown key '{key}'.");
-		return new(name, value, when, Tags(map, error), source, (int)node.Start.Line);
+		var define = Get(map, "define");
+		if (define is not null && when is null)
+			error(node, $"Variable '{name}': 'define' needs 'when' (the constants are defined where the condition holds).");
+		else if (define is not null && define.Split(';').Any(c => !ConstantName().IsMatch(c.Trim())))
+			error(node, $"Variable '{name}': 'define' must be compilation constants separated by ';' ('{define}').");
+		return new(name, value, when, Tags(map, error), source, (int)node.Start.Line, define?.Trim());
 	}
 
 	static DotnetPackage? ReadPackage(YamlNode node, string source, Action<YamlNode?, string> error)

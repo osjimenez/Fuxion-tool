@@ -36,6 +36,13 @@ public static class DotnetGenerator
 			b.Append($"\t\t<{variable.Name} Condition=\"{EscapeAttribute(expandedWhen[variable.Name])}\">true</{variable.Name}>\n");
 		}
 		b.Append("\t</PropertyGroup>\n");
+		// The compilation constants, with the expanded condition too: DefineConstants is read when compiling
+		foreach (var variable in config.Variables.Where(v => v.IsWhen && v.Define is not null))
+		{
+			b.Append($"\t<PropertyGroup Condition=\"{EscapeAttribute(expandedWhen[variable.Name])}\">\n");
+			b.Append($"\t\t<DefineConstants>$(DefineConstants);{Escape(variable.Define!)}</DefineConstants>\n");
+			b.Append("\t</PropertyGroup>\n");
+		}
 		return End(b);
 	}
 
