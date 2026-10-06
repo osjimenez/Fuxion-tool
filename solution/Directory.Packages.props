@@ -17,6 +17,7 @@
 		<PackageVersion Include="Microsoft.Build.Utilities.Core" Version="18.0.2" />
 		<PackageVersion Include="Spectre.Console" Version="0.57.2" />
 		<PackageVersion Include="System.CommandLine" Version="2.0.12" />
+		<PackageVersion Include="YamlDotNet" Version="18.1.0" />
 	</ItemGroup>
 
 	<!-- Tests (the versions oss uses) -->

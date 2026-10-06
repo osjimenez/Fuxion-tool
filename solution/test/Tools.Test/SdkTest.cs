@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using Fuxion.Tools.Cli;
 using Fuxion.Tools.Core.Processes;
 using Xunit;
 
@@ -235,6 +236,64 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		repo.CommitAll("c1");
 		repo.Tag("version/1.0.0");
 		Succeeded(fixture.Build(Path.Combine(repo.Path, "solution", "src", "Old")));
+	}
+
+	[Fact(DisplayName = "dotnet.yaml: fx sync generates it and the SDK builds with its frameworks and package versions")]
+	public void DotnetYaml()
+	{
+		using var repo = CentralPackages("");
+		repo.WriteFile(Path.Combine("_fx", "dotnet.yaml"), $"""
+			sdks:
+			  Fuxion.Tools.Sdk: {fixture.Version}
+			variables:
+			  - name: CoreFrameworks
+			    value: net10.0;net11.0
+			  - name: IsNet10
+			    when: "'$(TargetFramework)' == 'net10.0'"
+			  - name: IsNet11
+			    when: "'$(TargetFramework)' == 'net11.0'"
+			packages:
+			  - ids: [Spectre.Console]
+			    versions:
+			      - when: "$(IsNet10) Or $(IsNet11)"
+			        version: 0.57.2
+			""");
+		repo.WriteFile(Path.Combine("solution", "src", "App", "App.csproj"), """
+			<Project Sdk="Microsoft.NET.Sdk">
+				<PropertyGroup>
+					<TargetFrameworks>$(CoreFrameworks)</TargetFrameworks>
+				</PropertyGroup>
+				<ItemGroup>
+					<PackageReference Include="Spectre.Console" />
+				</ItemGroup>
+				<Target Name="ShowNet11" BeforeTargets="CoreCompile">
+					<Message Importance="high" Text="IsNet11[$(TargetFramework)]=$(IsNet11)" />
+				</Target>
+			</Project>
+			""");
+		repo.WriteFile(Path.Combine("solution", "src", "App", "Hello.cs"), """
+			namespace App;
+
+			/// <summary>Uses the governed package.</summary>
+			public static class Hello
+			{
+				/// <summary>Markup.</summary>
+				public static string Text => Spectre.Console.Markup.Escape("[hello]");
+			}
+			""");
+
+		var stdout = new StringWriter();
+		Assert.Equal(0, FxApp.Run(["sync"], stdout, new StringWriter(), repo.Path));
+		Assert.Contains("written     _fx/packages.g.props", stdout.ToString());
+		repo.CommitAll("c1");
+		repo.Tag("version/1.0.0");
+
+		var result = fixture.Build(Path.Combine(repo.Path, "solution", "src", "App"));
+		Succeeded(result);
+		Assert.Contains("IsNet11[net11.0]=true", result.StandardOutput);
+		Assert.Contains("IsNet11[net10.0]=false", result.StandardOutput);
+		Assert.Contains("\"Spectre.Console/0.57.2\"", File.ReadAllText(Path.Combine(repo.Path, "solution", "src", "App", "obj", "project.assets.json")));
+		Assert.Equal(0, FxApp.Run(["doctor"], new StringWriter(), new StringWriter(), repo.Path));
 	}
 
 	[Fact(DisplayName = "the MSBuild of Visual Studio (.NET Framework): the tasks run on the .NET task host")]

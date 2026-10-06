@@ -10,9 +10,15 @@ using Spectre.Console;
 namespace Fuxion.Tools.Cli;
 
 /// <summary>A diagnostic with a stable code (design §10.4).</summary>
-public sealed record Diagnostic(string Code, string Severity, string Message)
+public sealed record Diagnostic(string Code, string Severity, string Message, string? File = null, int? Line = null)
 {
 	public static Diagnostic Error(string code, string message) => new(code, "error", message);
+
+	public static Diagnostic From(Fuxion.Tools.Core.Diagnostics.FxDiagnostic d)
+		=> new(d.Code, d.Severity == Fuxion.Tools.Core.Diagnostics.FxSeverity.Error ? "error" : "warning", d.Message, d.File, d.Line);
+
+	/// <summary><c>file(line): message</c>, or just the message.</summary>
+	public string Where => File is null ? Message : Line is null ? $"{File}: {Message}" : $"{File}({Line}): {Message}";
 }
 
 /// <summary>
@@ -50,7 +56,7 @@ public sealed class FxConsole(TextWriter stdout, TextWriter stderr, GlobalSettin
 		{
 			failed |= d.Severity == "error";
 			if (Settings.Output == OutputFormat.Human)
-				stderr.WriteLine($"{d.Severity} {d.Code}: {d.Message}");
+				stderr.WriteLine($"{d.Severity} {d.Code}: {d.Where}");
 		}
 		return failed ? 1 : 0;
 	}
@@ -73,6 +79,10 @@ public sealed class FxConsole(TextWriter stdout, TextWriter stderr, GlobalSettin
 				json.WriteString("code", d.Code);
 				json.WriteString("severity", d.Severity);
 				json.WriteString("message", d.Message);
+				if (d.File is not null)
+					json.WriteString("file", d.File);
+				if (d.Line is not null)
+					json.WriteNumber("line", d.Line.Value);
 				json.WriteEndObject();
 			}
 			json.WriteEndArray();

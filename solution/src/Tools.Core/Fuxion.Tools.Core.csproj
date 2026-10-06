@@ -10,6 +10,8 @@
 
 	<ItemGroup>
 		<PackageReference Include="Fuxion" />
+		<!-- only its representation model (YamlStream): no reflection, so AOT-compatible -->
+		<PackageReference Include="YamlDotNet" />
 	</ItemGroup>
 
 </Project>

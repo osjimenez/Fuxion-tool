@@ -1,5 +1,6 @@
 using System.CommandLine;
 using System.IO;
+using Fuxion.Tools.Cli.Sync;
 using Fuxion.Tools.Cli.Version;
 
 namespace Fuxion.Tools.Cli;
@@ -12,6 +13,8 @@ public static class FxApp
 		var global = new GlobalOptions();
 		var root = new RootCommand("fx: the Fuxion workspace tool.")
 		{
+			SyncCommand.CreateSync(global, currentDirectory),
+			SyncCommand.CreateDoctor(global, currentDirectory),
 			VersionCommand.Create(global, currentDirectory)
 		};
 		global.AddTo(root);

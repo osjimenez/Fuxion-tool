@@ -110,6 +110,13 @@ public sealed class GitClient
 
 	public string? RemoteUrl(string remote) => Optional("config", "--get", $"remote.{remote}.url");
 
+	/// <summary>Tracked files (and untracked ones not ignored) matching the pathspecs, relative to the root, with '/'.</summary>
+	public IReadOnlyList<string> ListFiles(params string[] pathspecs)
+		=> Required(["ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", .. pathspecs])
+			.Split('\0', StringSplitOptions.RemoveEmptyEntries)
+			.Distinct(StringComparer.Ordinal)
+			.ToList();
+
 	/// <summary>Committer date of a commit.</summary>
 	public DateTimeOffset? CommitDate(string commit)
 		=> Optional("show", "-s", "--format=%cI", commit) is { } date
