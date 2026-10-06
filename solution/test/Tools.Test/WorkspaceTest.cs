@@ -232,6 +232,27 @@ public sealed class WorkspaceTest
 		Assert.Contains("<FuxionWorkspaceProject Include=\"Tool\" Repository=\"tools\"", ws.Read("_fx/~$workspace.props"));
 	}
 
+	[Fact(DisplayName = "doctor: a standalone repo cannot reference a project of a repo that is not (§6)")]
+	public void Doctor_StandaloneReference()
+	{
+		using var ws = new Workspace(("plus", "mandatory"), ("next", "mandatory"));
+		ws.WriteManifest(("plus", "mandatory", "    standalone: true\n"), ("next", "mandatory", ""));
+		WorkspaceModule.Sync(ws.Root, new());
+		File.WriteAllText(Path.Combine(ws.RepoPath("plus"), "uses.props"), """
+			<Project>
+			  <ItemGroup>
+			    <FuxionReference Include="next" />
+			    <FuxionReference Include="NotMounted;plus" />
+			    <FuxionReference Include="next" Package="false" />
+			  </ItemGroup>
+			</Project>
+			""");
+		var diagnostic = Assert.Single(WorkspaceModule.Doctor(ws.Root, offline: true).Diagnostics, d => d.Code == WorkspaceModule.StandaloneReference);
+		Assert.Contains("references next of 'next'", diagnostic.Message);
+		Assert.Equal("plus/repo/uses.props", diagnostic.File);
+		Assert.Equal(3, diagnostic.Line);
+	}
+
 	[Fact(DisplayName = "fx repo unmount: fx stops managing it, nothing is deleted; mount brings it back")]
 	public void MountUnmount()
 	{

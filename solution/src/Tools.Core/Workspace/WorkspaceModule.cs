@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml;
+using System.Xml.Linq;
 using Fuxion.Tools.Core.Diagnostics;
 using Fuxion.Tools.Core.Dotnet;
 using Fuxion.Tools.Core.Git;
@@ -47,6 +49,7 @@ public static class WorkspaceModule
 	public const string Unpushed = "workspace.unpushed";
 	public const string Unreachable = "workspace.unreachable";
 	public const string UnknownRepository = "workspace.unknown-repository";
+	public const string StandaloneReference = "workspace.standalone-reference";
 
 	static readonly TimeSpan CloneTimeout = TimeSpan.FromMinutes(10);
 	static readonly TimeSpan FetchTimeout = TimeSpan.FromSeconds(60);
@@ -179,8 +182,54 @@ public static class WorkspaceModule
 			Save(Path.Combine(root, "_fx", "~$workspace.yaml"), state.ToYaml());
 
 		if (doctor)
+		{
 			Check(manifest, repositories, files, diagnostics, options.Offline);
+			CheckStandalone(manifest, mounted, diagnostics);
+		}
 		return new(root, files, actions, diagnostics);
+	}
+
+	/// <summary>
+	/// A standalone repository (it builds without the workspace, design D-2) cannot reference a project of a repository
+	/// that is not: outside the workspace that reference would have to be a package, and that repository publishes
+	/// none (design §6). <c>Package="false"</c> references only exist in the workspace by definition.
+	/// </summary>
+	static void CheckStandalone(WorkspaceManifest manifest, IReadOnlyList<WorkspaceRepository> mounted, List<FxDiagnostic> diagnostics)
+	{
+		var projects = WorkspacePropsGenerator.Projects(manifest, mounted, []);
+		var standalone = manifest.Repositories.ToDictionary(r => r.Name, r => r.Standalone, StringComparer.OrdinalIgnoreCase);
+		foreach (var repo in mounted.Where(r => r.Standalone))
+		{
+			if (GitClient.Discover(manifest.FullPath(repo)) is not { } git)
+				continue;
+			foreach (var file in git.ListFiles(":(glob)**/*.csproj", ":(glob)**/*.props", ":(glob)**/*.targets"))
+				foreach (var (reference, line) in FuxionReferences(Path.Combine(git.Root, file)))
+					if (projects.TryGetValue(reference, out var target) && standalone.TryGetValue(target.Repository, out var isStandalone) && !isStandalone)
+						diagnostics.Add(FxDiagnostic.Error(StandaloneReference,
+							$"'{repo.Name}' is standalone, but it references {reference} of '{target.Repository}', which is not: outside the workspace it cannot be a package.",
+							$"{repo.Path}/{file}", line));
+		}
+	}
+
+	/// <summary>The <c>FuxionReference</c> items of a build file that can be packages (not <c>Package="false"</c>).</summary>
+	static IEnumerable<(string Name, int Line)> FuxionReferences(string file)
+	{
+		XDocument document;
+		try
+		{
+			document = XDocument.Load(file, LoadOptions.SetLineInfo);
+		}
+		catch (Exception ex) when (ex is System.Xml.XmlException or IOException)
+		{
+			yield break;
+		}
+		foreach (var item in document.Descendants().Where(e => e.Name.LocalName == "FuxionReference"))
+		{
+			if (string.Equals((string?)item.Attribute("Package") ?? (string?)item.Elements().FirstOrDefault(e => e.Name.LocalName == "Package"), "false", StringComparison.OrdinalIgnoreCase))
+				continue;
+			foreach (var name in ((string?)item.Attribute("Include") ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+				yield return (name, ((IXmlLineInfo)item).LineNumber);
+		}
 	}
 
 	// What only the doctor looks at
