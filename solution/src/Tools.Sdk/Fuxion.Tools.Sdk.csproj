@@ -10,7 +10,7 @@
 	<PropertyGroup>
 		<TargetFramework>net10.0</TargetFramework>
 		<PackageId>Fuxion.Tools.Sdk</PackageId>
-		<Description>MSBuild SDK of the Fuxion repos: shared build settings, versioning from git and static metadata.</Description>
+		<Description>MSBuild SDK of the Fuxion workspace tool (fx): versioning from git, static metadata, references between repositories and what fx generates from dotnet.yaml. It adds its own Fx* settings and leaves the rest of the build to the repository.</Description>
 		<PackageType>MSBuildSdk</PackageType>
 		<IsPackable>true</IsPackable>
 		<!-- the tasks and everything they need go to tasks/net10.0; the package has no dependencies -->

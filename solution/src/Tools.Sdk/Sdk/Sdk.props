@@ -4,24 +4,32 @@
 		Fuxion.Tools.Sdk: the early part. A repo imports it from Directory.Build.props, after the properties of the area:
 
 			<PropertyGroup>
-				<FxPackable>true</FxPackable>
+				<FxDocumentationLanguages>es</FxDocumentationLanguages>
 			</PropertyGroup>
 			<Import Project="Sdk.props" Sdk="Fuxion.Tools.Sdk" />
 
 		(<Sdk Name="Fuxion.Tools.Sdk" /> also works when the area sets nothing before.) The version comes from the
-		msbuild-sdks section of the global.json at the root of the repo. The late part (Fuxion.Tools.Sdk.targets) is
-		hooked in here and runs after the project file: nothing to import in Directory.Build.targets.
+		msbuild-sdks section of the global.json at the root of the repo. The rest is hooked in here: nothing to import in
+		Directory.Build.targets.
+
+		Minimally intrusive (design D-37): the SDK adds Fx* variables for its own features and decides nothing else.
+		Language version, nullable, test frameworks, packaging metadata… are the repo's: plain props and targets that
+		_fx/dotnet.yaml imports where they apply (its imports: section, design §7.3).
+
+		What it gives:
+		  FxRepositoryRoot, FxWorkspaceRoot, FxRepositoryName   where the repo and its workspace are
+		  FxIsCi                  true on a CI server (GITHUB_ACTIONS, CI)
+		  _fx/dotnet.g.props      the variables and the props: imports of dotnet.yaml (here, before the project file)
+		  _fx/dotnet.g.targets    the when variables and the targets: imports (right after the project file)
 
 		Settings (all optional):
-		  FxPackable              the project makes a NuGet package (docs, symbols, README, icon)
-		  FxTestProject           the project is an xUnit v3 test project (Exe, xunit.v3, coverage)
-		  FxPackageIconFile       icon of the packages
 		  FxVersioningEnabled     version from git (default true); FxVersionFailOnError (default true),
 		                          FxVersionForceCi, FxInformationalSuffix
 		  FxStaticMetadataEnabled the Fx.Metadata.<Project> classes (default: as FxVersioningEnabled);
 		                          FxStaticMetadataNamespace (default Fx.Metadata)
-		  FxPolySharp             PolySharp on netstandard and .NET Framework (default true)
 		  FxDocumentationLanguages translated XML documentation to pack, from ~$docs/<lang> (for example: es)
+		  FxLocalPublish          packages to <workspace>/~$publish/<repo>/nupkgs, or <repo>/~$publish/nupkgs outside
+		                          a workspace (design D-36); FxPublishDirectory to choose another folder
 	-->
 
 	<PropertyGroup>
@@ -39,46 +47,28 @@
 		<FxRepositoryName Condition="'$(FxRepositoryName)' == '' And '$(FxWorkspaceRoot)' != '' And '$(_FxRepositoryFolder)' == 'repo'">$([System.IO.Path]::GetFileName($([System.IO.Path]::GetDirectoryName($(FxRepositoryRoot.TrimEnd('\').TrimEnd('/'))))))</FxRepositoryName>
 		<FxRepositoryName Condition="'$(FxRepositoryName)' == '' And '$(FxWorkspaceRoot)' != ''">$(_FxRepositoryFolder)</FxRepositoryName>
 
-		<!-- Packages: <workspace>/~$publish/<repo>/nupkgs, or <repo>/~$publish/nupkgs outside a workspace (D-36) -->
+		<!-- Local publishing, only if asked (it changes PackageOutputPath, a standard property; D-36, D-37) -->
 		<FxPublishDirectory Condition="'$(FxPublishDirectory)' == '' And '$(FxWorkspaceRoot)' != ''">$([MSBuild]::NormalizeDirectory('$(FxWorkspaceRoot)', '~$publish', '$(FxRepositoryName)'))</FxPublishDirectory>
 		<FxPublishDirectory Condition="'$(FxPublishDirectory)' == '' And '$(FxRepositoryRoot)' != ''">$([MSBuild]::NormalizeDirectory('$(FxRepositoryRoot)', '~$publish'))</FxPublishDirectory>
-		<PackageOutputPath Condition="'$(FxPublishDirectory)' != ''">$([MSBuild]::NormalizeDirectory('$(FxPublishDirectory)', 'nupkgs'))</PackageOutputPath>
+		<PackageOutputPath Condition="'$(FxLocalPublish)' == 'true' And '$(FxPublishDirectory)' != ''">$([MSBuild]::NormalizeDirectory('$(FxPublishDirectory)', 'nupkgs'))</PackageOutputPath>
 
-		<!-- Defaults of every project (from oss/solution/.config/props/Project.Default.props) -->
-		<LangVersion>preview</LangVersion>
-		<Nullable>enable</Nullable>
-		<ImplicitUsings>disable</ImplicitUsings>
-		<WarningsAsErrors>$(WarningsAsErrors);Nullable</WarningsAsErrors>
-		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-		<IsPackable Condition="'$(FxPackable)' != 'true'">false</IsPackable>
-
-		<!-- CI -->
+		<!-- On a CI server (for the repo's own props: ContinuousIntegrationBuild…) -->
 		<FxIsCi Condition="'$(GITHUB_ACTIONS)' == 'true' Or '$(CI)' == 'true' Or '$(CI)' == '1'">true</FxIsCi>
-		<ContinuousIntegrationBuild Condition="'$(FxIsCi)' == 'true'">true</ContinuousIntegrationBuild>
 	</PropertyGroup>
 
-	<!-- Packages (from Nuget.Metadata.props and Nuget.Config.OpenSource.props; license and URLs are the repo's) -->
-	<PropertyGroup Condition="'$(FxPackable)' == 'true'">
-		<IsPackable>true</IsPackable>
-		<GenerateDocumentationFile>true</GenerateDocumentationFile>
-		<IncludeSymbols>true</IncludeSymbols>
-		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
-		<PublishRepositoryUrl>true</PublishRepositoryUrl>
-		<EmbedUntrackedSources>true</EmbedUntrackedSources>
-	</PropertyGroup>
-
-	<!-- Test projects (from Project.Test.props) -->
-	<PropertyGroup Condition="'$(FxTestProject)' == 'true'">
-		<OutputType>Exe</OutputType>
-	</PropertyGroup>
-
-	<!-- Variables of the repo, generated from _fx/dotnet.yaml (design §7.3) -->
+	<!-- The variables of dotnet.yaml and its props: imports (design §7.3) -->
 	<Import Project="$(FxRepositoryRoot)_fx/dotnet.g.props" Condition="'$(FxRepositoryRoot)' != '' And Exists('$(FxRepositoryRoot)_fx/dotnet.g.props')" />
 
-	<!-- The late part, after the project file: in each target framework build (Microsoft.Common.targets) and in the
-	     outer build of a multi-targeted project (Microsoft.Common.CrossTargeting.targets), which packs it -->
 	<PropertyGroup>
+		<!-- Right after the project file, before the .NET SDK computes anything (the start of its Sdk.targets): the when
+		     variables and the targets: imports of dotnet.yaml, which see what the project declares and can still set
+		     properties like OutputType (plan N, decision 15; the .NET SDK imports BeforeMicrosoftNETSdkTargets there) -->
+		<_FxPreviousBeforeMicrosoftNETSdkTargets>$(BeforeMicrosoftNETSdkTargets)</_FxPreviousBeforeMicrosoftNETSdkTargets>
+		<BeforeMicrosoftNETSdkTargets>$(MSBuildThisFileDirectory)../build/Fuxion.Tools.Sdk.Project.targets</BeforeMicrosoftNETSdkTargets>
+
+		<!-- The late part (versioning, metadata, FuxionReference): in each target framework build
+		     (Microsoft.Common.targets) and in the outer build of a multi-targeted project
+		     (Microsoft.Common.CrossTargeting.targets), which packs it -->
 		<_FxPreviousCustomBeforeDirectoryBuildTargets>$(CustomBeforeDirectoryBuildTargets)</_FxPreviousCustomBeforeDirectoryBuildTargets>
 		<CustomBeforeDirectoryBuildTargets>$(MSBuildThisFileDirectory)../build/Fuxion.Tools.Sdk.Inner.targets</CustomBeforeDirectoryBuildTargets>
 		<_FxPreviousCustomAfterCrossTargetingTargets>$(CustomAfterMicrosoftCommonCrossTargetingTargets)</_FxPreviousCustomAfterCrossTargetingTargets>

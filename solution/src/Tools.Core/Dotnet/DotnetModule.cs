@@ -45,9 +45,14 @@ public static partial class DotnetModule
 	public const string Unverifiable = "dotnet.unverifiable";
 	public const string NoCentralPackages = "dotnet.no-central-packages";
 	public const string NotARepository = "dotnet.not-a-repository";
+	public const string MissingImport = "dotnet.missing-import";
+	public const string WorkspaceLayer = "dotnet.workspace-layer";
 
-	/// <summary>Packages Fuxion.Tools.Sdk adds by itself (test projects, old frameworks): governed if dotnet.yaml lists them.</summary>
-	public static readonly IReadOnlyList<string> SdkPackages = ["xunit.v3", "Microsoft.Testing.Extensions.CodeCoverage", "PolySharp"];
+	/// <summary>
+	/// The line of the copy of the workspace's dotnet.yaml (<c>_fx/.workspace/dotnet.yaml</c>) that keeps the repo's tags, so a
+	/// clone outside the workspace generates the same (plan N, decision 15).
+	/// </summary>
+	public const string TagsMark = "# fx-tags:";
 
 	[GeneratedRegex("""<PackageReference\s[^>]*?(?:Include|Update)\s*=\s*"(?<id>[^"]+)""", RegexOptions.IgnoreCase)]
 	private static partial Regex PackageReference();
@@ -61,9 +66,14 @@ public static partial class DotnetModule
 	[GeneratedRegex(@"<Project[^>]*>")]
 	private static partial Regex ProjectElement();
 
-	/// <summary>Whether the module applies to the repository at <paramref name="directory"/> (it has a dotnet.yaml).</summary>
+	/// <summary>
+	/// Whether the module applies to the repository at <paramref name="directory"/>: it has a dotnet.yaml, and it is not
+	/// the metarepo (whose dotnet.yaml is the workspace layer that fx sync workspace copies to the repositories).
+	/// </summary>
 	public static bool Applies(string directory)
-		=> GitClient.Discover(directory) is { } git && (File.Exists(ConfigPath(git.Root)) || File.Exists(WorkspaceConfigPath(git.Root)));
+		=> GitClient.Discover(directory) is { } git && !IsWorkspace(git.Root) && (File.Exists(ConfigPath(git.Root)) || File.Exists(WorkspaceConfigPath(git.Root)));
+
+	static bool IsWorkspace(string root) => File.Exists(Path.Combine(root, "_fx", "workspace.yaml"));
 
 	public static DotnetResult Sync(string directory, bool dryRun) => Run(directory, dryRun ? Mode.DryRun : Mode.Write);
 
@@ -83,6 +93,8 @@ public static partial class DotnetModule
 		if (git is null)
 			return new(directory, [], [FxDiagnostic.Error(NotARepository, $"'{directory}' is not inside a git repository.")]);
 		var root = git.Root;
+		if (IsWorkspace(root))
+			return new(root, [], [FxDiagnostic.Error(WorkspaceLayer, "This is the metarepo: its _fx/dotnet.yaml is the workspace layer, which fx sync workspace copies to the repositories.")]);
 
 		// 1. The configuration: the workspace layer, the repo on top, only what applies to the repo's tags
 		DotnetConfig config;
@@ -94,7 +106,7 @@ public static partial class DotnetModule
 			if (!hasWorkspace && !hasRepo)
 				return new(root, [], [FxDiagnostic.Error(NoConfig, "There is no _fx/dotnet.yaml (nor _fx/.workspace/dotnet.yaml) in this repository.")]);
 			config = DotnetConfig.Combine(
-				hasWorkspace ? DotnetYamlReader.ReadFile(WorkspaceConfigPath(root)) : DotnetConfig.Empty,
+				hasWorkspace ? DotnetYamlReader.ReadFile(WorkspaceConfigPath(root)).WithBase(".workspace") : DotnetConfig.Empty,
 				hasRepo ? DotnetYamlReader.ReadFile(ConfigPath(root)) : DotnetConfig.Empty);
 			sources = hasWorkspace && hasRepo ? "_fx/.workspace/dotnet.yaml and _fx/dotnet.yaml" : hasRepo ? "_fx/dotnet.yaml" : "_fx/.workspace/dotnet.yaml";
 		}
@@ -102,39 +114,44 @@ public static partial class DotnetModule
 		{
 			return new(root, [], ex.Diagnostics.Select(d => d with { File = Relative(root, d.File) }).ToList());
 		}
-		var tags = WorkspaceManifest.FindAbove(Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(root))!)?.RepositoryAt(root)?.Tags ?? [];
+		// The repo's tags: from the workspace manifest; outside the workspace, from the copy of its dotnet.yaml
+		var tags = WorkspaceManifest.FindAbove(Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(root))!)?.RepositoryAt(root)?.Tags
+		           ?? CopyTags(WorkspaceConfigPath(root));
 		config = config.ForTags(tags);
 
-		// 2. The when variables, expanded
+		// 2. The when variables and the conditions of packages and imports, expanded
 		var whenRaw = config.Variables.Where(v => v.IsWhen).ToDictionary(v => v.Name, v => v.When!, StringComparer.OrdinalIgnoreCase);
 		Dictionary<string, string> whenExpanded;
 		List<(string Id, string Version, string Condition)> governed;
+		List<(string Path, string? Condition)> propsImports, targetsImports;
 		try
 		{
 			whenExpanded = whenRaw.ToDictionary(kv => kv.Key, kv => MSBuildConditions.Expand(kv.Value, whenRaw), StringComparer.OrdinalIgnoreCase);
 			governed = config.Packages
 				.SelectMany(p => p.Ids.SelectMany(id => p.Versions.Select(v => (Id: id, v.Version, Condition: MSBuildConditions.Expand(v.When, whenRaw)))))
 				.ToList();
+			string? Condition(DotnetImport import) => import.When is null ? null : MSBuildConditions.Expand(import.When, whenRaw);
+			propsImports = config.Imports.SelectMany(i => i.Props.Select(p => (Path: i.FromFx(p), Condition: Condition(i)))).ToList();
+			targetsImports = config.Imports.SelectMany(i => i.Targets.Select(t => (Path: i.FromFx(t), Condition: Condition(i)))).ToList();
 		}
 		catch (InvalidOperationException ex)
 		{
 			return new(root, [], [FxDiagnostic.Error(DotnetYamlReader.InvalidYaml, ex.Message, "_fx/dotnet.yaml")]);
 		}
 
-		// 3. Only the packages the repo uses (design §7.3)
+		// 3. Only the packages the repo uses (design §7.3), in its projects and in what dotnet.yaml imports
 		var buildFiles = git.ListFiles(":(glob)**/*.csproj", ":(glob)**/*.props", ":(glob)**/*.targets")
-			.Where(f => !f.StartsWith("_fx/", StringComparison.OrdinalIgnoreCase))
+			.Where(f => !(f.StartsWith("_fx/", StringComparison.OrdinalIgnoreCase) && Path.GetFileName(f).Contains(".g.", StringComparison.OrdinalIgnoreCase)))
 			.ToList();
 		var used = buildFiles
 			.SelectMany(f => PackageReference().Matches(Read(root, f)).Select(m => m.Groups["id"].Value))
-			.Concat(SdkPackages)
 			.ToHashSet(StringComparer.OrdinalIgnoreCase);
 		var packages = governed.Where(p => used.Contains(p.Id)).OrderBy(p => p.Id, StringComparer.OrdinalIgnoreCase).ToList();
 
 		// 4. The generated files
 		var write = mode == Mode.Write;
-		Generate(root, "_fx/dotnet.g.props", DotnetGenerator.Props(config, sources), write, files, diagnostics);
-		Generate(root, "_fx/dotnet.g.targets", DotnetGenerator.Targets(config, whenExpanded, sources), write, files, diagnostics);
+		Generate(root, "_fx/dotnet.g.props", DotnetGenerator.Props(config, propsImports, sources), write, files, diagnostics);
+		Generate(root, "_fx/dotnet.g.targets", DotnetGenerator.Targets(config, whenExpanded, targetsImports, sources), write, files, diagnostics);
 		Generate(root, "_fx/packages.g.props", DotnetGenerator.Packages(packages, sources), write, files, diagnostics);
 
 		// 5. The keys fx owns in files that are not fx's (design §4.2): msbuild-sdks and the Import of packages.g.props
@@ -150,6 +167,9 @@ public static partial class DotnetModule
 		{
 			foreach (var file in files.Where(f => f.Status == SyncFileStatus.WouldWrite))
 				diagnostics.Add(FxDiagnostic.Error(Outdated, "Out of date with _fx/dotnet.yaml: run fx sync dotnet.", file.Path));
+			foreach (var path in propsImports.Concat(targetsImports).Select(i => i.Path).Distinct(StringComparer.OrdinalIgnoreCase))
+				if (!File.Exists(Path.Combine(root, "_fx", path)))
+					diagnostics.Add(FxDiagnostic.Error(MissingImport, $"dotnet.yaml imports _fx/{path}, which does not exist (in the workspace, fx sync workspace copies it).", "_fx/dotnet.g.props"));
 			CheckOwners(root, centralFiles, packages, diagnostics);
 			CheckCoverage(root, git, config, governed, diagnostics);
 		}
@@ -298,6 +318,12 @@ public static partial class DotnetModule
 	}
 
 	static string Read(string root, string relative) => File.ReadAllText(Path.Combine(root, relative));
+
+	/// <summary>The tags kept in the copy of the workspace's dotnet.yaml (<see cref="TagsMark"/>), if any.</summary>
+	static IReadOnlyList<string> CopyTags(string path)
+		=> File.Exists(path) && File.ReadLines(path).Take(5).FirstOrDefault(l => l.StartsWith(TagsMark, StringComparison.Ordinal)) is { } line
+			? line[TagsMark.Length..].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+			: [];
 
 	static string Normalize(string text) => text.Replace("\r\n", "\n");
 

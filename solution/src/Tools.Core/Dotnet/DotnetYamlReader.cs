@@ -49,11 +49,12 @@ public static partial class DotnetYamlReader
 		if (stream.Documents.Count == 0 || stream.Documents[0].RootNode is YamlScalarNode { Value: null or "" })
 			return DotnetConfig.Empty;
 		if (stream.Documents[0].RootNode is not YamlMappingNode root)
-			throw new DotnetConfigException([FxDiagnostic.Error(InvalidYaml, "The document must be a mapping (sdks, variables, packages).", source, 1)]);
+			throw new DotnetConfigException([FxDiagnostic.Error(InvalidYaml, "The document must be a mapping (sdks, variables, imports, packages).", source, 1)]);
 
 		var sdks = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 		var variables = new List<DotnetVariable>();
 		var packages = new List<DotnetPackage>();
+		var imports = new List<DotnetImport>();
 
 		foreach (var (keyNode, valueNode) in root.Children)
 		{
@@ -78,6 +79,12 @@ public static partial class DotnetYamlReader
 							variables.Add(variable);
 					break;
 
+				case "imports":
+					foreach (var item in Sequence(valueNode, "imports", Error))
+						if (ReadImport(item, source, Error) is { } import)
+							imports.Add(import);
+					break;
+
 				case "packages":
 					foreach (var item in Sequence(valueNode, "packages", Error))
 						if (ReadPackage(item, source, Error) is { } package)
@@ -85,7 +92,7 @@ public static partial class DotnetYamlReader
 					break;
 
 				default:
-					Error(keyNode, $"Unknown section '{Scalar(keyNode)}' (sdks, variables, packages).");
+					Error(keyNode, $"Unknown section '{Scalar(keyNode)}' (sdks, variables, imports, packages).");
 					break;
 			}
 		}
@@ -97,7 +104,7 @@ public static partial class DotnetYamlReader
 
 		if (errors.Count > 0)
 			throw new DotnetConfigException(errors);
-		return new(sdks, variables, packages);
+		return new(sdks, variables, packages, imports);
 	}
 
 	static DotnetVariable? ReadVariable(YamlNode node, string source, Action<YamlNode?, string> error)
@@ -128,6 +135,40 @@ public static partial class DotnetYamlReader
 		else if (define is not null && define.Split(';').Any(c => !ConstantName().IsMatch(c.Trim())))
 			error(node, $"Variable '{name}': 'define' must be compilation constants separated by ';' ('{define}').");
 		return new(name, value, when, Tags(map, error), source, (int)node.Start.Line, define?.Trim());
+	}
+
+	static DotnetImport? ReadImport(YamlNode node, string source, Action<YamlNode?, string> error)
+	{
+		if (node is not YamlMappingNode map)
+		{
+			error(node, "An import is a mapping: props and/or targets, and when.");
+			return null;
+		}
+		foreach (var key in map.Children.Keys.Select(Scalar).Where(k => k is not ("props" or "targets" or "when" or "tags")))
+			error(node, $"Import: unknown key '{key}' (props, targets, when, tags).");
+		var props = Paths(map, "props", error);
+		var targets = Paths(map, "targets", error);
+		if (props.Count + targets.Count == 0)
+		{
+			error(node, "An import needs 'props' or 'targets'.");
+			return null;
+		}
+		// Relative to the folder of the yaml and inside it: fx copies the workspace's to each repo (_fx/.workspace/)
+		foreach (var path in props.Concat(targets).Where(p => Path.IsPathRooted(p) || p.Replace('\\', '/').Split('/').Contains("..")))
+			error(node, $"Import '{path}': the path must be relative to the folder of dotnet.yaml, without '..'.");
+		return new(props, targets, Get(map, "when"), Tags(map, error), source, (int)node.Start.Line);
+	}
+
+	static IReadOnlyList<string> Paths(YamlMappingNode map, string key, Action<YamlNode?, string> error)
+	{
+		if (!map.Children.TryGetValue(new YamlScalarNode(key), out var node))
+			return [];
+		if (node is YamlSequenceNode list)
+			return list.Children.Select(Scalar).Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p!.Replace('\\', '/')).ToList();
+		if (Scalar(node) is { Length: > 0 } single)
+			return [single.Replace('\\', '/')];
+		error(node, $"'{key}' must be a path or a list of paths.");
+		return [];
 	}
 
 	static DotnetPackage? ReadPackage(YamlNode node, string source, Action<YamlNode?, string> error)

@@ -2,11 +2,9 @@
 
 	<!--
 		Fuxion.Tools.Sdk: the late part, after the project file, imported by Fuxion.Tools.Sdk.Inner.targets (each target
-		framework) and Fuxion.Tools.Sdk.Outer.targets (the outer build of a multi-targeted project).
+		framework) and Fuxion.Tools.Sdk.Outer.targets (the outer build of a multi-targeted project). The when variables
+		and the targets: imports of dotnet.yaml come earlier, right after the project file (Fuxion.Tools.Sdk.Project.targets).
 	-->
-
-	<!-- Variables of the repo that depend on the target framework, generated from _fx/dotnet.yaml (design §7.3) -->
-	<Import Project="$(FxRepositoryRoot)_fx/dotnet.g.targets" Condition="'$(FxRepositoryRoot)' != '' And Exists('$(FxRepositoryRoot)_fx/dotnet.g.targets')" />
 
 	<!-- ====================================================================================================== -->
 	<!-- References to projects of other repositories (design §6): <FuxionReference Include="Fuxion" />. In a      -->
@@ -41,7 +39,6 @@
 		<FxStaticMetadataEnabled Condition="'$(FxStaticMetadataEnabled)' == ''">$(FxVersioningEnabled)</FxStaticMetadataEnabled>
 		<FxStaticMetadataNamespace Condition="'$(FxStaticMetadataNamespace)' == ''">Fx.Metadata</FxStaticMetadataNamespace>
 		<FxStaticMetadataFile>$(IntermediateOutputPath)Fuxion.StaticMetadata.g.cs</FxStaticMetadataFile>
-		<FxPolySharp Condition="'$(FxPolySharp)' == ''">true</FxPolySharp>
 		<FxDocumentationDirectory Condition="'$(FxDocumentationDirectory)' == ''">$(MSBuildProjectDirectory)/~$docs/</FxDocumentationDirectory>
 		<_FxTasksAssembly>$(MSBuildThisFileDirectory)../tasks/net10.0/Fuxion.Tools.Sdk.dll</_FxTasksAssembly>
 	</PropertyGroup>
@@ -104,31 +101,12 @@
 		</ItemGroup>
 	</Target>
 
-	<!-- ====================================================================================================== -->
-	<!-- Packages, tests, PolySharp, documentation                                                              -->
-	<!-- ====================================================================================================== -->
-	<PropertyGroup Condition="'$(FxPackable)' == 'true'">
-		<PackageReadmeFile Condition="'$(PackageReadmeFile)' == '' And Exists('$(MSBuildProjectDirectory)/PACKAGE_README.md')">PACKAGE_README.md</PackageReadmeFile>
-		<PackageIcon Condition="'$(PackageIcon)' == '' And '$(FxPackageIconFile)' != ''">$([System.IO.Path]::GetFileName('$(FxPackageIconFile)'))</PackageIcon>
+	<!-- ======================================================================================================= -->
+	<!-- Translated documentation (FxDocumentationLanguages): a feature of the tool, only when asked for           -->
+	<!-- ======================================================================================================= -->
+	<PropertyGroup Condition="'$(FxDocumentationLanguages)' != '' And '$(IsPackable)' == 'true'">
 		<TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);FxIncludeTranslatedDocumentation</TargetsForTfmSpecificContentInPackage>
 	</PropertyGroup>
-
-	<ItemGroup Condition="'$(FxPackable)' == 'true'">
-		<None Include="$(MSBuildProjectDirectory)/PACKAGE_README.md" Pack="true" PackagePath="\" Condition="'$(PackageReadmeFile)' == 'PACKAGE_README.md'" />
-		<None Include="$(FxPackageIconFile)" Pack="true" PackagePath="\" Visible="false" Condition="'$(FxPackageIconFile)' != ''" />
-	</ItemGroup>
-
-	<!-- xUnit v3 on Microsoft.Testing.Platform; item conditions see what the project set (helper libraries in a test
-	     area set OutputType=Library, executables that are not tests set IsTestProject=false) -->
-	<ItemGroup Condition="'$(FxTestProject)' == 'true' And '$(OutputType)' == 'Exe' And '$(IsTestProject)' != 'false'">
-		<PackageReference Include="xunit.v3" />
-		<PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
-	</ItemGroup>
-
-	<!-- The latest language features on netstandard and .NET Framework -->
-	<ItemGroup Condition="'$(FxPolySharp)' == 'true' And ($(TargetFramework.StartsWith('netstandard')) Or $(TargetFramework.StartsWith('net4')))">
-		<PackageReference Include="PolySharp" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
-	</ItemGroup>
 
 	<!-- The English XML documentation is copied to ~$docs/en for the translators; ~$docs/<lang>/<Assembly>.xml is
 	     packed for each language of FxDocumentationLanguages (from oss/solution/.config/targets/Documentation.targets) -->

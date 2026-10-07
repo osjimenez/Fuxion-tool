@@ -1,0 +1,18 @@
+<Project>
+
+	<!-- Fuxion.Tools.Sdk right after the project file and before the .NET SDK computes anything: hooked by Sdk.props as
+	     BeforeMicrosoftNETSdkTargets (keeping whatever was there before), which the .NET SDK imports at the start of its
+	     Sdk.targets, in each target framework build and in the outer build. -->
+
+	<Import Project="$(_FxPreviousBeforeMicrosoftNETSdkTargets)"
+	        Condition="'$(_FxPreviousBeforeMicrosoftNETSdkTargets)' != '' And Exists('$(_FxPreviousBeforeMicrosoftNETSdkTargets)')" />
+
+	<!-- The when variables of dotnet.yaml (IsNet11…), its constants and its targets: imports (design §7.3) -->
+	<Import Project="$(FxRepositoryRoot)_fx/dotnet.g.targets" Condition="'$(FxRepositoryRoot)' != '' And Exists('$(FxRepositoryRoot)_fx/dotnet.g.targets')" />
+
+	<PropertyGroup>
+		<!-- So a test can tell that this point was reached (a future .NET SDK that stops importing it must not go unnoticed) -->
+		<FxProjectTargetsImported>true</FxProjectTargetsImported>
+	</PropertyGroup>
+
+</Project>

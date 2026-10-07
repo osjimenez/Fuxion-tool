@@ -32,8 +32,8 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		""";
 
 	/// <summary>
-	/// A repository with a packable library (net10.0 and net11.0) that uses the SDK; tagged version/2.3.0 on its
-	/// first commit and with one more commit, so its version is 2.3.1.
+	/// A repository with a packable library (net10.0 and net11.0) that uses the SDK and publishes locally
+	/// (FxLocalPublish); tagged version/2.3.0 on its first commit and with one more commit, so its version is 2.3.1.
 	/// </summary>
 	TempGitRepository Sample(string? path = null, bool tag = true, string properties = "", string code = UsesMetadata)
 	{
@@ -41,7 +41,11 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		fixture.SetUp(repo, $"""
 			<Project>
 				<PropertyGroup>
-					<FxPackable>true</FxPackable>
+					<IsPackable>true</IsPackable>
+					<GenerateDocumentationFile>true</GenerateDocumentationFile>
+					<IncludeSymbols>true</IncludeSymbols>
+					<SymbolPackageFormat>snupkg</SymbolPackageFormat>
+					<FxLocalPublish>true</FxLocalPublish>
 					{properties}
 				</PropertyGroup>
 				<Import Project="Sdk.props" Sdk="Fuxion.Tools.Sdk" />
@@ -56,7 +60,6 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 			</Project>
 			""");
 		repo.WriteFile(Path.Combine("solution", "src", "Lib", "Info.cs"), code);
-		repo.WriteFile(Path.Combine("solution", "src", "Lib", "PACKAGE_README.md"), "# Lib");
 		repo.CommitAll("c1");
 		if (tag)
 			repo.Tag("version/2.3.0");
@@ -102,7 +105,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		Assert.Equal(written, File.GetLastWriteTimeUtc(MetadataFile(repo)));
 	}
 
-	[Fact(DisplayName = "pack outside a workspace: <repo>/~$publish/nupkgs, with the version, README and docs")]
+	[Fact(DisplayName = "FxLocalPublish outside a workspace: <repo>/~$publish/nupkgs, with the version and the docs")]
 	public void Pack()
 	{
 		using var repo = Sample();
@@ -113,12 +116,21 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		Assert.True(File.Exists(Path.ChangeExtension(package, ".snupkg")));
 		using var zip = ZipFile.OpenRead(package);
 		var entries = zip.Entries.Select(e => e.FullName).ToList();
-		Assert.Contains("PACKAGE_README.md", entries);
 		Assert.Contains("lib/net10.0/Lib.dll", entries);
 		Assert.Contains("lib/net11.0/Lib.xml", entries);
 	}
 
-	[Fact(DisplayName = "pack in a workspace: <workspace>/~$publish/<repo>/nupkgs")]
+	[Fact(DisplayName = "without FxLocalPublish the SDK leaves PackageOutputPath alone (design D-37)")]
+	public void Pack_NotLocal()
+	{
+		using var repo = Sample(properties: "<FxLocalPublish>false</FxLocalPublish>");
+		Succeeded(fixture.Build(Lib(repo), "-t:Pack"));
+		Assert.True(File.Exists(Path.Combine(Lib(repo), "bin", "Release", "Lib.2.3.1.nupkg")) || File.Exists(Path.Combine(Lib(repo), "bin", "Debug", "Lib.2.3.1.nupkg")),
+			string.Join(", ", Directory.EnumerateFiles(repo.Path, "*.nupkg", SearchOption.AllDirectories)));
+		Assert.False(Directory.Exists(Path.Combine(repo.Path, "~$publish")));
+	}
+
+	[Fact(DisplayName = "FxLocalPublish in a workspace: <workspace>/~$publish/<repo>/nupkgs")]
 	public void Pack_Workspace()
 	{
 		var workspace = Directory.CreateDirectory(Path.Combine(fixture.Root, "ws-" + Guid.NewGuid().ToString("N")[..8])).FullName;
@@ -131,7 +143,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		Assert.False(Directory.Exists(Path.Combine(repo.Path, "~$publish")));
 	}
 
-	[Fact(DisplayName = "pack in a workspace from a repo not at <name>/repo (a submodule): <workspace>/~$publish/<folder>/nupkgs")]
+	[Fact(DisplayName = "FxLocalPublish in a workspace from a repo not at <name>/repo (a submodule): <workspace>/~$publish/<folder>/nupkgs")]
 	public void Pack_WorkspaceSubmodule()
 	{
 		var workspace = Directory.CreateDirectory(Path.Combine(fixture.Root, "ws-" + Guid.NewGuid().ToString("N")[..8])).FullName;
@@ -209,14 +221,53 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		return repo;
 	}
 
-	[Fact(DisplayName = "FxTestProject: an xUnit v3 executable on Microsoft.Testing.Platform, with nothing in the csproj")]
-	public void TestProject()
+	[Fact(DisplayName = "dotnet.yaml imports: a project that only declares IsTestProject is an xUnit v3 test; PolySharp where a variable says")]
+	public void Imports()
 	{
-		using var repo = CentralPackages("<FxTestProject>true</FxTestProject>");
+		// The repo's conventions are plain MSBuild files; dotnet.yaml says where they go (plan N, decision 15)
+		using var repo = CentralPackages("");
+		repo.WriteFile(Path.Combine("_fx", "dotnet.yaml"), """
+			variables:
+			  - name: IsOldFramework
+			    when: "'$(TargetFramework)' == 'netstandard2.0'"
+			imports:
+			  - props: dotnet/default.props
+			  - targets: dotnet/test.targets
+			    when: "'$(IsTestProject)' == 'true'"
+			  - targets: dotnet/polysharp.targets
+			    when: "$(IsOldFramework)"
+			""");
+		repo.WriteFile(Path.Combine("_fx", "dotnet", "default.props"), """
+			<Project>
+				<PropertyGroup>
+					<LangVersion>latest</LangVersion>
+				</PropertyGroup>
+			</Project>
+			""");
+		// Right after the project file: it sees IsTestProject and can still make it an executable
+		repo.WriteFile(Path.Combine("_fx", "dotnet", "test.targets"), """
+			<Project>
+				<PropertyGroup>
+					<OutputType>Exe</OutputType>
+				</PropertyGroup>
+				<ItemGroup>
+					<PackageReference Include="xunit.v3" />
+					<PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+				</ItemGroup>
+			</Project>
+			""");
+		repo.WriteFile(Path.Combine("_fx", "dotnet", "polysharp.targets"), """
+			<Project>
+				<ItemGroup>
+					<PackageReference Include="PolySharp" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+				</ItemGroup>
+			</Project>
+			""");
 		repo.WriteFile(Path.Combine("solution", "test", "Tests", "Tests.csproj"), """
 			<Project Sdk="Microsoft.NET.Sdk">
 				<PropertyGroup>
 					<TargetFramework>net10.0</TargetFramework>
+					<IsTestProject>true</IsTestProject>
 				</PropertyGroup>
 			</Project>
 			""");
@@ -231,19 +282,6 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 				public void Passes() => Assert.Equal(2, 1 + 1);
 			}
 			""");
-		repo.CommitAll("c1");
-		repo.Tag("version/1.0.0");
-
-		var result = ProcessRunner.Run("dotnet", repo.Path, ["test", "--project", Path.Combine("solution", "test", "Tests")],
-			TimeSpan.FromMinutes(5), SdkFixture.CleanEnvironment());
-		Succeeded(result);
-		Assert.Contains("succeeded: 1", result.StandardOutput);
-	}
-
-	[Fact(DisplayName = "PolySharp on netstandard2.0: init accessors and records compile")]
-	public void PolySharp()
-	{
-		using var repo = CentralPackages("");
 		repo.WriteFile(Path.Combine("solution", "src", "Old", "Old.csproj"), """
 			<Project Sdk="Microsoft.NET.Sdk">
 				<PropertyGroup>
@@ -254,16 +292,52 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		repo.WriteFile(Path.Combine("solution", "src", "Old", "Point.cs"), """
 			namespace Old;
 
-			/// <summary>Needs IsExternalInit, which netstandard2.0 lacks.</summary>
+			/// <summary>Needs IsExternalInit, which netstandard2.0 lacks: PolySharp gives it.</summary>
 			public sealed record Point(int X, int Y)
 			{
 				/// <summary>An init accessor.</summary>
 				public string Name { get; init; } = "";
 			}
 			""");
+		Assert.Equal(0, FxApp.Run(["sync", "dotnet"], new StringWriter(), new StringWriter(), repo.Path));
 		repo.CommitAll("c1");
 		repo.Tag("version/1.0.0");
+
+		var test = ProcessRunner.Run("dotnet", repo.Path, ["test", "--project", Path.Combine("solution", "test", "Tests")],
+			TimeSpan.FromMinutes(5), SdkFixture.CleanEnvironment());
+		Succeeded(test);
+		Assert.Contains("succeeded: 1", test.StandardOutput);
 		Succeeded(fixture.Build(Path.Combine(repo.Path, "solution", "src", "Old")));
+		Assert.Equal(0, FxApp.Run(["doctor"], new StringWriter(), new StringWriter(), repo.Path));
+	}
+
+	[Fact(DisplayName = "the SDK keeps a BeforeMicrosoftNETSdkTargets the repo had, and the .NET SDK still imports it")]
+	public void BeforeMicrosoftNETSdkTargets()
+	{
+		using var repo = CentralPackages("<BeforeMicrosoftNETSdkTargets>$(MSBuildThisFileDirectory)mine.targets</BeforeMicrosoftNETSdkTargets>");
+		repo.WriteFile(Path.Combine("solution", "mine.targets"), """
+			<Project>
+				<PropertyGroup>
+					<MineImported>true</MineImported>
+				</PropertyGroup>
+			</Project>
+			""");
+		repo.WriteFile(Path.Combine("solution", "src", "App", "App.csproj"), """
+			<Project Sdk="Microsoft.NET.Sdk">
+				<PropertyGroup>
+					<TargetFramework>net10.0</TargetFramework>
+				</PropertyGroup>
+			</Project>
+			""");
+		repo.CommitAll("c1");
+		repo.Tag("version/1.0.0");
+		var result = ProcessRunner.Run("dotnet", repo.Path,
+			["msbuild", Path.Combine("solution", "src", "App", "App.csproj"), "-getProperty:MineImported", "-getProperty:FxProjectTargetsImported", "-nologo"],
+			TimeSpan.FromMinutes(5), SdkFixture.CleanEnvironment());
+		Succeeded(result);
+		Assert.Contains("\"MineImported\": \"true\"", result.StandardOutput);
+		// If a new .NET SDK stops importing BeforeMicrosoftNETSdkTargets, the targets: imports of dotnet.yaml are lost
+		Assert.Contains("\"FxProjectTargetsImported\": \"true\"", result.StandardOutput);
 	}
 
 	[Fact(DisplayName = "dotnet.yaml: fx sync generates it and the SDK builds with its frameworks and package versions")]

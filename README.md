@@ -34,7 +34,7 @@ Global options: --root <path>, --output human|json, --verbose, --plain
 
 ## `Fuxion.Tools.Sdk`
 
-An MSBuild SDK with what every Fuxion repo shares. A repo pins it in the `global.json` at its root and imports it in
+An MSBuild SDK for the tool's own features. A repo pins it in the `global.json` at its root and imports it in
 `Directory.Build.props`, after the properties of the area:
 
 ```json
@@ -43,22 +43,34 @@ An MSBuild SDK with what every Fuxion repo shares. A repo pins it in the `global
 
 ```xml
 <Project>
-	<PropertyGroup>
-		<FxPackable>true</FxPackable>
-	</PropertyGroup>
 	<Import Project="Sdk.props" Sdk="Fuxion.Tools.Sdk" />
 </Project>
 ```
+
+**Minimally intrusive**: it adds `Fx*` settings for its own features and decides nothing else. The language version,
+nullable, test frameworks, PolySharp, packaging metadata… are the repo's, in plain props and targets.
 
 - **Version from git**, the same as `fx version`, set before anything reads it (assembly attributes, package):
   calculated once per repository and build. `FxVersioningEnabled=false` turns it off.
 - **Static metadata**: `Fx.Metadata.<Project>.{Project, Build, Versioning, Repository, Json}`, generated in `obj/`. The
   build date is the date of the HEAD commit (or `SOURCE_DATE_EPOCH`), so the file only changes with the commit.
-- **Defaults** of the Fuxion repos (C# preview, nullable, warnings as errors…), **packages** (`FxPackable`: XML docs,
-  symbols, `PACKAGE_README.md`, `FxPackageIconFile`), **test projects** (`FxTestProject`: xUnit v3 on Microsoft.Testing
-  Platform, with coverage), **PolySharp** on netstandard and .NET Framework, and translated XML docs
-  (`FxDocumentationLanguages`).
-- Packages go to `<workspace>/~$publish/<repo>/nupkgs` inside a Fuxion workspace, or `<repo>/~$publish/nupkgs`.
+- **What `fx` generates from `_fx/dotnet.yaml`**: its variables (`$(CoreFrameworks)`, `$(IsNet11)`, compilation
+  constants) and its **imports**, plain MSBuild files imported where a condition holds. `props:` go before the project
+  file; `targets:` right after it, before the .NET SDK computes anything, so they see what the project declares. A
+  test project only says `<IsTestProject>true</IsTestProject>`, and the repo's `test.targets` makes it an executable
+  with its test framework:
+
+  ```yaml
+  imports:
+    - props: dotnet/default.props              # every project
+    - targets: dotnet/test.targets             # OutputType=Exe, xunit.v3…
+      when: "'$(IsTestProject)' == 'true'"
+  ```
+
+- **References between repositories**: `<FuxionReference Include="Project" />`, a project inside a Fuxion workspace,
+  a package outside it.
+- **Translated XML docs** (`FxDocumentationLanguages`) and **local publishing** (`FxLocalPublish`: packages to
+  `<workspace>/~$publish/<repo>/nupkgs`, or `<repo>/~$publish/nupkgs`), only when asked for.
 - The tasks run on the .NET task host of MSBuild: in process under `dotnet build`, out of process under Visual Studio
   (its MSBuild is .NET Framework). That is why they, and `Fuxion.Tools.Core`, target `net10.0`.
 

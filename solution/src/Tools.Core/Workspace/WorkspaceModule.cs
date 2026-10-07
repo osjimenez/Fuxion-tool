@@ -178,6 +178,8 @@ public static class WorkspaceModule
 		Generate(root, ".gitignore", Gitignore(manifest), "#", write, options.Adopt, files, diagnostics);
 		Generate(root, SolutionGenerator.FileName, SolutionGenerator.Generate(manifest, mounted, diagnostics), "<!--", write, options.Adopt, files, diagnostics);
 		Generate(root, WorkspacePropsGenerator.FileName, WorkspacePropsGenerator.Generate(manifest, mounted, diagnostics), "<!--", write, options.Adopt, files, diagnostics);
+		// 5. The workspace's dotnet.yaml and its files, to each .NET repository; their generated files
+		DotnetPropagation.Run(manifest, mounted, write, doctor, files, diagnostics);
 		if (write)
 			Save(Path.Combine(root, "_fx", "~$workspace.yaml"), state.ToYaml());
 
@@ -235,10 +237,18 @@ public static class WorkspaceModule
 	// What only the doctor looks at
 	static void Check(WorkspaceManifest manifest, IReadOnlyList<RepositoryState> repositories, List<SyncFile> files, List<FxDiagnostic> diagnostics, bool offline)
 	{
+		var repositoryPaths = repositories.Select(r => r.Repository.Path.TrimEnd('/') + "/").ToList();
 		foreach (var file in files.Where(f => f.Status == SyncFileStatus.WouldWrite))
-			diagnostics.Add(file.Path is SolutionGenerator.FileName or WorkspacePropsGenerator.FileName
-				? FxDiagnostic.Warning(Outdated, "Out of date with the manifest and the solutions of the repositories: run fx sync workspace.", file.Path)
-				: FxDiagnostic.Error(Outdated, "Out of date with _fx/workspace.yaml: run fx sync workspace.", file.Path));
+		{
+			// the generated files of a repository: its own fx doctor dotnet already reported them
+			var inRepository = repositoryPaths.Any(p => file.Path.StartsWith(p, StringComparison.OrdinalIgnoreCase));
+			if (file.Path.Contains("/_fx/.workspace/", StringComparison.OrdinalIgnoreCase))
+				diagnostics.Add(FxDiagnostic.Error(Outdated, "Out of date with the workspace's _fx/dotnet.yaml and _fx/dotnet/: run fx sync workspace.", file.Path));
+			else if (!inRepository)
+				diagnostics.Add(file.Path is SolutionGenerator.FileName or WorkspacePropsGenerator.FileName
+					? FxDiagnostic.Warning(Outdated, "Out of date with the manifest and the solutions of the repositories: run fx sync workspace.", file.Path)
+					: FxDiagnostic.Error(Outdated, "Out of date with _fx/workspace.yaml: run fx sync workspace.", file.Path));
+		}
 
 		var metarepo = GitClient.Discover(manifest.Root);
 		foreach (var repo in repositories.Where(r => r.Mounted && r.Present))
@@ -290,7 +300,7 @@ public static class WorkspaceModule
 		return b.ToString();
 	}
 
-	static void Generate(string root, string relative, string content, string commentStart, bool write, bool adopt, List<SyncFile> files, List<FxDiagnostic> diagnostics)
+	internal static void Generate(string root, string relative, string content, string commentStart, bool write, bool adopt, List<SyncFile> files, List<FxDiagnostic> diagnostics)
 	{
 		var path = Path.Combine(root, relative);
 		if (File.Exists(path))

@@ -7,7 +7,8 @@ namespace Fuxion.Tools.Core.Dotnet;
 
 /// <summary>
 /// What <c>fx sync dotnet</c> writes in a repo's <c>_fx/</c> (design §7.3): <c>dotnet.g.props</c> (the <c>value</c>
-/// variables), <c>dotnet.g.targets</c> (the <c>when</c> variables) and <c>packages.g.props</c> (a <c>PackageVersion</c>
+/// variables and the <c>props:</c> imports), <c>dotnet.g.targets</c> (the <c>when</c> variables, their constants and the
+/// <c>targets:</c> imports) and <c>packages.g.props</c> (a <c>PackageVersion</c>
 /// per id and version). Text with '\n'; every file starts with the GENERATED header (D-11).
 /// </summary>
 public static class DotnetGenerator
@@ -16,17 +17,19 @@ public static class DotnetGenerator
 
 	public static string Header(string sources) => $"<!-- {HeaderMark} from {sources}. DO NOT EDIT. Regenerate with: fx sync dotnet -->";
 
-	public static string Props(DotnetConfig config, string sources)
+	/// <param name="imports">The props: imports: path relative to <c>_fx/</c> and expanded condition (null: always).</param>
+	public static string Props(DotnetConfig config, IReadOnlyList<(string Path, string? Condition)> imports, string sources)
 	{
 		var b = Start(sources);
 		b.Append("\t<PropertyGroup>\n");
 		foreach (var variable in config.Variables.Where(v => !v.IsWhen))
 			b.Append($"\t\t<{variable.Name}>{Escape(variable.Value!)}</{variable.Name}>\n");
 		b.Append("\t</PropertyGroup>\n");
+		Imports(b, imports);
 		return End(b);
 	}
 
-	public static string Targets(DotnetConfig config, IReadOnlyDictionary<string, string> expandedWhen, string sources)
+	public static string Targets(DotnetConfig config, IReadOnlyDictionary<string, string> expandedWhen, IReadOnlyList<(string Path, string? Condition)> imports, string sources)
 	{
 		var b = Start(sources);
 		b.Append("\t<PropertyGroup>\n");
@@ -43,7 +46,18 @@ public static class DotnetGenerator
 			b.Append($"\t\t<DefineConstants>$(DefineConstants);{Escape(variable.Define!)}</DefineConstants>\n");
 			b.Append("\t</PropertyGroup>\n");
 		}
+		Imports(b, imports);
 		return End(b);
+	}
+
+	// The files that dotnet.yaml imports, from the generated file's folder (_fx/); a missing file is an error of MSBuild,
+	// on purpose (fx doctor dotnet reports it too)
+	static void Imports(StringBuilder b, IReadOnlyList<(string Path, string? Condition)> imports)
+	{
+		foreach (var (path, condition) in imports)
+			b.Append(condition is null
+				? $"\t<Import Project=\"$(MSBuildThisFileDirectory){EscapeAttribute(path)}\" />\n"
+				: $"\t<Import Project=\"$(MSBuildThisFileDirectory){EscapeAttribute(path)}\" Condition=\"{EscapeAttribute(condition)}\" />\n");
 	}
 
 	/// <param name="packages">Id, version and expanded condition, in the order to write them.</param>
