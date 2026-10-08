@@ -33,6 +33,16 @@ public sealed record WorkspaceRepository(
 	IReadOnlyList<string>? SolutionExclude = null,
 	int Line = 0);
 
+/// <summary>
+/// A module of fx used by the workspace (<c>modules:</c> of the manifest, plan N decision 17): the repositories with one of
+/// its tags (all of them, without tags) receive its configuration and its folder in <c>_fx/.workspace/</c>.
+/// </summary>
+public sealed record WorkspaceModuleSettings(string Name, IReadOnlyList<string> Tags, int Line = 0)
+{
+	public bool AppliesTo(WorkspaceRepository repository)
+		=> Tags.Count == 0 || Tags.Any(t => repository.Tags.Contains(t, StringComparer.OrdinalIgnoreCase));
+}
+
 /// <summary>An invalid workspace manifest: every problem found, each with its line.</summary>
 public sealed class WorkspaceManifestException(IReadOnlyList<FxDiagnostic> diagnostics)
 	: Exception(string.Join(Environment.NewLine, diagnostics.Select(d => d.Where)))
@@ -47,10 +57,14 @@ public sealed partial record WorkspaceManifest(
 	string? Name = null,
 	int? Major = null,
 	string? MinimumFx = null,
-	IReadOnlyList<string>? Folders = null)
+	IReadOnlyList<string>? Folders = null,
+	IReadOnlyList<WorkspaceModuleSettings>? Modules = null)
 {
 	public const string InvalidManifest = "workspace.invalid-manifest";
 	public const string RelativePath = "_fx/workspace.yaml";
+
+	/// <summary>The modules a workspace can use (<c>modules:</c>).</summary>
+	public static readonly IReadOnlyList<string> KnownModules = ["dotnet"];
 
 	/// <summary>
 	/// First segments a mount point cannot take: the metarepo's own folders and files (design §4.3), and its
@@ -129,6 +143,18 @@ public sealed partial record WorkspaceManifest(
 		foreach (var folder in folders.Where(f => f.Contains('/') || f.Contains('\\')))
 			Error(Child(map, "folders"), $"Folder '{folder}' must be a single segment.");
 
+		var modules = new List<WorkspaceModuleSettings>();
+		if (Child(map, "modules") is YamlMappingNode moduleMap)
+			foreach (var (key, value) in moduleMap.Children)
+			{
+				var moduleName = Scalar(key) ?? "";
+				if (!KnownModules.Contains(moduleName))
+					Error(key, $"Unknown module '{moduleName}' ({string.Join(", ", KnownModules)}).");
+				modules.Add(new(moduleName, value is YamlMappingNode settings ? List(Child(settings, "tags")) : [], (int)key.Start.Line));
+			}
+		else if (Child(map, "modules") is { } notAMap && notAMap is not YamlScalarNode { Value: null or "" })
+			Error(notAMap, "'modules' maps module names to their settings (dotnet: { tags: [dotnet] }).");
+
 		var repositories = new List<WorkspaceRepository>();
 		if (Child(map, "repositories") is YamlSequenceNode list)
 			foreach (var item in list.Children)
@@ -162,7 +188,7 @@ public sealed partial record WorkspaceManifest(
 					(int)item.Start.Line));
 			}
 
-		var manifest = new WorkspaceManifest(root, repositories, name, major, fx, folders);
+		var manifest = new WorkspaceManifest(root, repositories, name, major, fx, folders, modules);
 		if (strict)
 		{
 			errors.AddRange(manifest.Validate());
@@ -202,6 +228,9 @@ public sealed partial record WorkspaceManifest(
 			foreach (var other in Repositories.Where(o => o != repo && o.Path.StartsWith(repo.Path + "/", StringComparison.OrdinalIgnoreCase)))
 				yield return Error(other, $"Repository '{other.Name}' is mounted inside '{repo.Name}'.");
 	}
+
+	/// <summary>The settings of a module, if the workspace uses it.</summary>
+	public WorkspaceModuleSettings? Module(string name) => (Modules ?? []).FirstOrDefault(m => m.Name == name);
 
 	/// <summary>Full path of a repository's mount point, with a trailing separator.</summary>
 	public string FullPath(WorkspaceRepository repository)

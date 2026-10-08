@@ -25,15 +25,15 @@
 		Settings (all optional):
 		  FxVersioningEnabled     version from git (default true); FxVersionFailOnError (default true),
 		                          FxVersionForceCi, FxInformationalSuffix
-		  FxStaticMetadataEnabled the Fx.Metadata.<Project> classes (default: as FxVersioningEnabled);
-		                          FxStaticMetadataNamespace (default Fx.Metadata)
+		  FxStaticMetadataEnabled the Fuxion.Metadata.<Project> classes (default: as FxVersioningEnabled);
+		                          FxStaticMetadataNamespace (default Fuxion.Metadata)
 		  FxDocumentationLanguages translated XML documentation to pack, from ~$docs/<lang> (for example: es)
 		  FxLocalPublish          packages to <workspace>/~$publish/<repo>/nupkgs, or <repo>/~$publish/nupkgs outside
 		                          a workspace (design D-36); FxPublishDirectory to choose another folder
 	-->
 
 	<PropertyGroup>
-		<FuxionToolsSdkImported>true</FuxionToolsSdkImported>
+		<FxSdkImported>true</FxSdkImported>
 
 		<!-- The repo: where its global.json is (design D-33). The workspace, if the repo is mounted in one (D-36). -->
 		<!-- (paths with NormalizeDirectory and '/', so they work on Windows and on Linux) -->
@@ -66,7 +66,7 @@
 		<_FxPreviousBeforeMicrosoftNETSdkTargets>$(BeforeMicrosoftNETSdkTargets)</_FxPreviousBeforeMicrosoftNETSdkTargets>
 		<BeforeMicrosoftNETSdkTargets>$(MSBuildThisFileDirectory)../build/Fuxion.Tools.Sdk.Project.targets</BeforeMicrosoftNETSdkTargets>
 
-		<!-- The late part (versioning, metadata, FuxionReference): in each target framework build
+		<!-- The late part (versioning, metadata, FxReference): in each target framework build
 		     (Microsoft.Common.targets) and in the outer build of a multi-targeted project
 		     (Microsoft.Common.CrossTargeting.targets), which packs it -->
 		<_FxPreviousCustomBeforeDirectoryBuildTargets>$(CustomBeforeDirectoryBuildTargets)</_FxPreviousCustomBeforeDirectoryBuildTargets>

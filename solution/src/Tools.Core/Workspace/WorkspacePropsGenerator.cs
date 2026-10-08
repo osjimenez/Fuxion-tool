@@ -10,9 +10,9 @@ using Fuxion.Tools.Core.Diagnostics;
 namespace Fuxion.Tools.Core.Workspace;
 
 /// <summary>
-/// <c>_fx/~$workspace.props</c> (design §6): the map Fuxion.Tools.Sdk uses to resolve <c>FuxionReference</c>. For each
+/// <c>_fx/~$workspace.props</c> (design §6): the map Fuxion.Tools.Sdk uses to resolve <c>FxReference</c>. For each
 /// project of the solutions of the mounted repositories (named by its file, like the package): a
-/// <c>FuxionWorkspaceProject</c> item, and a <c>ProjectReference</c> built from the <c>FuxionReference</c> with that name,
+/// <c>FxWorkspaceProject</c> item, and a <c>ProjectReference</c> built from the <c>FxReference</c> with that name,
 /// so it keeps its metadata. Local (<c>~$</c>), generated.
 /// </summary>
 public static class WorkspacePropsGenerator
@@ -30,8 +30,8 @@ public static class WorkspacePropsGenerator
 		{
 			var n = SecurityElement.Escape(name);
 			var p = SecurityElement.Escape(path);
-			b.Append($"\t\t<FuxionWorkspaceProject Include=\"{n}\" Repository=\"{repository}\" Path=\"{p}\" />\n");
-			b.Append($"\t\t<ProjectReference Include=\"@(FuxionReference->WithMetadataValue('Identity', '{n}')->'{p}')\" />\n");
+			b.Append($"\t\t<FxWorkspaceProject Include=\"{n}\" Repository=\"{repository}\" Path=\"{p}\" />\n");
+			b.Append($"\t\t<ProjectReference Include=\"@(FxReference->WithMetadataValue('Identity', '{n}')->'{p}')\" />\n");
 		}
 		b.Append("\t</ItemGroup>\n");
 		b.Append("</Project>\n");
@@ -63,7 +63,7 @@ public static class WorkspacePropsGenerator
 				{
 					if (!string.Equals(existing.Path, full, StringComparison.OrdinalIgnoreCase))
 						diagnostics.Add(FxDiagnostic.Warning(DuplicateProject,
-							$"Project '{name}' is in '{existing.Repository}' and in '{repo.Name}': FuxionReference uses the one of '{existing.Repository}'."));
+							$"Project '{name}' is in '{existing.Repository}' and in '{repo.Name}': FxReference uses the one of '{existing.Repository}'."));
 					continue;
 				}
 				projects[name] = (full, repo.Name);

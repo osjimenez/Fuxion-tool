@@ -29,7 +29,12 @@ public static class DotnetGenerator
 		return End(b);
 	}
 
-	public static string Targets(DotnetConfig config, IReadOnlyDictionary<string, string> expandedWhen, IReadOnlyList<(string Path, string? Condition)> imports, string sources)
+	/// <param name="packageUpdates">
+	/// Without central package management: id, version and expanded condition of each governed package, written as
+	/// <c>PackageReference Update</c> after the imports (which may add the references).
+	/// </param>
+	public static string Targets(DotnetConfig config, IReadOnlyDictionary<string, string> expandedWhen, IReadOnlyList<(string Path, string? Condition)> imports,
+		IReadOnlyList<(string Id, string Version, string? Condition)> packageUpdates, string sources)
 	{
 		var b = Start(sources);
 		b.Append("\t<PropertyGroup>\n");
@@ -47,8 +52,17 @@ public static class DotnetGenerator
 			b.Append("\t</PropertyGroup>\n");
 		}
 		Imports(b, imports);
+		if (packageUpdates.Count > 0)
+		{
+			b.Append("\t<ItemGroup>\n");
+			foreach (var (id, version, condition) in packageUpdates)
+				b.Append($"\t\t<PackageReference Update=\"{EscapeAttribute(id)}\" Version=\"{EscapeAttribute(version)}\"{ConditionAttribute(condition)} />\n");
+			b.Append("\t</ItemGroup>\n");
+		}
 		return End(b);
 	}
+
+	static string ConditionAttribute(string? condition) => condition is null ? "" : $" Condition=\"{EscapeAttribute(condition)}\"";
 
 	// The files that dotnet.yaml imports, from the generated file's folder (_fx/); a missing file is an error of MSBuild,
 	// on purpose (fx doctor dotnet reports it too)
@@ -61,12 +75,12 @@ public static class DotnetGenerator
 	}
 
 	/// <param name="packages">Id, version and expanded condition, in the order to write them.</param>
-	public static string Packages(IEnumerable<(string Id, string Version, string Condition)> packages, string sources)
+	public static string Packages(IEnumerable<(string Id, string Version, string? Condition)> packages, string sources)
 	{
 		var b = Start(sources);
 		b.Append("\t<ItemGroup>\n");
 		foreach (var (id, version, condition) in packages)
-			b.Append($"\t\t<PackageVersion Include=\"{EscapeAttribute(id)}\" Version=\"{EscapeAttribute(version)}\" Condition=\"{EscapeAttribute(condition)}\" />\n");
+			b.Append($"\t\t<PackageVersion Include=\"{EscapeAttribute(id)}\" Version=\"{EscapeAttribute(version)}\"{ConditionAttribute(condition)} />\n");
 		b.Append("\t</ItemGroup>\n");
 		return End(b);
 	}

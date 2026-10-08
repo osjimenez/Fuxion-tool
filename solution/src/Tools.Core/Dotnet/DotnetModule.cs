@@ -43,22 +43,23 @@ public static partial class DotnetModule
 	public const string CoverageGap = "dotnet.coverage-gap";
 	public const string CoverageOverlap = "dotnet.coverage-overlap";
 	public const string Unverifiable = "dotnet.unverifiable";
-	public const string NoCentralPackages = "dotnet.no-central-packages";
+	public const string IgnoredVersion = "dotnet.ignored-version";
 	public const string NotARepository = "dotnet.not-a-repository";
 	public const string MissingImport = "dotnet.missing-import";
 	public const string WorkspaceLayer = "dotnet.workspace-layer";
 
-	/// <summary>
-	/// The line of the copy of the workspace's dotnet.yaml (<c>_fx/.workspace/dotnet.yaml</c>) that keeps the repo's tags, so a
-	/// clone outside the workspace generates the same (plan N, decision 15).
-	/// </summary>
-	public const string TagsMark = "# fx-tags:";
 
 	[GeneratedRegex("""<PackageReference\s[^>]*?(?:Include|Update)\s*=\s*"(?<id>[^"]+)""", RegexOptions.IgnoreCase)]
 	private static partial Regex PackageReference();
 
 	[GeneratedRegex("""<PackageVersion\s[^>]*?Include\s*=\s*"(?<id>[^"]+)""", RegexOptions.IgnoreCase)]
 	private static partial Regex PackageVersion();
+
+	[GeneratedRegex(@"<ManagePackageVersionsCentrally>\s*true\s*</ManagePackageVersionsCentrally>", RegexOptions.IgnoreCase)]
+	private static partial Regex CentralManagement();
+
+	[GeneratedRegex("""<PackageReference\s[^>]*?Include\s*=\s*"(?<id>[^"]+)"[^>]*?\sVersion\s*=""", RegexOptions.IgnoreCase)]
+	private static partial Regex PackageReferenceWithVersion();
 
 	[GeneratedRegex("<TargetFrameworks?>(?<value>[^<]*)</TargetFrameworks?>", RegexOptions.IgnoreCase)]
 	private static partial Regex TargetFrameworks();
@@ -114,21 +115,21 @@ public static partial class DotnetModule
 		{
 			return new(root, [], ex.Diagnostics.Select(d => d with { File = Relative(root, d.File) }).ToList());
 		}
-		// The repo's tags: from the workspace manifest; outside the workspace, from the copy of its dotnet.yaml
+		// The repo's tags: from the workspace manifest; outside the workspace, from _fx/.workspace/repository.yaml
 		var tags = WorkspaceManifest.FindAbove(Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(root))!)?.RepositoryAt(root)?.Tags
-		           ?? CopyTags(WorkspaceConfigPath(root));
+		           ?? ModulePropagation.RepositoryTags(root) ?? [];
 		config = config.ForTags(tags);
 
 		// 2. The when variables and the conditions of packages and imports, expanded
 		var whenRaw = config.Variables.Where(v => v.IsWhen).ToDictionary(v => v.Name, v => v.When!, StringComparer.OrdinalIgnoreCase);
 		Dictionary<string, string> whenExpanded;
-		List<(string Id, string Version, string Condition)> governed;
+		List<(string Id, string Version, string? Condition)> governed;
 		List<(string Path, string? Condition)> propsImports, targetsImports;
 		try
 		{
 			whenExpanded = whenRaw.ToDictionary(kv => kv.Key, kv => MSBuildConditions.Expand(kv.Value, whenRaw), StringComparer.OrdinalIgnoreCase);
 			governed = config.Packages
-				.SelectMany(p => p.Ids.SelectMany(id => p.Versions.Select(v => (Id: id, v.Version, Condition: MSBuildConditions.Expand(v.When, whenRaw)))))
+				.SelectMany(p => p.Ids.SelectMany(id => p.Versions.Select(v => (Id: id, v.Version, Condition: v.When is null ? null : MSBuildConditions.Expand(v.When, whenRaw)))))
 				.ToList();
 			string? Condition(DotnetImport import) => import.When is null ? null : MSBuildConditions.Expand(import.When, whenRaw);
 			propsImports = config.Imports.SelectMany(i => i.Props.Select(p => (Path: i.FromFx(p), Condition: Condition(i)))).ToList();
@@ -148,20 +149,24 @@ public static partial class DotnetModule
 			.ToHashSet(StringComparer.OrdinalIgnoreCase);
 		var packages = governed.Where(p => used.Contains(p.Id)).OrderBy(p => p.Id, StringComparer.OrdinalIgnoreCase).ToList();
 
-		// 4. The generated files
+		// 4. The generated files. With central package management (CPM), the versions are PackageVersion items in
+		// packages.g.props; without it, PackageReference Update items in dotnet.g.targets, right after the project file,
+		// which set the version of the references the project has (plan N, decision 17)
+		var centralFiles = git.ListFiles(":(glob)**/Directory.Packages.props");
+		var centralManagement = centralFiles.Any(f => CentralManagement().IsMatch(Read(root, f)));
 		var write = mode == Mode.Write;
 		Generate(root, "_fx/dotnet.g.props", DotnetGenerator.Props(config, propsImports, sources), write, files, diagnostics);
-		Generate(root, "_fx/dotnet.g.targets", DotnetGenerator.Targets(config, whenExpanded, targetsImports, sources), write, files, diagnostics);
-		Generate(root, "_fx/packages.g.props", DotnetGenerator.Packages(packages, sources), write, files, diagnostics);
+		Generate(root, "_fx/dotnet.g.targets",
+			DotnetGenerator.Targets(config, whenExpanded, targetsImports, centralManagement ? [] : packages, sources), write, files, diagnostics);
+		if (centralManagement)
+			Generate(root, "_fx/packages.g.props", DotnetGenerator.Packages(packages, sources), write, files, diagnostics);
 
 		// 5. The keys fx owns in files that are not fx's (design §4.2): msbuild-sdks and the Import of packages.g.props
 		if (config.Sdks.Count > 0)
 			GlobalJson(root, config.Sdks, write, files, diagnostics);
-		var centralFiles = git.ListFiles(":(glob)**/Directory.Packages.props");
-		if (centralFiles.Count == 0 && packages.Count > 0)
-			diagnostics.Add(FxDiagnostic.Warning(NoCentralPackages, "The repository governs packages but has no Directory.Packages.props: packages.g.props is not imported anywhere."));
-		foreach (var central in centralFiles)
-			ImportPackages(root, central, write, files);
+		if (centralManagement)
+			foreach (var central in centralFiles)
+				ImportPackages(root, central, write, files);
 
 		if (mode == Mode.Doctor)
 		{
@@ -170,7 +175,10 @@ public static partial class DotnetModule
 			foreach (var path in propsImports.Concat(targetsImports).Select(i => i.Path).Distinct(StringComparer.OrdinalIgnoreCase))
 				if (!File.Exists(Path.Combine(root, "_fx", path)))
 					diagnostics.Add(FxDiagnostic.Error(MissingImport, $"dotnet.yaml imports _fx/{path}, which does not exist (in the workspace, fx sync workspace copies it).", "_fx/dotnet.g.props"));
-			CheckOwners(root, centralFiles, packages, diagnostics);
+			if (centralManagement)
+				CheckOwners(root, centralFiles, packages, diagnostics);
+			else
+				CheckVersionsInProjects(root, buildFiles, packages, diagnostics);
 			CheckCoverage(root, git, config, governed, diagnostics);
 		}
 		return new(root, files, diagnostics);
@@ -260,7 +268,7 @@ public static partial class DotnetModule
 	}
 
 	// D-16: each id has a single owner, the yaml or the repo's Directory.Packages.props
-	static void CheckOwners(string root, IReadOnlyList<string> centralFiles, List<(string Id, string Version, string Condition)> packages, List<FxDiagnostic> diagnostics)
+	static void CheckOwners(string root, IReadOnlyList<string> centralFiles, List<(string Id, string Version, string? Condition)> packages, List<FxDiagnostic> diagnostics)
 	{
 		var governedIds = packages.Select(p => p.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
 		foreach (var central in centralFiles)
@@ -270,8 +278,19 @@ public static partial class DotnetModule
 						$"'{id}' is governed by dotnet.yaml and also has a PackageVersion here: keep one owner (design D-16; NuGet rejects it, NU1506).", central));
 	}
 
+	// Without CPM, the version of a governed package is fx's: a Version= in a project would be overridden
+	static void CheckVersionsInProjects(string root, IReadOnlyList<string> buildFiles, List<(string Id, string Version, string? Condition)> packages, List<FxDiagnostic> diagnostics)
+	{
+		var governedIds = packages.Select(p => p.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+		foreach (var file in buildFiles.Where(f => !f.StartsWith("_fx/", StringComparison.OrdinalIgnoreCase)))
+			foreach (var id in PackageReferenceWithVersion().Matches(Read(root, file)).Select(m => m.Groups["id"].Value).Distinct(StringComparer.OrdinalIgnoreCase))
+				if (governedIds.Contains(id))
+					diagnostics.Add(FxDiagnostic.Warning(IgnoredVersion,
+						$"'{id}' is governed by dotnet.yaml: the Version here is overridden by fx (remove it).", file));
+	}
+
 	// D-32: for every real target framework of a project that references a governed package, exactly one version matches
-	static void CheckCoverage(string root, GitClient git, DotnetConfig config, List<(string Id, string Version, string Condition)> governed, List<FxDiagnostic> diagnostics)
+	static void CheckCoverage(string root, GitClient git, DotnetConfig config, List<(string Id, string Version, string? Condition)> governed, List<FxDiagnostic> diagnostics)
 	{
 		var values = config.Variables.Where(v => !v.IsWhen).ToDictionary(v => v.Name, v => v.Value!, StringComparer.OrdinalIgnoreCase);
 		var byId = governed.GroupBy(g => g.Id, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
@@ -294,7 +313,7 @@ public static partial class DotnetModule
 					var matches = new List<string>();
 					var unknown = false;
 					foreach (var (_, version, condition) in byId[id])
-						switch (MSBuildConditions.Evaluate(condition, tfm))
+						switch (condition is null ? true : MSBuildConditions.Evaluate(condition, tfm))
 						{
 							case true: matches.Add(version); break;
 							case null: unknown = true; break;
@@ -319,11 +338,6 @@ public static partial class DotnetModule
 
 	static string Read(string root, string relative) => File.ReadAllText(Path.Combine(root, relative));
 
-	/// <summary>The tags kept in the copy of the workspace's dotnet.yaml (<see cref="TagsMark"/>), if any.</summary>
-	static IReadOnlyList<string> CopyTags(string path)
-		=> File.Exists(path) && File.ReadLines(path).Take(5).FirstOrDefault(l => l.StartsWith(TagsMark, StringComparison.Ordinal)) is { } line
-			? line[TagsMark.Length..].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-			: [];
 
 	static string Normalize(string text) => text.Replace("\r\n", "\n");
 

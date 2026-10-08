@@ -20,7 +20,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		public static class Info
 		{
 			/// <summary>From the static metadata.</summary>
-			public static string Version => Fx.Metadata.Lib.Versioning.InformationalVersion + " " + Fx.Metadata.Lib.Repository.Branch;
+			public static string Version => Fuxion.Metadata.Lib.Versioning.InformationalVersion + " " + Fuxion.Metadata.Lib.Repository.Branch;
 		}
 		""";
 
@@ -311,6 +311,40 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		Assert.Equal(0, FxApp.Run(["doctor"], new StringWriter(), new StringWriter(), repo.Path));
 	}
 
+	[Fact(DisplayName = "without central package management: the version of dotnet.yaml reaches the project's reference")]
+	public void WithoutCentralManagement()
+	{
+		using var repo = new TempGitRepository();
+		fixture.SetUp(repo, """
+			<Project>
+				<Import Project="Sdk.props" Sdk="Fuxion.Tools.Sdk" />
+			</Project>
+			""");
+		repo.WriteFile(Path.Combine("_fx", "dotnet.yaml"), """
+			packages:
+			  - ids: [Spectre.Console]
+			    versions:
+			      - version: 0.57.2
+			""");
+		repo.WriteFile(Path.Combine("solution", "src", "App", "App.csproj"), """
+			<Project Sdk="Microsoft.NET.Sdk">
+				<PropertyGroup>
+					<TargetFramework>net10.0</TargetFramework>
+				</PropertyGroup>
+				<ItemGroup>
+					<PackageReference Include="Spectre.Console" />
+				</ItemGroup>
+			</Project>
+			""");
+		Assert.Equal(0, FxApp.Run(["sync", "dotnet"], new StringWriter(), new StringWriter(), repo.Path));
+		Assert.False(File.Exists(Path.Combine(repo.Path, "_fx", "packages.g.props")));
+		repo.CommitAll("c1");
+		repo.Tag("version/1.0.0");
+
+		Succeeded(fixture.Build(Path.Combine(repo.Path, "solution", "src", "App")));
+		Assert.Contains("\"Spectre.Console/0.57.2\"", File.ReadAllText(Path.Combine(repo.Path, "solution", "src", "App", "obj", "project.assets.json")));
+	}
+
 	[Fact(DisplayName = "the SDK keeps a BeforeMicrosoftNETSdkTargets the repo had, and the .NET SDK still imports it")]
 	public void BeforeMicrosoftNETSdkTargets()
 	{
@@ -417,8 +451,8 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		Assert.Equal(0, FxApp.Run(["doctor"], new StringWriter(), new StringWriter(), repo.Path));
 	}
 
-	[Fact(DisplayName = "FuxionReference: a project in the workspace, a package outside it, and a clear error when it needs the workspace")]
-	public void FuxionReference()
+	[Fact(DisplayName = "FxReference: a project in the workspace, a package outside it, and a clear error when it needs the workspace")]
+	public void FxReference()
 	{
 		using var workspace = new TempGitRepository(path: Path.Combine(fixture.Root, "ws-" + Guid.NewGuid().ToString("N")[..8]));
 		workspace.WriteFile(Path.Combine("_fx", "workspace.yaml"), """
@@ -445,8 +479,8 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 					<TargetFramework>net10.0</TargetFramework>
 				</PropertyGroup>
 				<ItemGroup>
-					<FuxionReference Include="Lib" />
-					<FuxionReference Include="OnlyInTheWorkspace" Package="false" />
+					<FxReference Include="Lib" />
+					<FxReference Include="OnlyInTheWorkspace" WorkspaceOnly="true" />
 				</ItemGroup>
 			</Project>
 			""");
@@ -471,16 +505,16 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		Assert.Equal("project", LibraryType(app, "Lib"));
 		Assert.True(File.Exists(Path.Combine(appProject, "bin", "Debug", "net10.0", "Lib.dll")));
 
-		// Outside it (FuxionUsePackages, as a CI would): Lib is the package
+		// Outside it (FxUsePackages, as a CI would): Lib is the package
 		Succeeded(fixture.Build(Lib(lib), "-t:Pack", $"-p:PackageOutputPath={fixture.Feed}"));
-		Succeeded(fixture.Build(appProject, "-p:FuxionUsePackages=true"));
+		Succeeded(fixture.Build(appProject, "-p:FxUsePackages=true"));
 		Assert.Equal("package", LibraryType(app, "Lib"));
 
 		// A repo that only builds in the workspace says so, instead of NuGet not finding a package
-		var result = fixture.Build(appProject, "-p:FuxionUsePackages=true", "-p:FxRequiresWorkspace=true");
+		var result = fixture.Build(appProject, "-p:FxUsePackages=true", "-p:FxRequiresWorkspace=true");
 		Assert.NotEqual(0, result.ExitCode);
 		Assert.Contains("FX0001", result.StandardOutput);
-		// Package="false" (the analyzers of oss): only in the workspace; never a package, never the error
+		// WorkspaceOnly="true" (the analyzers of oss): only in the workspace; never a package, never the error
 		Assert.DoesNotContain("OnlyInTheWorkspace", result.StandardOutput);
 	}
 

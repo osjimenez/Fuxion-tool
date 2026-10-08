@@ -178,8 +178,8 @@ public static class WorkspaceModule
 		Generate(root, ".gitignore", Gitignore(manifest), "#", write, options.Adopt, files, diagnostics);
 		Generate(root, SolutionGenerator.FileName, SolutionGenerator.Generate(manifest, mounted, diagnostics), "<!--", write, options.Adopt, files, diagnostics);
 		Generate(root, WorkspacePropsGenerator.FileName, WorkspacePropsGenerator.Generate(manifest, mounted, diagnostics), "<!--", write, options.Adopt, files, diagnostics);
-		// 5. The workspace's dotnet.yaml and its files, to each .NET repository; their generated files
-		DotnetPropagation.Run(manifest, mounted, write, doctor, files, diagnostics);
+		// 5. What the modules of the workspace give each repository (_fx/.workspace/); their generated files
+		ModulePropagation.Run(manifest, mounted, write, doctor, files, diagnostics);
 		if (write)
 			Save(Path.Combine(root, "_fx", "~$workspace.yaml"), state.ToYaml());
 
@@ -194,7 +194,7 @@ public static class WorkspaceModule
 	/// <summary>
 	/// A standalone repository (it builds without the workspace, design D-2) cannot reference a project of a repository
 	/// that is not: outside the workspace that reference would have to be a package, and that repository publishes
-	/// none (design §6). <c>Package="false"</c> references only exist in the workspace by definition.
+	/// none (design §6). <c>WorkspaceOnly="true"</c> references only exist in the workspace by definition.
 	/// </summary>
 	static void CheckStandalone(WorkspaceManifest manifest, IReadOnlyList<WorkspaceRepository> mounted, List<FxDiagnostic> diagnostics)
 	{
@@ -205,7 +205,7 @@ public static class WorkspaceModule
 			if (GitClient.Discover(manifest.FullPath(repo)) is not { } git)
 				continue;
 			foreach (var file in git.ListFiles(":(glob)**/*.csproj", ":(glob)**/*.props", ":(glob)**/*.targets"))
-				foreach (var (reference, line) in FuxionReferences(Path.Combine(git.Root, file)))
+				foreach (var (reference, line) in FxReferences(Path.Combine(git.Root, file)))
 					if (projects.TryGetValue(reference, out var target) && standalone.TryGetValue(target.Repository, out var isStandalone) && !isStandalone)
 						diagnostics.Add(FxDiagnostic.Error(StandaloneReference,
 							$"'{repo.Name}' is standalone, but it references {reference} of '{target.Repository}', which is not: outside the workspace it cannot be a package.",
@@ -213,8 +213,8 @@ public static class WorkspaceModule
 		}
 	}
 
-	/// <summary>The <c>FuxionReference</c> items of a build file that can be packages (not <c>Package="false"</c>).</summary>
-	static IEnumerable<(string Name, int Line)> FuxionReferences(string file)
+	/// <summary>The <c>FxReference</c> items of a build file that can be packages (not <c>WorkspaceOnly="true"</c>).</summary>
+	static IEnumerable<(string Name, int Line)> FxReferences(string file)
 	{
 		XDocument document;
 		try
@@ -225,9 +225,9 @@ public static class WorkspaceModule
 		{
 			yield break;
 		}
-		foreach (var item in document.Descendants().Where(e => e.Name.LocalName == "FuxionReference"))
+		foreach (var item in document.Descendants().Where(e => e.Name.LocalName == "FxReference"))
 		{
-			if (string.Equals((string?)item.Attribute("Package") ?? (string?)item.Elements().FirstOrDefault(e => e.Name.LocalName == "Package"), "false", StringComparison.OrdinalIgnoreCase))
+			if (string.Equals((string?)item.Attribute("WorkspaceOnly") ?? (string?)item.Elements().FirstOrDefault(e => e.Name.LocalName == "WorkspaceOnly"), "true", StringComparison.OrdinalIgnoreCase))
 				continue;
 			foreach (var name in ((string?)item.Attribute("Include") ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
 				yield return (name, ((IXmlLineInfo)item).LineNumber);

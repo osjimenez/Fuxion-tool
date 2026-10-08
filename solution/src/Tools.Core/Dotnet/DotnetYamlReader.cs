@@ -195,13 +195,14 @@ public static partial class DotnetYamlReader
 			{
 				if (v is not YamlMappingNode versionMap || Get(versionMap, "version") is not { Length: > 0 } version)
 				{
-					error(v, $"Packages {string.Join(", ", ids)}: every version needs 'version' and 'when'.");
+					error(v, $"Packages {string.Join(", ", ids)}: every version needs 'version' (and 'when', if there are several).");
 					continue;
 				}
-				if (Get(versionMap, "when") is not { Length: > 0 } when)
+				var when = Get(versionMap, "when") is { Length: > 0 } w ? w : null;
+				if (when is null && versionList.Children.Count > 1)
 				{
-					// D-32: no "the rest": a new framework would silently get a wrong version
-					error(v, $"Packages {string.Join(", ", ids)}, version {version}: 'when' is required (design D-32).");
+					// D-32: no "the rest": a new framework would silently get a wrong version. A single version is for all.
+					error(v, $"Packages {string.Join(", ", ids)}, version {version}: with several versions, each needs 'when' (design D-32).");
 					continue;
 				}
 				versions.Add(new(when, version, (int)v.Start.Line));

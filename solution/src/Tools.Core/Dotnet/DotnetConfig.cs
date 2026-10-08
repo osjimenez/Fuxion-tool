@@ -14,8 +14,8 @@ public sealed record DotnetVariable(string Name, string? Value, string? When, IR
 	public bool IsWhen => When is not null;
 }
 
-/// <summary>One version of a governed package, with the condition (always explicit, D-32) that selects it.</summary>
-public sealed record DotnetPackageVersion(string When, string Version, int Line);
+/// <summary>One version of a governed package, with the condition that selects it (D-32; none: the only version, for all).</summary>
+public sealed record DotnetPackageVersion(string? When, string Version, int Line);
 
 /// <summary>Packages that share their versions.</summary>
 public sealed record DotnetPackage(IReadOnlyList<string> Ids, IReadOnlyList<DotnetPackageVersion> Versions, IReadOnlyList<string> Tags, string Source, int Line);

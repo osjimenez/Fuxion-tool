@@ -10,7 +10,7 @@ namespace Fuxion.Tools.Sdk;
 
 /// <summary>
 /// Writes <c>Fuxion.StaticMetadata.g.cs</c>: project, build, version and repository data as constants
-/// (<c>Fx.Metadata.&lt;Project&gt;</c>). Only rewritten when something changes.
+/// (<c>Fuxion.Metadata.&lt;Project&gt;</c>). Only rewritten when something changes.
 /// </summary>
 public sealed class FxStaticMetadata : Task
 {
@@ -20,7 +20,7 @@ public sealed class FxStaticMetadata : Task
 
 	[Required] public string ProjectName { get; set; } = "";
 
-	public string Namespace { get; set; } = "Fx.Metadata";
+	public string Namespace { get; set; } = "Fuxion.Metadata";
 
 	public string? TargetFramework { get; set; }
 
@@ -60,7 +60,7 @@ public sealed class FxStaticMetadata : Task
 		Written = StaticMetadataFileGenerator.Generate(new(
 			OutputPath: OutputPath,
 			ProjectName: ProjectName,
-			Namespace: string.IsNullOrWhiteSpace(Namespace) ? "Fx.Metadata" : Namespace.Trim(),
+			Namespace: string.IsNullOrWhiteSpace(Namespace) ? "Fuxion.Metadata" : Namespace.Trim(),
 			VersionProps: versionProps,
 			BuildDateUtc: ResolveBuildDate(repository),
 			Branch: repository.Branch,
