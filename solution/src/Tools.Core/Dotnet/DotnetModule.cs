@@ -44,6 +44,7 @@ public static partial class DotnetModule
 	public const string CoverageOverlap = "dotnet.coverage-overlap";
 	public const string Unverifiable = "dotnet.unverifiable";
 	public const string IgnoredVersion = "dotnet.ignored-version";
+	public const string UnusedPackage = "dotnet.unused-package";
 	public const string NotARepository = "dotnet.not-a-repository";
 	public const string MissingImport = "dotnet.missing-import";
 	public const string WorkspaceLayer = "dotnet.workspace-layer";
@@ -54,6 +55,9 @@ public static partial class DotnetModule
 
 	[GeneratedRegex("""<PackageVersion\s[^>]*?Include\s*=\s*"(?<id>[^"]+)""", RegexOptions.IgnoreCase)]
 	private static partial Regex PackageVersion();
+
+	[GeneratedRegex("""<GlobalPackageReference\s[^>]*?Include\s*=\s*"(?<id>[^"]+)""", RegexOptions.IgnoreCase)]
+	private static partial Regex GlobalPackageReference();
 
 	[GeneratedRegex(@"<ManagePackageVersionsCentrally>\s*true\s*</ManagePackageVersionsCentrally>", RegexOptions.IgnoreCase)]
 	private static partial Regex CentralManagement();
@@ -176,7 +180,10 @@ public static partial class DotnetModule
 				if (!File.Exists(Path.Combine(root, "_fx", path)))
 					diagnostics.Add(FxDiagnostic.Error(MissingImport, $"dotnet.yaml imports _fx/{path}, which does not exist (in the workspace, fx sync workspace copies it).", "_fx/dotnet.g.props"));
 			if (centralManagement)
+			{
 				CheckOwners(root, centralFiles, packages, diagnostics);
+				CheckUnusedPackages(root, git, centralFiles, buildFiles, diagnostics);
+			}
 			else
 				CheckVersionsInProjects(root, buildFiles, packages, diagnostics);
 			CheckCoverage(root, git, config, governed, diagnostics);
@@ -276,6 +283,49 @@ public static partial class DotnetModule
 				if (governedIds.Contains(id))
 					diagnostics.Add(FxDiagnostic.Error(DuplicateOwner,
 						$"'{id}' is governed by dotnet.yaml and also has a PackageVersion here: keep one owner (design D-16; NuGet rejects it, NU1506).", central));
+	}
+
+	// A version in the repo's Directory.Packages.props that no project uses, directly (a PackageReference in its build
+	// files, or a GlobalPackageReference) or transitively (in the packages a project resolved: obj/project.assets.json,
+	// of its last restore; transitive ones are often pinned on purpose). Only a warning: removing it is the repo's call.
+	// Without any restore (a fresh clone), what is transitive cannot be told, and nothing is reported.
+	static void CheckUnusedPackages(string root, GitClient git, IReadOnlyList<string> centralFiles, IReadOnlyList<string> buildFiles, List<FxDiagnostic> diagnostics)
+	{
+		var used = buildFiles
+			.SelectMany(f => { var text = Read(root, f); return PackageReference().Matches(text).Concat(GlobalPackageReference().Matches(text)); })
+			.Select(m => m.Groups["id"].Value)
+			.ToHashSet(StringComparer.OrdinalIgnoreCase);
+		var restored = 0;
+		foreach (var project in git.ListFiles(":(glob)**/*.csproj"))
+		{
+			var assets = Path.Combine(root, Path.GetDirectoryName(project) ?? "", "obj", "project.assets.json");
+			if (!File.Exists(assets))
+				continue;
+			try
+			{
+				using var json = JsonDocument.Parse(File.ReadAllText(assets));
+				if (json.RootElement.TryGetProperty("libraries", out var libraries))
+					foreach (var library in libraries.EnumerateObject())
+						if (library.Value.TryGetProperty("type", out var type) && type.GetString() == "package")
+							used.Add(library.Name.Split('/')[0]);
+				restored++;
+			}
+			catch (JsonException)
+			{
+				// a broken assets file tells nothing; the next restore rewrites it
+			}
+		}
+		if (restored == 0)
+			return;
+		foreach (var central in centralFiles)
+		{
+			var text = Read(root, central);
+			foreach (Match m in PackageVersion().Matches(text))
+				if (!used.Contains(m.Groups["id"].Value))
+					diagnostics.Add(FxDiagnostic.Warning(UnusedPackage,
+						$"'{m.Groups["id"].Value}' has a version here, but no project of the repo uses it, directly or transitively.",
+						central, text.AsSpan(0, m.Index).Count('\n') + 1));
+		}
 	}
 
 	// Without CPM, the version of a governed package is fx's: a Version= in a project would be overridden

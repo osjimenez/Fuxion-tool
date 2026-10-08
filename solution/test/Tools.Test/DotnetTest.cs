@@ -406,6 +406,34 @@ public sealed class DotnetTest
 		Assert.Contains(DotnetModule.IgnoredVersion, Codes(DotnetModule.Doctor(repo.Git.Path)));
 	}
 
+	[Fact(DisplayName = "doctor: a version no project uses, directly or transitively, is reported; nothing without a restore")]
+	public void UnusedPackages()
+	{
+		using var repo = new Repo("", centralPackages: """
+
+				<PackageVersion Include="Direct.Package" Version="1.0.0" />
+				<PackageVersion Include="Transitive.Package" Version="1.0.0" />
+				<PackageVersion Include="Global.Package" Version="1.0.0" />
+				<PackageVersion Include="Unused.Package" Version="1.0.0" />
+				<GlobalPackageReference Include="Global.Package" />
+			""");
+		repo.Git.WriteFile(Path.Combine("solution", "src", "Lib", "Lib.csproj"),
+			"""<Project Sdk="Microsoft.NET.Sdk"><ItemGroup><PackageReference Include="Direct.Package" /></ItemGroup></Project>""");
+		DotnetModule.Sync(repo.Git.Path, dryRun: false);
+
+		// a fresh clone: what is transitive cannot be told, so nothing is reported
+		Assert.DoesNotContain(DotnetModule.UnusedPackage, Codes(DotnetModule.Doctor(repo.Git.Path)));
+
+		// restored: Transitive.Package comes through another package, Spectre.Console and Unused.Package nobody uses
+		repo.Git.WriteFile(Path.Combine("solution", "src", "Lib", "obj", "project.assets.json"),
+			"""{ "libraries": { "Direct.Package/1.0.0": { "type": "package" }, "Transitive.Package/1.0.0": { "type": "package" } } }""");
+		var unused = DotnetModule.Doctor(repo.Git.Path).Diagnostics.Where(d => d.Code == DotnetModule.UnusedPackage).ToList();
+		Assert.Equal(["'Spectre.Console'", "'Unused.Package'"], unused.Select(d => d.Message.Split(' ')[0]));
+		Assert.All(unused, d => Assert.Equal(FxSeverity.Warning, d.Severity));
+		Assert.Equal("solution/Directory.Packages.props", unused[1].File);
+		Assert.Equal(repo.Read("solution/Directory.Packages.props").Split('\n').ToList().FindIndex(l => l.Contains("Unused.Package")) + 1, unused[1].Line);
+	}
+
 	[Fact(DisplayName = "the metarepo's dotnet.yaml is the workspace layer: fx sync dotnet does not apply there")]
 	public void WorkspaceLayer()
 	{
