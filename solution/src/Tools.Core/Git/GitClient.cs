@@ -63,6 +63,9 @@ public sealed class GitClient
 	/// <summary>Commit of a local branch, or <see langword="null"/> if it does not exist.</summary>
 	public string? BranchTip(string branch) => Optional("rev-parse", "--verify", "--quiet", $"refs/heads/{branch}^{{commit}}");
 
+	/// <summary>The commit a remote-tracking branch points to (<c>origin/main</c>), if it exists.</summary>
+	public string? RemoteBranchTip(string remote, string branch) => Optional("rev-parse", "--verify", "--quiet", $"refs/remotes/{remote}/{branch}^{{commit}}");
+
 	/// <summary>Every tag that points (directly or through an annotation) to a commit.</summary>
 	public IReadOnlyList<GitTag> Tags()
 	{

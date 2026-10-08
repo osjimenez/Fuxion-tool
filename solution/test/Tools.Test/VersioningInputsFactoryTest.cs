@@ -90,6 +90,25 @@ public sealed class VersioningInputsFactoryTest
 		Assert.Equal("1.2.1-feature.my-thing.2", FromGit(repo).BaseVersion);
 	}
 
+	[Fact(DisplayName = "feature: without a local main, origin/main is the stable branch (a clone of one branch, a CI checkout)")]
+	public void Feature_RemoteMain()
+	{
+		using var ci = CiEnvironment.Local();
+		using var repo = new TempGitRepository();
+		repo.Commit("c1");
+		repo.Tag("version/1.2.0");
+		repo.Commit("c2");
+		repo.Branch("feature/x");
+		repo.Commit("f1");
+		repo.Commit("f2");
+		Assert.Equal("1.2.1-feature.x.2", FromGit(repo).BaseVersion);
+
+		// the same commit, with main only as a remote-tracking branch: the same version
+		repo.Git("update-ref", "refs/remotes/origin/main", "main");
+		repo.Git("branch", "--quiet", "-D", "main");
+		Assert.Equal("1.2.1-feature.x.2", FromGit(repo).BaseVersion);
+	}
+
 	[Fact(DisplayName = "feature: right after branching, 0 commits")]
 	public void Feature_RightAfterBranching()
 	{

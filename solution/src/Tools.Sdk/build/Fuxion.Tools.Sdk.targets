@@ -29,7 +29,7 @@
 	<Target Name="FxCheckWorkspaceReferences"
 	        BeforeTargets="_GenerateRestoreProjectSpec;CollectPackageReferences;ResolveProjectReferences"
 	        Condition="'$(FxRequiresWorkspace)' == 'true' And '@(_FxPackageReference)' != ''">
-		<Error Code="FX0001" Text="This repository needs the Fuxion workspace, and @(_FxPackageReference, ', ') is not mounted there (fx repo mount, fx sync)." />
+		<Error Code="FXTL001" Text="This repository needs the Fuxion workspace, and @(_FxPackageReference, ', ') is not mounted there (fx repo mount, fx sync)." />
 	</Target>
 
 	<PropertyGroup>

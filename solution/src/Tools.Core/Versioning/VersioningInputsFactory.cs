@@ -49,7 +49,10 @@ public static class VersioningInputsFactory
 				return FailOrDefault(cfg, suffix, warn, VersioningErrorCodes.NoCommits, "Git HEAD not available (repository has no commits).");
 
 			var branchName = git.CurrentBranch() ?? DetachedBranchName;
-			var stableTip = git.BranchTip("master") ?? git.BranchTip("main") ?? head;
+			// The stable branch: local; otherwise origin's (a clone of one branch, a CI checkout), so the same commit gets the
+			// same version however it was cloned; without either, HEAD (a repo that has no stable branch yet)
+			var stableTip = git.BranchTip("master") ?? git.BranchTip("main")
+			                ?? git.RemoteBranchTip("origin", "master") ?? git.RemoteBranchTip("origin", "main") ?? head;
 
 			VersioningResult Result(string version, GitVersionRule rule, LastVersionTag tag, int commitsSinceTag, string? mergeBase = null, int? branchCommits = null)
 				=> new(new(version, suffix), new(git.Root, branchName, rule, head, stableTip, mergeBase, tag.Name, tag.Commit, commitsSinceTag, branchCommits));

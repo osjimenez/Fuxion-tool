@@ -534,7 +534,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		// A repo that only builds in the workspace says so, instead of NuGet not finding a package
 		var result = fixture.Build(appProject, "-p:FxUsePackages=true", "-p:FxRequiresWorkspace=true");
 		Assert.NotEqual(0, result.ExitCode);
-		Assert.Contains("FX0001", result.StandardOutput);
+		Assert.Contains("FXTL001", result.StandardOutput);
 		// WorkspaceOnly="true" (the analyzers of oss): only in the workspace; never a package, never the error
 		Assert.DoesNotContain("OnlyInTheWorkspace", result.StandardOutput);
 	}
