@@ -50,7 +50,6 @@
 		<!-- Local publishing, only if asked (it changes PackageOutputPath, a standard property; D-36, D-37) -->
 		<FxPublishDirectory Condition="'$(FxPublishDirectory)' == '' And '$(FxWorkspaceRoot)' != ''">$([MSBuild]::NormalizeDirectory('$(FxWorkspaceRoot)', '~$publish', '$(FxRepositoryName)'))</FxPublishDirectory>
 		<FxPublishDirectory Condition="'$(FxPublishDirectory)' == '' And '$(FxRepositoryRoot)' != ''">$([MSBuild]::NormalizeDirectory('$(FxRepositoryRoot)', '~$publish'))</FxPublishDirectory>
-		<PackageOutputPath Condition="'$(FxLocalPublish)' == 'true' And '$(FxPublishDirectory)' != ''">$([MSBuild]::NormalizeDirectory('$(FxPublishDirectory)', 'nupkgs'))</PackageOutputPath>
 
 		<!-- On a CI server (for the repo's own props: ContinuousIntegrationBuild…) -->
 		<FxIsCi Condition="'$(GITHUB_ACTIONS)' == 'true' Or '$(CI)' == 'true' Or '$(CI)' == '1'">true</FxIsCi>
@@ -58,6 +57,11 @@
 
 	<!-- The variables of dotnet.yaml and its props: imports (design §7.3) -->
 	<Import Project="$(FxRepositoryRoot)_fx/dotnet.g.props" Condition="'$(FxRepositoryRoot)' != '' And Exists('$(FxRepositoryRoot)_fx/dotnet.g.props')" />
+
+	<!-- After them: one of the repo's props can ask for it (FxLocalPublish) -->
+	<PropertyGroup>
+		<PackageOutputPath Condition="'$(FxLocalPublish)' == 'true' And '$(FxPublishDirectory)' != ''">$([MSBuild]::NormalizeDirectory('$(FxPublishDirectory)', 'nupkgs'))</PackageOutputPath>
+	</PropertyGroup>
 
 	<PropertyGroup>
 		<!-- Right after the project file, before the .NET SDK computes anything (the start of its Sdk.targets): the when

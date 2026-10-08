@@ -130,6 +130,27 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		Assert.False(Directory.Exists(Path.Combine(repo.Path, "~$publish")));
 	}
 
+	[Fact(DisplayName = "FxLocalPublish from a props that dotnet.yaml imports (after the SDK's early part)")]
+	public void Pack_LocalFromImport()
+	{
+		using var repo = Sample();
+		repo.WriteFile(Path.Combine("solution", "Directory.Build.props"), """
+			<Project>
+				<PropertyGroup>
+					<IsPackable>true</IsPackable>
+				</PropertyGroup>
+				<Import Project="Sdk.props" Sdk="Fuxion.Tools.Sdk" />
+			</Project>
+			""");
+		repo.WriteFile(Path.Combine("_fx", "dotnet.yaml"), "imports:\n  - props: dotnet/packable.props\n    when: \"'$(IsPackable)' == 'true'\"\n");
+		repo.WriteFile(Path.Combine("_fx", "dotnet", "packable.props"), "<Project><PropertyGroup><FxLocalPublish>true</FxLocalPublish></PropertyGroup></Project>");
+		Assert.Equal(0, FxApp.Run(["sync", "dotnet"], new StringWriter(), new StringWriter(), repo.Path));
+		repo.CommitAll("c3");
+		Succeeded(fixture.Build(Lib(repo), "-t:Pack"));
+		Assert.True(File.Exists(Path.Combine(repo.Path, "~$publish", "nupkgs", "Lib.2.3.2.nupkg")),
+			string.Join(", ", Directory.EnumerateFiles(repo.Path, "*.nupkg", SearchOption.AllDirectories)));
+	}
+
 	[Fact(DisplayName = "FxLocalPublish in a workspace: <workspace>/~$publish/<repo>/nupkgs")]
 	public void Pack_Workspace()
 	{
