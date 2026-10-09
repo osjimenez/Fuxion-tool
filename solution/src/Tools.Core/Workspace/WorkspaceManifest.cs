@@ -4,8 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Fuxion.Tools.Core.Diagnostics;
-using YamlDotNet.Core;
-using YamlDotNet.RepresentationModel;
+using Fuxion.Tools.Core.Yaml;
 
 namespace Fuxion.Tools.Core.Workspace;
 
@@ -107,21 +106,21 @@ public sealed partial record WorkspaceManifest(
 	public static WorkspaceManifest Read(string root, string yaml, bool strict = false)
 	{
 		var errors = new List<FxDiagnostic>();
-		void Error(YamlNode? node, string message) => errors.Add(FxDiagnostic.Error(InvalidManifest, message, RelativePath, node is null ? null : (int)node.Start.Line));
+		void Error(YamlNode? node, string message) => errors.Add(FxDiagnostic.Error(InvalidManifest, message, RelativePath, node?.Line));
 
-		var stream = new YamlStream();
+		YamlNode? document;
 		try
 		{
-			stream.Load(new StringReader(yaml));
+			document = YamlDocument.Load(yaml);
 		}
-		catch (YamlException ex)
+		catch (YamlSyntaxException ex)
 		{
 			if (strict)
-				throw new WorkspaceManifestException([FxDiagnostic.Error(InvalidManifest, ex.Message, RelativePath, (int)ex.Start.Line)]);
+				throw new WorkspaceManifestException([FxDiagnostic.Error(InvalidManifest, ex.Message, RelativePath, ex.Line)]);
 			return new(root, []);
 		}
 
-		if (stream.Documents.FirstOrDefault()?.RootNode is not YamlMappingNode map)
+		if (document is not YamlMapping map)
 		{
 			if (strict)
 				throw new WorkspaceManifestException([FxDiagnostic.Error(InvalidManifest, "The manifest must be a mapping (version, workspace, folders, repositories).", RelativePath, 1)]);
@@ -131,35 +130,35 @@ public sealed partial record WorkspaceManifest(
 		string? name = null;
 		int? major = null;
 		string? fx = null;
-		if (Child(map, "workspace") is YamlMappingNode workspace)
+		if (map["workspace"] is YamlMapping workspace)
 		{
-			name = Scalar(Child(workspace, "name"));
-			major = int.TryParse(Scalar(Child(workspace, "major")), out var m) ? m : null;
-			fx = Scalar(Child(workspace, "fx"));
+			name = Scalar(workspace["name"]);
+			major = int.TryParse(Scalar(workspace["major"]), out var m) ? m : null;
+			fx = Scalar(workspace["fx"]);
 		}
-		var folders = Child(map, "folders") is YamlSequenceNode folderList
-			? folderList.Children.Select(Scalar).Where(f => !string.IsNullOrWhiteSpace(f)).Select(f => f!).ToList()
+		var folders = map["folders"] is YamlSequence folderList
+			? folderList.Items.Select(Scalar).Where(f => !string.IsNullOrWhiteSpace(f)).Select(f => f!).ToList()
 			: [];
 		foreach (var folder in folders.Where(f => f.Contains('/') || f.Contains('\\')))
-			Error(Child(map, "folders"), $"Folder '{folder}' must be a single segment.");
+			Error(map["folders"], $"Folder '{folder}' must be a single segment.");
 
 		var modules = new List<WorkspaceModuleSettings>();
-		if (Child(map, "modules") is YamlMappingNode moduleMap)
-			foreach (var (key, value) in moduleMap.Children)
+		if (map["modules"] is YamlMapping moduleMap)
+			foreach (var (key, value) in moduleMap.Entries)
 			{
 				var moduleName = Scalar(key) ?? "";
 				if (!KnownModules.Contains(moduleName))
 					Error(key, $"Unknown module '{moduleName}' ({string.Join(", ", KnownModules)}).");
-				modules.Add(new(moduleName, value is YamlMappingNode settings ? List(Child(settings, "tags")) : [], (int)key.Start.Line));
+				modules.Add(new(moduleName, value is YamlMapping settings ? List(settings["tags"]) : [], key.Line));
 			}
-		else if (Child(map, "modules") is { } notAMap && notAMap is not YamlScalarNode { Value: null or "" })
+		else if (map["modules"] is { } notAMap && notAMap is not YamlScalar { Value: "" })
 			Error(notAMap, "'modules' maps module names to their settings (dotnet: { tags: [dotnet] }).");
 
 		var repositories = new List<WorkspaceRepository>();
-		if (Child(map, "repositories") is YamlSequenceNode list)
-			foreach (var item in list.Children)
+		if (map["repositories"] is YamlSequence list)
+			foreach (var item in list.Items)
 			{
-				if (item is not YamlMappingNode repo)
+				if (item is not YamlMapping repo)
 				{
 					Error(item, "A repository is a mapping: name, path, url…");
 					continue;
@@ -185,7 +184,7 @@ public sealed partial record WorkspaceManifest(
 					List(Child(repo, "dependsOn")),
 					Scalar(Child(repo, "solution"))?.Replace('\\', '/'),
 					List(Child(repo, "solutionExclude")).Select(p => p.Replace('\\', '/').TrimStart('/')).ToList(),
-					(int)item.Start.Line));
+					item.Line));
 			}
 
 		var manifest = new WorkspaceManifest(root, repositories, name, major, fx, folders, modules);
@@ -243,10 +242,10 @@ public sealed partial record WorkspaceManifest(
 		return Repositories.FirstOrDefault(r => string.Equals(System.IO.Path.TrimEndingDirectorySeparator(FullPath(r)), full, StringComparison.OrdinalIgnoreCase));
 	}
 
-	static YamlNode? Child(YamlMappingNode map, string key) => map.Children.TryGetValue(new YamlScalarNode(key), out var node) ? node : null;
+	static YamlNode? Child(YamlMapping map, string key) => map[key];
 
-	static string? Scalar(YamlNode? node) => (node as YamlScalarNode)?.Value?.Trim();
+	static string? Scalar(YamlNode? node) => (node as YamlScalar)?.Value.Trim();
 
 	static IReadOnlyList<string> List(YamlNode? node)
-		=> node is YamlSequenceNode list ? list.Children.Select(Scalar).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!).ToList() : [];
+		=> node is YamlSequence list ? list.Items.Select(Scalar).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!).ToList() : [];
 }

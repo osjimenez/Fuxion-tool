@@ -4,8 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Fuxion.Tools.Core.Diagnostics;
-using YamlDotNet.Core;
-using YamlDotNet.RepresentationModel;
+using Fuxion.Tools.Core.Yaml;
 
 namespace Fuxion.Tools.Core.Dotnet;
 
@@ -17,7 +16,7 @@ public sealed class DotnetConfigException(IReadOnlyList<FxDiagnostic> diagnostic
 }
 
 /// <summary>
-/// Reads <c>dotnet.yaml</c> with the representation model of YamlDotNet (no reflection: AOT) and validates it.
+/// Reads <c>dotnet.yaml</c> with fx's YAML reader (SharpYaml's parser, no reflection: AOT) and validates it.
 /// </summary>
 public static partial class DotnetYamlReader
 {
@@ -34,21 +33,21 @@ public static partial class DotnetYamlReader
 	public static DotnetConfig Read(string yaml, string source)
 	{
 		var errors = new List<FxDiagnostic>();
-		void Error(YamlNode? node, string message) => errors.Add(FxDiagnostic.Error(InvalidYaml, message, source, node is null ? null : (int)node.Start.Line));
+		void Error(YamlNode? node, string message) => errors.Add(FxDiagnostic.Error(InvalidYaml, message, source, node?.Line));
 
-		var stream = new YamlStream();
+		YamlNode? document;
 		try
 		{
-			stream.Load(new StringReader(yaml));
+			document = YamlDocument.Load(yaml);
 		}
-		catch (YamlException ex)
+		catch (YamlSyntaxException ex)
 		{
-			throw new DotnetConfigException([FxDiagnostic.Error(InvalidYaml, ex.Message, source, (int)ex.Start.Line)]);
+			throw new DotnetConfigException([FxDiagnostic.Error(InvalidYaml, ex.Message, source, ex.Line)]);
 		}
 
-		if (stream.Documents.Count == 0 || stream.Documents[0].RootNode is YamlScalarNode { Value: null or "" })
+		if (document is null or YamlScalar { Value: "" })
 			return DotnetConfig.Empty;
-		if (stream.Documents[0].RootNode is not YamlMappingNode root)
+		if (document is not YamlMapping root)
 			throw new DotnetConfigException([FxDiagnostic.Error(InvalidYaml, "The document must be a mapping (sdks, variables, imports, packages).", source, 1)]);
 
 		var sdks = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -56,17 +55,17 @@ public static partial class DotnetYamlReader
 		var packages = new List<DotnetPackage>();
 		var imports = new List<DotnetImport>();
 
-		foreach (var (keyNode, valueNode) in root.Children)
+		foreach (var (keyNode, valueNode) in root.Entries)
 		{
 			switch (Scalar(keyNode))
 			{
 				case "sdks":
-					if (valueNode is not YamlMappingNode sdkMap)
+					if (valueNode is not YamlMapping sdkMap)
 					{
 						Error(valueNode, "'sdks' must map SDK names to versions.");
 						break;
 					}
-					foreach (var (name, version) in sdkMap.Children)
+					foreach (var (name, version) in sdkMap.Entries)
 						if (Scalar(name) is { Length: > 0 } sdk && Scalar(version) is { Length: > 0 } v)
 							sdks[sdk] = v;
 						else
@@ -109,7 +108,7 @@ public static partial class DotnetYamlReader
 
 	static DotnetVariable? ReadVariable(YamlNode node, string source, Action<YamlNode?, string> error)
 	{
-		if (node is not YamlMappingNode map)
+		if (node is not YamlMapping map)
 		{
 			error(node, "A variable is a mapping: name, and value or when.");
 			return null;
@@ -127,24 +126,24 @@ public static partial class DotnetYamlReader
 			error(node, $"Variable '{name}' needs exactly one of 'value' or 'when'.");
 			return null;
 		}
-		foreach (var key in map.Children.Keys.Select(Scalar).Where(k => k is not ("name" or "value" or "when" or "define" or "tags")))
+		foreach (var key in map.Entries.Select(e => e.Key).Select(Scalar).Where(k => k is not ("name" or "value" or "when" or "define" or "tags")))
 			error(node, $"Variable '{name}': unknown key '{key}'.");
 		var define = Get(map, "define");
 		if (define is not null && when is null)
 			error(node, $"Variable '{name}': 'define' needs 'when' (the constants are defined where the condition holds).");
 		else if (define is not null && define.Split(';').Any(c => !ConstantName().IsMatch(c.Trim())))
 			error(node, $"Variable '{name}': 'define' must be compilation constants separated by ';' ('{define}').");
-		return new(name, value, when, Tags(map, error), source, (int)node.Start.Line, define?.Trim());
+		return new(name, value, when, Tags(map, error), source, node.Line, define?.Trim());
 	}
 
 	static DotnetImport? ReadImport(YamlNode node, string source, Action<YamlNode?, string> error)
 	{
-		if (node is not YamlMappingNode map)
+		if (node is not YamlMapping map)
 		{
 			error(node, "An import is a mapping: props and/or targets, and when.");
 			return null;
 		}
-		foreach (var key in map.Children.Keys.Select(Scalar).Where(k => k is not ("props" or "targets" or "when" or "tags")))
+		foreach (var key in map.Entries.Select(e => e.Key).Select(Scalar).Where(k => k is not ("props" or "targets" or "when" or "tags")))
 			error(node, $"Import: unknown key '{key}' (props, targets, when, tags).");
 		var props = Paths(map, "props", error);
 		var targets = Paths(map, "targets", error);
@@ -156,15 +155,15 @@ public static partial class DotnetYamlReader
 		// Relative to the folder of the yaml and inside it: fx copies the workspace's to each repo (_fx/.workspace/)
 		foreach (var path in props.Concat(targets).Where(p => Path.IsPathRooted(p) || p.Replace('\\', '/').Split('/').Contains("..")))
 			error(node, $"Import '{path}': the path must be relative to the folder of dotnet.yaml, without '..'.");
-		return new(props, targets, Get(map, "when"), Tags(map, error), source, (int)node.Start.Line);
+		return new(props, targets, Get(map, "when"), Tags(map, error), source, node.Line);
 	}
 
-	static IReadOnlyList<string> Paths(YamlMappingNode map, string key, Action<YamlNode?, string> error)
+	static IReadOnlyList<string> Paths(YamlMapping map, string key, Action<YamlNode?, string> error)
 	{
-		if (!map.Children.TryGetValue(new YamlScalarNode(key), out var node))
+		if (map[key] is not { } node)
 			return [];
-		if (node is YamlSequenceNode list)
-			return list.Children.Select(Scalar).Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p!.Replace('\\', '/')).ToList();
+		if (node is YamlSequence list)
+			return list.Items.Select(Scalar).Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p!.Replace('\\', '/')).ToList();
 		if (Scalar(node) is { Length: > 0 } single)
 			return [single.Replace('\\', '/')];
 		error(node, $"'{key}' must be a path or a list of paths.");
@@ -173,13 +172,13 @@ public static partial class DotnetYamlReader
 
 	static DotnetPackage? ReadPackage(YamlNode node, string source, Action<YamlNode?, string> error)
 	{
-		if (node is not YamlMappingNode map)
+		if (node is not YamlMapping map)
 		{
 			error(node, "A package entry is a mapping: ids and versions.");
 			return null;
 		}
-		var ids = map.Children.TryGetValue(new YamlScalarNode("ids"), out var idsNode)
-			? idsNode is YamlSequenceNode idList ? idList.Children.Select(Scalar).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!).ToList()
+		var ids = map["ids"] is { } idsNode
+			? idsNode is YamlSequence idList ? idList.Items.Select(Scalar).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!).ToList()
 				: Scalar(idsNode) is { Length: > 0 } single ? [single] : []
 			: [];
 		if (ids.Count == 0)
@@ -188,49 +187,49 @@ public static partial class DotnetYamlReader
 			return null;
 		}
 		var versions = new List<DotnetPackageVersion>();
-		if (!map.Children.TryGetValue(new YamlScalarNode("versions"), out var versionsNode) || versionsNode is not YamlSequenceNode versionList || versionList.Children.Count == 0)
+		if (map["versions"] is not YamlSequence versionList || versionList.Items.Count == 0)
 			error(node, $"Packages {string.Join(", ", ids)}: 'versions' must list at least one version.");
 		else
-			foreach (var v in versionList.Children)
+			foreach (var v in versionList.Items)
 			{
-				if (v is not YamlMappingNode versionMap || Get(versionMap, "version") is not { Length: > 0 } version)
+				if (v is not YamlMapping versionMap || Get(versionMap, "version") is not { Length: > 0 } version)
 				{
 					error(v, $"Packages {string.Join(", ", ids)}: every version needs 'version' (and 'when', if there are several).");
 					continue;
 				}
 				var when = Get(versionMap, "when") is { Length: > 0 } w ? w : null;
-				if (when is null && versionList.Children.Count > 1)
+				if (when is null && versionList.Items.Count > 1)
 				{
 					// D-32: no "the rest": a new framework would silently get a wrong version. A single version is for all.
 					error(v, $"Packages {string.Join(", ", ids)}, version {version}: with several versions, each needs 'when' (design D-32).");
 					continue;
 				}
-				versions.Add(new(when, version, (int)v.Start.Line));
+				versions.Add(new(when, version, v.Line));
 			}
-		return new(ids, versions, Tags(map, error), source, (int)node.Start.Line);
+		return new(ids, versions, Tags(map, error), source, node.Line);
 	}
 
-	static IReadOnlyList<string> Tags(YamlMappingNode map, Action<YamlNode?, string> error)
+	static IReadOnlyList<string> Tags(YamlMapping map, Action<YamlNode?, string> error)
 	{
-		if (!map.Children.TryGetValue(new YamlScalarNode("tags"), out var tags))
+		if (map["tags"] is not { } tags)
 			return [];
-		if (tags is YamlSequenceNode list)
-			return list.Children.Select(Scalar).Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t!).ToList();
+		if (tags is YamlSequence list)
+			return list.Items.Select(Scalar).Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t!).ToList();
 		error(tags, "'tags' must be a list, like [windows].");
 		return [];
 	}
 
 	static IEnumerable<YamlNode> Sequence(YamlNode node, string name, Action<YamlNode?, string> error)
 	{
-		if (node is YamlSequenceNode sequence)
-			return sequence.Children;
-		if (node is not YamlScalarNode { Value: null or "" })
+		if (node is YamlSequence sequence)
+			return sequence.Items;
+		if (node is not YamlScalar { Value: "" })
 			error(node, $"'{name}' must be a list.");
 		return [];
 	}
 
-	static string? Get(YamlMappingNode map, string key)
-		=> map.Children.TryGetValue(new YamlScalarNode(key), out var node) ? Scalar(node) : null;
+	static string? Get(YamlMapping map, string key)
+		=> map[key] is { } node ? Scalar(node) : null;
 
-	static string? Scalar(YamlNode node) => (node as YamlScalarNode)?.Value?.Trim();
+	static string? Scalar(YamlNode node) => (node as YamlScalar)?.Value.Trim();
 }

@@ -10,8 +10,8 @@
 
 	<ItemGroup>
 		<PackageReference Include="Fuxion" />
-		<!-- only its representation model (YamlStream): no reflection, so AOT-compatible -->
-		<PackageReference Include="YamlDotNet" />
+		<!-- only its parser, read into fx's own tree with positions (Yaml/YamlDocument.cs): no reflection, so AOT-compatible -->
+		<PackageReference Include="SharpYaml" />
 	</ItemGroup>
 
 </Project>

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using YamlDotNet.RepresentationModel;
+using Fuxion.Tools.Core.Yaml;
 
 namespace Fuxion.Tools.Core.Workspace;
 
@@ -23,21 +23,20 @@ public sealed record WorkspaceState(IReadOnlyDictionary<string, bool> Mount)
 		var file = Path.Combine(root, "_fx", "~$workspace.yaml");
 		if (!File.Exists(file))
 			return Empty;
-		var stream = new YamlStream();
+		YamlNode? document;
 		try
 		{
-			stream.Load(new StringReader(File.ReadAllText(file)));
+			document = YamlDocument.Load(File.ReadAllText(file));
 		}
-		catch (YamlDotNet.Core.YamlException)
+		catch (YamlSyntaxException)
 		{
 			return Empty;
 		}
 		var mount = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
-		if (stream.Documents.FirstOrDefault()?.RootNode is YamlMappingNode map
-		    && map.Children.TryGetValue(new YamlScalarNode("repositories"), out var node) && node is YamlSequenceNode list)
-			foreach (var item in list.Children.OfType<YamlMappingNode>())
-				if (item.Children.TryGetValue(new YamlScalarNode("name"), out var name) && name is YamlScalarNode { Value: { Length: > 0 } repo })
-					mount[repo] = !(item.Children.TryGetValue(new YamlScalarNode("mount"), out var m) && m is YamlScalarNode { Value: "false" });
+		if (document is YamlMapping map && map["repositories"] is YamlSequence list)
+			foreach (var item in list.Items.OfType<YamlMapping>())
+				if (item["name"] is YamlScalar { Value: { Length: > 0 } repo })
+					mount[repo] = item["mount"] is not YamlScalar { Value: "false" };
 		return new(mount);
 	}
 

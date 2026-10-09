@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using Fuxion.Tools.Core.Diagnostics;
 using Fuxion.Tools.Core.Dotnet;
-using YamlDotNet.RepresentationModel;
+using Fuxion.Tools.Core.Yaml;
 
 namespace Fuxion.Tools.Core.Workspace;
 
@@ -97,18 +97,17 @@ public static class ModulePropagation
 		var path = Path.Combine(repositoryRoot, "_fx", Folder, RepositoryFile);
 		if (!File.Exists(path))
 			return null;
-		var stream = new YamlStream();
+		YamlNode? root;
 		try
 		{
-			stream.Load(new StringReader(File.ReadAllText(path)));
+			root = YamlDocument.Load(File.ReadAllText(path));
 		}
-		catch (YamlDotNet.Core.YamlException)
+		catch (YamlSyntaxException)
 		{
 			return null;
 		}
-		return stream.Documents.FirstOrDefault()?.RootNode is YamlMappingNode map
-		       && map.Children.TryGetValue(new YamlScalarNode("tags"), out var tags) && tags is YamlSequenceNode list
-			? list.Children.OfType<YamlScalarNode>().Select(t => t.Value ?? "").Where(t => t.Length > 0).ToList()
+		return root is YamlMapping map && map["tags"] is YamlSequence list
+			? list.Items.OfType<YamlScalar>().Select(t => t.Value).Where(t => t.Length > 0).ToList()
 			: [];
 	}
 
