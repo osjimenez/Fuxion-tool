@@ -32,8 +32,13 @@ Global options: --root <path>, --output human|json, --verbose, --plain
 
 - The version comes from the git history: the last `version/X.Y.0` tag and the commits since, with one rule per
   branch kind (`main`/`master`, `develop`, `feature/*`, `release/*`, `preview/*`, any other).
-- `--output json` writes one document on stdout with a versioned schema (`fx-version/1`, `fx-version-tag/1`) and the
-  diagnostics, each with a stable code (`version.no-tag`…). Exit code 1 only with errors.
+- `--output json` writes one document on stdout with a versioned schema (`fx-sync/1`, `fx-doctor/1`, `fx-repo-list/1`,
+  `fx-version/1`…): `schema`, `ok`, the command's data (for sync and doctor, `modules`: the files and repositories
+  each module touched) and `diagnostics`. Each diagnostic has a stable code (`dotnet.outdated`, `version.no-tag`…), a
+  severity (`error`, `warning`, `info`), its scope (`module`, `repository`), the message, where (`file`, `line`) and,
+  when there is one, the `fix` (a `command` to run or a `hint`). Codes, commands and JSON are always in English. Exit
+  code 1 only with errors.
+- `--verbose` writes each step of the core on stderr as it finishes (clone, fetch, status… per repository).
 
 ## `Fuxion.Tools.Sdk`
 

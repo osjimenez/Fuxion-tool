@@ -1,6 +1,6 @@
 using System.CommandLine;
-using System.Text.Json;
 using Fuxion.Tools.Core.Configuration;
+using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Versioning;
 using Spectre.Console;
 
@@ -42,15 +42,15 @@ public static class VersionCommand
 		}
 		catch (VersioningException ex)
 		{
-			Diagnostic[] errors = [Diagnostic.Error(ex.Code, ex.Message)];
+			FxDiagnostic[] errors = [ex.ToDiagnostic()];
 			if (settings.Global.Output == OutputFormat.Json)
-				console.WriteJson(Schema, errors);
+				console.WriteJson(new VersionDocument(Schema, false, null, null, null, null, null, null, JsonDiagnostic.From(errors)), FxConsole.JsonContext.VersionDocument);
 			return console.Report(errors);
 		}
 
 		var props = DefaultVersionPropsProvider.FromInputs(result.Inputs);
 		if (settings.Global.Output == OutputFormat.Json)
-			console.WriteJson(Schema, [], json => WriteJson(json, props, result.Details));
+			console.WriteJson(Document(props, result.Details), FxConsole.JsonContext.VersionDocument);
 		else if (settings.Explain)
 			WriteExplanation(console.Out, props, result.Details);
 		else
@@ -58,36 +58,19 @@ public static class VersionCommand
 		return 0;
 	}
 
-	static void WriteJson(Utf8JsonWriter json, VersionProps props, GitVersionDetails? details)
-	{
-		json.WriteString("version", props.Version);
-		json.WriteString("packageVersion", props.PackageVersion);
-		json.WriteString("assemblyVersion", props.AssemblyVersion);
-		json.WriteString("fileVersion", props.FileVersion);
-		json.WriteString("informationalVersion", props.InformationalVersion);
-		if (details is null)
-			return;
-		json.WriteStartObject("git");
-		json.WriteString("repository", details.Repository);
-		json.WriteString("branch", details.Branch);
-		json.WriteString("rule", RuleName(details.Rule));
-		json.WriteString("head", details.Head);
-		json.WriteString("stableTip", details.StableTip);
-		if (details.MergeBase is null)
-			json.WriteNull("mergeBase");
-		else
-			json.WriteString("mergeBase", details.MergeBase);
-		json.WriteStartObject("tag");
-		json.WriteString("name", details.TagName);
-		json.WriteString("commit", details.TagCommit);
-		json.WriteEndObject();
-		json.WriteNumber("commitsSinceTag", details.CommitsSinceTag);
-		if (details.BranchCommits is { } branchCommits)
-			json.WriteNumber("branchCommits", branchCommits);
-		else
-			json.WriteNull("branchCommits");
-		json.WriteEndObject();
-	}
+	static VersionDocument Document(VersionProps props, GitVersionDetails? details) => new(
+		Schema,
+		true,
+		props.Version,
+		props.PackageVersion,
+		props.AssemblyVersion,
+		props.FileVersion,
+		props.InformationalVersion,
+		details is null
+			? null
+			: new JsonGit(details.Repository, details.Branch, RuleName(details.Rule), details.Head, details.StableTip, details.MergeBase,
+				new JsonTag(details.TagName, details.TagCommit), details.CommitsSinceTag, details.BranchCommits),
+		[]);
 
 	static void WriteExplanation(IAnsiConsole console, VersionProps props, GitVersionDetails? details)
 	{

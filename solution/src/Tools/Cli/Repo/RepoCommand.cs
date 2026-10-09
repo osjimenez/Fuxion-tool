@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.CommandLine;
 using System.Linq;
+using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Workspace;
 using Spectre.Console;
 
@@ -43,14 +44,15 @@ public static class RepoCommand
 	static FxConsole Console(ParseResult result, GlobalOptions global, string currentDirectory)
 		=> new(result.InvocationConfiguration.Output, result.InvocationConfiguration.Error, global.Bind(result, currentDirectory));
 
-	static WorkspaceManifest? Manifest(FxConsole console, string schema)
+	/// <summary>The manifest, or the error written as the command's document.</summary>
+	static WorkspaceManifest? Manifest(FxConsole console, System.Action<IReadOnlyList<FxDiagnostic>> writeJson)
 	{
 		var (manifest, error) = WorkspaceModule.Find(console.Settings.Directory);
 		if (manifest is not null)
 			return manifest;
-		Diagnostic[] errors = [Diagnostic.From(error!)];
+		FxDiagnostic[] errors = [error!];
 		if (console.Settings.Output == OutputFormat.Json)
-			console.WriteJson(schema, errors);
+			writeJson(errors);
 		console.Report(errors);
 		return null;
 	}
@@ -58,35 +60,26 @@ public static class RepoCommand
 	static int List(FxConsole console, bool withStatus)
 	{
 		var schema = withStatus ? "fx-repo-status/1" : "fx-repo-list/1";
-		if (Manifest(console, schema) is not { } manifest)
+		void Json(IReadOnlyList<JsonRepository> repositories, IReadOnlyList<FxDiagnostic> diagnostics)
+			=> console.WriteJson(new RepositoriesDocument(schema, FxConsole.Ok(diagnostics), repositories, JsonDiagnostic.From(diagnostics)),
+				FxConsole.JsonContext.RepositoriesDocument);
+		if (Manifest(console, errors => Json([], errors)) is not { } manifest)
 			return 1;
-		var repositories = WorkspaceModule.Repositories(manifest, withStatus).Where(r => !withStatus || r.Mounted).ToList();
+		var repositories = WorkspaceModule.Repositories(manifest, withStatus, console.Progress).Where(r => !withStatus || r.Mounted).ToList();
 		if (console.Settings.Output == OutputFormat.Json)
 		{
-			console.WriteJson(schema, [], json =>
-			{
-				json.WriteStartArray("repositories");
-				foreach (var r in repositories)
-				{
-					json.WriteStartObject();
-					json.WriteString("name", r.Repository.Name);
-					json.WriteString("path", r.Repository.Path);
-					json.WriteString("mount", r.Repository.Mount == MountPolicy.Mandatory ? "mandatory" : "manual");
-					json.WriteBoolean("mounted", r.Mounted);
-					json.WriteBoolean("present", r.Present);
-					if (r.Status is { } s)
-					{
-						json.WriteString("branch", s.Branch);
-						json.WriteBoolean("detached", s.Detached);
-						json.WriteString("upstream", s.Upstream);
-						json.WriteNumber("ahead", s.Ahead);
-						json.WriteNumber("behind", s.Behind);
-						json.WriteNumber("changes", s.Changes);
-					}
-					json.WriteEndObject();
-				}
-				json.WriteEndArray();
-			});
+			Json(repositories.Select(r => new JsonRepository(
+				r.Repository.Name,
+				r.Repository.Path,
+				r.Repository.Mount == MountPolicy.Mandatory ? "mandatory" : "manual",
+				r.Mounted,
+				r.Present,
+				r.Status?.Branch,
+				r.Status?.Detached,
+				r.Status?.Upstream,
+				r.Status?.Ahead,
+				r.Status?.Behind,
+				r.Status?.Changes)).ToList(), []);
 			return 0;
 		}
 
@@ -114,11 +107,13 @@ public static class RepoCommand
 	static int Mount(FxConsole console, IReadOnlyList<string> names, bool mounted)
 	{
 		const string schema = "fx-repo-mount/1";
-		if (Manifest(console, schema) is not { } manifest)
+		void Json(IReadOnlyList<FxDiagnostic> diagnostics)
+			=> console.WriteJson(new MountDocument(schema, FxConsole.Ok(diagnostics), JsonDiagnostic.From(diagnostics)), FxConsole.JsonContext.MountDocument);
+		if (Manifest(console, Json) is not { } manifest)
 			return 1;
-		var diagnostics = WorkspaceModule.SetMount(manifest, names, mounted).Select(Diagnostic.From).ToList();
+		var diagnostics = WorkspaceModule.SetMount(manifest, names, mounted);
 		if (console.Settings.Output == OutputFormat.Json)
-			console.WriteJson(schema, diagnostics);
+			Json(diagnostics);
 		else if (diagnostics.Count == 0)
 			console.Out.WriteLine(mounted
 				? $"Mounted: {string.Join(", ", names)}. Run fx sync to clone what is missing."
@@ -129,29 +124,18 @@ public static class RepoCommand
 	static int Pull(FxConsole console, IReadOnlyCollection<string> only)
 	{
 		const string schema = "fx-repo-pull/1";
-		if (Manifest(console, schema) is not { } manifest)
+		void Json(IReadOnlyList<RepositoryAction> actions, IReadOnlyList<FxDiagnostic> diagnostics)
+			=> console.WriteJson(new PullDocument(schema, FxConsole.Ok(diagnostics),
+					actions.Select(a => new JsonRepositoryAction(a.Repository, a.Action, a.Detail)).ToList(), JsonDiagnostic.From(diagnostics)),
+				FxConsole.JsonContext.PullDocument);
+		if (Manifest(console, errors => Json([], errors)) is not { } manifest)
 			return 1;
-		var actions = WorkspaceModule.Pull(manifest, only);
-		var failed = actions.Where(a => a.Action == "failed")
-			.Select(a => new Diagnostic("workspace.pull-failed", "error", $"'{a.Repository}': {a.Detail}")).ToList();
+		var result = WorkspaceModule.Pull(manifest, only, console.Progress);
 		if (console.Settings.Output == OutputFormat.Json)
-			console.WriteJson(schema, failed, json =>
-			{
-				json.WriteStartArray("repositories");
-				foreach (var a in actions)
-				{
-					json.WriteStartObject();
-					json.WriteString("name", a.Repository);
-					json.WriteString("action", a.Action);
-					if (a.Detail is not null)
-						json.WriteString("detail", a.Detail);
-					json.WriteEndObject();
-				}
-				json.WriteEndArray();
-			});
+			Json(result.Actions, result.Diagnostics);
 		else
-			foreach (var a in actions)
+			foreach (var a in result.Actions)
 				console.Out.WriteLine($"{a.Action,-8} {a.Repository}{(a.Detail is null ? "" : $" ({a.Detail})")}");
-		return console.Report(failed);
+		return console.Report(result.Diagnostics);
 	}
 }

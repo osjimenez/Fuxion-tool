@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Fuxion.Tools.Core.Diagnostics;
+using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Yaml;
 
 namespace Fuxion.Tools.Core.Workspace;

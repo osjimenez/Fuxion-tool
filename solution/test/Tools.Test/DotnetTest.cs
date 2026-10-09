@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using Fuxion.Tools.Cli;
-using Fuxion.Tools.Core.Diagnostics;
+using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Dotnet;
 using Xunit;
 
@@ -199,7 +199,7 @@ public sealed class DotnetTest
 		public void Dispose() => Git.Dispose();
 	}
 
-	static IEnumerable<string> Codes(DotnetResult result) => result.Diagnostics.Select(d => d.Code);
+	static IEnumerable<string> Codes(FxModuleResult result) => result.Diagnostics.Select(d => d.Code);
 
 	[Fact(DisplayName = "sync: the three generated files, global.json and the Import; doctor all right after it")]
 	public void Sync()
@@ -489,14 +489,25 @@ public sealed class DotnetTest
 		var stdout = new StringWriter();
 		var stderr = new StringWriter();
 		Assert.Equal(1, FxApp.Run(["doctor"], stdout, stderr, repo.Git.Path));
-		Assert.Contains("error dotnet.outdated: _fx/dotnet.g.props:", stderr.ToString());
+		Assert.Contains("error dotnet.outdated: _fx/dotnet.g.props: Out of date with _fx/dotnet.yaml. → fx sync dotnet", stderr.ToString());
+
+		// The diagnostics, with their scope and fix (plan O, decision 13)
+		stdout = new StringWriter();
+		Assert.Equal(1, FxApp.Run(["doctor", "--output", "json"], stdout, new StringWriter(), repo.Git.Path));
+		var outdated = JsonDocument.Parse(stdout.ToString()).RootElement.GetProperty("diagnostics").EnumerateArray().First();
+		Assert.Equal("dotnet.outdated", outdated.GetProperty("code").GetString());
+		Assert.Equal("dotnet", outdated.GetProperty("module").GetString());
+		Assert.False(string.IsNullOrEmpty(outdated.GetProperty("repository").GetString()));
+		Assert.Equal("fx sync dotnet", outdated.GetProperty("fix").GetProperty("command").GetString());
 
 		stdout = new StringWriter();
 		Assert.Equal(0, FxApp.Run(["sync", "dotnet", "--output", "json"], stdout, new StringWriter(), repo.Git.Path));
 		var json = JsonDocument.Parse(stdout.ToString()).RootElement;
 		Assert.Equal("fx-sync/1", json.GetProperty("schema").GetString());
 		Assert.True(json.GetProperty("ok").GetBoolean());
-		Assert.Equal(5, json.GetProperty("dotnet").GetProperty("files").EnumerateArray().Count(f => f.GetProperty("status").GetString() == "written"));
+		var dotnet = Assert.Single(json.GetProperty("modules").EnumerateArray());
+		Assert.Equal("dotnet", dotnet.GetProperty("module").GetString());
+		Assert.Equal(5, dotnet.GetProperty("files").EnumerateArray().Count(f => f.GetProperty("status").GetString() == "written"));
 
 		stdout = new StringWriter();
 		Assert.Equal(0, FxApp.Run(["doctor", "--output", "json"], stdout, new StringWriter(), repo.Git.Path));

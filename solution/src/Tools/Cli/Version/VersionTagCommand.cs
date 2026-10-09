@@ -1,4 +1,5 @@
 using System.CommandLine;
+using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Versioning;
 using Spectre.Console;
 
@@ -38,18 +39,14 @@ public static class VersionTagCommand
 		}
 		catch (VersioningException ex)
 		{
-			Diagnostic[] errors = [Diagnostic.Error(ex.Code, ex.Message)];
+			FxDiagnostic[] errors = [ex.ToDiagnostic()];
 			if (settings.Global.Output == OutputFormat.Json)
-				console.WriteJson(Schema, errors);
+				console.WriteJson(new VersionTagDocument(Schema, false, null, null, JsonDiagnostic.From(errors)), FxConsole.JsonContext.VersionTagDocument);
 			return console.Report(errors);
 		}
 
 		if (settings.Global.Output == OutputFormat.Json)
-			console.WriteJson(Schema, [], json =>
-			{
-				json.WriteString("tag", created.Name);
-				json.WriteString("commit", created.Commit);
-			});
+			console.WriteJson(new VersionTagDocument(Schema, true, created.Name, created.Commit, []), FxConsole.JsonContext.VersionTagDocument);
 		else
 			console.Out.WriteLine($"Created {created.Name} on {created.Commit[..7]}. It is local: git push origin {created.Name}");
 		return 0;

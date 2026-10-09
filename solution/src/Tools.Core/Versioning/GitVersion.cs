@@ -1,4 +1,5 @@
 using System;
+using Fuxion.Tools.Core.Results;
 
 namespace Fuxion.Tools.Core.Versioning;
 
@@ -59,4 +60,12 @@ public sealed class VersioningException(string code, string message, Exception? 
 	: InvalidOperationException(message, inner)
 {
 	public string Code { get; } = code;
+
+	/// <summary>The error as a diagnostic, with its fix when there is one.</summary>
+	public FxDiagnostic ToDiagnostic() => FxDiagnostic.Error(Code, Message, fix: Code switch
+	{
+		VersioningErrorCodes.NoTag => new FxFix("fx version tag <X.Y>", "Start the versioning with a base tag."),
+		VersionTagger.TagNotNewer => FxFix.Do("Use a major and minor above the highest version tag."),
+		_ => null
+	});
 }

@@ -2,24 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
+using Fuxion.Tools.Core.Results;
 using Spectre.Console;
 
 namespace Fuxion.Tools.Cli;
-
-/// <summary>A diagnostic with a stable code (design §10.4).</summary>
-public sealed record Diagnostic(string Code, string Severity, string Message, string? File = null, int? Line = null)
-{
-	public static Diagnostic Error(string code, string message) => new(code, "error", message);
-
-	public static Diagnostic From(Fuxion.Tools.Core.Diagnostics.FxDiagnostic d)
-		=> new(d.Code, d.Severity == Fuxion.Tools.Core.Diagnostics.FxSeverity.Error ? "error" : "warning", d.Message, d.File, d.Line);
-
-	/// <summary><c>file(line): message</c>, or just the message.</summary>
-	public string Where => File is null ? Message : Line is null ? $"{File}: {Message}" : $"{File}({Line}): {Message}";
-}
 
 /// <summary>
 /// Where a command writes (design §10.4): the result on stdout (human, with Spectre.Console, or a JSON document with a
@@ -27,11 +16,19 @@ public sealed record Diagnostic(string Code, string Severity, string Message, st
 /// </summary>
 public sealed class FxConsole(TextWriter stdout, TextWriter stderr, GlobalSettings settings)
 {
+	// console output, not HTML: no need to escape +, ', < or non-ASCII
+	static readonly FxJsonContext Json = new(new JsonSerializerOptions(FxJsonContext.Default.Options) { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+
 	public GlobalSettings Settings { get; } = settings;
 
 	public IAnsiConsole Out { get; } = Create(stdout, settings.Plain);
 
 	public IAnsiConsole Err { get; } = Create(stderr, settings.Plain);
+
+	/// <summary>The progress of the core: with <c>--verbose</c>, each finished step on stderr; otherwise none.</summary>
+	public IFxProgress? Progress { get; } = settings.Verbose ? new StepLines(stderr) : null;
+
+	public static FxJsonContext JsonContext => Json;
 
 	static IAnsiConsole Create(TextWriter writer, bool plain) => AnsiConsole.Create(new()
 	{
@@ -48,47 +45,43 @@ public sealed class FxConsole(TextWriter stdout, TextWriter stderr, GlobalSettin
 			stderr.WriteLine(message);
 	}
 
-	/// <summary>Writes the diagnostics on stderr in human mode; returns the exit code (1 if any is an error).</summary>
-	public int Report(IReadOnlyList<Diagnostic> diagnostics)
+	/// <summary>
+	/// Writes the diagnostics on stderr in human mode (<c>severity code: where</c>, and the fix after an arrow); returns
+	/// the exit code (1 if any is an error).
+	/// </summary>
+	public int Report(IReadOnlyList<FxDiagnostic> diagnostics)
 	{
-		var failed = false;
-		foreach (var d in diagnostics)
-		{
-			failed |= d.Severity == "error";
-			if (Settings.Output == OutputFormat.Human)
-				stderr.WriteLine($"{d.Severity} {d.Code}: {d.Where}");
-		}
-		return failed ? 1 : 0;
+		if (Settings.Output == OutputFormat.Human)
+			foreach (var d in diagnostics)
+				stderr.WriteLine($"{JsonDiagnostic.SeverityName(d.Severity)} {d.Code}: {d.Where}{Fix(d.Fix)}");
+		return diagnostics.Any(d => d.Severity == FxSeverity.Error) ? 1 : 0;
 	}
 
-	/// <summary>Writes a JSON document on stdout: <c>schema</c>, <c>ok</c>, the command's fields and <c>diagnostics</c>.</summary>
-	public void WriteJson(string schema, IReadOnlyList<Diagnostic> diagnostics, Action<Utf8JsonWriter>? body = null)
+	static string Fix(FxFix? fix) => fix switch
 	{
-		using var buffer = new MemoryStream();
-		// console output, not HTML: no need to escape +, ', < or non-ASCII
-		using (var json = new Utf8JsonWriter(buffer, new() { Indented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))
+		null => "",
+		{ Command: { } command, Hint: { } hint } => $" → {command} ({hint.TrimEnd('.')})",
+		{ Command: { } command } => $" → {command}",
+		{ Hint: { } hint } => $" → {hint}",
+		_ => ""
+	};
+
+	/// <summary>Writes a JSON document on stdout.</summary>
+	public void WriteJson<T>(T document, JsonTypeInfo<T> typeInfo) => stdout.WriteLine(JsonSerializer.Serialize(document, typeInfo));
+
+	public static bool Ok(IEnumerable<FxDiagnostic> diagnostics) => !diagnostics.Any(d => d.Severity == FxSeverity.Error);
+
+	/// <summary>The steps of the core, one line each when they finish (<c>--verbose</c>, until the rich output of plan O).</summary>
+	sealed class StepLines(TextWriter writer) : IFxProgress
+	{
+		readonly object _gate = new();
+
+		public void Report(FxEvent e)
 		{
-			json.WriteStartObject();
-			json.WriteString("schema", schema);
-			json.WriteBoolean("ok", !diagnostics.Any(d => d.Severity == "error"));
-			body?.Invoke(json);
-			json.WriteStartArray("diagnostics");
-			foreach (var d in diagnostics)
-			{
-				json.WriteStartObject();
-				json.WriteString("code", d.Code);
-				json.WriteString("severity", d.Severity);
-				json.WriteString("message", d.Message);
-				if (d.File is not null)
-					json.WriteString("file", d.File);
-				if (d.Line is not null)
-					json.WriteNumber("line", d.Line.Value);
-				json.WriteEndObject();
-			}
-			json.WriteEndArray();
-			json.WriteEndObject();
+			if (e is not FxStepFinished step)
+				return;
+			lock (_gate)
+				writer.WriteLine($"{step.Module} {step.Repository ?? "-"} {step.Step}: {(step.Succeeded ? "ok" : "failed")} ({step.Elapsed.TotalSeconds:0.0} s)");
 		}
-		stdout.WriteLine(Encoding.UTF8.GetString(buffer.ToArray()));
 	}
 }
-

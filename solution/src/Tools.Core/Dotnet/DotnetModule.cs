@@ -6,28 +6,11 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-using Fuxion.Tools.Core.Diagnostics;
+using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Git;
 using Fuxion.Tools.Core.Workspace;
 
 namespace Fuxion.Tools.Core.Dotnet;
-
-public enum SyncFileStatus
-{
-	Unchanged,
-	Written,
-	/// <summary>Would be written (dry run, or doctor).</summary>
-	WouldWrite,
-	/// <summary>Not written: the file is not fx's (no GENERATED header).</summary>
-	Refused
-}
-
-public sealed record SyncFile(string Path, SyncFileStatus Status);
-
-public sealed record DotnetResult(string Repository, IReadOnlyList<SyncFile> Files, IReadOnlyList<FxDiagnostic> Diagnostics)
-{
-	public bool Failed => Diagnostics.Any(d => d.Severity == FxSeverity.Error);
-}
 
 /// <summary>
 /// The .NET module of fx in one repository (design §7.2, §7.3): <c>fx sync dotnet</c> generates from
@@ -80,9 +63,12 @@ public static partial class DotnetModule
 
 	static bool IsWorkspace(string root) => File.Exists(Path.Combine(root, "_fx", "workspace.yaml"));
 
-	public static DotnetResult Sync(string directory, bool dryRun) => Run(directory, dryRun ? Mode.DryRun : Mode.Write);
+	public const string Name = "dotnet";
 
-	public static DotnetResult Doctor(string directory) => Run(directory, Mode.Doctor);
+	public static FxModuleResult Sync(string directory, bool dryRun, IFxProgress? progress = null)
+		=> Run(directory, dryRun ? Mode.DryRun : Mode.Write, progress);
+
+	public static FxModuleResult Doctor(string directory, IFxProgress? progress = null) => Run(directory, Mode.Doctor, progress);
 
 	enum Mode { Write, DryRun, Doctor }
 
@@ -90,16 +76,32 @@ public static partial class DotnetModule
 
 	static string WorkspaceConfigPath(string root) => Path.Combine(root, "_fx", ".workspace", "dotnet.yaml");
 
-	static DotnetResult Run(string directory, Mode mode)
+	static FxModuleResult Run(string directory, Mode mode, IFxProgress? progress)
 	{
-		var diagnostics = new List<FxDiagnostic>();
-		var files = new List<SyncFile>();
 		var git = GitClient.Discover(directory);
 		if (git is null)
-			return new(directory, [], [FxDiagnostic.Error(NotARepository, $"'{directory}' is not inside a git repository.")]);
+			return FxModuleResult.Stopped(Name, directory, null, FxDiagnostic.Error(NotARepository, $"'{directory}' is not inside a git repository."));
 		var root = git.Root;
 		if (IsWorkspace(root))
-			return new(root, [], [FxDiagnostic.Error(WorkspaceLayer, "This is the metarepo: its _fx/dotnet.yaml is the workspace layer, which fx sync workspace copies to the repositories.")]);
+			return FxModuleResult.Stopped(Name, root, null, FxDiagnostic.Error(WorkspaceLayer,
+				"This is the metarepo: its _fx/dotnet.yaml is the workspace layer, which fx sync workspace copies to the repositories."));
+		// The repository: its name in the workspace manifest, or its folder
+		var manifest = WorkspaceManifest.FindAbove(Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(root))!);
+		var repository = manifest?.RepositoryAt(root)?.Name ?? Path.GetFileName(Path.TrimEndingDirectorySeparator(root));
+		return progress.Step(Name, repository, mode == Mode.Doctor ? "check" : "generate",
+			() => Run(root, git, manifest, repository, mode, progress), r => !r.Failed);
+	}
+
+	static FxModuleResult Run(string root, GitClient git, WorkspaceManifest? manifest, string repository, Mode mode, IFxProgress? progress)
+	{
+		var diagnostics = new FxDiagnostics(progress, repository);
+		var files = new List<SyncFile>();
+		FxModuleResult Result() => new(Name, root, repository, files, [], diagnostics.ToList());
+		FxModuleResult Stop(params IEnumerable<FxDiagnostic> found)
+		{
+			diagnostics.AddRange(found);
+			return Result();
+		}
 
 		// 1. The configuration: the workspace layer, the repo on top, only what applies to the repo's tags
 		DotnetConfig config;
@@ -109,7 +111,7 @@ public static partial class DotnetModule
 			var hasWorkspace = File.Exists(WorkspaceConfigPath(root));
 			var hasRepo = File.Exists(ConfigPath(root));
 			if (!hasWorkspace && !hasRepo)
-				return new(root, [], [FxDiagnostic.Error(NoConfig, "There is no _fx/dotnet.yaml (nor _fx/.workspace/dotnet.yaml) in this repository.")]);
+				return Stop(FxDiagnostic.Error(NoConfig, "There is no _fx/dotnet.yaml (nor _fx/.workspace/dotnet.yaml) in this repository."));
 			config = DotnetConfig.Combine(
 				hasWorkspace ? DotnetYamlReader.ReadFile(WorkspaceConfigPath(root)).WithBase(".workspace") : DotnetConfig.Empty,
 				hasRepo ? DotnetYamlReader.ReadFile(ConfigPath(root)) : DotnetConfig.Empty);
@@ -117,10 +119,10 @@ public static partial class DotnetModule
 		}
 		catch (DotnetConfigException ex)
 		{
-			return new(root, [], ex.Diagnostics.Select(d => d with { File = Relative(root, d.File) }).ToList());
+			return Stop(ex.Diagnostics.Select(d => d with { File = Relative(root, d.File) }));
 		}
 		// The repo's tags: from the workspace manifest; outside the workspace, from _fx/.workspace/repository.yaml
-		var tags = WorkspaceManifest.FindAbove(Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(root))!)?.RepositoryAt(root)?.Tags
+		var tags = manifest?.RepositoryAt(root)?.Tags
 		           ?? ModulePropagation.RepositoryTags(root) ?? [];
 		config = config.ForTags(tags);
 
@@ -141,7 +143,7 @@ public static partial class DotnetModule
 		}
 		catch (InvalidOperationException ex)
 		{
-			return new(root, [], [FxDiagnostic.Error(DotnetYamlReader.InvalidYaml, ex.Message, "_fx/dotnet.yaml")]);
+			return Stop(FxDiagnostic.Error(DotnetYamlReader.InvalidYaml, ex.Message, "_fx/dotnet.yaml"));
 		}
 
 		// 3. Only the packages the repo uses (design §7.3), in its projects and in what dotnet.yaml imports
@@ -175,10 +177,10 @@ public static partial class DotnetModule
 		if (mode == Mode.Doctor)
 		{
 			foreach (var file in files.Where(f => f.Status == SyncFileStatus.WouldWrite))
-				diagnostics.Add(FxDiagnostic.Error(Outdated, "Out of date with _fx/dotnet.yaml: run fx sync dotnet.", file.Path));
+				diagnostics.Add(FxDiagnostic.Error(Outdated, "Out of date with _fx/dotnet.yaml.", file.Path, fix: FxFix.Run("fx sync dotnet")));
 			foreach (var path in propsImports.Concat(targetsImports).Select(i => i.Path).Distinct(StringComparer.OrdinalIgnoreCase))
 				if (!File.Exists(Path.Combine(root, "_fx", path)))
-					diagnostics.Add(FxDiagnostic.Error(MissingImport, $"dotnet.yaml imports _fx/{path}, which does not exist (in the workspace, fx sync workspace copies it).", "_fx/dotnet.g.props"));
+					diagnostics.Add(FxDiagnostic.Error(MissingImport, $"dotnet.yaml imports _fx/{path}, which does not exist.", "_fx/dotnet.g.props", fix: FxFix.Run("fx sync workspace")));
 			if (centralManagement)
 			{
 				CheckOwners(root, centralFiles, packages, diagnostics);
@@ -188,10 +190,10 @@ public static partial class DotnetModule
 				CheckVersionsInProjects(root, buildFiles, packages, diagnostics);
 			CheckCoverage(root, git, config, governed, diagnostics);
 		}
-		return new(root, files, diagnostics);
+		return Result();
 	}
 
-	static void Generate(string root, string relative, string content, bool write, List<SyncFile> files, List<FxDiagnostic> diagnostics)
+	static void Generate(string root, string relative, string content, bool write, List<SyncFile> files, FxDiagnostics diagnostics)
 	{
 		var path = Path.Combine(root, relative);
 		if (File.Exists(path))
@@ -200,7 +202,8 @@ public static partial class DotnetModule
 			if (!current.Contains(DotnetGenerator.HeaderMark, StringComparison.Ordinal))
 			{
 				files.Add(new(relative, SyncFileStatus.Refused));
-				diagnostics.Add(FxDiagnostic.Error(NotGenerated, "Not written: the file has no GENERATED header, so it is not fx's (design D-11).", relative));
+				diagnostics.Add(FxDiagnostic.Error(NotGenerated, "Not written: the file has no GENERATED header, so it is not fx's (design D-11).", relative,
+					fix: FxFix.Do("Rename or move the file: fx only writes the files it generated.")));
 				return;
 			}
 			if (Normalize(current) == content)
@@ -213,7 +216,7 @@ public static partial class DotnetModule
 		files.Add(new(relative, write ? SyncFileStatus.Written : SyncFileStatus.WouldWrite));
 	}
 
-	static void GlobalJson(string root, IReadOnlyDictionary<string, string> sdks, bool write, List<SyncFile> files, List<FxDiagnostic> diagnostics)
+	static void GlobalJson(string root, IReadOnlyDictionary<string, string> sdks, bool write, List<SyncFile> files, FxDiagnostics diagnostics)
 	{
 		const string relative = "global.json";
 		var path = Path.Combine(root, relative);
@@ -275,21 +278,22 @@ public static partial class DotnetModule
 	}
 
 	// D-16: each id has a single owner, the yaml or the repo's Directory.Packages.props
-	static void CheckOwners(string root, IReadOnlyList<string> centralFiles, List<(string Id, string Version, string? Condition)> packages, List<FxDiagnostic> diagnostics)
+	static void CheckOwners(string root, IReadOnlyList<string> centralFiles, List<(string Id, string Version, string? Condition)> packages, FxDiagnostics diagnostics)
 	{
 		var governedIds = packages.Select(p => p.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
 		foreach (var central in centralFiles)
 			foreach (var id in PackageVersion().Matches(Read(root, central)).Select(m => m.Groups["id"].Value).Distinct(StringComparer.OrdinalIgnoreCase))
 				if (governedIds.Contains(id))
 					diagnostics.Add(FxDiagnostic.Error(DuplicateOwner,
-						$"'{id}' is governed by dotnet.yaml and also has a PackageVersion here: keep one owner (design D-16; NuGet rejects it, NU1506).", central));
+						$"'{id}' is governed by dotnet.yaml and also has a PackageVersion here (design D-16; NuGet rejects it, NU1506).", central,
+						fix: FxFix.Do("Keep one owner: remove the PackageVersion here, or the package from dotnet.yaml.")));
 	}
 
 	// A version in the repo's Directory.Packages.props that no project uses, directly (a PackageReference in its build
 	// files, or a GlobalPackageReference) or transitively (in the packages a project resolved: obj/project.assets.json,
 	// of its last restore; transitive ones are often pinned on purpose). Only a warning: removing it is the repo's call.
 	// Without any restore (a fresh clone), what is transitive cannot be told, and nothing is reported.
-	static void CheckUnusedPackages(string root, GitClient git, IReadOnlyList<string> centralFiles, IReadOnlyList<string> buildFiles, List<FxDiagnostic> diagnostics)
+	static void CheckUnusedPackages(string root, GitClient git, IReadOnlyList<string> centralFiles, IReadOnlyList<string> buildFiles, FxDiagnostics diagnostics)
 	{
 		var used = buildFiles
 			.SelectMany(f => { var text = Read(root, f); return PackageReference().Matches(text).Concat(GlobalPackageReference().Matches(text)); })
@@ -324,23 +328,23 @@ public static partial class DotnetModule
 				if (!used.Contains(m.Groups["id"].Value))
 					diagnostics.Add(FxDiagnostic.Warning(UnusedPackage,
 						$"'{m.Groups["id"].Value}' has a version here, but no project of the repo uses it, directly or transitively.",
-						central, text.AsSpan(0, m.Index).Count('\n') + 1));
+						central, text.AsSpan(0, m.Index).Count('\n') + 1, fix: FxFix.Do("Remove its PackageVersion.")));
 		}
 	}
 
 	// Without CPM, the version of a governed package is fx's: a Version= in a project would be overridden
-	static void CheckVersionsInProjects(string root, IReadOnlyList<string> buildFiles, List<(string Id, string Version, string? Condition)> packages, List<FxDiagnostic> diagnostics)
+	static void CheckVersionsInProjects(string root, IReadOnlyList<string> buildFiles, List<(string Id, string Version, string? Condition)> packages, FxDiagnostics diagnostics)
 	{
 		var governedIds = packages.Select(p => p.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
 		foreach (var file in buildFiles.Where(f => !f.StartsWith("_fx/", StringComparison.OrdinalIgnoreCase)))
 			foreach (var id in PackageReferenceWithVersion().Matches(Read(root, file)).Select(m => m.Groups["id"].Value).Distinct(StringComparer.OrdinalIgnoreCase))
 				if (governedIds.Contains(id))
 					diagnostics.Add(FxDiagnostic.Warning(IgnoredVersion,
-						$"'{id}' is governed by dotnet.yaml: the Version here is overridden by fx (remove it).", file));
+						$"'{id}' is governed by dotnet.yaml: the Version here is overridden by fx.", file, fix: FxFix.Do("Remove the Version.")));
 	}
 
 	// D-32: for every real target framework of a project that references a governed package, exactly one version matches
-	static void CheckCoverage(string root, GitClient git, DotnetConfig config, List<(string Id, string Version, string? Condition)> governed, List<FxDiagnostic> diagnostics)
+	static void CheckCoverage(string root, GitClient git, DotnetConfig config, List<(string Id, string Version, string? Condition)> governed, FxDiagnostics diagnostics)
 	{
 		var values = config.Variables.Where(v => !v.IsWhen).ToDictionary(v => v.Name, v => v.Value!, StringComparer.OrdinalIgnoreCase);
 		var byId = governed.GroupBy(g => g.Id, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);

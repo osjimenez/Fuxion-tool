@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using Fuxion.Tools.Core.Diagnostics;
+using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Dotnet;
 using Fuxion.Tools.Core.Yaml;
 
@@ -25,7 +25,7 @@ public static class ModulePropagation
 	public const string RepositoryFile = "repository.yaml";
 
 	public static void Run(WorkspaceManifest manifest, IReadOnlyList<WorkspaceRepository> mounted, bool write, bool doctor,
-		List<SyncFile> files, List<FxDiagnostic> diagnostics)
+		List<SyncFile> files, FxDiagnostics diagnostics, IFxProgress? progress = null)
 	{
 		var dotnet = manifest.Module("dotnet");
 		var sources = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase); // in .workspace -> in the workspace
@@ -85,9 +85,9 @@ public static class ModulePropagation
 			// The repo's generated files, from the copy (in a dry run, from what is there)
 			if (!DotnetModule.Applies(repoRoot))
 				continue;
-			var result = doctor ? DotnetModule.Doctor(repoRoot) : DotnetModule.Sync(repoRoot, dryRun: !write);
+			var result = doctor ? DotnetModule.Doctor(repoRoot, progress.StepsOnly()) : DotnetModule.Sync(repoRoot, dryRun: !write, progress.StepsOnly());
 			files.AddRange(result.Files.Select(f => f with { Path = repo.Path.TrimEnd('/') + "/" + f.Path }));
-			diagnostics.AddRange(result.Diagnostics.Select(d => d with { File = d.File is null ? repo.Path : repo.Path.TrimEnd('/') + "/" + d.File }));
+			diagnostics.AddRange(result.Diagnostics.Select(d => d with { File = d.File is null ? repo.Path : repo.Path.TrimEnd('/') + "/" + d.File, Repository = repo.Name }));
 		}
 	}
 

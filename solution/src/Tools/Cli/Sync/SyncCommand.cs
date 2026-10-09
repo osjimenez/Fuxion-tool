@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 using System.CommandLine;
 using System.Linq;
-using System.Text.Json;
 using Fuxion.Tools.Core.Dotnet;
+using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Workspace;
 using Spectre.Console;
 
@@ -54,7 +54,7 @@ public static class SyncCommand
 	static Argument<string?> ModuleArgument()
 	{
 		var argument = new Argument<string?>("module") { Description = "Only this module: workspace or dotnet.", Arity = ArgumentArity.ZeroOrOne };
-		argument.AcceptOnlyFromAmong("workspace", "dotnet");
+		argument.AcceptOnlyFromAmong(WorkspaceModule.Name, DotnetModule.Name);
 		return argument;
 	}
 
@@ -62,98 +62,44 @@ public static class SyncCommand
 	{
 		var schema = doctor ? DoctorSchema : SyncSchema;
 		var directory = settings.Global.Directory;
-		var runWorkspace = settings.Module == "workspace" || (settings.Module is null && WorkspaceModule.Applies(directory));
-		var runDotnet = settings.Module == "dotnet" || (settings.Module is null && DotnetModule.Applies(directory));
-		if (!runWorkspace && !runDotnet)
-		{
-			Diagnostic[] none = [new(NothingToDo, "warning", "No module applies here (no workspace manifest at this level, no _fx/dotnet.yaml).")];
-			if (settings.Global.Output == OutputFormat.Json)
-				console.WriteJson(schema, none);
-			console.Report(none);
-			return 0;
-		}
-
-		var workspace = runWorkspace
-			? doctor ? WorkspaceModule.Doctor(directory, settings.Offline) : WorkspaceModule.Sync(directory, new(settings.DryRun, settings.Offline, settings.Adopt))
-			: null;
-		var dotnet = runDotnet
-			? doctor ? DotnetModule.Doctor(directory) : DotnetModule.Sync(directory, settings.DryRun)
-			: null;
-		var diagnostics = (workspace?.Diagnostics ?? []).Concat(dotnet?.Diagnostics ?? []).Select(Diagnostic.From).ToList();
+		var runWorkspace = settings.Module == WorkspaceModule.Name || (settings.Module is null && WorkspaceModule.Applies(directory));
+		var runDotnet = settings.Module == DotnetModule.Name || (settings.Module is null && DotnetModule.Applies(directory));
+		var progress = console.Progress;
+		var modules = new List<FxModuleResult>();
+		if (runWorkspace)
+			modules.Add(doctor
+				? WorkspaceModule.Doctor(directory, settings.Offline, progress)
+				: WorkspaceModule.Sync(directory, new(settings.DryRun, settings.Offline, settings.Adopt), progress));
+		if (runDotnet)
+			modules.Add(doctor ? DotnetModule.Doctor(directory, progress) : DotnetModule.Sync(directory, settings.DryRun, progress));
+		var diagnostics = modules.SelectMany(m => m.Diagnostics).ToList();
+		if (modules.Count == 0)
+			diagnostics.Add(FxDiagnostic.Info(NothingToDo, "No module applies here (no workspace manifest at this level, no _fx/dotnet.yaml)."));
 
 		if (settings.Global.Output == OutputFormat.Json)
-			console.WriteJson(schema, diagnostics, json =>
-			{
-				if (workspace is not null)
-				{
-					json.WriteStartObject("workspace");
-					json.WriteString("root", workspace.Root);
-					json.WriteStartArray("repositories");
-					foreach (var action in workspace.Actions)
-					{
-						json.WriteStartObject();
-						json.WriteString("name", action.Repository);
-						json.WriteString("action", action.Action);
-						json.WriteEndObject();
-					}
-					json.WriteEndArray();
-					WriteFiles(json, workspace.Files);
-					json.WriteEndObject();
-				}
-				if (dotnet is not null)
-				{
-					json.WriteString("repository", dotnet.Repository);
-					json.WriteStartObject("dotnet");
-					WriteFiles(json, dotnet.Files);
-					json.WriteEndObject();
-				}
-			});
+			console.WriteJson(new SyncDocument(schema, FxConsole.Ok(diagnostics), modules.Select(JsonModule.From).ToList(), JsonDiagnostic.From(diagnostics)),
+				FxConsole.JsonContext.SyncDocument);
 		else
-		{
-			if (workspace is not null)
-				WriteHuman(console, "workspace", workspace.Files, workspace.Diagnostics.Count, doctor, settings.DryRun,
-					workspace.Actions.Select(a => $"{a.Action,-11} {a.Repository}"));
-			if (dotnet is not null)
-				WriteHuman(console, "dotnet", dotnet.Files, dotnet.Diagnostics.Count, doctor, settings.DryRun, []);
-		}
+			foreach (var module in modules)
+				WriteHuman(console, module, doctor, settings.DryRun);
 		return console.Report(diagnostics);
 	}
 
-	static void WriteFiles(Utf8JsonWriter json, IReadOnlyList<SyncFile> files)
-	{
-		json.WriteStartArray("files");
-		foreach (var file in files)
-		{
-			json.WriteStartObject();
-			json.WriteString("path", file.Path);
-			json.WriteString("status", StatusName(file.Status));
-			json.WriteEndObject();
-		}
-		json.WriteEndArray();
-	}
-
-	static void WriteHuman(FxConsole console, string module, IReadOnlyList<SyncFile> files, int problems, bool doctor, bool dryRun, IEnumerable<string> actions)
+	static void WriteHuman(FxConsole console, FxModuleResult module, bool doctor, bool dryRun)
 	{
 		if (doctor)
 		{
-			console.Out.WriteLine(problems == 0 ? $"{module}: all right" : $"{module}: {problems} problem(s)");
+			var problems = module.Diagnostics.Count;
+			console.Out.WriteLine(problems == 0 ? $"{module.Module}: all right" : $"{module.Module}: {problems} problem(s)");
 			return;
 		}
-		foreach (var action in actions)
-			console.Out.WriteLine(action);
-		foreach (var file in files.Where(f => f.Status != SyncFileStatus.Unchanged || console.Settings.Verbose))
-			console.Out.WriteLine($"{StatusName(file.Status),-11} {file.Path}");
-		var changed = files.Count(f => f.Status is SyncFileStatus.Written or SyncFileStatus.WouldWrite);
-		var refused = files.Count(f => f.Status == SyncFileStatus.Refused);
+		foreach (var action in module.Actions)
+			console.Out.WriteLine($"{action.Action,-11} {action.Repository}");
+		foreach (var file in module.Files.Where(f => f.Status != SyncFileStatus.Unchanged || console.Settings.Verbose))
+			console.Out.WriteLine($"{JsonModule.FileStatus(file.Status),-11} {file.Path}");
+		var changed = module.Files.Count(f => f.Status is SyncFileStatus.Written or SyncFileStatus.WouldWrite);
+		var refused = module.Files.Count(f => f.Status == SyncFileStatus.Refused);
 		var summary = changed == 0 ? "up to date" : dryRun ? $"{changed} file(s) would change" : $"{changed} file(s) written";
-		console.Out.WriteLine(refused == 0 ? $"{module}: {summary}" : $"{module}: {summary}, {refused} refused");
+		console.Out.WriteLine(refused == 0 ? $"{module.Module}: {summary}" : $"{module.Module}: {summary}, {refused} refused");
 	}
-
-	public static string StatusName(SyncFileStatus status) => status switch
-	{
-		SyncFileStatus.Written => "written",
-		SyncFileStatus.WouldWrite => "would-write",
-		SyncFileStatus.Refused => "refused",
-		_ => "unchanged"
-	};
 }

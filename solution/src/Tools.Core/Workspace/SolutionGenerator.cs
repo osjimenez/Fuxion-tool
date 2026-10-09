@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Xml.Linq;
-using Fuxion.Tools.Core.Diagnostics;
+using Fuxion.Tools.Core.Results;
 
 namespace Fuxion.Tools.Core.Workspace;
 
@@ -19,7 +19,7 @@ public static class SolutionGenerator
 	public const string FileName = "Fuxion.slnx";
 	public const string MissingSolution = "workspace.missing-solution";
 
-	public static string Generate(WorkspaceManifest manifest, IEnumerable<WorkspaceRepository> mounted, List<FxDiagnostic> diagnostics)
+	public static string Generate(WorkspaceManifest manifest, IEnumerable<WorkspaceRepository> mounted, FxDiagnostics diagnostics)
 	{
 		var root = manifest.Root;
 		var platforms = new List<string>();
@@ -50,7 +50,7 @@ public static class SolutionGenerator
 			var solutionPath = Path.GetFullPath(Path.Combine(repoRoot, repo.Solution!));
 			if (!File.Exists(solutionPath))
 			{
-				diagnostics.Add(FxDiagnostic.Warning(MissingSolution, $"Repository '{repo.Name}': its solution '{repo.Solution}' does not exist; it is left out.", WorkspaceManifest.RelativePath, repo.Line));
+				diagnostics.Add(FxDiagnostic.Warning(MissingSolution, $"Repository '{repo.Name}': its solution '{repo.Solution}' does not exist; it is left out.", WorkspaceManifest.RelativePath, repo.Line, repo.Name));
 				continue;
 			}
 			var solutionDir = Path.GetDirectoryName(solutionPath)!;
