@@ -12,6 +12,11 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<!-- the YAML edit engine checks run on copies of the workspace files (YamlEditorTest) -->
+		<None Include="YamlFixtures\*.yaml" CopyToOutputDirectory="PreserveNewest" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<ProjectReference Include="..\..\src\Tools.Core\Fuxion.Tools.Core.csproj" />
 		<!-- the CLI runs in process (FxApp.Run) -->
 		<ProjectReference Include="..\..\src\Tools\Fuxion.Tools.csproj" />

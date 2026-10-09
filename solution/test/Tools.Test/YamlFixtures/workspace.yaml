@@ -1,0 +1,65 @@
+# Fuxion workspace manifest (design _docs/plans/diseno-workspace-fx.md, §5), read by fx since plan M.
+# Who has what mounted is local: _fx/~$workspace.yaml (fx repo mount/unmount). fx sync workspace clones what is mounted
+# and missing, and regenerates .gitignore and Fuxion.slnx from this file.
+version: 1
+workspace:
+  name: fuxion
+  major: 11
+  # fx: <minimum version>   once fx is published
+folders: [_docs, _temp]
+# The modules of fx the repos use (plan N, decision 17): the repos with one of the tags get the module's configuration
+# in their _fx/.workspace/ (for dotnet: _fx/dotnet.yaml and the folder _fx/dotnet/) and fx generates what it needs.
+# fuxion-build: the repos that build with Fuxion.Tools.Sdk (tool joins when it uses its own SDK).
+modules:
+  dotnet:
+    tags: [fuxion-build]
+repositories:
+  - name: oss
+    path: oss/repo
+    url: https://github.com/osjimenez/Fuxion.git
+    mount: mandatory
+    standalone: true
+    solution: Fuxion.slnx
+    tags: [dotnet, public, fuxion-build]
+  - name: plus
+    path: plus/repo
+    url: https://github.com/osjimenez/Fuxion-plus.git
+    mount: mandatory
+    standalone: true
+    solution: FxPlus.slnx
+    tags: [dotnet, fuxion-build, uses-fuxion]
+  - name: next
+    path: next/repo
+    url: https://github.com/osjimenez/Fuxion-next.git
+    mount: mandatory
+    standalone: false
+    dependsOn: [oss, plus]
+    solution: FxNext.slnx
+    tags: [dotnet, fuxion-build, uses-fuxion]
+  - name: archive
+    path: archive/repo
+    url: https://github.com/osjimenez/Fuxion-archive.git
+    mount: mandatory
+    standalone: false
+    dependsOn: [oss, next]
+    solution: FxArchive.slnx
+    tags: [dotnet, windows, fuxion-build, uses-fuxion]
+  - name: lab
+    path: lab/repo
+    url: https://github.com/osjimenez/Fuxion-lab.git
+    mount: mandatory
+    standalone: false
+    dependsOn: [oss, plus, next, archive]
+    solution: FxLab.slnx
+    tags: [dotnet, fuxion-build, uses-fuxion]
+  - name: tool
+    path: tool/repo
+    url: https://github.com/osjimenez/Fuxion-tool.git
+    standalone: true
+    solution: FxTool.slnx
+    tags: [dotnet, public]
+  - name: docs
+    path: docs/repo
+    url: https://github.com/osjimenez/Fuxion-docs.git
+    standalone: true
+    tags: [public]

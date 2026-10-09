@@ -26,14 +26,26 @@ public abstract class YamlNode
 	public abstract int End { get; }
 }
 
+/// <summary>How a scalar is written: the edit engine keeps it when it changes the value.</summary>
+public enum YamlScalarStyle
+{
+	Plain,
+	SingleQuoted,
+	DoubleQuoted,
+	Literal,
+	Folded
+}
+
 public sealed class YamlScalar : YamlNode
 {
 	internal int EndIndex { get; init; }
 
 	public required string Value { get; init; }
 
+	public YamlScalarStyle Style { get; init; }
+
 	/// <summary>Written with quotes (<c>'…'</c> or <c>"…"</c>) or as a block (<c>|</c>, <c>&gt;</c>), not plain.</summary>
-	public bool IsQuoted { get; init; }
+	public bool IsQuoted => Style != YamlScalarStyle.Plain;
 
 	public override int End => EndIndex;
 
@@ -63,8 +75,11 @@ public sealed class YamlMapping : YamlNode
 
 	public override int End => IsFlow ? FlowEnd : Entries.Count == 0 ? Start : Entries[^1].Value.End;
 
-	/// <summary>The value of a plain key, or null.</summary>
-	public YamlNode? this[string key] => Entries.FirstOrDefault(e => e.Key is YamlScalar s && s.Value == key)?.Value;
+	/// <summary>The value of a key, or null.</summary>
+	public YamlNode? this[string key] => Entry(key)?.Value;
+
+	/// <summary>The entry (key and value) of a key, or null.</summary>
+	public YamlEntry? Entry(string key) => Entries.FirstOrDefault(e => e.Key is YamlScalar s && s.Value == key);
 }
 
 public sealed class YamlSequence : YamlNode
@@ -128,7 +143,14 @@ public static partial class YamlDocument
 				return new YamlScalar
 				{
 					Value = s.Value,
-					IsQuoted = s.Style != SharpYaml.ScalarStyle.Plain && s.Style != SharpYaml.ScalarStyle.Any,
+					Style = s.Style switch
+					{
+						SharpYaml.ScalarStyle.SingleQuoted => YamlScalarStyle.SingleQuoted,
+						SharpYaml.ScalarStyle.DoubleQuoted => YamlScalarStyle.DoubleQuoted,
+						SharpYaml.ScalarStyle.Literal => YamlScalarStyle.Literal,
+						SharpYaml.ScalarStyle.Folded => YamlScalarStyle.Folded,
+						_ => YamlScalarStyle.Plain
+					},
 					Line = line, Column = column, Start = start, EndIndex = (int)s.End.Index, Parent = parent
 				};
 			case AnchorAlias a:

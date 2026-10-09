@@ -1,0 +1,117 @@
+# The .NET module of the Fuxion workspace (design §7.3; plan N, decisions 15 and 17). fx sync workspace copies this
+# file and the folder _fx/dotnet/ to the repos of modules: dotnet (_fx/workspace.yaml), in their _fx/.workspace/, and
+# generates each repo's _fx/dotnet.g.props, dotnet.g.targets and package versions. A repo can add or override with its
+# own _fx/dotnet.yaml.
+
+sdks:
+  Fuxion.Tools.Sdk: 0.1.12
+
+# The tool defines them; the projects use them: $(CoreFrameworks), Condition="'$(IsNet11)' == 'true'", #if OLD_FRAMEWORKS
+# (from oss/solution/.config/props/Core.Frameworks.props)
+variables:
+  - name: OldFrameworks
+    value: net472
+  - name: StandardFramework
+    value: netstandard2.0
+  - name: CoreFrameworks
+    value: net10.0;net11.0
+  - name: CoreWindowsFrameworks
+    value: net10.0-windows10.0.19041;net11.0-windows10.0.19041
+  - name: LatestCoreFramework
+    value: net11.0
+  - name: LatestCoreWindowsFramework
+    value: net11.0-windows10.0.19041
+  - name: DefaultFrameworks
+    value: netstandard2.0;net472;net10.0;net11.0
+  - name: CoreAndOldFrameworks
+    value: net472;net10.0;net11.0
+  - name: WindowsFrameworks
+    value: net472;net10.0-windows10.0.19041;net11.0-windows10.0.19041
+
+  - name: IsOldFrameworks
+    when: "'$(TargetFramework)' == 'net472'"
+    define: OLD_FRAMEWORKS
+  - name: IsStandardFramework
+    when: "'$(TargetFramework)' == 'netstandard2.0'"
+    define: STANDARD_FRAMEWORK
+  - name: IsStandardOrOldFrameworks
+    when: "$(IsStandardFramework) Or $(IsOldFrameworks)"
+    define: STANDARD_OR_OLD_FRAMEWORKS
+  - name: IsCoreFrameworks
+    when: "'$(TargetFramework)' == 'net10.0' Or '$(TargetFramework)' == 'net11.0'"
+  - name: IsCoreOrOldFrameworks
+    when: "$(IsCoreFrameworks) Or $(IsOldFrameworks)"
+  - name: IsNet10
+    when: "'$(TargetFramework)' == 'net10.0' Or '$(TargetFramework)' == 'net10.0-windows10.0.19041'"
+  - name: IsNet11
+    when: "'$(TargetFramework)' == 'net11.0' Or '$(TargetFramework)' == 'net11.0-windows10.0.19041'"
+
+# Plain MSBuild files of _fx/dotnet/ and the projects they go into: props: before the project file, targets: right
+# after it (they see what the project declares)
+imports:
+  - props: dotnet/default.props
+  - props: dotnet/packable.props
+    targets: dotnet/packable.targets
+    when: "'$(IsPackable)' == 'true'"
+  - targets: dotnet/test.targets
+    when: "'$(IsTestProject)' == 'true'"
+  - targets: dotnet/polysharp.targets
+    when: "$(IsStandardOrOldFrameworks)"
+  - targets: dotnet/fuxion-analyzers.targets
+    when: "'$(UseFuxionAnalyzers)' != 'false'"
+    tags: [uses-fuxion]
+
+# The versions every repo shares; the rest, in each repo (its Directory.Packages.props). A package here cannot be there
+# too (design D-16). With several versions, each needs its when (D-32); a single one is for every framework.
+packages:
+  - ids: [xunit.v3]
+    versions:
+      - version: 4.0.0
+  - ids: [Microsoft.Testing.Extensions.CodeCoverage]
+    versions:
+      - version: 18.11.2
+  - ids: [PolySharp]
+    versions:
+      - version: 1.16.0
+
+  # The .NET platform: the stable version everywhere but net11, the preview on net11
+  - ids:
+      - Microsoft.AspNetCore.Mvc.Testing
+      - Microsoft.AspNetCore.OpenApi
+      - Microsoft.AspNetCore.SignalR.Client
+      - Microsoft.Bcl.AsyncInterfaces
+      - Microsoft.Extensions.Configuration
+      - Microsoft.Extensions.Configuration.UserSecrets
+      - Microsoft.Extensions.DependencyInjection
+      - Microsoft.Extensions.Hosting
+      - Microsoft.Extensions.Hosting.Abstractions
+      - Microsoft.Extensions.Hosting.WindowsServices
+      - Microsoft.Extensions.Http
+      - Microsoft.Extensions.Logging.Configuration
+      - System.Drawing.Common
+      - System.Management
+      - System.Text.Json
+    versions:
+      - when: "$(IsNet11)"
+        version: 11.0.0-rc.1.26425.128
+      - when: "$(IsNet10) Or $(IsStandardOrOldFrameworks)"
+        version: 10.0.12
+
+  # Entity Framework Core: only on .NET (10 and 11)
+  - ids:
+      - Microsoft.EntityFrameworkCore
+      - Microsoft.EntityFrameworkCore.InMemory
+      - Microsoft.EntityFrameworkCore.Sqlite
+      - Microsoft.EntityFrameworkCore.SqlServer
+    versions:
+      - when: "$(IsNet11)"
+        version: 11.0.0-rc.1.26425.128
+      - when: "$(IsNet10)"
+        version: 10.0.12
+
+  - ids: [MongoDB.EntityFrameworkCore]
+    versions:
+      - when: "$(IsNet10) Or $(IsNet11)"
+        version: 10.0.3
+      - when: "$(IsStandardOrOldFrameworks)"
+        version: 9.1.3

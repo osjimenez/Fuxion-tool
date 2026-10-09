@@ -1,0 +1,42 @@
+# Synthetic fixture (O1 part E): comments everywhere. Non-ASCII before the content: café, ñandú, 🚀
+---
+# comment above a key
+name: "probe"   # end-of-line comment after a double-quoted scalar
+title: 'It''s a probe' # single-quoted with an escaped quote
+plain: just a plain scalar with spaces # trailing comment
+empty:
+tags: [alpha, "beta", 'gamma'] # flow sequence, mixed quoting
+none: []
+point: {x: 1, y: 2} # flow mapping
+nested:
+  # comment inside a nested mapping
+  level1:
+    # deeper comment
+    key: value # eol
+    list:
+      # comment before the first item
+      - one # eol on item
+      # comment between items
+      - "two"
+
+      # comment after a blank line, before item three
+      - three
+    other: 42
+  sibling: true
+indentless:
+- a
+- b # eol
+items:
+  # leading comment of first
+  - id: first # eol on id
+    note: "x: y" # needs quotes
+    flags: [f1, f2]
+  # leading comment of second (attached)
+  - id: second
+    # inner comment
+    note: plain
+  # orphan comment between items, then a blank line
+
+  - id: third
+    note: ñandú 🚀
+# trailing comment at the end of the file
