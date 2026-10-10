@@ -489,7 +489,13 @@ public sealed class DotnetTest
 		var stdout = new StringWriter();
 		var stderr = new StringWriter();
 		Assert.Equal(1, FxApp.Run(["doctor"], stdout, stderr, repo.Git.Path));
-		Assert.Contains("error dotnet.outdated: _fx/dotnet.g.props: Out of date with _fx/dotnet.yaml. → fx sync dotnet", stderr.ToString());
+		// for people, as flutter doctor and on stdout (plan O, decision 8): the module, each problem and its fix, the summary
+		var doctor = stdout.ToString();
+		Assert.Contains("[✗] dotnet     5 error(s)", doctor);
+		Assert.Contains("Out of date with _fx/dotnet.yaml. (_fx/dotnet.g.props · dotnet.outdated)", doctor);
+		Assert.Contains("      → fx sync dotnet", doctor);
+		Assert.Contains("Doctor found issues in 1 module(s).", doctor);
+		Assert.Empty(stderr.ToString());
 
 		// The diagnostics, with their scope and fix (plan O, decision 13)
 		stdout = new StringWriter();
@@ -520,11 +526,15 @@ public sealed class DotnetTest
 		using var repo = new Repo();
 		try
 		{
-			var stderr = new StringWriter();
-			Assert.Equal(1, FxApp.Run(["doctor", "--lang", "es"], new StringWriter(), stderr, repo.Git.Path));
-			Assert.Contains("error dotnet.outdated: _fx/dotnet.g.props: Desactualizado respecto a _fx/dotnet.yaml. → fx sync dotnet", stderr.ToString());
-
 			var stdout = new StringWriter();
+			Assert.Equal(1, FxApp.Run(["doctor", "--lang", "es"], stdout, new StringWriter(), repo.Git.Path));
+			var doctor = stdout.ToString();
+			Assert.Contains("[✗] dotnet     5 error(es)", doctor);
+			Assert.Contains("Desactualizado respecto a _fx/dotnet.yaml. (_fx/dotnet.g.props · dotnet.outdated)", doctor);
+			Assert.Contains("      → fx sync dotnet", doctor);
+			Assert.Contains("El doctor ha encontrado problemas en 1 módulo(s).", doctor);
+
+			stdout = new StringWriter();
 			FxApp.Run(["doctor", "--lang", "es", "--output", "json"], stdout, new StringWriter(), repo.Git.Path);
 			var outdated = JsonDocument.Parse(stdout.ToString()).RootElement.GetProperty("diagnostics").EnumerateArray().First();
 			Assert.Equal("Out of date with _fx/dotnet.yaml.", outdated.GetProperty("message").GetString());
@@ -535,10 +545,10 @@ public sealed class DotnetTest
 			Assert.Contains("--dry-run", stdout.ToString());
 
 			// FX_LANG, and back to English
-			stderr = new StringWriter();
+			stdout = new StringWriter();
 			Environment.SetEnvironmentVariable(FxLanguage.Variable, "es");
-			FxApp.Run(["doctor"], new StringWriter(), stderr, repo.Git.Path);
-			Assert.Contains("Desactualizado", stderr.ToString());
+			FxApp.Run(["doctor"], stdout, new StringWriter(), repo.Git.Path);
+			Assert.Contains("Desactualizado", stdout.ToString());
 		}
 		finally
 		{
@@ -546,7 +556,7 @@ public sealed class DotnetTest
 			FxLanguage.Apply("en");
 		}
 		var english = new StringWriter();
-		FxApp.Run(["doctor"], new StringWriter(), english, repo.Git.Path);
+		FxApp.Run(["doctor"], english, new StringWriter(), repo.Git.Path);
 		Assert.Contains("Out of date with _fx/dotnet.yaml.", english.ToString());
 	}
 }

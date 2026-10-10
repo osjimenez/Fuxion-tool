@@ -1,7 +1,6 @@
 using System.CommandLine;
 using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Versioning;
-using Spectre.Console;
 
 namespace Fuxion.Tools.Cli.Version;
 
@@ -48,7 +47,7 @@ public static class VersionTagCommand
 		if (settings.Global.IsMachine)
 			console.WriteJson(new VersionTagDocument(Schema, true, created.Name, created.Commit, []), c => c.VersionTagDocument);
 		else
-			console.Out.WriteLine(Texts.Get("version.tag.created", created.Name, created.Commit[..7]));
+			console.Line($"[green]✓[/] {FxConsole.Escape(Texts.Get("version.tag.created", created.Name, created.Commit[..7]))}");
 		return 0;
 	}
 }

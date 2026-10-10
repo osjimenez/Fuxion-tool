@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
 using Fuxion.Tools.Core.Git;
+using Fuxion.Tools.Core.Processes;
 using Fuxion.Tools.Core.Results;
 
 namespace Fuxion.Tools.Core.Workspace;
@@ -133,7 +134,18 @@ public static class WorkspaceModule
 					actions.Add(new(name, "missing"));
 					continue;
 				}
-				var clone = progress.Step(Name, name, "clone", () => GitClient.Clone(repo.Repository.Url!, repo.FullPath, CloneTimeout), c => c.ExitCode == 0);
+				var existed = Directory.Exists(repo.FullPath);
+				ProcessResult clone;
+				try
+				{
+					clone = progress.Step(Name, name, "clone", () => GitClient.Clone(repo.Repository.Url!, repo.FullPath, CloneTimeout, cancellationToken), c => c.ExitCode == 0);
+				}
+				catch (OperationCanceledException) when (!existed)
+				{
+					// a clone killed half way leaves a folder that is not a repository yet
+					TryDelete(repo.FullPath);
+					throw;
+				}
 				if (clone.ExitCode != 0)
 				{
 					diagnostics.Add(FxDiagnostic.Error(CloneFailed, new(CloneFailed, name, repo.Repository.Url, clone.StandardError.Trim()), repository: name));
@@ -165,7 +177,7 @@ public static class WorkspaceModule
 			Parallel.For(0, toFetch.Count, new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = cancellationToken }, i =>
 			{
 				var name = toFetch[i].Info.Repository.Name;
-				var fetch = progress.Step(Name, name, "fetch", () => toFetch[i].Git.Fetch(FetchTimeout), f => f.ExitCode == 0);
+				var fetch = progress.Step(Name, name, "fetch", () => toFetch[i].Git.Fetch(FetchTimeout, cancellationToken), f => f.ExitCode == 0);
 				results[i] = fetch.ExitCode == 0 ? new(name, "fetched") : new(name, "fetch-failed", FxText.Plain(fetch.StandardError.Trim()));
 			});
 			foreach (var result in results.OfType<RepositoryAction>())
@@ -288,7 +300,7 @@ public static class WorkspaceModule
 			return;
 		Parallel.ForEach(repositories.Where(r => r.Mounted && r.Repository.Url is not null), new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = cancellationToken }, repo =>
 		{
-			if (progress.Step(Name, repo.Repository.Name, "remote", () => GitClient.LsRemote(repo.Repository.Url!, RemoteTimeout), r => r.ExitCode == 0).ExitCode != 0)
+			if (progress.Step(Name, repo.Repository.Name, "remote", () => GitClient.LsRemote(repo.Repository.Url!, RemoteTimeout, cancellationToken), r => r.ExitCode == 0).ExitCode != 0)
 				diagnostics.Add(FxDiagnostic.Warning(Unreachable, new(Unreachable, repo.Repository.Name, repo.Repository.Url), repository: repo.Repository.Name));
 		});
 	}
@@ -345,6 +357,21 @@ public static class WorkspaceModule
 		File.WriteAllText(path, content.Replace("\n", Environment.NewLine), new UTF8Encoding(false));
 	}
 
+	/// <summary>Deletes a folder fx has just created (git leaves read-only files in it); if it cannot, the next run reports it.</summary>
+	static void TryDelete(string path)
+	{
+		try
+		{
+			foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+				File.SetAttributes(file, FileAttributes.Normal);
+			Directory.Delete(path, recursive: true);
+		}
+		catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+		{
+			// left for the user: fx sync reports a folder that is not a repository
+		}
+	}
+
 	static bool SameUrl(string? a, string? b) => NormalizeUrl(a) == NormalizeUrl(b);
 
 	static string NormalizeUrl(string? url)
@@ -397,7 +424,7 @@ public static class WorkspaceModule
 				actions.Add(new(name, "skipped", new("workspace.action.no-upstream")));
 				continue;
 			}
-			var pull = progress.Step(Name, name, "pull", () => GitClient.Discover(repo.FullPath)!.PullFastForward(TimeSpan.FromMinutes(2)), p => p.ExitCode == 0);
+			var pull = progress.Step(Name, name, "pull", () => GitClient.Discover(repo.FullPath)!.PullFastForward(TimeSpan.FromMinutes(2), cancellationToken), p => p.ExitCode == 0);
 			if (pull.ExitCode == 0)
 				actions.Add(new(name, "pulled"));
 			else

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
+using System.Threading;
 
 namespace Fuxion.Tools.Core.Processes;
 
@@ -18,7 +19,8 @@ public sealed class ProcessException(string message, string command, int? exitCo
 
 /// <summary>
 /// The only way the tool launches processes (design §10.4): explicit working directory, a timeout always, UTF-8 output.
-/// A non-zero exit code is not an error here; the caller decides what it means.
+/// A non-zero exit code is not an error here; the caller decides what it means. A cancellation kills the process (and
+/// its children) at once and throws <see cref="OperationCanceledException"/>.
 /// </summary>
 public static class ProcessRunner
 {
@@ -27,8 +29,10 @@ public static class ProcessRunner
 		string workingDirectory,
 		IEnumerable<string> arguments,
 		TimeSpan timeout,
-		IReadOnlyDictionary<string, string?>? environment = null)
+		IReadOnlyDictionary<string, string?>? environment = null,
+		CancellationToken cancellationToken = default)
 	{
+		cancellationToken.ThrowIfCancellationRequested();
 		var psi = new ProcessStartInfo(fileName)
 		{
 			WorkingDirectory = workingDirectory,
@@ -62,18 +66,32 @@ public static class ProcessRunner
 		}
 
 		using (process)
+		using (cancellationToken.Register(() => Kill(process)))
 		{
 			process.StandardInput.Close();
-			var stdout = process.StandardOutput.ReadToEndAsync();
-			var stderr = process.StandardError.ReadToEndAsync();
+			var stdout = process.StandardOutput.ReadToEndAsync(CancellationToken.None);
+			var stderr = process.StandardError.ReadToEndAsync(CancellationToken.None);
 			if (!process.WaitForExit(timeout))
 			{
-				try { process.Kill(entireProcessTree: true); }
-				catch (InvalidOperationException) { }
+				Kill(process);
+				cancellationToken.ThrowIfCancellationRequested();
 				throw new ProcessException($"'{command}' in '{workingDirectory}' timed out after {timeout.TotalSeconds:0.#} s.", command, null, "");
 			}
 			process.WaitForExit();
+			cancellationToken.ThrowIfCancellationRequested();
 			return new(process.ExitCode, stdout.Result, stderr.Result, stopwatch.Elapsed);
+		}
+	}
+
+	static void Kill(Process process)
+	{
+		try
+		{
+			process.Kill(entireProcessTree: true);
+		}
+		catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+		{
+			// it has just exited
 		}
 	}
 

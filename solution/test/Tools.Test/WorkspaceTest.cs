@@ -465,4 +465,31 @@ public sealed class WorkspaceTest
 		Assert.Equal("mandatory", repos[0].GetProperty("mount").GetString());
 		Assert.False(repos[1].GetProperty("mounted").GetBoolean());
 	}
+
+	[Fact(DisplayName = "fx repo status: only the repositories that ask for attention; --all, every one (plan O, decision 8)")]
+	public void Cli_RepoStatus()
+	{
+		using var ws = new Workspace(("plus", "mandatory"), ("lab", "mandatory"));
+		Assert.Equal(0, FxApp.Run(["sync"], new StringWriter(), new StringWriter(), ws.Root));
+		var stdout = new StringWriter();
+		Assert.Equal(0, FxApp.Run(["repo", "status"], stdout, new StringWriter(), ws.Root));
+		Assert.Equal("✓ All 2 repositories are clean.", stdout.ToString().Trim());
+
+		File.WriteAllText(Path.Combine(ws.RepoPath("lab"), "new.txt"), "x");
+		stdout = new StringWriter();
+		Assert.Equal(0, FxApp.Run(["repo", "status"], stdout, new StringWriter(), ws.Root));
+		var text = stdout.ToString();
+		Assert.Contains("lab", text);
+		Assert.DoesNotContain("plus", text);
+		Assert.Contains("1 of 2 repositories are clean (--all to see them).", text);
+
+		stdout = new StringWriter();
+		Assert.Equal(0, FxApp.Run(["repo", "status", "--all"], stdout, new StringWriter(), ws.Root));
+		text = stdout.ToString();
+		Assert.Contains("lab", text);
+		Assert.Contains("plus", text);
+		Assert.DoesNotContain("--all", text);
+		// without a terminal, no colours
+		Assert.DoesNotContain("\x1b[", text);
+	}
 }

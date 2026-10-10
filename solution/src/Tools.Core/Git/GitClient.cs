@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using Fuxion.Tools.Core.Processes;
 
 namespace Fuxion.Tools.Core.Git;
@@ -163,26 +164,28 @@ public sealed class GitClient
 	}
 
 	/// <summary><c>git fetch --all --prune</c>, with its own timeout (the network can be slow, or not there).</summary>
-	public ProcessResult Fetch(TimeSpan timeout) => Run(Root, timeout, "fetch", "--all", "--prune", "--quiet");
+	public ProcessResult Fetch(TimeSpan timeout, CancellationToken cancellationToken = default)
+		=> ProcessRunner.Run("git", Root, ["-C", Root, "fetch", "--all", "--prune", "--quiet"], timeout, Environment, cancellationToken);
 
 	/// <summary><c>git pull --ff-only</c>: never a merge, never a rebase.</summary>
-	public ProcessResult PullFastForward(TimeSpan timeout) => Run(Root, timeout, "pull", "--ff-only", "--quiet");
+	public ProcessResult PullFastForward(TimeSpan timeout, CancellationToken cancellationToken = default)
+		=> ProcessRunner.Run("git", Root, ["-C", Root, "pull", "--ff-only", "--quiet"], timeout, Environment, cancellationToken);
 
 	/// <summary>Whether this repository ignores <paramref name="relativePath"/> (<c>git check-ignore</c>).</summary>
 	public bool Ignores(string relativePath)
 		=> Run(Root, _timeout, "check-ignore", "--quiet", "--no-index", relativePath).ExitCode == 0;
 
 	/// <summary><c>git clone</c> (with long paths on), run in the parent folder of <paramref name="path"/>.</summary>
-	public static ProcessResult Clone(string url, string path, TimeSpan timeout)
+	public static ProcessResult Clone(string url, string path, TimeSpan timeout, CancellationToken cancellationToken = default)
 	{
 		var parent = System.IO.Path.GetDirectoryName(System.IO.Path.TrimEndingDirectorySeparator(path))!;
 		Directory.CreateDirectory(parent);
-		return ProcessRunner.Run("git", parent, ["-c", "core.longpaths=true", "clone", "--quiet", url, path], timeout, Environment);
+		return ProcessRunner.Run("git", parent, ["-c", "core.longpaths=true", "clone", "--quiet", url, path], timeout, Environment, cancellationToken);
 	}
 
 	/// <summary><c>git ls-remote</c> of a URL: whether it answers, without cloning anything.</summary>
-	public static ProcessResult LsRemote(string url, TimeSpan timeout)
-		=> ProcessRunner.Run("git", System.IO.Path.GetTempPath(), ["ls-remote", "--quiet", url, "HEAD"], timeout, Environment);
+	public static ProcessResult LsRemote(string url, TimeSpan timeout, CancellationToken cancellationToken = default)
+		=> ProcessRunner.Run("git", System.IO.Path.GetTempPath(), ["ls-remote", "--quiet", url, "HEAD"], timeout, Environment, cancellationToken);
 
 	/// <summary>Creates a lightweight tag. Local only: nothing is pushed.</summary>
 	public void CreateTag(string name, string commit) => Required("tag", name, commit);

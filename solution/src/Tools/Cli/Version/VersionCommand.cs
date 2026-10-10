@@ -1,8 +1,8 @@
 using System.CommandLine;
+using System.Linq;
 using Fuxion.Tools.Core.Configuration;
 using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Versioning;
-using Spectre.Console;
 
 namespace Fuxion.Tools.Cli.Version;
 
@@ -52,9 +52,9 @@ public static class VersionCommand
 		if (settings.Global.IsMachine)
 			console.WriteJson(Document(props, result.Details), c => c.VersionDocument);
 		else if (settings.Explain)
-			WriteExplanation(console.Out, props, result.Details);
+			WriteExplanation(console, props, result.Details);
 		else
-			console.Out.WriteLine(props.Version);
+			console.Line(FxConsole.Escape(props.Version));
 		return 0;
 	}
 
@@ -72,10 +72,10 @@ public static class VersionCommand
 				new JsonTag(details.TagName, details.TagCommit), details.CommitsSinceTag, details.BranchCommits),
 		[]);
 
-	static void WriteExplanation(IAnsiConsole console, VersionProps props, GitVersionDetails? details)
+	static void WriteExplanation(FxConsole console, VersionProps props, GitVersionDetails? details)
 	{
-		var grid = new Grid().AddColumn(new GridColumn().NoWrap()).AddColumn();
-		void Row(string name, string value) => grid.AddRow(new Spectre.Console.Text(name, new Style(decoration: Decoration.Bold)), new Spectre.Console.Text(value));
+		var rows = new System.Collections.Generic.List<(string Name, string Value)>();
+		void Row(string name, string value) => rows.Add((name, value));
 
 		Row(Texts.Get("version.row.version"), props.Version);
 		Row(Texts.Get("version.row.informational"), props.InformationalVersion);
@@ -96,7 +96,10 @@ public static class VersionCommand
 			else
 				Row(Texts.Get("version.row.tag-to-head"), Texts.Get("version.commits", details.CommitsSinceTag));
 		}
-		console.Write(grid);
+		// two columns, the names in bold
+		var width = rows.Max(r => r.Name.Length) + 2;
+		foreach (var (name, value) in rows)
+			console.Line($"[bold]{FxConsole.Escape(name)}[/]{new string(' ', width - name.Length)}{FxConsole.Escape(value)}");
 	}
 
 	public static string RuleName(GitVersionRule rule) => rule switch

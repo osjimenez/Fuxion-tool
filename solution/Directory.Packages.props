@@ -15,7 +15,7 @@
 		<PackageVersion Include="Fuxion" Version="10.0.18" />
 		<!-- the SDK tasks compile against it (18.0: the first with net10.0); at run time MSBuild provides it -->
 		<PackageVersion Include="Microsoft.Build.Utilities.Core" Version="18.0.2" />
-		<PackageVersion Include="Spectre.Console" Version="0.57.2" />
+		<PackageVersion Include="XenoAtom.Terminal.UI" Version="3.10.0" />
 		<PackageVersion Include="System.CommandLine" Version="2.0.12" />
 		<PackageVersion Include="SharpYaml" Version="3.15.0" />
 	</ItemGroup>
@@ -30,6 +30,7 @@
 	<ItemGroup>
 		<PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.12" />
 		<PackageVersion Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.12" />
+		<PackageVersion Include="Spectre.Console" Version="0.57.2" />
 	</ItemGroup>
 
 </Project>

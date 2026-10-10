@@ -325,7 +325,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		repo.Tag("version/1.0.0");
 
 		var test = ProcessRunner.Run("dotnet", repo.Path, ["test", "--project", Path.Combine("solution", "test", "Tests")],
-			TimeSpan.FromMinutes(5), SdkFixture.CleanEnvironment());
+			TimeSpan.FromMinutes(5), SdkFixture.CleanEnvironment(), TestContext.Current.CancellationToken);
 		Succeeded(test);
 		Assert.Contains("succeeded: 1", test.StandardOutput);
 		Succeeded(fixture.Build(Path.Combine(repo.Path, "solution", "src", "Old")));
@@ -388,7 +388,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		repo.Tag("version/1.0.0");
 		var result = ProcessRunner.Run("dotnet", repo.Path,
 			["msbuild", Path.Combine("solution", "src", "App", "App.csproj"), "-getProperty:MineImported", "-getProperty:FxProjectTargetsImported", "-nologo"],
-			TimeSpan.FromMinutes(5), SdkFixture.CleanEnvironment());
+			TimeSpan.FromMinutes(5), SdkFixture.CleanEnvironment(), TestContext.Current.CancellationToken);
 		Succeeded(result);
 		Assert.Contains("\"MineImported\": \"true\"", result.StandardOutput);
 		// If a new .NET SDK stops importing BeforeMicrosoftNETSdkTargets, the targets: imports of dotnet.yaml are lost

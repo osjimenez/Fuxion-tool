@@ -58,11 +58,20 @@
   <data name="module" xml:space="preserve">
     <value>Solo este módulo: workspace o dotnet.</value>
   </data>
-  <data name="doctor.all-right" xml:space="preserve">
-    <value>{0}: todo bien</value>
+  <data name="doctor.errors" xml:space="preserve">
+    <value>{0} error(es)</value>
   </data>
-  <data name="doctor.problems" xml:space="preserve">
-    <value>{0}: {1} problema(s)</value>
+  <data name="doctor.warnings" xml:space="preserve">
+    <value>{0} aviso(s)</value>
+  </data>
+  <data name="doctor.module-ok" xml:space="preserve">
+    <value>todo bien</value>
+  </data>
+  <data name="doctor.no-issues" xml:space="preserve">
+    <value>No se ha encontrado ningún problema.</value>
+  </data>
+  <data name="doctor.issues" xml:space="preserve">
+    <value>El doctor ha encontrado problemas en {0} módulo(s).</value>
   </data>
   <data name="sync.up-to-date" xml:space="preserve">
     <value>al día</value>
@@ -127,6 +136,9 @@
   <data name="cancelled" xml:space="preserve">
     <value>Cancelado.</value>
   </data>
+  <data name="cancelling" xml:space="preserve">
+    <value>Cancelando…</value>
+  </data>
   <data name="step.ok" xml:space="preserve">
     <value>bien</value>
   </data>
@@ -140,7 +152,16 @@
     <value>Los repositorios del manifiesto: punto de montaje, política y si están montados.</value>
   </data>
   <data name="repo.status" xml:space="preserve">
-    <value>Los repositorios montados: rama, commits por delante y por detrás, cambios.</value>
+    <value>Los repositorios montados que piden atención: rama, commits por delante y por detrás, cambios.</value>
+  </data>
+  <data name="repo.status.all" xml:space="preserve">
+    <value>También los repositorios limpios y al día.</value>
+  </data>
+  <data name="repo.all-clean" xml:space="preserve">
+    <value>Los {0} repositorios están limpios.</value>
+  </data>
+  <data name="repo.some-clean" xml:space="preserve">
+    <value>{0} de {1} repositorios están limpios (--all para verlos).</value>
   </data>
   <data name="repo.names" xml:space="preserve">
     <value>Repositorios del manifiesto.</value>

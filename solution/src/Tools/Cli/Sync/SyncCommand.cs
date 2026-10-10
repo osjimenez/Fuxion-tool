@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using Fuxion.Tools.Core.Dotnet;
 using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Workspace;
-using Spectre.Console;
 
 namespace Fuxion.Tools.Cli.Sync;
 
@@ -61,7 +60,7 @@ public static class SyncCommand
 	}
 
 	public static int Run(ModuleSettings settings, FxConsole console, bool doctor, CancellationToken cancellationToken = default)
-		=> console.Run(() => Execute(settings, console, doctor, cancellationToken));
+		=> console.Run(token => Execute(settings, console, doctor, token), cancellationToken);
 
 	static int Execute(ModuleSettings settings, FxConsole console, bool doctor, CancellationToken cancellationToken)
 	{
@@ -69,14 +68,17 @@ public static class SyncCommand
 		var directory = settings.Global.Directory;
 		var runWorkspace = settings.Module == WorkspaceModule.Name || (settings.Module is null && WorkspaceModule.Applies(directory));
 		var runDotnet = settings.Module == DotnetModule.Name || (settings.Module is null && DotnetModule.Applies(directory));
-		var progress = console.Progress;
-		var modules = new List<FxModuleResult>();
-		if (runWorkspace)
-			modules.Add(doctor
-				? WorkspaceModule.Doctor(directory, settings.Offline, progress, cancellationToken)
-				: WorkspaceModule.Sync(directory, new(settings.DryRun, settings.Offline, settings.Adopt), progress, cancellationToken));
-		if (runDotnet)
-			modules.Add(doctor ? DotnetModule.Doctor(directory, progress) : DotnetModule.Sync(directory, settings.DryRun, progress));
+		var modules = console.WithProgress((progress, cancel) =>
+		{
+			var results = new List<FxModuleResult>();
+			if (runWorkspace)
+				results.Add(doctor
+					? WorkspaceModule.Doctor(directory, settings.Offline, progress, cancel)
+					: WorkspaceModule.Sync(directory, new(settings.DryRun, settings.Offline, settings.Adopt), progress, cancel));
+			if (runDotnet)
+				results.Add(doctor ? DotnetModule.Doctor(directory, progress) : DotnetModule.Sync(directory, settings.DryRun, progress));
+			return results;
+		}, cancellationToken);
 		var diagnostics = modules.SelectMany(m => m.Diagnostics).ToList();
 		if (modules.Count == 0)
 			diagnostics.Add(FxDiagnostic.Info(NothingToDo, new FxText(NothingToDo)));
@@ -84,27 +86,33 @@ public static class SyncCommand
 		if (settings.Global.IsMachine)
 			console.WriteJson(new SyncDocument(schema, FxConsole.Ok(diagnostics), modules.Select(JsonModule.From).ToList(), JsonDiagnostic.From(diagnostics)),
 				c => c.SyncDocument);
+		else if (doctor && modules.Count > 0)
+		{
+			DoctorView.Write(console, modules, diagnostics);
+			return console.Report(diagnostics, write: false);
+		}
 		else
 			foreach (var module in modules)
-				WriteHuman(console, module, doctor, settings.DryRun);
+				WriteHuman(console, module, settings.DryRun);
 		return console.Report(diagnostics);
 	}
 
-	static void WriteHuman(FxConsole console, FxModuleResult module, bool doctor, bool dryRun)
+	static void WriteHuman(FxConsole console, FxModuleResult module, bool dryRun)
 	{
-		if (doctor)
-		{
-			var problems = module.Diagnostics.Count;
-			console.Out.WriteLine(problems == 0 ? Texts.Get("doctor.all-right", module.Module) : Texts.Get("doctor.problems", module.Module, problems));
-			return;
-		}
 		foreach (var action in module.Actions)
-			console.Out.WriteLine($"{Texts.Get($"action.{action.Action}"),-11} {action.Repository}");
+		{
+			var color = action.Action.EndsWith("failed") || action.Action == "missing" ? "red" : "green";
+			console.Line($"[{color}]{FxConsole.Escape(Texts.Get($"action.{action.Action}")),-11}[/] {FxConsole.Escape(action.Repository)}");
+		}
 		foreach (var file in module.Files.Where(f => f.Status != SyncFileStatus.Unchanged || console.Settings.Verbose))
-			console.Out.WriteLine($"{Texts.Get($"file.{JsonModule.FileStatus(file.Status)}"),-11} {file.Path}");
+		{
+			var color = file.Status switch { SyncFileStatus.Refused => "red", SyncFileStatus.Unchanged => "gray", _ => "yellow" };
+			console.Line($"[{color}]{FxConsole.Escape(Texts.Get($"file.{JsonModule.FileStatus(file.Status)}")),-11}[/] {FxConsole.Escape(file.Path)}");
+		}
 		var changed = module.Files.Count(f => f.Status is SyncFileStatus.Written or SyncFileStatus.WouldWrite);
 		var refused = module.Files.Count(f => f.Status == SyncFileStatus.Refused);
 		var summary = changed == 0 ? Texts.Get("sync.up-to-date") : dryRun ? Texts.Get("sync.would-change", changed) : Texts.Get("sync.written", changed);
-		console.Out.WriteLine(refused == 0 ? Texts.Get("sync.summary", module.Module, summary) : Texts.Get("sync.summary-refused", module.Module, summary, refused));
+		var line = refused == 0 ? Texts.Get("sync.summary", module.Module, summary) : Texts.Get("sync.summary-refused", module.Module, summary, refused);
+		console.Line($"[{(refused > 0 ? "red" : changed > 0 ? "yellow" : "green")}]{FxConsole.Escape(line)}[/]");
 	}
 }

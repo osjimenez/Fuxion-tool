@@ -58,11 +58,20 @@
   <data name="module" xml:space="preserve">
     <value>Only this module: workspace or dotnet.</value>
   </data>
-  <data name="doctor.all-right" xml:space="preserve">
-    <value>{0}: all right</value>
+  <data name="doctor.errors" xml:space="preserve">
+    <value>{0} error(s)</value>
   </data>
-  <data name="doctor.problems" xml:space="preserve">
-    <value>{0}: {1} problem(s)</value>
+  <data name="doctor.warnings" xml:space="preserve">
+    <value>{0} warning(s)</value>
+  </data>
+  <data name="doctor.module-ok" xml:space="preserve">
+    <value>all right</value>
+  </data>
+  <data name="doctor.no-issues" xml:space="preserve">
+    <value>No issues found.</value>
+  </data>
+  <data name="doctor.issues" xml:space="preserve">
+    <value>Doctor found issues in {0} module(s).</value>
   </data>
   <data name="sync.up-to-date" xml:space="preserve">
     <value>up to date</value>
@@ -127,6 +136,9 @@
   <data name="cancelled" xml:space="preserve">
     <value>Cancelled.</value>
   </data>
+  <data name="cancelling" xml:space="preserve">
+    <value>Cancelling…</value>
+  </data>
   <data name="step.ok" xml:space="preserve">
     <value>ok</value>
   </data>
@@ -140,7 +152,16 @@
     <value>The repositories of the manifest: mount point, policy and whether they are mounted.</value>
   </data>
   <data name="repo.status" xml:space="preserve">
-    <value>The mounted repositories: branch, commits ahead and behind, changes.</value>
+    <value>The mounted repositories that ask for attention: branch, commits ahead and behind, changes.</value>
+  </data>
+  <data name="repo.status.all" xml:space="preserve">
+    <value>Also the repositories that are clean and up to date.</value>
+  </data>
+  <data name="repo.all-clean" xml:space="preserve">
+    <value>All {0} repositories are clean.</value>
+  </data>
+  <data name="repo.some-clean" xml:space="preserve">
+    <value>{0} of {1} repositories are clean (--all to see them).</value>
   </data>
   <data name="repo.names" xml:space="preserve">
     <value>Repositories of the manifest.</value>

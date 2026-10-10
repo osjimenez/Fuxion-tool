@@ -7,14 +7,16 @@ the Fuxion workspace (`_docs/plans/diseno-workspace-fx.md`); this repo follows p
 
 ## `fx`
 
-A native executable (`fx.exe`, about 5 MB, no .NET needed to run it) built with System.CommandLine and
-Spectre.Console. It reads git with the `git` executable, so `git` must be on the `PATH`.
+A native executable (`fx.exe`, about 12 MB, no .NET needed to run it) built with System.CommandLine and
+XenoAtom.Terminal.UI. It reads git with the `git` executable, so `git` must be on the `PATH`.
 
 ```text
 fx sync [dotnet] [--dry-run]  generate what fx owns here from _fx (for .NET: _fx/dotnet.yaml)
 fx doctor [dotnet]            check it, changing nothing
 fx version [--explain]        the version this repository would build now, and why
 fx version tag <X.Y>          create the tag version/X.Y.0 on HEAD (local; push it yourself)
+fx repo list|status [--all]   the repositories of the workspace; status, only those that ask for attention
+fx repo mount|unmount|pull    mount or unmount repositories of the manifest; pull the mounted ones
 
 Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain, --non-interactive, --lang en|es
 ```
@@ -50,6 +52,10 @@ Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain
 - fx adapts to where it runs, without changing what it does: it only asks and animates in an interactive terminal
   (not in CI, nor in a pipe, nor for a coding agent), and only uses colours where they can be shown.
   `--non-interactive`, `--plain` and `--output` always win. Ctrl+C cancels: exit code 130.
+- In a terminal, the work that takes a while (git on every repository) shows a spinner per step as it runs; the long
+  steps (clone, fetch, pull) and the failed ones stay as lines above it. `fx doctor` shows a line per module (`[✓]`,
+  `[!]`, `[✗]`), each problem under it with its fix, and a summary. Tables have borders in a terminal and are plain
+  columns elsewhere.
 
 ## `Fuxion.Tools.Sdk`
 

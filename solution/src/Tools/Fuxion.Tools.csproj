@@ -27,7 +27,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Spectre.Console" />
+		<PackageReference Include="XenoAtom.Terminal.UI" />
 		<PackageReference Include="System.CommandLine" />
 	</ItemGroup>
 
