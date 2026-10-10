@@ -103,7 +103,7 @@ public sealed partial class LanguageTest
 	{
 		var english = Texts(Manager("core"), CultureInfo.InvariantCulture);
 		var codes = new[] { typeof(WorkspaceModule), typeof(ModulePropagation), typeof(SolutionGenerator), typeof(WorkspacePropsGenerator), typeof(WorkspaceManifest),
-				typeof(Core.Dotnet.DotnetModule), typeof(Core.Dotnet.DotnetYamlReader), typeof(Core.Versioning.VersioningErrorCodes), typeof(Core.Versioning.VersionTagger) }
+				typeof(Core.Dotnet.DotnetModule), typeof(Core.Dotnet.DotnetYamlReader), typeof(Core.Versioning.VersioningErrorCodes), typeof(Core.Versioning.VersionTagger), typeof(ManifestEditor) }
 			.SelectMany(t => t.GetFields().Where(f => f.IsLiteral && f.FieldType == typeof(string)).Select(f => (string)f.GetRawConstantValue()!))
 			.Where(c => Regex.IsMatch(c, @"^(workspace|dotnet|version)\.[a-z-]+$"))
 			.ToList();

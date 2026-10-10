@@ -316,4 +316,49 @@
   <data name="fx.nothing-to-do" xml:space="preserve">
     <value>No module applies here (no workspace manifest at this level, no _fx/dotnet.yaml).</value>
   </data>
+  <data name="workspace.repository-exists" xml:space="preserve">
+    <value>The manifest already has a repository '{0}'.</value>
+  </data>
+  <data name="workspace.repository-needed" xml:space="preserve">
+    <value>{1} depend(s) on '{0}': change their dependsOn first (fx repo set &lt;repo&gt; dependsOn ...).</value>
+  </data>
+  <data name="workspace.unknown-key" xml:space="preserve">
+    <value>fx repo set does not change '{0}'; it changes {1}.</value>
+  </data>
+  <data name="workspace.invalid-value" xml:space="preserve">
+    <value>'{0}' takes {2}, not '{1}'.</value>
+  </data>
+  <data name="workspace.invalid-value.single" xml:space="preserve">
+    <value>'{0}' takes one value, not '{1}'.</value>
+  </data>
+  <data name="workspace.unknown-module" xml:space="preserve">
+    <value>Unknown module '{0}' (there are: {1}).</value>
+  </data>
+  <data name="workspace.not-tagged" xml:space="preserve">
+    <value>'{0}' has no tag '{1}'.</value>
+  </data>
+  <data name="workspace.clone-kept" xml:space="preserve">
+    <value>The clone of '{0}' stays at {1}: fx never deletes clones; delete or move it when you want.</value>
+  </data>
+  <data name="workspace.clone-not-moved" xml:space="preserve">
+    <value>'{0}' is cloned at {1}: move the clone to {2} yourself (fx does not move clones).</value>
+  </data>
+  <data name="workspace.unchanged.tagged" xml:space="preserve">
+    <value>'{0}' already has {1}.</value>
+  </data>
+  <data name="workspace.unchanged.no-key" xml:space="preserve">
+    <value>'{0}' has no '{1}'.</value>
+  </data>
+  <data name="workspace.unchanged.module-enabled" xml:space="preserve">
+    <value>The module '{0}' is already enabled.</value>
+  </data>
+  <data name="workspace.unchanged.module-disabled" xml:space="preserve">
+    <value>The module '{0}' is not enabled.</value>
+  </data>
+  <data name="workspace.unchanged.folder-present" xml:space="preserve">
+    <value>The folder '{0}' is already in the manifest.</value>
+  </data>
+  <data name="workspace.unchanged.folder-absent" xml:space="preserve">
+    <value>The folder '{0}' is not in the manifest.</value>
+  </data>
 </root>

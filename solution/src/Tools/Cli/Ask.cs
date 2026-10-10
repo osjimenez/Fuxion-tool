@@ -60,10 +60,33 @@ public static class Ask
 		return answer;
 	}
 
+	/// <summary>A text, not empty: Enter confirms.</summary>
+	/// <param name="backend">A terminal of the tests; the real one if <see langword="null"/>.</param>
+	public static string Text(FxConsole console, string question, CancellationToken cancellationToken, ITerminalBackend? backend = null)
+	{
+		var box = new TextBox();
+		// its copy and cut keys would keep Ctrl+C from cancelling
+		box.RemoveCommand("TextEditor.Copy");
+		box.RemoveCommand("TextEditor.Cut");
+		var done = false;
+		var confirm = new Command
+		{
+			Id = "fx.ask.confirm",
+			LabelMarkup = "Confirm",
+			Gesture = new KeyGesture(TerminalKey.Enter),
+			Presentation = CommandPresentation.None,
+			Execute = _ => done = !string.IsNullOrWhiteSpace(box.Text)
+		};
+		Run(question, Texts.Get("ask.text.keys"), box, confirm, () => done, cancellationToken, backend);
+		var answer = box.Text!.Trim();
+		Answered(console, question, answer);
+		return answer;
+	}
+
 	/// <summary>The command that does the same without asking, to learn it (as lazygit shows its git commands).</summary>
 	public static void Equivalent(FxConsole console, string command) => console.ErrorLine($"[gray]▸ {FxConsole.Escape(command)}[/]");
 
-	static void Run(string question, string keys, Visual list, Command? confirm, Func<bool> done, CancellationToken cancellationToken, ITerminalBackend? backend)
+	static void Run(string question, string keys, Visual input, Command? confirm, Func<bool> done, CancellationToken cancellationToken, ITerminalBackend? backend)
 	{
 		var cancelled = false;
 		Command Cancel(string id, KeyGesture gesture) => new()
@@ -74,7 +97,7 @@ public static class Ask
 			Presentation = CommandPresentation.None,
 			Execute = _ => cancelled = true
 		};
-		var root = new VStack(Text($"[accent]?[/] [bold]{AnsiMarkup.Escape(question)}[/] [muted]{AnsiMarkup.Escape(keys)}[/]"), list.MaxHeight(12));
+		var root = new VStack(Markup($"[accent]?[/] [bold]{AnsiMarkup.Escape(question)}[/] [muted]{AnsiMarkup.Escape(keys)}[/]"), input.MaxHeight(12));
 		if (confirm is not null)
 			root.AddCommand(confirm);
 		var started = false;
@@ -85,7 +108,7 @@ public static class Ask
 			{
 				// inline, nothing takes the focus by itself; Esc is the quit key of the region, which goes before
 				// everything: replaced; Ctrl+C, global, so that the list does not keep it
-				context.App.Focus(list);
+				context.App.Focus(input);
 				context.App.AddGlobalCommand(Cancel(TerminalApp.DefaultQuitCommandId, new KeyGesture(TerminalKey.Escape)));
 				context.App.AddGlobalCommand(Cancel("fx.ask.ctrl-c", new KeyGesture(TerminalChar.CtrlC, TerminalModifiers.Ctrl)));
 				started = true;
@@ -102,5 +125,5 @@ public static class Ask
 		=> console.ErrorLine($"[cyan]?[/] {FxConsole.Escape(question)} [cyan]{FxConsole.Escape(answer)}[/]");
 
 	// a string, not an interpolated handler: XenoAtom's escapes what goes in the holes, markup included
-	static Markup Text(string markup) => new(markup) { Wrap = false };
+	static Markup Markup(string markup) => new(markup) { Wrap = false };
 }

@@ -107,6 +107,12 @@ public sealed record VersionDocument(
 /// <summary><c>fx-version-tag/1</c>.</summary>
 public sealed record VersionTagDocument(string Schema, bool Ok, string? Tag, string? Commit, IReadOnlyList<JsonDiagnostic> Diagnostics);
 
+/// <summary>
+/// <c>fx-manifest-edit/1</c>, of the commands that edit the manifest: whether it changed and was written (not with
+/// <c>--dry-run</c> nor with errors) and the change as <c>diff -u</c> hunks.
+/// </summary>
+public sealed record ManifestEditDocument(string Schema, bool Ok, string File, bool Changed, bool Written, string Diff, IReadOnlyList<JsonDiagnostic> Diagnostics);
+
 // The events of --output ndjson (fx-events/1): one per line, "type" first; the last line is the command's document.
 
 public sealed record JsonStartEvent(string Type, string Schema);
@@ -126,6 +132,7 @@ public sealed record JsonDiagnosticEvent(string Type, JsonDiagnostic Diagnostic)
 [JsonSerializable(typeof(PullDocument))]
 [JsonSerializable(typeof(VersionDocument))]
 [JsonSerializable(typeof(VersionTagDocument))]
+[JsonSerializable(typeof(ManifestEditDocument))]
 [JsonSerializable(typeof(JsonStartEvent))]
 [JsonSerializable(typeof(JsonStepEvent))]
 [JsonSerializable(typeof(JsonDiagnosticEvent))]

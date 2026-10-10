@@ -17,6 +17,9 @@ fx version [--explain]        the version this repository would build now, and w
 fx version tag <X.Y>          create the tag version/X.Y.0 on HEAD (local; push it yourself)
 fx repo list|status [--all]   the repositories of the workspace; status, only those that ask for attention
 fx repo mount|unmount|pull    mount or unmount repositories of the manifest; pull the mounted ones
+fx repo add|remove|tag|set    edit the repositories of the manifest (a diff; --dry-run)
+fx module enable|disable      the modules of fx the repositories use
+fx folder add|remove          the folders of the metarepo
 fx                            the commands by topic and the global options (also fx --help)
 
 Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain, --non-interactive, --lang en|es
@@ -56,6 +59,10 @@ Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain
 - When a command misses what it could ask for (the repositories of `fx repo mount`, the version of `fx version tag`)
   and there is a person at the terminal, fx asks, and then shows the command that does the same without asking; Esc
   or Ctrl+C cancel. Without a terminal it says what is missing and ends with exit code 2, as any usage error.
+- The commands that edit `_fx/workspace.yaml` change only what they must and keep the rest of the file: comments,
+  order, quoting and line endings. They show the change as a diff, check it as the manifest is read (an invalid one is
+  not written) and write it, unless `--dry-run` (`fx-manifest-edit/1` with `--output json`). They never touch clones
+  nor folders: `fx sync` does the rest, and they say so.
 - In a terminal, the work that takes a while (git on every repository) shows a spinner per step as it runs; the long
   steps (clone, fetch, pull) and the failed ones stay as lines above it. `fx doctor` shows a line per module (`[✓]`,
   `[!]`, `[✗]`), each problem under it with its fix, and a summary. Tables have borders in a terminal and are plain

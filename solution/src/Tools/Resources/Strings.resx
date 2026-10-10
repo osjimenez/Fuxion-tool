@@ -361,4 +361,139 @@
   <data name="version.tag.next-minor" xml:space="preserve">
     <value>{0}  (next minor)</value>
   </data>
+  <data name="repo.add" xml:space="preserve">
+    <value>Add a repository to the manifest, mounted where you say; its name comes from the URL unless --name. Nothing is cloned.</value>
+  </data>
+  <data name="repo.add.url" xml:space="preserve">
+    <value>The URL to clone it from.</value>
+  </data>
+  <data name="repo.add.name" xml:space="preserve">
+    <value>Its name (by default, from the URL: Fuxion-docs.git → fuxion-docs).</value>
+  </data>
+  <data name="repo.add.path" xml:space="preserve">
+    <value>Where it is mounted, relative to the workspace: the layout is yours.</value>
+  </data>
+  <data name="repo.add.mandatory" xml:space="preserve">
+    <value>Always mounted (by default, only when someone mounts it).</value>
+  </data>
+  <data name="repo.add.standalone" xml:space="preserve">
+    <value>It builds on its own, outside the workspace.</value>
+  </data>
+  <data name="repo.add.solution" xml:space="preserve">
+    <value>Its solution, relative to the repository (it goes into the workspace's).</value>
+  </data>
+  <data name="repo.add.depends-on" xml:space="preserve">
+    <value>The repositories it needs.</value>
+  </data>
+  <data name="repo.add.tag" xml:space="preserve">
+    <value>Its tags.</value>
+  </data>
+  <data name="repo.remove" xml:space="preserve">
+    <value>Take a repository out of the manifest; its clone stays.</value>
+  </data>
+  <data name="repo.tag" xml:space="preserve">
+    <value>Add tags to a repository, or remove them (--remove).</value>
+  </data>
+  <data name="repo.tag.tags" xml:space="preserve">
+    <value>The tags.</value>
+  </data>
+  <data name="repo.tag.remove" xml:space="preserve">
+    <value>Remove the tags instead of adding them.</value>
+  </data>
+  <data name="repo.set" xml:space="preserve">
+    <value>Change a key of a repository: url, path, mount, standalone, dependsOn, solution or solutionExclude.</value>
+  </data>
+  <data name="repo.set.key" xml:space="preserve">
+    <value>The key.</value>
+  </data>
+  <data name="repo.set.values" xml:space="preserve">
+    <value>Its value (several, for dependsOn and solutionExclude).</value>
+  </data>
+  <data name="repo.set.unset" xml:space="preserve">
+    <value>Remove the key.</value>
+  </data>
+  <data name="repo.name" xml:space="preserve">
+    <value>The repository.</value>
+  </data>
+  <data name="modules" xml:space="preserve">
+    <value>The modules of fx the repositories use (modules: of the manifest).</value>
+  </data>
+  <data name="module.enable" xml:space="preserve">
+    <value>Enable a module for the repositories with these tags (for all of them, without tags).</value>
+  </data>
+  <data name="module.disable" xml:space="preserve">
+    <value>Disable a module.</value>
+  </data>
+  <data name="module.name" xml:space="preserve">
+    <value>The module: dotnet.</value>
+  </data>
+  <data name="module.tag" xml:space="preserve">
+    <value>The tags of the repositories that use it.</value>
+  </data>
+  <data name="folder" xml:space="preserve">
+    <value>The folders of the metarepo (folders: of the manifest).</value>
+  </data>
+  <data name="folder.add" xml:space="preserve">
+    <value>Add a folder of the metarepo to the manifest; it is not created.</value>
+  </data>
+  <data name="folder.remove" xml:space="preserve">
+    <value>Take a folder out of the manifest; it is not deleted.</value>
+  </data>
+  <data name="folder.name" xml:space="preserve">
+    <value>The folder, a single segment (like _docs).</value>
+  </data>
+  <data name="manifest.dry-run-option" xml:space="preserve">
+    <value>Show the change, without writing it.</value>
+  </data>
+  <data name="manifest.dry-run" xml:space="preserve">
+    <value>Dry run: nothing was written.</value>
+  </data>
+  <data name="manifest.written" xml:space="preserve">
+    <value>Written {0}.</value>
+  </data>
+  <data name="manifest.next" xml:space="preserve">
+    <value>Next: {0}</value>
+  </data>
+  <data name="manifest.unchanged" xml:space="preserve">
+    <value>Nothing to change.</value>
+  </data>
+  <data name="ask.text.keys" xml:space="preserve">
+    <value>(Enter; Esc cancels)</value>
+  </data>
+  <data name="repo.ask.url" xml:space="preserve">
+    <value>URL of the repository</value>
+  </data>
+  <data name="repo.ask.remove" xml:space="preserve">
+    <value>Repository to remove</value>
+  </data>
+  <data name="repo.ask.repository" xml:space="preserve">
+    <value>Repository</value>
+  </data>
+  <data name="repo.ask.tags-add" xml:space="preserve">
+    <value>Tags to add, separated by spaces</value>
+  </data>
+  <data name="repo.ask.tags-remove" xml:space="preserve">
+    <value>Tags to remove</value>
+  </data>
+  <data name="repo.ask.key" xml:space="preserve">
+    <value>Key to change</value>
+  </data>
+  <data name="repo.ask.value" xml:space="preserve">
+    <value>Value of {0}</value>
+  </data>
+  <data name="module.ask.enable" xml:space="preserve">
+    <value>Module to enable</value>
+  </data>
+  <data name="module.ask.disable" xml:space="preserve">
+    <value>Module to disable</value>
+  </data>
+  <data name="folder.ask.add" xml:space="preserve">
+    <value>Folder to add</value>
+  </data>
+  <data name="folder.ask.remove" xml:space="preserve">
+    <value>Folder to remove</value>
+  </data>
+  <data name="repo.ask.path" xml:space="preserve">
+    <value>Folder to mount it in, relative to the workspace</value>
+  </data>
 </root>

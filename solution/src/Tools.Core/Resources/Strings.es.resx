@@ -316,4 +316,49 @@
   <data name="fx.nothing-to-do" xml:space="preserve">
     <value>Aquí no aplica ningún módulo (no hay manifiesto de workspace a este nivel ni _fx/dotnet.yaml).</value>
   </data>
+  <data name="workspace.repository-exists" xml:space="preserve">
+    <value>El manifiesto ya tiene un repositorio '{0}'.</value>
+  </data>
+  <data name="workspace.repository-needed" xml:space="preserve">
+    <value>{1} depende(n) de '{0}': cambia antes su dependsOn (fx repo set &lt;repo&gt; dependsOn ...).</value>
+  </data>
+  <data name="workspace.unknown-key" xml:space="preserve">
+    <value>fx repo set no cambia '{0}'; cambia {1}.</value>
+  </data>
+  <data name="workspace.invalid-value" xml:space="preserve">
+    <value>'{0}' admite {2}, no '{1}'.</value>
+  </data>
+  <data name="workspace.invalid-value.single" xml:space="preserve">
+    <value>'{0}' admite un solo valor, no '{1}'.</value>
+  </data>
+  <data name="workspace.unknown-module" xml:space="preserve">
+    <value>Módulo desconocido '{0}' (hay: {1}).</value>
+  </data>
+  <data name="workspace.not-tagged" xml:space="preserve">
+    <value>'{0}' no tiene la etiqueta '{1}'.</value>
+  </data>
+  <data name="workspace.clone-kept" xml:space="preserve">
+    <value>El clon de '{0}' sigue en {1}: fx nunca borra clones; bórralo o muévelo cuando quieras.</value>
+  </data>
+  <data name="workspace.clone-not-moved" xml:space="preserve">
+    <value>'{0}' está clonado en {1}: mueve tú el clon a {2} (fx no mueve clones).</value>
+  </data>
+  <data name="workspace.unchanged.tagged" xml:space="preserve">
+    <value>'{0}' ya tiene {1}.</value>
+  </data>
+  <data name="workspace.unchanged.no-key" xml:space="preserve">
+    <value>'{0}' no tiene '{1}'.</value>
+  </data>
+  <data name="workspace.unchanged.module-enabled" xml:space="preserve">
+    <value>El módulo '{0}' ya está activado.</value>
+  </data>
+  <data name="workspace.unchanged.module-disabled" xml:space="preserve">
+    <value>El módulo '{0}' no está activado.</value>
+  </data>
+  <data name="workspace.unchanged.folder-present" xml:space="preserve">
+    <value>La carpeta '{0}' ya está en el manifiesto.</value>
+  </data>
+  <data name="workspace.unchanged.folder-absent" xml:space="preserve">
+    <value>La carpeta '{0}' no está en el manifiesto.</value>
+  </data>
 </root>

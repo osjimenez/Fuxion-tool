@@ -48,10 +48,12 @@ public static class RepoCommand
 		var pull = new Command("pull", Texts.Get("repo.pull")) { only };
 		pull.SetAction((result, cancellationToken) => Run(result, global, currentDirectory, (console, token) => Pull(console, result.GetValue(only) ?? [], token), cancellationToken));
 		command.Add(pull);
+		// the ones that edit the manifest (plan O, O3.4)
+		ManifestCommands.AddTo(command, global, currentDirectory);
 		return command;
 	}
 
-	static FxConsole Console(ParseResult result, GlobalOptions global, string currentDirectory)
+	internal static FxConsole Console(ParseResult result, GlobalOptions global, string currentDirectory)
 		=> new(result.InvocationConfiguration.Output, result.InvocationConfiguration.Error, global.Bind(result, currentDirectory));
 
 	/// <summary>A command that can take a while (git on every repository): Ctrl+C cancels it.</summary>
@@ -63,7 +65,7 @@ public static class RepoCommand
 	}
 
 	/// <summary>The manifest, or the error written as the command's document.</summary>
-	static WorkspaceManifest? Manifest(FxConsole console, Action<IReadOnlyList<FxDiagnostic>> writeJson)
+	internal static WorkspaceManifest? Manifest(FxConsole console, Action<IReadOnlyList<FxDiagnostic>> writeJson)
 	{
 		var (manifest, error) = WorkspaceModule.Find(console.Settings.Directory);
 		if (manifest is not null)

@@ -361,4 +361,139 @@
   <data name="version.tag.next-minor" xml:space="preserve">
     <value>{0}  (siguiente menor)</value>
   </data>
+  <data name="repo.add" xml:space="preserve">
+    <value>Añade un repositorio al manifiesto, montado donde digas; el nombre sale de la URL si no se da --name. No se clona nada.</value>
+  </data>
+  <data name="repo.add.url" xml:space="preserve">
+    <value>La URL de la que se clona.</value>
+  </data>
+  <data name="repo.add.name" xml:space="preserve">
+    <value>Su nombre (por defecto, de la URL: Fuxion-docs.git → fuxion-docs).</value>
+  </data>
+  <data name="repo.add.path" xml:space="preserve">
+    <value>Dónde se monta, relativo al workspace: la estructura es tuya.</value>
+  </data>
+  <data name="repo.add.mandatory" xml:space="preserve">
+    <value>Siempre montado (por defecto, solo cuando alguien lo monta).</value>
+  </data>
+  <data name="repo.add.standalone" xml:space="preserve">
+    <value>Compila solo, fuera del workspace.</value>
+  </data>
+  <data name="repo.add.solution" xml:space="preserve">
+    <value>Su solución, relativa al repositorio (entra en la del workspace).</value>
+  </data>
+  <data name="repo.add.depends-on" xml:space="preserve">
+    <value>Los repositorios que necesita.</value>
+  </data>
+  <data name="repo.add.tag" xml:space="preserve">
+    <value>Sus etiquetas.</value>
+  </data>
+  <data name="repo.remove" xml:space="preserve">
+    <value>Saca un repositorio del manifiesto; su clon se queda.</value>
+  </data>
+  <data name="repo.tag" xml:space="preserve">
+    <value>Añade etiquetas a un repositorio, o las quita (--remove).</value>
+  </data>
+  <data name="repo.tag.tags" xml:space="preserve">
+    <value>Las etiquetas.</value>
+  </data>
+  <data name="repo.tag.remove" xml:space="preserve">
+    <value>Quita las etiquetas en vez de añadirlas.</value>
+  </data>
+  <data name="repo.set" xml:space="preserve">
+    <value>Cambia una clave de un repositorio: url, path, mount, standalone, dependsOn, solution o solutionExclude.</value>
+  </data>
+  <data name="repo.set.key" xml:space="preserve">
+    <value>La clave.</value>
+  </data>
+  <data name="repo.set.values" xml:space="preserve">
+    <value>Su valor (varios, para dependsOn y solutionExclude).</value>
+  </data>
+  <data name="repo.set.unset" xml:space="preserve">
+    <value>Quita la clave.</value>
+  </data>
+  <data name="repo.name" xml:space="preserve">
+    <value>El repositorio.</value>
+  </data>
+  <data name="modules" xml:space="preserve">
+    <value>Los módulos de fx que usan los repositorios (modules: del manifiesto).</value>
+  </data>
+  <data name="module.enable" xml:space="preserve">
+    <value>Activa un módulo para los repositorios con estas etiquetas (para todos, sin etiquetas).</value>
+  </data>
+  <data name="module.disable" xml:space="preserve">
+    <value>Desactiva un módulo.</value>
+  </data>
+  <data name="module.name" xml:space="preserve">
+    <value>El módulo: dotnet.</value>
+  </data>
+  <data name="module.tag" xml:space="preserve">
+    <value>Las etiquetas de los repositorios que lo usan.</value>
+  </data>
+  <data name="folder" xml:space="preserve">
+    <value>Las carpetas del metarepo (folders: del manifiesto).</value>
+  </data>
+  <data name="folder.add" xml:space="preserve">
+    <value>Añade una carpeta del metarepo al manifiesto; no se crea.</value>
+  </data>
+  <data name="folder.remove" xml:space="preserve">
+    <value>Saca una carpeta del manifiesto; no se borra.</value>
+  </data>
+  <data name="folder.name" xml:space="preserve">
+    <value>La carpeta, un solo segmento (como _docs).</value>
+  </data>
+  <data name="manifest.dry-run-option" xml:space="preserve">
+    <value>Enseña el cambio, sin escribirlo.</value>
+  </data>
+  <data name="manifest.dry-run" xml:space="preserve">
+    <value>Simulación: no se ha escrito nada.</value>
+  </data>
+  <data name="manifest.written" xml:space="preserve">
+    <value>Escrito {0}.</value>
+  </data>
+  <data name="manifest.next" xml:space="preserve">
+    <value>Después: {0}</value>
+  </data>
+  <data name="manifest.unchanged" xml:space="preserve">
+    <value>No hay nada que cambiar.</value>
+  </data>
+  <data name="ask.text.keys" xml:space="preserve">
+    <value>(Enter; Esc cancela)</value>
+  </data>
+  <data name="repo.ask.url" xml:space="preserve">
+    <value>URL del repositorio</value>
+  </data>
+  <data name="repo.ask.remove" xml:space="preserve">
+    <value>Repositorio que quitar</value>
+  </data>
+  <data name="repo.ask.repository" xml:space="preserve">
+    <value>Repositorio</value>
+  </data>
+  <data name="repo.ask.tags-add" xml:space="preserve">
+    <value>Etiquetas que añadir, separadas por espacios</value>
+  </data>
+  <data name="repo.ask.tags-remove" xml:space="preserve">
+    <value>Etiquetas que quitar</value>
+  </data>
+  <data name="repo.ask.key" xml:space="preserve">
+    <value>Clave que cambiar</value>
+  </data>
+  <data name="repo.ask.value" xml:space="preserve">
+    <value>Valor de {0}</value>
+  </data>
+  <data name="module.ask.enable" xml:space="preserve">
+    <value>Módulo que activar</value>
+  </data>
+  <data name="module.ask.disable" xml:space="preserve">
+    <value>Módulo que desactivar</value>
+  </data>
+  <data name="folder.ask.add" xml:space="preserve">
+    <value>Carpeta que añadir</value>
+  </data>
+  <data name="folder.ask.remove" xml:space="preserve">
+    <value>Carpeta que quitar</value>
+  </data>
+  <data name="repo.ask.path" xml:space="preserve">
+    <value>Carpeta donde montarlo, relativa al workspace</value>
+  </data>
 </root>
