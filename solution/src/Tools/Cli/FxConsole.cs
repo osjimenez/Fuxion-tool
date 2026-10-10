@@ -24,6 +24,9 @@ namespace Fuxion.Tools.Cli;
 /// </summary>
 public sealed partial class FxConsole
 {
+	/// <summary>The exit code of a usage error: an unknown command, a missing argument with no one to ask for it.</summary>
+	public const int UsageError = 2;
+
 	public const int Cancelled = 130;
 
 	// console output, not HTML: no need to escape +, ', < or non-ASCII
@@ -161,6 +164,16 @@ public sealed partial class FxConsole
 			foreach (var d in diagnostics.Where(d => d.Severity != FxSeverity.Info || Settings.Verbose))
 				ErrorLine($"{SeverityMarkup(d.Severity)} {Escape(d.Code)}: {Escape(d.Where)}{Escape(Fix(d.Fix))}");
 		return ExitCode(diagnostics);
+	}
+
+	/// <summary>
+	/// A command misses what only a person could be asked for, and there is no one to ask (plan O, O3.3): what is
+	/// missing and how to give it, on stderr; <see cref="UsageError"/>.
+	/// </summary>
+	public int Missing(string what, string usage)
+	{
+		ErrorLine($"[red]{Escape(Texts.Get("usage.missing", what))}[/] {Escape(usage)}");
+		return UsageError;
 	}
 
 	public static int ExitCode(IEnumerable<FxDiagnostic> diagnostics) => diagnostics.Any(d => d.Severity == FxSeverity.Error) ? 1 : 0;

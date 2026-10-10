@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.Threading;
 using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Versioning;
 
@@ -13,7 +14,8 @@ public static class VersionTagCommand
 
 	public static Command Create(GlobalOptions global, string currentDirectory)
 	{
-		var majorMinor = new Argument<string>("X.Y") { Description = Texts.Get("version.tag.argument") };
+		// optional for the parser: asked if missing (plan O, O3.3)
+		var majorMinor = new Argument<string>("X.Y") { Description = Texts.Get("version.tag.argument"), Arity = ArgumentArity.ZeroOrOne };
 		var command = new Command("tag", Texts.Get("version.tag"))
 		{
 			majorMinor
@@ -22,18 +24,30 @@ public static class VersionTagCommand
 		{
 			var settings = new VersionTagSettings(global.Bind(result, currentDirectory), result.GetValue(majorMinor) ?? "");
 			var console = new FxConsole(result.InvocationConfiguration.Output, result.InvocationConfiguration.Error, settings.Global);
-			return Run(settings, console);
+			return console.Run(token => Run(settings, console, token));
 		});
 		return command;
 	}
 
-	public static int Run(VersionTagSettings settings, FxConsole console)
+	public static int Run(VersionTagSettings settings, FxConsole console, CancellationToken cancellationToken = default)
 	{
 		CreatedVersionTag created;
 		try
 		{
-			if (!VersionTagger.TryParseMajorMinor(settings.MajorMinor, out var major, out var minor))
-				throw new VersioningException(VersionTagger.InvalidArgument, new(VersionTagger.InvalidArgument, settings.MajorMinor));
+			var majorMinor = settings.MajorMinor;
+			if (string.IsNullOrWhiteSpace(majorMinor))
+			{
+				if (!console.Capabilities.CanPrompt)
+					return console.Missing("<X.Y>", "fx version tag <X.Y>");
+				// the next minor or the next major of the highest tag
+				var (highestMajor, highestMinor) = VersionTagger.Highest(settings.Global.Directory) ?? (0, 0);
+				string[] next = [$"{highestMajor}.{highestMinor + 1}", $"{highestMajor + 1}.0"];
+				majorMinor = Ask.One(console, Texts.Get("version.tag.ask"), next,
+					v => Texts.Get(v == next[0] ? "version.tag.next-minor" : "version.tag.next-major", v), cancellationToken);
+				Ask.Equivalent(console, $"fx version tag {majorMinor}");
+			}
+			if (!VersionTagger.TryParseMajorMinor(majorMinor, out var major, out var minor))
+				throw new VersioningException(VersionTagger.InvalidArgument, new(VersionTagger.InvalidArgument, majorMinor));
 			created = VersionTagger.Create(settings.Global.Directory, major, minor);
 		}
 		catch (VersioningException ex)

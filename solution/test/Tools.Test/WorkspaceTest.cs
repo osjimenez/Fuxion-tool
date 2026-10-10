@@ -466,6 +466,17 @@ public sealed class WorkspaceTest
 		Assert.False(repos[1].GetProperty("mounted").GetBoolean());
 	}
 
+	[Theory(DisplayName = "fx repo mount|unmount without names and no terminal to ask for them: what is missing, exit code 2 (plan O, O3.3)")]
+	[InlineData("mount")]
+	[InlineData("unmount")]
+	public void Cli_MountMissing(string verb)
+	{
+		using var ws = new Workspace(("plus", "mandatory"), ("lab", "manual"));
+		var stderr = new StringWriter();
+		Assert.Equal(FxConsole.UsageError, FxApp.Run(["repo", verb], new StringWriter(), stderr, ws.Root));
+		Assert.Contains($"fx repo {verb} <names>", stderr.ToString());
+	}
+
 	[Fact(DisplayName = "fx repo status: only the repositories that ask for attention; --all, every one (plan O, decision 8)")]
 	public void Cli_RepoStatus()
 	{

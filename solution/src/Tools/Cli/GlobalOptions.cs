@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.CommandLine;
 using System.IO;
 
@@ -88,15 +89,13 @@ public sealed class GlobalOptions
 		return option;
 	}
 
+	/// <summary>Every global option, in the order of the help.</summary>
+	public IEnumerable<Option> All => [Root, Workspace, Output, Verbose, Plain, NonInteractive, Lang];
+
 	public void AddTo(Command command)
 	{
-		command.Add(Root);
-		command.Add(Workspace);
-		command.Add(Output);
-		command.Add(Verbose);
-		command.Add(Plain);
-		command.Add(NonInteractive);
-		command.Add(Lang);
+		foreach (var option in All)
+			command.Add(option);
 	}
 
 	public GlobalSettings Bind(ParseResult result, string currentDirectory)

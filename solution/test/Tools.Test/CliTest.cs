@@ -1,6 +1,9 @@
+using System.Collections.Generic;
+using System.CommandLine;
 using System.IO;
 using System.Text.Json;
 using Fuxion.Tools.Cli;
+using Fuxion.Tools.Core.Versioning;
 using Xunit;
 
 namespace Fuxion.Tools.Test;
@@ -167,23 +170,81 @@ public sealed class CliTest
 		Assert.Equal("", repo.Git("tag", "--list"));
 	}
 
+	[Fact(DisplayName = "version tag without X.Y and no terminal to ask for it: what is missing, exit code 2 (plan O, O3.3)")]
+	public void Tag_Missing()
+	{
+		using var repo = new TempGitRepository();
+		repo.Commit("c1");
+		var run = Fx(repo.Path, "version", "tag");
+		Assert.Equal(FxConsole.UsageError, run.ExitCode);
+		Assert.Contains("fx version tag <X.Y>", run.Err);
+		Assert.Equal("", repo.Git("tag", "--list"));
+	}
+
+	[Fact(DisplayName = "version tag: the highest version tag, from which fx proposes the next minor and major")]
+	public void Tag_Highest()
+	{
+		using var repo = new TempGitRepository();
+		repo.Commit("c1");
+		Assert.Null(VersionTagger.Highest(repo.Path));
+		repo.Tag("version/1.2.0");
+		repo.Commit("c2");
+		repo.Tag("version/1.10.0");
+		repo.Tag("other/9.0.0");
+		Assert.Equal((1, 10), VersionTagger.Highest(repo.Path));
+	}
+
 	// Parsing
 
-	[Fact(DisplayName = "an unknown --output value is a parse error")]
+	[Fact(DisplayName = "an unknown --output value is a usage error: exit code 2 and where the help is")]
 	public void Parse_InvalidOutput()
 	{
 		var run = Fx(Path.GetTempPath(), "version", "--output", "xml");
-		Assert.NotEqual(0, run.ExitCode);
+		Assert.Equal(FxConsole.UsageError, run.ExitCode);
 		Assert.Contains("'xml'", run.Err);
+		Assert.Contains("fx --help", run.Err);
 	}
 
-	[Fact(DisplayName = "--help lists the commands and the global options")]
+	[Fact(DisplayName = "an unknown command is a usage error")]
+	public void Parse_UnknownCommand()
+	{
+		var run = Fx(Path.GetTempPath(), "nosuch");
+		Assert.Equal(FxConsole.UsageError, run.ExitCode);
+		Assert.Contains("'nosuch'", run.Err);
+	}
+
+	[Fact(DisplayName = "fx alone and fx --help: fx's help, with every command and the global options (plan O, O3.3)")]
 	public void Help()
 	{
-		var run = Fx(Path.GetTempPath(), "--help");
-		Assert.Equal(0, run.ExitCode);
-		Assert.Contains("version", run.Out);
-		Assert.Contains("--root", run.Out);
-		Assert.Contains("--output", run.Out);
+		var alone = Fx(Path.GetTempPath());
+		Assert.Equal(0, alone.ExitCode);
+		Assert.Equal("", alone.Err);
+		Assert.Contains("Usage: fx <command> [options]", alone.Out);
+		Assert.Contains("  repo mount [<names>...]", alone.Out);
+		Assert.Contains("  version tag [<X.Y>]", alone.Out);
+		Assert.Contains("  -v, --verbose", alone.Out);
+		Assert.Contains("  --output <format>", alone.Out);
+		// generated from the commands: none is missing
+		foreach (var command in Commands(FxApp.Build(Path.GetTempPath()), ""))
+			Assert.Contains($"  {command}", alone.Out);
+
+		var help = Fx(Path.GetTempPath(), "--help");
+		Assert.Equal(0, help.ExitCode);
+		Assert.Equal(alone.Out, help.Out);
+		// the help of a command is System.CommandLine's
+		Assert.Contains("--dry-run", Fx(Path.GetTempPath(), "sync", "--help").Out);
+	}
+
+	/// <summary>Every command that does something, with its path (<c>repo mount</c>).</summary>
+	static IEnumerable<string> Commands(Command command, string parent)
+	{
+		foreach (var sub in command.Subcommands)
+		{
+			var path = parent.Length == 0 ? sub.Name : $"{parent} {sub.Name}";
+			if (sub.Action is not null)
+				yield return path;
+			foreach (var inner in Commands(sub, path))
+				yield return inner;
+		}
 	}
 }

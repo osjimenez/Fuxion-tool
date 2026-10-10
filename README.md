@@ -17,6 +17,7 @@ fx version [--explain]        the version this repository would build now, and w
 fx version tag <X.Y>          create the tag version/X.Y.0 on HEAD (local; push it yourself)
 fx repo list|status [--all]   the repositories of the workspace; status, only those that ask for attention
 fx repo mount|unmount|pull    mount or unmount repositories of the manifest; pull the mounted ones
+fx                            the commands by topic and the global options (also fx --help)
 
 Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain, --non-interactive, --lang en|es
 ```
@@ -52,6 +53,9 @@ Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain
 - fx adapts to where it runs, without changing what it does: it only asks and animates in an interactive terminal
   (not in CI, nor in a pipe, nor for a coding agent), and only uses colours where they can be shown.
   `--non-interactive`, `--plain` and `--output` always win. Ctrl+C cancels: exit code 130.
+- When a command misses what it could ask for (the repositories of `fx repo mount`, the version of `fx version tag`)
+  and there is a person at the terminal, fx asks, and then shows the command that does the same without asking; Esc
+  or Ctrl+C cancel. Without a terminal it says what is missing and ends with exit code 2, as any usage error.
 - In a terminal, the work that takes a while (git on every repository) shows a spinner per step as it runs; the long
   steps (clone, fetch, pull) and the failed ones stay as lines above it. `fx doctor` shows a line per module (`[✓]`,
   `[!]`, `[✗]`), each problem under it with its fix, and a summary. Tables have borders in a terminal and are plain

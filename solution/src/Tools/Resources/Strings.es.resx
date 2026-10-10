@@ -5,7 +5,7 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <data name="root" xml:space="preserve">
-    <value>fx: la herramienta del workspace de Fuxion.</value>
+    <value>Tus repositorios como un solo workspace: para personas, para el CI y para agentes.</value>
   </data>
   <data name="option.root" xml:space="preserve">
     <value>Carpeta sobre la que actuar (por defecto, la actual).</value>
@@ -14,7 +14,7 @@
     <value>ruta</value>
   </data>
   <data name="option.output" xml:space="preserve">
-    <value>human (por defecto) o json: un documento estable en stdout, siempre en inglés.</value>
+    <value>human (por defecto); json, un documento; ndjson, eventos y después el documento. Estable, siempre en inglés.</value>
   </data>
   <data name="option.output.name" xml:space="preserve">
     <value>formato</value>
@@ -303,5 +303,62 @@
   </data>
   <data name="version.tag.created" xml:space="preserve">
     <value>Creada {0} en {1}. Es local: git push origin {0}</value>
+  </data>
+  <data name="ask.many.keys" xml:space="preserve">
+    <value>(↑↓, Espacio marca, Enter; Esc cancela)</value>
+  </data>
+  <data name="ask.one.keys" xml:space="preserve">
+    <value>(↑↓, Enter; Esc cancela)</value>
+  </data>
+  <data name="help.command" xml:space="preserve">
+    <value>comando</value>
+  </data>
+  <data name="help.group.options" xml:space="preserve">
+    <value>Opciones de todos los comandos</value>
+  </data>
+  <data name="help.group.other" xml:space="preserve">
+    <value>Otros</value>
+  </data>
+  <data name="help.group.version" xml:space="preserve">
+    <value>Versiones</value>
+  </data>
+  <data name="help.group.workspace" xml:space="preserve">
+    <value>Workspace</value>
+  </data>
+  <data name="help.more" xml:space="preserve">
+    <value>fx &lt;comando&gt; --help: el detalle de un comando.</value>
+  </data>
+  <data name="help.options" xml:space="preserve">
+    <value>opciones</value>
+  </data>
+  <data name="help.usage" xml:space="preserve">
+    <value>Uso:</value>
+  </data>
+  <data name="repo.ask.mount" xml:space="preserve">
+    <value>Repositorios que montar</value>
+  </data>
+  <data name="repo.ask.unmount" xml:space="preserve">
+    <value>Repositorios que desmontar</value>
+  </data>
+  <data name="repo.nothing-to-mount" xml:space="preserve">
+    <value>Todos los repositorios del manifiesto ya están montados.</value>
+  </data>
+  <data name="repo.nothing-to-unmount" xml:space="preserve">
+    <value>Ningún repositorio montado se puede desmontar: los obligatorios no se desmontan.</value>
+  </data>
+  <data name="usage.help" xml:space="preserve">
+    <value>fx --help da la lista de comandos; fx &lt;comando&gt; --help explica uno.</value>
+  </data>
+  <data name="usage.missing" xml:space="preserve">
+    <value>Falta {0} y no hay terminal para preguntarlo:</value>
+  </data>
+  <data name="version.tag.ask" xml:space="preserve">
+    <value>Versión que empieza</value>
+  </data>
+  <data name="version.tag.next-major" xml:space="preserve">
+    <value>{0}  (siguiente mayor)</value>
+  </data>
+  <data name="version.tag.next-minor" xml:space="preserve">
+    <value>{0}  (siguiente menor)</value>
   </data>
 </root>

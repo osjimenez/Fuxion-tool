@@ -37,21 +37,33 @@ public static class VersionTagger
 
 		var name = $"version/{major}.{minor}.0";
 		var requested = new SemanticVersion($"{major}.{minor}.0");
-		var existing = git.Tags()
-			.Where(t => t.Name.StartsWith("version/", StringComparison.OrdinalIgnoreCase))
-			.ToList();
-		if (existing.Any(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase)))
+		if (git.Tags().Any(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase)))
 			throw new VersioningException(TagExists, new(TagExists, name));
 
-		var highest = existing
-			.Select(t => SemanticVersion.TryParse(t.Name["version/".Length..], out var v) ? (Tag: t, Version: v) : default)
-			.Where(x => x.Version is not null)
-			.OrderByDescending(x => x.Version)
-			.FirstOrDefault();
+		var highest = HighestTag(git);
 		if (highest.Version is not null && requested.CompareTo(highest.Version) <= 0)
-			throw new VersioningException(TagNotNewer, new(TagNotNewer, name, highest.Tag.Name));
+			throw new VersioningException(TagNotNewer, new(TagNotNewer, name, highest.Tag!.Name));
 
 		git.CreateTag(name, head);
 		return new(name, head);
 	}
+
+	/// <summary>
+	/// The major and minor of the highest <c>version/</c> tag, the one a new tag must go beyond; <see langword="null"/>
+	/// if there is none. fx proposes the next minor and the next major from it.
+	/// </summary>
+	public static (int Major, int Minor)? Highest(string directory)
+	{
+		var git = GitClient.Discover(directory)
+		          ?? throw new VersioningException(VersioningErrorCodes.RepositoryNotFound, new(VersioningErrorCodes.RepositoryNotFound, directory));
+		return HighestTag(git).Version is { } version ? ((int)version.Major, (int)version.Minor) : null;
+	}
+
+	static (GitTag? Tag, SemanticVersion? Version) HighestTag(GitClient git)
+		=> git.Tags()
+			.Where(t => t.Name.StartsWith("version/", StringComparison.OrdinalIgnoreCase))
+			.Select(t => SemanticVersion.TryParse(t.Name["version/".Length..], out var v) ? (Tag: (GitTag?)t, Version: (SemanticVersion?)v) : default)
+			.Where(x => x.Version is not null)
+			.OrderByDescending(x => x.Version)
+			.FirstOrDefault();
 }

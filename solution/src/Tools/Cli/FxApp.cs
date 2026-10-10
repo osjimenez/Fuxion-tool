@@ -1,5 +1,8 @@
 using System.CommandLine;
+using System.CommandLine.Help;
+using System.CommandLine.Invocation;
 using System.IO;
+using System.Linq;
 using Fuxion.Tools.Cli.Repo;
 using Fuxion.Tools.Cli.Sync;
 using Fuxion.Tools.Cli.Version;
@@ -20,6 +23,12 @@ public static class FxApp
 			VersionCommand.Create(global, currentDirectory)
 		};
 		global.AddTo(root);
+		// fx alone, and fx --help: fx's own help (plan O, O3.3); fx alone is not an error
+		int Help(ParseResult result)
+			=> FxHelp.Write(new(result.InvocationConfiguration.Output, result.InvocationConfiguration.Error, global.Bind(result, currentDirectory)), root, global);
+		root.SetAction(Help);
+		foreach (var help in root.Options.OfType<HelpOption>())
+			help.Action = new FxHelp.Action(help.Action!, Help);
 		return root;
 	}
 
@@ -27,6 +36,13 @@ public static class FxApp
 	public static int Run(string[] args, TextWriter stdout, TextWriter stderr, string currentDirectory)
 	{
 		FxLanguage.Apply(FxLanguage.Resolve(args));
-		return Build(currentDirectory).Parse(args).Invoke(new() { Output = stdout, Error = stderr });
+		var parse = Build(currentDirectory).Parse(args);
+		// a usage error (an unknown command or option, a missing value): the error, where the help is, and exit code 2
+		if (parse.Action is not ParseErrorAction error)
+			return parse.Invoke(new() { Output = stdout, Error = stderr });
+		error.ShowHelp = false;
+		parse.Invoke(new() { Output = stdout, Error = stderr });
+		stderr.WriteLine(Texts.Get("usage.help"));
+		return FxConsole.UsageError;
 	}
 }

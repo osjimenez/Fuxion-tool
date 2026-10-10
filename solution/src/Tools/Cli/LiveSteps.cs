@@ -19,8 +19,9 @@ namespace Fuxion.Tools.Cli;
 /// (clone, fetch, pull, remote) and the failed ones stay as lines above it when they finish; the rest only pass by.
 /// The core reports from its threads; the UI thread drains the events (<see cref="Update"/>): XenoAtom only takes
 /// changes from it. Ctrl+C is a key while the region lives (the library reads it as input): a global command of the
-/// region cancels, and the region says so until the work stops. The markup goes to XenoAtom as a string: its
-/// interpolated overloads escape what goes in the holes, markup included.
+/// region cancels, and the region says so until the work stops. Esc, the quit key of XenoAtom's inline regions, does
+/// nothing: it would close the region and leave the work running out of sight. The markup goes to XenoAtom as a
+/// string: its interpolated overloads escape what goes in the holes, markup included.
 /// </summary>
 sealed class LiveSteps : IFxProgress
 {
@@ -77,6 +78,14 @@ sealed class LiveSteps : IFxProgress
 		if (!_registered)
 		{
 			context.App.AddGlobalCommand(_cancelCommand);
+			context.App.AddGlobalCommand(new Command
+			{
+				Id = TerminalApp.DefaultQuitCommandId,
+				LabelMarkup = "Nothing",
+				Gesture = new KeyGesture(TerminalKey.Escape),
+				Presentation = CommandPresentation.None,
+				Execute = _ => { }
+			});
 			_registered = true;
 		}
 		Drain();

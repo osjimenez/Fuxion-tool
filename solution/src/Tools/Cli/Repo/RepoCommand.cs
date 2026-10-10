@@ -30,12 +30,17 @@ public static class RepoCommand
 
 		foreach (var mounted in new[] { true, false })
 		{
-			var names = new Argument<string[]>("names") { Description = Texts.Get("repo.names"), Arity = ArgumentArity.OneOrMore };
+			// optional for the parser: asked if missing (plan O, O3.3)
+			var names = new Argument<string[]>("names") { Description = Texts.Get("repo.names"), Arity = ArgumentArity.ZeroOrMore };
 			var mount = new Command(mounted ? "mount" : "unmount", Texts.Get(mounted ? "repo.mount" : "repo.unmount"))
 			{
 				names
 			};
-			mount.SetAction(result => Mount(Console(result, global, currentDirectory), result.GetValue(names) ?? [], mounted));
+			mount.SetAction(result =>
+			{
+				var console = Console(result, global, currentDirectory);
+				return console.Run(token => Mount(console, result.GetValue(names) ?? [], mounted, token));
+			});
 			command.Add(mount);
 		}
 
@@ -157,13 +162,31 @@ public static class RepoCommand
 		return 0;
 	}
 
-	static int Mount(FxConsole console, IReadOnlyList<string> names, bool mounted)
+	static int Mount(FxConsole console, IReadOnlyList<string> names, bool mounted, CancellationToken cancellationToken)
 	{
 		const string schema = "fx-repo-mount/1";
 		void Json(IReadOnlyList<FxDiagnostic> diagnostics)
 			=> console.WriteJson(new MountDocument(schema, FxConsole.Ok(diagnostics), JsonDiagnostic.From(diagnostics)), c => c.MountDocument);
 		if (Manifest(console, Json) is not { } manifest)
 			return 1;
+		if (names.Count == 0)
+		{
+			var verb = mounted ? "mount" : "unmount";
+			if (!console.Capabilities.CanPrompt)
+				return console.Missing("<names>", $"fx repo {verb} <names>");
+			var candidates = WorkspaceModule.Repositories(manifest, withStatus: false)
+				.Where(r => mounted ? !r.Mounted : r.Mounted && r.Repository.Mount != MountPolicy.Mandatory)
+				.ToList();
+			if (candidates.Count == 0)
+			{
+				console.Line($"[gray]{FxConsole.Escape(Texts.Get(mounted ? "repo.nothing-to-mount" : "repo.nothing-to-unmount"))}[/]");
+				return 0;
+			}
+			names = Ask.Many(console, Texts.Get(mounted ? "repo.ask.mount" : "repo.ask.unmount"), candidates, r => r.Repository.Name, cancellationToken)
+				.Select(r => r.Repository.Name)
+				.ToList();
+			Ask.Equivalent(console, $"fx repo {verb} {string.Join(' ', names)}");
+		}
 		var diagnostics = WorkspaceModule.SetMount(manifest, names, mounted);
 		if (console.Settings.IsMachine)
 			Json(diagnostics);
