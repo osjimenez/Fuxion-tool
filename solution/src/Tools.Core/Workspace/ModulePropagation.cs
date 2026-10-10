@@ -33,7 +33,7 @@ public static class ModulePropagation
 		{
 			var yaml = Path.Combine(manifest.Root, "_fx", "dotnet.yaml");
 			if (!File.Exists(yaml))
-				diagnostics.Add(FxDiagnostic.Error(MissingConfig, "The manifest uses the module 'dotnet', but there is no _fx/dotnet.yaml.", WorkspaceManifest.RelativePath, dotnet.Line));
+				diagnostics.Add(FxDiagnostic.Error(MissingConfig, new(MissingConfig), WorkspaceManifest.RelativePath, dotnet.Line));
 			else
 			{
 				try

@@ -12,7 +12,7 @@ public static class FxApp
 	public static RootCommand Build(string currentDirectory)
 	{
 		var global = new GlobalOptions();
-		var root = new RootCommand("fx: the Fuxion workspace tool.")
+		var root = new RootCommand(Texts.Get("root"))
 		{
 			SyncCommand.CreateSync(global, currentDirectory),
 			SyncCommand.CreateDoctor(global, currentDirectory),
@@ -23,6 +23,10 @@ public static class FxApp
 		return root;
 	}
 
+	/// <summary>Runs fx in the language of the arguments, FX_LANG or the system (decided before the help is built).</summary>
 	public static int Run(string[] args, TextWriter stdout, TextWriter stderr, string currentDirectory)
-		=> Build(currentDirectory).Parse(args).Invoke(new() { Output = stdout, Error = stderr });
+	{
+		FxLanguage.Apply(FxLanguage.Resolve(args));
+		return Build(currentDirectory).Parse(args).Invoke(new() { Output = stdout, Error = stderr });
+	}
 }

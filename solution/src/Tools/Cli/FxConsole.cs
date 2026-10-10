@@ -53,14 +53,14 @@ public sealed class FxConsole(TextWriter stdout, TextWriter stderr, GlobalSettin
 	{
 		if (Settings.Output == OutputFormat.Human)
 			foreach (var d in diagnostics)
-				stderr.WriteLine($"{JsonDiagnostic.SeverityName(d.Severity)} {d.Code}: {d.Where}{Fix(d.Fix)}");
+				stderr.WriteLine($"{Texts.Get($"severity.{JsonDiagnostic.SeverityName(d.Severity)}")} {d.Code}: {d.Where}{Fix(d.Fix)}");
 		return diagnostics.Any(d => d.Severity == FxSeverity.Error) ? 1 : 0;
 	}
 
 	static string Fix(FxFix? fix) => fix switch
 	{
 		null => "",
-		{ Command: { } command, Hint: { } hint } => $" → {command} ({hint.TrimEnd('.')})",
+		{ Command: { } command, Hint: { } hint } => $" → {command} ({hint.ToString().TrimEnd('.')})",
 		{ Command: { } command } => $" → {command}",
 		{ Hint: { } hint } => $" → {hint}",
 		_ => ""
@@ -81,7 +81,7 @@ public sealed class FxConsole(TextWriter stdout, TextWriter stderr, GlobalSettin
 			if (e is not FxStepFinished step)
 				return;
 			lock (_gate)
-				writer.WriteLine($"{step.Module} {step.Repository ?? "-"} {step.Step}: {(step.Succeeded ? "ok" : "failed")} ({step.Elapsed.TotalSeconds:0.0} s)");
+				writer.WriteLine($"{step.Module} {step.Repository ?? "-"} {step.Step}: {Texts.Get(step.Succeeded ? "step.ok" : "step.failed")} ({step.Elapsed.TotalSeconds:0.0} s)");
 		}
 	}
 }

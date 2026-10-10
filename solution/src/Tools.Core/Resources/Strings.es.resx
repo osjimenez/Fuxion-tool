@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="fx.not-generated" xml:space="preserve">
+    <value>No se escribe: el fichero no tiene la cabecera GENERATED, así que no es de fx (diseño D-11).</value>
+  </data>
+  <data name="workspace.not-a-workspace" xml:space="preserve">
+    <value>'{0}' no está dentro de un workspace (no hay ningún _fx/workspace.yaml por encima).</value>
+  </data>
+  <data name="workspace.missing" xml:space="preserve">
+    <value>'{0}' está montado pero no está clonado en {1}.</value>
+  </data>
+  <data name="workspace.clone-failed" xml:space="preserve">
+    <value>No se pudo clonar '{0}' desde {1}: {2}</value>
+  </data>
+  <data name="workspace.not-a-repository" xml:space="preserve">
+    <value>'{0}': {1} no es un repositorio git.</value>
+  </data>
+  <data name="workspace.origin-mismatch" xml:space="preserve">
+    <value>'{0}': su origin es '{1}' y el manifiesto dice '{2}'; no se hace fetch.</value>
+  </data>
+  <data name="workspace.fetch-failed" xml:space="preserve">
+    <value>No se pudo hacer fetch de '{0}': {1}</value>
+  </data>
+  <data name="workspace.orphan" xml:space="preserve">
+    <value>{0} es un clon que el manifiesto no recoge.</value>
+  </data>
+  <data name="workspace.orphan.fix" xml:space="preserve">
+    <value>Añádelo a _fx/workspace.yaml o sácalo del workspace.</value>
+  </data>
+  <data name="workspace.standalone-reference" xml:space="preserve">
+    <value>'{0}' es standalone, pero referencia {1} de '{2}', que no lo es: fuera del workspace no puede ser un paquete.</value>
+  </data>
+  <data name="workspace.standalone-reference.fix" xml:space="preserve">
+    <value>Marca la referencia con WorkspaceOnly="true" o haz standalone el repositorio referenciado.</value>
+  </data>
+  <data name="workspace.outdated.workspace-layer" xml:space="preserve">
+    <value>Desactualizado respecto a _fx/dotnet.yaml y _fx/dotnet/ del workspace.</value>
+  </data>
+  <data name="workspace.outdated.solutions" xml:space="preserve">
+    <value>Desactualizado respecto al manifiesto y a las soluciones de los repositorios.</value>
+  </data>
+  <data name="workspace.outdated.manifest" xml:space="preserve">
+    <value>Desactualizado respecto a _fx/workspace.yaml.</value>
+  </data>
+  <data name="workspace.not-ignored" xml:space="preserve">
+    <value>'{0}': el metarrepo no ignora {1}; un git add lo metería dentro.</value>
+  </data>
+  <data name="workspace.dirty" xml:space="preserve">
+    <value>'{0}' tiene {1} cambio(s) sin comitear.</value>
+  </data>
+  <data name="workspace.detached" xml:space="preserve">
+    <value>'{0}' tiene el HEAD separado.</value>
+  </data>
+  <data name="workspace.no-upstream" xml:space="preserve">
+    <value>'{0}': la rama '{1}' no tiene upstream.</value>
+  </data>
+  <data name="workspace.unpushed" xml:space="preserve">
+    <value>'{0}': {1} commit(s) de '{2}' sin subir.</value>
+  </data>
+  <data name="workspace.unreachable" xml:space="preserve">
+    <value>'{0}': {1} no responde (red, VPN o acceso).</value>
+  </data>
+  <data name="workspace.not-generated.fix" xml:space="preserve">
+    <value>Si fx tiene que hacerse cargo de él.</value>
+  </data>
+  <data name="workspace.unknown-repository" xml:space="preserve">
+    <value>El manifiesto no tiene ningún repositorio '{0}'.</value>
+  </data>
+  <data name="workspace.unknown-repository.mandatory" xml:space="preserve">
+    <value>'{0}' es obligatorio: siempre está montado.</value>
+  </data>
+  <data name="workspace.pull-failed" xml:space="preserve">
+    <value>'{0}': {1}</value>
+  </data>
+  <data name="workspace.missing-module-config" xml:space="preserve">
+    <value>El manifiesto usa el módulo 'dotnet', pero no hay ningún _fx/dotnet.yaml.</value>
+  </data>
+  <data name="workspace.missing-solution" xml:space="preserve">
+    <value>Repositorio '{0}': su solución '{1}' no existe; se deja fuera.</value>
+  </data>
+  <data name="workspace.duplicate-project" xml:space="preserve">
+    <value>El proyecto '{0}' está en '{1}' y en '{2}': FxReference usa el de '{1}'.</value>
+  </data>
+  <data name="workspace.action.uncommitted-changes" xml:space="preserve">
+    <value>cambios sin comitear</value>
+  </data>
+  <data name="workspace.action.no-upstream" xml:space="preserve">
+    <value>ninguna rama con upstream</value>
+  </data>
+  <data name="workspace.invalid-manifest.not-a-mapping" xml:space="preserve">
+    <value>El manifiesto tiene que ser un mapa (version, workspace, folders, repositories).</value>
+  </data>
+  <data name="workspace.invalid-manifest.folder-segment" xml:space="preserve">
+    <value>La carpeta '{0}' tiene que ser un solo segmento.</value>
+  </data>
+  <data name="workspace.invalid-manifest.unknown-module" xml:space="preserve">
+    <value>Módulo desconocido '{0}' ({1}).</value>
+  </data>
+  <data name="workspace.invalid-manifest.modules-map" xml:space="preserve">
+    <value>'modules' asocia los nombres de los módulos con su configuración (dotnet: { tags: [dotnet] }).</value>
+  </data>
+  <data name="workspace.invalid-manifest.repository-mapping" xml:space="preserve">
+    <value>Un repositorio es un mapa: name, path, url…</value>
+  </data>
+  <data name="workspace.invalid-manifest.name-and-path" xml:space="preserve">
+    <value>Todo repositorio necesita 'name' y 'path'.</value>
+  </data>
+  <data name="workspace.invalid-manifest.mount" xml:space="preserve">
+    <value>Repositorio '{0}': mount es 'mandatory' o 'manual', no '{1}'.</value>
+  </data>
+  <data name="workspace.invalid-manifest.name" xml:space="preserve">
+    <value>Nombre de repositorio '{0}': minúsculas, dígitos y '-' (como 'plus' o 'my-repo').</value>
+  </data>
+  <data name="workspace.invalid-manifest.path-lowercase" xml:space="preserve">
+    <value>Repositorio '{0}': la ruta '{1}' tiene que ir en minúsculas.</value>
+  </data>
+  <data name="workspace.invalid-manifest.path-relative" xml:space="preserve">
+    <value>Repositorio '{0}': la ruta '{1}' tiene que ser relativa, dentro del workspace, sin '.' ni '..'.</value>
+  </data>
+  <data name="workspace.invalid-manifest.path-reserved" xml:space="preserve">
+    <value>Repositorio '{0}': '{1}' está reservado para el metarrepo.</value>
+  </data>
+  <data name="workspace.invalid-manifest.url" xml:space="preserve">
+    <value>El repositorio '{0}' necesita 'url'.</value>
+  </data>
+  <data name="workspace.invalid-manifest.depends-on" xml:space="preserve">
+    <value>El repositorio '{0}' depende de '{1}', que el manifiesto no recoge.</value>
+  </data>
+  <data name="workspace.invalid-manifest.duplicate-name" xml:space="preserve">
+    <value>El nombre de repositorio '{0}' se usa más de una vez.</value>
+  </data>
+  <data name="workspace.invalid-manifest.duplicate-path" xml:space="preserve">
+    <value>La ruta '{0}' se usa más de una vez.</value>
+  </data>
+  <data name="workspace.invalid-manifest.nested" xml:space="preserve">
+    <value>El repositorio '{0}' está montado dentro de '{1}'.</value>
+  </data>
+  <data name="dotnet.not-a-repository" xml:space="preserve">
+    <value>'{0}' no está dentro de un repositorio git.</value>
+  </data>
+  <data name="dotnet.workspace-layer" xml:space="preserve">
+    <value>Esto es el metarrepo: su _fx/dotnet.yaml es la capa del workspace, que fx sync workspace copia a los repositorios.</value>
+  </data>
+  <data name="dotnet.no-config" xml:space="preserve">
+    <value>No hay ningún _fx/dotnet.yaml (ni _fx/.workspace/dotnet.yaml) en este repositorio.</value>
+  </data>
+  <data name="dotnet.invalid-json" xml:space="preserve">
+    <value>global.json no es JSON válido: {0}</value>
+  </data>
+  <data name="dotnet.outdated" xml:space="preserve">
+    <value>Desactualizado respecto a _fx/dotnet.yaml.</value>
+  </data>
+  <data name="dotnet.missing-import" xml:space="preserve">
+    <value>dotnet.yaml importa _fx/{0}, que no existe.</value>
+  </data>
+  <data name="dotnet.not-generated.fix" xml:space="preserve">
+    <value>Renombra o mueve el fichero: fx solo escribe los ficheros que generó.</value>
+  </data>
+  <data name="dotnet.duplicate-owner" xml:space="preserve">
+    <value>'{0}' lo gobierna dotnet.yaml y además tiene aquí un PackageVersion (diseño D-16; NuGet lo rechaza, NU1506).</value>
+  </data>
+  <data name="dotnet.duplicate-owner.fix" xml:space="preserve">
+    <value>Deja un solo dueño: quita el PackageVersion de aquí o el paquete de dotnet.yaml.</value>
+  </data>
+  <data name="dotnet.unused-package" xml:space="preserve">
+    <value>'{0}' tiene aquí una versión, pero ningún proyecto del repo lo usa, ni directa ni transitivamente.</value>
+  </data>
+  <data name="dotnet.unused-package.fix" xml:space="preserve">
+    <value>Quita su PackageVersion.</value>
+  </data>
+  <data name="dotnet.ignored-version" xml:space="preserve">
+    <value>'{0}' lo gobierna dotnet.yaml: fx sustituye la Version de aquí.</value>
+  </data>
+  <data name="dotnet.ignored-version.fix" xml:space="preserve">
+    <value>Quita la Version.</value>
+  </data>
+  <data name="dotnet.unverifiable.frameworks" xml:space="preserve">
+    <value>No se pueden saber los frameworks de este proyecto, así que no se comprueba la cobertura de sus paquetes.</value>
+  </data>
+  <data name="dotnet.unverifiable.condition" xml:space="preserve">
+    <value>'{0}' en {1}: una condición usa algo que el doctor no sabe evaluar.</value>
+  </data>
+  <data name="dotnet.coverage-gap" xml:space="preserve">
+    <value>'{0}' en {1}: no aplica ninguna versión de dotnet.yaml (diseño D-32).</value>
+  </data>
+  <data name="dotnet.coverage-overlap" xml:space="preserve">
+    <value>'{0}' en {1}: aplican varias versiones ({2}) (diseño D-32).</value>
+  </data>
+  <data name="dotnet.invalid-yaml.not-a-mapping" xml:space="preserve">
+    <value>El documento tiene que ser un mapa (sdks, variables, imports, packages).</value>
+  </data>
+  <data name="dotnet.invalid-yaml.sdks-map" xml:space="preserve">
+    <value>'sdks' tiene que asociar nombres de SDK con versiones.</value>
+  </data>
+  <data name="dotnet.invalid-yaml.sdk" xml:space="preserve">
+    <value>Todo SDK necesita un nombre y una versión.</value>
+  </data>
+  <data name="dotnet.invalid-yaml.unknown-section" xml:space="preserve">
+    <value>Sección desconocida '{0}' (sdks, variables, imports, packages).</value>
+  </data>
+  <data name="dotnet.invalid-yaml.duplicate-variable" xml:space="preserve">
+    <value>La variable '{0}' se define más de una vez.</value>
+  </data>
+  <data name="dotnet.invalid-yaml.duplicate-package" xml:space="preserve">
+    <value>El paquete '{0}' aparece más de una vez.</value>
+  </data>
+  <data name="dotnet.invalid-yaml.variable-mapping" xml:space="preserve">
+    <value>Una variable es un mapa: name, y value o when.</value>
+  </data>
+  <data name="dotnet.invalid-yaml.variable-name" xml:space="preserve">
+    <value>Variable sin un nombre válido de propiedad MSBuild ('{0}').</value>
+  </data>
+  <data name="dotnet.invalid-yaml.value-or-when" xml:space="preserve">
+    <value>La variable '{0}' necesita exactamente uno de 'value' o 'when'.</value>
+  </data>
+  <data name="dotnet.invalid-yaml.variable-key" xml:space="preserve">
+    <value>Variable '{0}': clave desconocida '{1}'.</value>
+  </data>
+  <data name="dotnet.invalid-yaml.define-needs-when" xml:space="preserve">
+    <value>Variable '{0}': 'define' necesita 'when' (las constantes se definen donde se cumple la condición).</value>
+  </data>
+  <data name="dotnet.invalid-yaml.define-constants" xml:space="preserve">
+    <value>Variable '{0}': 'define' tienen que ser constantes de compilación separadas por ';' ('{1}').</value>
+  </data>
+  <data name="dotnet.invalid-yaml.import-mapping" xml:space="preserve">
+    <value>Un import es un mapa: props y/o targets, y when.</value>
+  </data>
+  <data name="dotnet.invalid-yaml.import-key" xml:space="preserve">
+    <value>Import: clave desconocida '{0}' (props, targets, when, tags).</value>
+  </data>
+  <data name="dotnet.invalid-yaml.import-empty" xml:space="preserve">
+    <value>Un import necesita 'props' o 'targets'.</value>
+  </data>
+  <data name="dotnet.invalid-yaml.import-path" xml:space="preserve">
+    <value>Import '{0}': la ruta tiene que ser relativa a la carpeta de dotnet.yaml, sin '..'.</value>
+  </data>
+  <data name="dotnet.invalid-yaml.paths" xml:space="preserve">
+    <value>'{0}' tiene que ser una ruta o una lista de rutas.</value>
+  </data>
+  <data name="dotnet.invalid-yaml.package-mapping" xml:space="preserve">
+    <value>Una entrada de paquetes es un mapa: ids y versions.</value>
+  </data>
+  <data name="dotnet.invalid-yaml.package-ids" xml:space="preserve">
+    <value>Una entrada de paquetes necesita 'ids'.</value>
+  </data>
+  <data name="dotnet.invalid-yaml.package-versions" xml:space="preserve">
+    <value>Paquetes {0}: 'versions' tiene que tener al menos una versión.</value>
+  </data>
+  <data name="dotnet.invalid-yaml.package-version" xml:space="preserve">
+    <value>Paquetes {0}: cada versión necesita 'version' (y 'when', si hay varias).</value>
+  </data>
+  <data name="dotnet.invalid-yaml.package-when" xml:space="preserve">
+    <value>Paquetes {0}, versión {1}: con varias versiones, cada una necesita 'when' (diseño D-32).</value>
+  </data>
+  <data name="dotnet.invalid-yaml.tags" xml:space="preserve">
+    <value>'tags' tiene que ser una lista, como [windows].</value>
+  </data>
+  <data name="dotnet.invalid-yaml.list" xml:space="preserve">
+    <value>'{0}' tiene que ser una lista.</value>
+  </data>
+  <data name="version.failed" xml:space="preserve">
+    <value>Falló el versionado con git: {0}</value>
+  </data>
+  <data name="version.reason.repository-not-found" xml:space="preserve">
+    <value>No se encuentra el repositorio git.</value>
+  </data>
+  <data name="version.reason.no-commits" xml:space="preserve">
+    <value>No hay HEAD de git (el repositorio no tiene commits).</value>
+  </data>
+  <data name="version.reason.no-tag-preview" xml:space="preserve">
+    <value>No hay ninguna etiqueta de versión para la rama preview '{0}' en el repo '{1}'.</value>
+  </data>
+  <data name="version.reason.no-tag-release" xml:space="preserve">
+    <value>No hay ninguna etiqueta de versión para la rama release '{0}' en el repo '{1}'.</value>
+  </data>
+  <data name="version.reason.no-tag-feature" xml:space="preserve">
+    <value>No hay ninguna etiqueta de versión en la historia de la rama feature (rama '{0}', repo '{1}').</value>
+  </data>
+  <data name="version.reason.no-tag-develop" xml:space="preserve">
+    <value>No hay ninguna etiqueta de versión para la rama develop en el repo '{0}'.</value>
+  </data>
+  <data name="version.reason.no-tag-stable" xml:space="preserve">
+    <value>No hay ninguna etiqueta de versión para la rama estable en el repo '{0}'.</value>
+  </data>
+  <data name="version.reason.no-tag-other" xml:space="preserve">
+    <value>No hay ninguna etiqueta de versión para la rama '{0}' en el repo '{1}'.</value>
+  </data>
+  <data name="version.reason.invalid-tag" xml:space="preserve">
+    <value>la etiqueta '{0}' tiene que tener el parche a 0.</value>
+  </data>
+  <data name="version.repository-not-found" xml:space="preserve">
+    <value>No se encuentra el repositorio git en '{0}'.</value>
+  </data>
+  <data name="version.no-commits" xml:space="preserve">
+    <value>El repositorio no tiene commits que etiquetar.</value>
+  </data>
+  <data name="version.tag-exists" xml:space="preserve">
+    <value>La etiqueta '{0}' ya existe.</value>
+  </data>
+  <data name="version.tag-not-newer" xml:space="preserve">
+    <value>'{0}' no es más nueva que la etiqueta de versión más alta, '{1}'.</value>
+  </data>
+  <data name="version.invalid-argument" xml:space="preserve">
+    <value>'{0}' no es X.Y (dos números, como 11.3).</value>
+  </data>
+  <data name="version.no-tag.fix" xml:space="preserve">
+    <value>Empieza el versionado con una etiqueta base.</value>
+  </data>
+  <data name="version.tag-not-newer.fix" xml:space="preserve">
+    <value>Usa un mayor y un menor por encima de la etiqueta de versión más alta.</value>
+  </data>
+  <data name="fx.nothing-to-do" xml:space="preserve">
+    <value>Aquí no aplica ningún módulo (no hay manifiesto de workspace a este nivel ni _fx/dotnet.yaml).</value>
+  </data>
+</root>

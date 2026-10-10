@@ -50,7 +50,7 @@ public static class SolutionGenerator
 			var solutionPath = Path.GetFullPath(Path.Combine(repoRoot, repo.Solution!));
 			if (!File.Exists(solutionPath))
 			{
-				diagnostics.Add(FxDiagnostic.Warning(MissingSolution, $"Repository '{repo.Name}': its solution '{repo.Solution}' does not exist; it is left out.", WorkspaceManifest.RelativePath, repo.Line, repo.Name));
+				diagnostics.Add(FxDiagnostic.Warning(MissingSolution, new(MissingSolution, repo.Name, repo.Solution), WorkspaceManifest.RelativePath, repo.Line, repo.Name));
 				continue;
 			}
 			var solutionDir = Path.GetDirectoryName(solutionPath)!;

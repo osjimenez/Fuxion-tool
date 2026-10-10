@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 
 namespace Fuxion.Tools.Core.Results;
@@ -15,11 +16,13 @@ public enum FxSeverity
 }
 
 /// <summary>How to fix a diagnostic: a command to run, or what to do by hand.</summary>
-public sealed record FxFix(string? Command = null, string? Hint = null)
+public sealed record FxFix(string? Command = null, FxText? Hint = null)
 {
 	public static FxFix Run(string command) => new(command);
 
-	public static FxFix Do(string hint) => new(Hint: hint);
+	public static FxFix Do(FxText hint) => new(Hint: hint);
+
+	public static FxFix Do(string key) => new(Hint: new FxText(key));
 }
 
 /// <summary>
@@ -27,7 +30,7 @@ public sealed record FxFix(string? Command = null, string? Hint = null)
 /// of the code; <see cref="Repository"/>, the repository it is about (none: the workspace, or the repository the module
 /// ran in); <see cref="File"/> and <see cref="Line"/>, where.
 /// </summary>
-public sealed record FxDiagnostic(string Code, FxSeverity Severity, string Message, string? File = null, int? Line = null)
+public sealed record FxDiagnostic(string Code, FxSeverity Severity, FxText Message, string? File = null, int? Line = null)
 {
 	public string? Repository { get; init; }
 
@@ -36,17 +39,24 @@ public sealed record FxDiagnostic(string Code, FxSeverity Severity, string Messa
 	/// <summary>The module, from the code (<c>dotnet.unused-package</c> → <c>dotnet</c>).</summary>
 	public string Module => Code.IndexOf('.') is var dot and > 0 ? Code[..dot] : Code;
 
-	public static FxDiagnostic Error(string code, string message, string? file = null, int? line = null, string? repository = null, FxFix? fix = null)
+	public static FxDiagnostic Error(string code, FxText message, string? file = null, int? line = null, string? repository = null, FxFix? fix = null)
 		=> new(code, FxSeverity.Error, message, file, line) { Repository = repository, Fix = fix };
 
-	public static FxDiagnostic Warning(string code, string message, string? file = null, int? line = null, string? repository = null, FxFix? fix = null)
+	public static FxDiagnostic Warning(string code, FxText message, string? file = null, int? line = null, string? repository = null, FxFix? fix = null)
 		=> new(code, FxSeverity.Warning, message, file, line) { Repository = repository, Fix = fix };
 
-	public static FxDiagnostic Info(string code, string message, string? file = null, int? line = null, string? repository = null, FxFix? fix = null)
+	public static FxDiagnostic Info(string code, FxText message, string? file = null, int? line = null, string? repository = null, FxFix? fix = null)
 		=> new(code, FxSeverity.Info, message, file, line) { Repository = repository, Fix = fix };
 
-	/// <summary><c>file(line): message</c>, or just the message.</summary>
-	public string Where => File is null ? Message : Line is null ? $"{File}: {Message}" : $"{File}({Line}): {Message}";
+	/// <summary><c>file(line): message</c>, or just the message, in the language of the user.</summary>
+	public string Where => WhereIn(CultureInfo.CurrentUICulture);
+
+	/// <summary><c>file(line): message</c>, or just the message, in <paramref name="culture"/>.</summary>
+	public string WhereIn(CultureInfo culture)
+	{
+		var message = Message.ToString(culture);
+		return File is null ? message : Line is null ? $"{File}: {message}" : $"{File}({Line}): {message}";
+	}
 }
 
 /// <summary>
@@ -120,7 +130,7 @@ public enum SyncFileStatus
 public sealed record SyncFile(string Path, SyncFileStatus Status);
 
 /// <summary>What happened to a repository: cloned, fetched, missing, pulled…</summary>
-public sealed record RepositoryAction(string Repository, string Action, string? Detail = null);
+public sealed record RepositoryAction(string Repository, string Action, FxText? Detail = null);
 
 /// <summary>
 /// What a module did, or would do with <c>--dry-run</c> (plan O, decision 13): the files it owns, what it did to the

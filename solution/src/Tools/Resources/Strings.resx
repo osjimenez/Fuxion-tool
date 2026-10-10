@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="root" xml:space="preserve">
+    <value>fx: the Fuxion workspace tool.</value>
+  </data>
+  <data name="option.root" xml:space="preserve">
+    <value>Folder to act on (the current one by default).</value>
+  </data>
+  <data name="option.root.name" xml:space="preserve">
+    <value>path</value>
+  </data>
+  <data name="option.output" xml:space="preserve">
+    <value>human (default) or json: a stable document on stdout, always in English.</value>
+  </data>
+  <data name="option.output.name" xml:space="preserve">
+    <value>format</value>
+  </data>
+  <data name="option.verbose" xml:space="preserve">
+    <value>More detail, on stderr.</value>
+  </data>
+  <data name="option.plain" xml:space="preserve">
+    <value>No colors or borders.</value>
+  </data>
+  <data name="option.workspace" xml:space="preserve">
+    <value>Act on the whole workspace, from anywhere inside it.</value>
+  </data>
+  <data name="option.lang" xml:space="preserve">
+    <value>Language of the messages: en or es (by default, FX_LANG or the system's).</value>
+  </data>
+  <data name="option.lang.name" xml:space="preserve">
+    <value>language</value>
+  </data>
+  <data name="sync" xml:space="preserve">
+    <value>Generate and update what fx owns here, from the _fx configuration.</value>
+  </data>
+  <data name="sync.dry-run" xml:space="preserve">
+    <value>Show what would change, without writing.</value>
+  </data>
+  <data name="sync.offline" xml:space="preserve">
+    <value>No network: do not fetch the repositories.</value>
+  </data>
+  <data name="sync.adopt" xml:space="preserve">
+    <value>Take over files written by hand (without the GENERATED header).</value>
+  </data>
+  <data name="doctor" xml:space="preserve">
+    <value>Check, without changing anything, that what fx owns here is right.</value>
+  </data>
+  <data name="doctor.offline" xml:space="preserve">
+    <value>No network: do not ask the remotes.</value>
+  </data>
+  <data name="module" xml:space="preserve">
+    <value>Only this module: workspace or dotnet.</value>
+  </data>
+  <data name="doctor.all-right" xml:space="preserve">
+    <value>{0}: all right</value>
+  </data>
+  <data name="doctor.problems" xml:space="preserve">
+    <value>{0}: {1} problem(s)</value>
+  </data>
+  <data name="sync.up-to-date" xml:space="preserve">
+    <value>up to date</value>
+  </data>
+  <data name="sync.would-change" xml:space="preserve">
+    <value>{0} file(s) would change</value>
+  </data>
+  <data name="sync.written" xml:space="preserve">
+    <value>{0} file(s) written</value>
+  </data>
+  <data name="sync.summary" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+  <data name="sync.summary-refused" xml:space="preserve">
+    <value>{0}: {1}, {2} refused</value>
+  </data>
+  <data name="file.written" xml:space="preserve">
+    <value>written</value>
+  </data>
+  <data name="file.would-write" xml:space="preserve">
+    <value>would-write</value>
+  </data>
+  <data name="file.refused" xml:space="preserve">
+    <value>refused</value>
+  </data>
+  <data name="file.unchanged" xml:space="preserve">
+    <value>unchanged</value>
+  </data>
+  <data name="action.cloned" xml:space="preserve">
+    <value>cloned</value>
+  </data>
+  <data name="action.fetched" xml:space="preserve">
+    <value>fetched</value>
+  </data>
+  <data name="action.missing" xml:space="preserve">
+    <value>missing</value>
+  </data>
+  <data name="action.clone-failed" xml:space="preserve">
+    <value>clone-failed</value>
+  </data>
+  <data name="action.fetch-failed" xml:space="preserve">
+    <value>fetch-failed</value>
+  </data>
+  <data name="action.pulled" xml:space="preserve">
+    <value>pulled</value>
+  </data>
+  <data name="action.skipped" xml:space="preserve">
+    <value>skipped</value>
+  </data>
+  <data name="action.failed" xml:space="preserve">
+    <value>failed</value>
+  </data>
+  <data name="severity.error" xml:space="preserve">
+    <value>error</value>
+  </data>
+  <data name="severity.warning" xml:space="preserve">
+    <value>warning</value>
+  </data>
+  <data name="severity.info" xml:space="preserve">
+    <value>info</value>
+  </data>
+  <data name="step.ok" xml:space="preserve">
+    <value>ok</value>
+  </data>
+  <data name="step.failed" xml:space="preserve">
+    <value>failed</value>
+  </data>
+  <data name="repo" xml:space="preserve">
+    <value>The repositories of the workspace.</value>
+  </data>
+  <data name="repo.list" xml:space="preserve">
+    <value>The repositories of the manifest: mount point, policy and whether they are mounted.</value>
+  </data>
+  <data name="repo.status" xml:space="preserve">
+    <value>The mounted repositories: branch, commits ahead and behind, changes.</value>
+  </data>
+  <data name="repo.names" xml:space="preserve">
+    <value>Repositories of the manifest.</value>
+  </data>
+  <data name="repo.mount" xml:space="preserve">
+    <value>Mount repositories: fx sync clones what is missing.</value>
+  </data>
+  <data name="repo.unmount" xml:space="preserve">
+    <value>Unmount repositories: fx stops managing them; nothing is deleted.</value>
+  </data>
+  <data name="repo.only" xml:space="preserve">
+    <value>Only these repositories.</value>
+  </data>
+  <data name="repo.pull" xml:space="preserve">
+    <value>Fast-forward the mounted repositories that have a clean working tree.</value>
+  </data>
+  <data name="repo.column.repository" xml:space="preserve">
+    <value>Repository</value>
+  </data>
+  <data name="repo.column.branch" xml:space="preserve">
+    <value>Branch</value>
+  </data>
+  <data name="repo.column.ahead" xml:space="preserve">
+    <value>Ahead</value>
+  </data>
+  <data name="repo.column.behind" xml:space="preserve">
+    <value>Behind</value>
+  </data>
+  <data name="repo.column.changes" xml:space="preserve">
+    <value>Changes</value>
+  </data>
+  <data name="repo.column.path" xml:space="preserve">
+    <value>Path</value>
+  </data>
+  <data name="repo.column.mount" xml:space="preserve">
+    <value>Mount</value>
+  </data>
+  <data name="repo.column.mounted" xml:space="preserve">
+    <value>Mounted</value>
+  </data>
+  <data name="repo.column.cloned" xml:space="preserve">
+    <value>Cloned</value>
+  </data>
+  <data name="repo.detached" xml:space="preserve">
+    <value>(detached)</value>
+  </data>
+  <data name="repo.not-cloned" xml:space="preserve">
+    <value>(not cloned)</value>
+  </data>
+  <data name="yes" xml:space="preserve">
+    <value>yes</value>
+  </data>
+  <data name="no" xml:space="preserve">
+    <value>no</value>
+  </data>
+  <data name="repo.mounted" xml:space="preserve">
+    <value>Mounted: {0}. Run fx sync to clone what is missing.</value>
+  </data>
+  <data name="repo.unmounted" xml:space="preserve">
+    <value>Unmounted: {0}. Nothing was deleted.</value>
+  </data>
+  <data name="version" xml:space="preserve">
+    <value>The version this repository would build now, from its git history.</value>
+  </data>
+  <data name="version.explain" xml:space="preserve">
+    <value>Show how the version was calculated.</value>
+  </data>
+  <data name="version.row.version" xml:space="preserve">
+    <value>Version</value>
+  </data>
+  <data name="version.row.informational" xml:space="preserve">
+    <value>Informational</value>
+  </data>
+  <data name="version.row.assembly" xml:space="preserve">
+    <value>Assembly</value>
+  </data>
+  <data name="version.row.repository" xml:space="preserve">
+    <value>Repository</value>
+  </data>
+  <data name="version.row.branch" xml:space="preserve">
+    <value>Branch</value>
+  </data>
+  <data name="version.row.rule" xml:space="preserve">
+    <value>Rule</value>
+  </data>
+  <data name="version.row.head" xml:space="preserve">
+    <value>HEAD</value>
+  </data>
+  <data name="version.row.tag" xml:space="preserve">
+    <value>Tag</value>
+  </data>
+  <data name="version.row.merge-base" xml:space="preserve">
+    <value>Merge base</value>
+  </data>
+  <data name="version.row.tag-to-merge-base" xml:space="preserve">
+    <value>Tag → merge base</value>
+  </data>
+  <data name="version.row.on-the-branch" xml:space="preserve">
+    <value>On the branch</value>
+  </data>
+  <data name="version.row.tag-to-head" xml:space="preserve">
+    <value>Tag → HEAD</value>
+  </data>
+  <data name="version.tag-at" xml:space="preserve">
+    <value>{0} at {1}</value>
+  </data>
+  <data name="version.merge-base-with" xml:space="preserve">
+    <value>{0} with {1}</value>
+  </data>
+  <data name="version.commits" xml:space="preserve">
+    <value>{0} commits</value>
+  </data>
+  <data name="version.branch-commits" xml:space="preserve">
+    <value>{0} commits since main was last merged</value>
+  </data>
+  <data name="version.rule.stable" xml:space="preserve">
+    <value>X.Y.{commits since the tag}</value>
+  </data>
+  <data name="version.rule.develop" xml:space="preserve">
+    <value>X.Y.{commits since the tag}-alpha</value>
+  </data>
+  <data name="version.rule.feature" xml:space="preserve">
+    <value>X.Y.{tag → merge base}-feature.{name}.{commits since main was last merged}</value>
+  </data>
+  <data name="version.rule.release" xml:space="preserve">
+    <value>{tag}-rc.{name}.{commits since the tag}</value>
+  </data>
+  <data name="version.rule.preview" xml:space="preserve">
+    <value>{tag}-preview.{name}.{commits since the tag}</value>
+  </data>
+  <data name="version.rule.other" xml:space="preserve">
+    <value>X.Y.{commits since the tag}-{branch}</value>
+  </data>
+  <data name="version.tag" xml:space="preserve">
+    <value>Create the tag version/X.Y.0 on HEAD to start a new minor or major (local; push it yourself).</value>
+  </data>
+  <data name="version.tag.argument" xml:space="preserve">
+    <value>The new major and minor, like 11.3.</value>
+  </data>
+  <data name="version.tag.created" xml:space="preserve">
+    <value>Created {0} on {1}. It is local: git push origin {0}</value>
+  </data>
+</root>

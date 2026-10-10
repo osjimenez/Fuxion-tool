@@ -24,10 +24,10 @@ public static class SyncCommand
 	public static Command CreateSync(GlobalOptions global, string currentDirectory)
 	{
 		var module = ModuleArgument();
-		var dryRun = new Option<bool>("--dry-run") { Description = "Show what would change, without writing." };
-		var offline = new Option<bool>("--offline") { Description = "No network: do not fetch the repositories." };
-		var adopt = new Option<bool>("--adopt") { Description = "Take over files written by hand (without the GENERATED header)." };
-		var command = new Command("sync", "Generate and update what fx owns here, from the _fx configuration.") { module, dryRun, offline, adopt };
+		var dryRun = new Option<bool>("--dry-run") { Description = Texts.Get("sync.dry-run") };
+		var offline = new Option<bool>("--offline") { Description = Texts.Get("sync.offline") };
+		var adopt = new Option<bool>("--adopt") { Description = Texts.Get("sync.adopt") };
+		var command = new Command("sync", Texts.Get("sync")) { module, dryRun, offline, adopt };
 		command.SetAction(result =>
 		{
 			var settings = global.Bind(result, currentDirectory);
@@ -40,8 +40,8 @@ public static class SyncCommand
 	public static Command CreateDoctor(GlobalOptions global, string currentDirectory)
 	{
 		var module = ModuleArgument();
-		var offline = new Option<bool>("--offline") { Description = "No network: do not ask the remotes." };
-		var command = new Command("doctor", "Check, without changing anything, that what fx owns here is right.") { module, offline };
+		var offline = new Option<bool>("--offline") { Description = Texts.Get("doctor.offline") };
+		var command = new Command("doctor", Texts.Get("doctor")) { module, offline };
 		command.SetAction(result =>
 		{
 			var settings = global.Bind(result, currentDirectory);
@@ -53,7 +53,7 @@ public static class SyncCommand
 
 	static Argument<string?> ModuleArgument()
 	{
-		var argument = new Argument<string?>("module") { Description = "Only this module: workspace or dotnet.", Arity = ArgumentArity.ZeroOrOne };
+		var argument = new Argument<string?>("module") { Description = Texts.Get("module"), Arity = ArgumentArity.ZeroOrOne };
 		argument.AcceptOnlyFromAmong(WorkspaceModule.Name, DotnetModule.Name);
 		return argument;
 	}
@@ -74,7 +74,7 @@ public static class SyncCommand
 			modules.Add(doctor ? DotnetModule.Doctor(directory, progress) : DotnetModule.Sync(directory, settings.DryRun, progress));
 		var diagnostics = modules.SelectMany(m => m.Diagnostics).ToList();
 		if (modules.Count == 0)
-			diagnostics.Add(FxDiagnostic.Info(NothingToDo, "No module applies here (no workspace manifest at this level, no _fx/dotnet.yaml)."));
+			diagnostics.Add(FxDiagnostic.Info(NothingToDo, new FxText(NothingToDo)));
 
 		if (settings.Global.Output == OutputFormat.Json)
 			console.WriteJson(new SyncDocument(schema, FxConsole.Ok(diagnostics), modules.Select(JsonModule.From).ToList(), JsonDiagnostic.From(diagnostics)),
@@ -90,16 +90,16 @@ public static class SyncCommand
 		if (doctor)
 		{
 			var problems = module.Diagnostics.Count;
-			console.Out.WriteLine(problems == 0 ? $"{module.Module}: all right" : $"{module.Module}: {problems} problem(s)");
+			console.Out.WriteLine(problems == 0 ? Texts.Get("doctor.all-right", module.Module) : Texts.Get("doctor.problems", module.Module, problems));
 			return;
 		}
 		foreach (var action in module.Actions)
-			console.Out.WriteLine($"{action.Action,-11} {action.Repository}");
+			console.Out.WriteLine($"{Texts.Get($"action.{action.Action}"),-11} {action.Repository}");
 		foreach (var file in module.Files.Where(f => f.Status != SyncFileStatus.Unchanged || console.Settings.Verbose))
-			console.Out.WriteLine($"{JsonModule.FileStatus(file.Status),-11} {file.Path}");
+			console.Out.WriteLine($"{Texts.Get($"file.{JsonModule.FileStatus(file.Status)}"),-11} {file.Path}");
 		var changed = module.Files.Count(f => f.Status is SyncFileStatus.Written or SyncFileStatus.WouldWrite);
 		var refused = module.Files.Count(f => f.Status == SyncFileStatus.Refused);
-		var summary = changed == 0 ? "up to date" : dryRun ? $"{changed} file(s) would change" : $"{changed} file(s) written";
-		console.Out.WriteLine(refused == 0 ? $"{module.Module}: {summary}" : $"{module.Module}: {summary}, {refused} refused");
+		var summary = changed == 0 ? Texts.Get("sync.up-to-date") : dryRun ? Texts.Get("sync.would-change", changed) : Texts.Get("sync.written", changed);
+		console.Out.WriteLine(refused == 0 ? Texts.Get("sync.summary", module.Module, summary) : Texts.Get("sync.summary-refused", module.Module, summary, refused));
 	}
 }

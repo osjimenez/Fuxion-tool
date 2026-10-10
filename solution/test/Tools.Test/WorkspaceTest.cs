@@ -92,7 +92,7 @@ public sealed class WorkspaceTest
 	public void Manifest_Invalid(string repositories, string message)
 	{
 		var ex = Assert.Throws<WorkspaceManifestException>(() => WorkspaceManifest.Read("root", "version: 1\nfolders: [_docs]\nrepositories:\n" + repositories, strict: true));
-		Assert.Contains(ex.Diagnostics, d => d.Code == WorkspaceManifest.InvalidManifest && d.Message.Contains(message) && d.Line is > 0);
+		Assert.Contains(ex.Diagnostics, d => d.Code == WorkspaceManifest.InvalidManifest && d.Message.English.Contains(message) && d.Line is > 0);
 	}
 
 	[Fact(DisplayName = "manifest: the design's example reads (§5)")]
@@ -338,7 +338,7 @@ public sealed class WorkspaceTest
 		var manifest = WorkspaceManifest.Read("root", "version: 1\nrepositories: []\nmodules:\n  dotnet:\n    tags: [dotnet, windows]\n", strict: true);
 		Assert.Equal(["dotnet", "windows"], manifest.Module("dotnet")!.Tags);
 		var ex = Assert.Throws<WorkspaceManifestException>(() => WorkspaceManifest.Read("root", "version: 1\nmodules:\n  angular: {}\n", strict: true));
-		Assert.Contains("Unknown module 'angular'", ex.Diagnostics[0].Message);
+		Assert.Contains("Unknown module 'angular'", ex.Diagnostics[0].Message.English);
 	}
 
 	[Fact(DisplayName = "doctor: a standalone repo cannot reference a project of a repo that is not (§6)")]
@@ -357,7 +357,7 @@ public sealed class WorkspaceTest
 			</Project>
 			""");
 		var diagnostic = Assert.Single(WorkspaceModule.Doctor(ws.Root, offline: true, cancellationToken: TestContext.Current.CancellationToken).Diagnostics, d => d.Code == WorkspaceModule.StandaloneReference);
-		Assert.Contains("references next of 'next'", diagnostic.Message);
+		Assert.Contains("references next of 'next'", diagnostic.Message.English);
 		Assert.Equal("plus/repo/uses.props", diagnostic.File);
 		Assert.Equal(3, diagnostic.Line);
 	}

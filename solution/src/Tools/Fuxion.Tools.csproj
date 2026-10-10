@@ -13,6 +13,13 @@
 		<!-- native AOT, a single file (design §11) -->
 		<PublishAot>true</PublishAot>
 		<InvariantGlobalization>true</InvariantGlobalization>
+		<!-- English and Spanish (plan O, decision 7): without the culture data (invariant), but with the cultures by
+		     name, so that ResourceManager finds the Spanish texts (compiled into the exe); only these two languages of
+		     the packages' resources (System.CommandLine has many) -->
+		<PredefinedCulturesOnly>false</PredefinedCulturesOnly>
+		<SatelliteResourceLanguages>en;es</SatelliteResourceLanguages>
+		<!-- LibraryImport (the system's UI language on Windows, FxLanguage), AOT-compatible, needs it -->
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -23,5 +30,14 @@
 		<PackageReference Include="Spectre.Console" />
 		<PackageReference Include="System.CommandLine" />
 	</ItemGroup>
+
+	<!-- Native AOT compiles into the exe the satellite assemblies of the packages and of this project, not those of the
+	     projects it references (the Spanish texts of Tools.Core: they would end up in es/, which AOT does not load) -->
+	<Target Name="FxSatellitesOfReferences" AfterTargets="_ComputeIlcCompileInputs">
+		<ItemGroup>
+			<IlcSatelliteAssembly Include="@(ResolvedFileToPublish)"
+			                      Condition="'%(ResolvedFileToPublish.AssetType)' != 'resources' And '%(ResolvedFileToPublish.Extension)' == '.dll' And $([System.String]::new('%(ResolvedFileToPublish.Filename)').EndsWith('.resources'))" />
+		</ItemGroup>
+	</Target>
 
 </Project>

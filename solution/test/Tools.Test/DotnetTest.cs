@@ -82,7 +82,7 @@ public sealed class DotnetTest
 		var ex = Assert.Throws<DotnetConfigException>(() => DotnetYamlReader.Read(yaml, "dotnet.yaml"));
 		var diagnostic = ex.Diagnostics[0];
 		Assert.Equal(DotnetYamlReader.InvalidYaml, diagnostic.Code);
-		Assert.Contains(message, diagnostic.Message);
+		Assert.Contains(message, diagnostic.Message.English);
 		Assert.Equal(line, diagnostic.Line);
 	}
 
@@ -277,7 +277,7 @@ public sealed class DotnetTest
 		DotnetModule.Sync(repo.Git.Path, dryRun: false);
 		var gaps = DotnetModule.Doctor(repo.Git.Path).Diagnostics.Where(d => d.Code == DotnetModule.CoverageGap).ToList();
 		Assert.Equal(2, gaps.Count);
-		Assert.All(gaps, g => Assert.Contains("net12.0", g.Message));
+		Assert.All(gaps, g => Assert.Contains("net12.0", g.Message.English));
 	}
 
 	[Fact(DisplayName = "doctor: two versions for the same framework is an overlap (D-32)")]
@@ -287,7 +287,7 @@ public sealed class DotnetTest
 		DotnetModule.Sync(repo.Git.Path, dryRun: false);
 		var overlap = Assert.Single(DotnetModule.Doctor(repo.Git.Path).Diagnostics);
 		Assert.Equal(DotnetModule.CoverageOverlap, overlap.Code);
-		Assert.Contains("'MongoDB.EntityFrameworkCore' on net11.0: several versions apply (10.0.3, 9.1.3)", overlap.Message);
+		Assert.Contains("'MongoDB.EntityFrameworkCore' on net11.0: several versions apply (10.0.3, 9.1.3)", overlap.Message.English);
 	}
 
 	[Fact(DisplayName = "doctor: the incomplete condition of the design's MongoDB example cannot be verified (warning)")]
@@ -428,7 +428,7 @@ public sealed class DotnetTest
 		repo.Git.WriteFile(Path.Combine("solution", "src", "Lib", "obj", "project.assets.json"),
 			"""{ "libraries": { "Direct.Package/1.0.0": { "type": "package" }, "Transitive.Package/1.0.0": { "type": "package" } } }""");
 		var unused = DotnetModule.Doctor(repo.Git.Path).Diagnostics.Where(d => d.Code == DotnetModule.UnusedPackage).ToList();
-		Assert.Equal(["'Spectre.Console'", "'Unused.Package'"], unused.Select(d => d.Message.Split(' ')[0]));
+		Assert.Equal(["'Spectre.Console'", "'Unused.Package'"], unused.Select(d => d.Message.English.Split(' ')[0]));
 		Assert.All(unused, d => Assert.Equal(FxSeverity.Warning, d.Severity));
 		Assert.Equal("solution/Directory.Packages.props", unused[1].File);
 		Assert.Equal(repo.Read("solution/Directory.Packages.props").Split('\n').ToList().FindIndex(l => l.Contains("Unused.Package")) + 1, unused[1].Line);
@@ -512,5 +512,41 @@ public sealed class DotnetTest
 		stdout = new StringWriter();
 		Assert.Equal(0, FxApp.Run(["doctor", "--output", "json"], stdout, new StringWriter(), repo.Git.Path));
 		Assert.Equal("fx-doctor/1", JsonDocument.Parse(stdout.ToString()).RootElement.GetProperty("schema").GetString());
+	}
+
+	[Fact(DisplayName = "fx in Spanish: the messages and the help are; codes, commands and JSON are not (plan O, decision 7)")]
+	public void Cli_Spanish()
+	{
+		using var repo = new Repo();
+		try
+		{
+			var stderr = new StringWriter();
+			Assert.Equal(1, FxApp.Run(["doctor", "--lang", "es"], new StringWriter(), stderr, repo.Git.Path));
+			Assert.Contains("error dotnet.outdated: _fx/dotnet.g.props: Desactualizado respecto a _fx/dotnet.yaml. → fx sync dotnet", stderr.ToString());
+
+			var stdout = new StringWriter();
+			FxApp.Run(["doctor", "--lang", "es", "--output", "json"], stdout, new StringWriter(), repo.Git.Path);
+			var outdated = JsonDocument.Parse(stdout.ToString()).RootElement.GetProperty("diagnostics").EnumerateArray().First();
+			Assert.Equal("Out of date with _fx/dotnet.yaml.", outdated.GetProperty("message").GetString());
+
+			stdout = new StringWriter();
+			Assert.Equal(0, FxApp.Run(["sync", "--help", "--lang", "es"], stdout, new StringWriter(), repo.Git.Path));
+			Assert.Contains("Genera y actualiza lo que es de fx aquí", stdout.ToString());
+			Assert.Contains("--dry-run", stdout.ToString());
+
+			// FX_LANG, and back to English
+			stderr = new StringWriter();
+			Environment.SetEnvironmentVariable(FxLanguage.Variable, "es");
+			FxApp.Run(["doctor"], new StringWriter(), stderr, repo.Git.Path);
+			Assert.Contains("Desactualizado", stderr.ToString());
+		}
+		finally
+		{
+			Environment.SetEnvironmentVariable(FxLanguage.Variable, "en");
+			FxLanguage.Apply("en");
+		}
+		var english = new StringWriter();
+		FxApp.Run(["doctor"], new StringWriter(), english, repo.Git.Path);
+		Assert.Contains("Out of date with _fx/dotnet.yaml.", english.ToString());
 	}
 }

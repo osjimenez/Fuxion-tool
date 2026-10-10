@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -44,7 +45,7 @@ public sealed record WorkspaceModuleSettings(string Name, IReadOnlyList<string> 
 
 /// <summary>An invalid workspace manifest: every problem found, each with its line.</summary>
 public sealed class WorkspaceManifestException(IReadOnlyList<FxDiagnostic> diagnostics)
-	: Exception(string.Join(Environment.NewLine, diagnostics.Select(d => d.Where)))
+	: Exception(string.Join(Environment.NewLine, diagnostics.Select(d => d.WhereIn(CultureInfo.InvariantCulture))))
 {
 	public IReadOnlyList<FxDiagnostic> Diagnostics { get; } = diagnostics;
 }
@@ -106,7 +107,7 @@ public sealed partial record WorkspaceManifest(
 	public static WorkspaceManifest Read(string root, string yaml, bool strict = false)
 	{
 		var errors = new List<FxDiagnostic>();
-		void Error(YamlNode? node, string message) => errors.Add(FxDiagnostic.Error(InvalidManifest, message, RelativePath, node?.Line));
+		void Error(YamlNode? node, string key, params object?[] args) => errors.Add(FxDiagnostic.Error(InvalidManifest, new($"{InvalidManifest}.{key}", args), RelativePath, node?.Line));
 
 		YamlNode? document;
 		try
@@ -116,14 +117,14 @@ public sealed partial record WorkspaceManifest(
 		catch (YamlSyntaxException ex)
 		{
 			if (strict)
-				throw new WorkspaceManifestException([FxDiagnostic.Error(InvalidManifest, ex.Message, RelativePath, ex.Line)]);
+				throw new WorkspaceManifestException([FxDiagnostic.Error(InvalidManifest, FxText.Plain(ex.Message), RelativePath, ex.Line)]);
 			return new(root, []);
 		}
 
 		if (document is not YamlMapping map)
 		{
 			if (strict)
-				throw new WorkspaceManifestException([FxDiagnostic.Error(InvalidManifest, "The manifest must be a mapping (version, workspace, folders, repositories).", RelativePath, 1)]);
+				throw new WorkspaceManifestException([FxDiagnostic.Error(InvalidManifest, new($"{InvalidManifest}.not-a-mapping"), RelativePath, 1)]);
 			return new(root, []);
 		}
 
@@ -140,7 +141,7 @@ public sealed partial record WorkspaceManifest(
 			? folderList.Items.Select(Scalar).Where(f => !string.IsNullOrWhiteSpace(f)).Select(f => f!).ToList()
 			: [];
 		foreach (var folder in folders.Where(f => f.Contains('/') || f.Contains('\\')))
-			Error(map["folders"], $"Folder '{folder}' must be a single segment.");
+			Error(map["folders"], "folder-segment", folder);
 
 		var modules = new List<WorkspaceModuleSettings>();
 		if (map["modules"] is YamlMapping moduleMap)
@@ -148,11 +149,11 @@ public sealed partial record WorkspaceManifest(
 			{
 				var moduleName = Scalar(key) ?? "";
 				if (!KnownModules.Contains(moduleName))
-					Error(key, $"Unknown module '{moduleName}' ({string.Join(", ", KnownModules)}).");
+					Error(key, "unknown-module", moduleName, string.Join(", ", KnownModules));
 				modules.Add(new(moduleName, value is YamlMapping settings ? List(settings["tags"]) : [], key.Line));
 			}
 		else if (map["modules"] is { } notAMap && notAMap is not YamlScalar { Value: "" })
-			Error(notAMap, "'modules' maps module names to their settings (dotnet: { tags: [dotnet] }).");
+			Error(notAMap, "modules-map");
 
 		var repositories = new List<WorkspaceRepository>();
 		if (map["repositories"] is YamlSequence list)
@@ -160,20 +161,20 @@ public sealed partial record WorkspaceManifest(
 			{
 				if (item is not YamlMapping repo)
 				{
-					Error(item, "A repository is a mapping: name, path, url…");
+					Error(item, "repository-mapping");
 					continue;
 				}
 				var repoName = Scalar(Child(repo, "name"));
 				var path = Scalar(Child(repo, "path"))?.Replace('\\', '/').Trim('/');
 				if (string.IsNullOrWhiteSpace(repoName) || string.IsNullOrWhiteSpace(path))
 				{
-					Error(item, "Every repository needs 'name' and 'path'.");
+					Error(item, "name-and-path");
 					continue;
 				}
 				var mountText = Scalar(Child(repo, "mount"));
 				var mount = mountText is null or "manual" ? MountPolicy.Manual : mountText == "mandatory" ? MountPolicy.Mandatory : (MountPolicy?)null;
 				if (mount is null)
-					Error(item, $"Repository '{repoName}': mount is 'mandatory' or 'manual', not '{mountText}'.");
+					Error(item, "mount", repoName, mountText);
 				repositories.Add(new(
 					repoName,
 					path,
@@ -199,33 +200,33 @@ public sealed partial record WorkspaceManifest(
 
 	IEnumerable<FxDiagnostic> Validate()
 	{
-		FxDiagnostic Error(WorkspaceRepository repo, string message) => FxDiagnostic.Error(InvalidManifest, message, RelativePath, repo.Line);
+		FxDiagnostic Error(WorkspaceRepository repo, string key, params object?[] args) => FxDiagnostic.Error(InvalidManifest, new($"{InvalidManifest}.{key}", args), RelativePath, repo.Line);
 
 		foreach (var repo in Repositories)
 		{
 			if (!RepositoryName().IsMatch(repo.Name))
-				yield return Error(repo, $"Repository name '{repo.Name}': lowercase letters, digits and '-' (like 'plus' or 'my-repo').");
+				yield return Error(repo, "name", repo.Name);
 			if (repo.Path != repo.Path.ToLowerInvariant())
-				yield return Error(repo, $"Repository '{repo.Name}': the path '{repo.Path}' must be lowercase.");
+				yield return Error(repo, "path-lowercase", repo.Name, repo.Path);
 			var segments = repo.Path.Split('/');
 			if (segments.Any(s => s is "" or "." or "..") || System.IO.Path.IsPathRooted(repo.Path))
-				yield return Error(repo, $"Repository '{repo.Name}': the path '{repo.Path}' must be relative, inside the workspace, without '.' or '..'.");
+				yield return Error(repo, "path-relative", repo.Name, repo.Path);
 			if (ReservedSegments.Contains(segments[0], StringComparer.OrdinalIgnoreCase) || segments[0].StartsWith("~$", StringComparison.Ordinal)
 			    || (Folders ?? []).Contains(segments[0], StringComparer.OrdinalIgnoreCase))
-				yield return Error(repo, $"Repository '{repo.Name}': '{segments[0]}' is reserved for the metarepo.");
+				yield return Error(repo, "path-reserved", repo.Name, segments[0]);
 			if (string.IsNullOrWhiteSpace(repo.Url))
-				yield return Error(repo, $"Repository '{repo.Name}' needs 'url'.");
+				yield return Error(repo, "url", repo.Name);
 			foreach (var dependency in repo.DependsOn ?? [])
 				if (!Repositories.Any(r => r.Name == dependency))
-					yield return Error(repo, $"Repository '{repo.Name}' depends on '{dependency}', which the manifest does not list.");
+					yield return Error(repo, "depends-on", repo.Name, dependency);
 		}
 		foreach (var duplicate in Repositories.GroupBy(r => r.Name, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1))
-			yield return Error(duplicate.Last(), $"Repository name '{duplicate.Key}' is used more than once.");
+			yield return Error(duplicate.Last(), "duplicate-name", duplicate.Key);
 		foreach (var duplicate in Repositories.GroupBy(r => r.Path, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1))
-			yield return Error(duplicate.Last(), $"Path '{duplicate.Key}' is used more than once.");
+			yield return Error(duplicate.Last(), "duplicate-path", duplicate.Key);
 		foreach (var repo in Repositories)
 			foreach (var other in Repositories.Where(o => o != repo && o.Path.StartsWith(repo.Path + "/", StringComparison.OrdinalIgnoreCase)))
-				yield return Error(other, $"Repository '{other.Name}' is mounted inside '{repo.Name}'.");
+				yield return Error(other, "nested", other.Name, repo.Name);
 	}
 
 	/// <summary>The settings of a module, if the workspace uses it.</summary>

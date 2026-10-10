@@ -14,8 +14,8 @@ public static class VersionTagCommand
 
 	public static Command Create(GlobalOptions global, string currentDirectory)
 	{
-		var majorMinor = new Argument<string>("X.Y") { Description = "The new major and minor, like 11.3." };
-		var command = new Command("tag", "Create the tag version/X.Y.0 on HEAD to start a new minor or major (local; push it yourself).")
+		var majorMinor = new Argument<string>("X.Y") { Description = Texts.Get("version.tag.argument") };
+		var command = new Command("tag", Texts.Get("version.tag"))
 		{
 			majorMinor
 		};
@@ -34,7 +34,7 @@ public static class VersionTagCommand
 		try
 		{
 			if (!VersionTagger.TryParseMajorMinor(settings.MajorMinor, out var major, out var minor))
-				throw new VersioningException(VersionTagger.InvalidArgument, $"'{settings.MajorMinor}' is not X.Y (two numbers, like 11.3).");
+				throw new VersioningException(VersionTagger.InvalidArgument, new(VersionTagger.InvalidArgument, settings.MajorMinor));
 			created = VersionTagger.Create(settings.Global.Directory, major, minor);
 		}
 		catch (VersioningException ex)
@@ -48,7 +48,7 @@ public static class VersionTagCommand
 		if (settings.Global.Output == OutputFormat.Json)
 			console.WriteJson(new VersionTagDocument(Schema, true, created.Name, created.Commit, []), FxConsole.JsonContext.VersionTagDocument);
 		else
-			console.Out.WriteLine($"Created {created.Name} on {created.Commit[..7]}. It is local: git push origin {created.Name}");
+			console.Out.WriteLine(Texts.Get("version.tag.created", created.Name, created.Commit[..7]));
 		return 0;
 	}
 }

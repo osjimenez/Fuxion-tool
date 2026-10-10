@@ -55,17 +55,22 @@ public static class VersioningErrorCodes
 	public const string GitFailed = "version.git-failed";
 }
 
-/// <summary>A versioning error. Its message starts with <c>Git versioning failed:</c>, as it always has.</summary>
-public sealed class VersioningException(string code, string message, Exception? inner = null)
-	: InvalidOperationException(message, inner)
+/// <summary>
+/// A versioning error, with its text for the user (<see cref="Text"/>); its message is that text in English (for
+/// MSBuild and the logs; the versioning ones start with <c>Git versioning failed:</c>, as they always have).
+/// </summary>
+public sealed class VersioningException(string code, FxText text, Exception? inner = null)
+	: InvalidOperationException(text.English, inner)
 {
 	public string Code { get; } = code;
 
+	public FxText Text { get; } = text;
+
 	/// <summary>The error as a diagnostic, with its fix when there is one.</summary>
-	public FxDiagnostic ToDiagnostic() => FxDiagnostic.Error(Code, Message, fix: Code switch
+	public FxDiagnostic ToDiagnostic() => FxDiagnostic.Error(Code, Text, fix: Code switch
 	{
-		VersioningErrorCodes.NoTag => new FxFix("fx version tag <X.Y>", "Start the versioning with a base tag."),
-		VersionTagger.TagNotNewer => FxFix.Do("Use a major and minor above the highest version tag."),
+		VersioningErrorCodes.NoTag => new FxFix("fx version tag <X.Y>", new($"{VersioningErrorCodes.NoTag}.fix")),
+		VersionTagger.TagNotNewer => FxFix.Do($"{VersionTagger.TagNotNewer}.fix"),
 		_ => null
 	});
 }

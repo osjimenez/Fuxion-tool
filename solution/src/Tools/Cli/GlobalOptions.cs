@@ -18,8 +18,8 @@ public sealed class GlobalOptions
 {
 	public Option<string?> Root { get; } = new("--root")
 	{
-		Description = "Folder to act on (the current one by default).",
-		HelpName = "path",
+		Description = Texts.Get("option.root"),
+		HelpName = Texts.Get("option.root.name"),
 		Recursive = true
 	};
 
@@ -27,13 +27,13 @@ public sealed class GlobalOptions
 
 	public Option<bool> Verbose { get; } = new("--verbose")
 	{
-		Description = "More detail, on stderr.",
+		Description = Texts.Get("option.verbose"),
 		Recursive = true
 	};
 
 	public Option<bool> Plain { get; } = new("--plain")
 	{
-		Description = "No colors or borders.",
+		Description = Texts.Get("option.plain"),
 		Recursive = true
 	};
 
@@ -41,8 +41,8 @@ public sealed class GlobalOptions
 	{
 		var option = new Option<string>("--output")
 		{
-			Description = "human (default) or json: a stable document on stdout.",
-			HelpName = "format",
+			Description = Texts.Get("option.output"),
+			HelpName = Texts.Get("option.output.name"),
 			Recursive = true,
 			DefaultValueFactory = _ => "human"
 		};
@@ -52,9 +52,24 @@ public sealed class GlobalOptions
 
 	public Option<bool> Workspace { get; } = new("--workspace", "-w")
 	{
-		Description = "Act on the whole workspace, from anywhere inside it.",
+		Description = Texts.Get("option.workspace"),
 		Recursive = true
 	};
+
+	/// <summary><c>--lang en|es</c>: read before the commands are built (<see cref="FxLanguage"/>); here for the help and to validate it.</summary>
+	public Option<string> Lang { get; } = CreateLang();
+
+	static Option<string> CreateLang()
+	{
+		var option = new Option<string>("--lang")
+		{
+			Description = Texts.Get("option.lang"),
+			HelpName = Texts.Get("option.lang.name"),
+			Recursive = true
+		};
+		option.AcceptOnlyFromAmong([.. FxLanguage.Supported]);
+		return option;
+	}
 
 	public void AddTo(Command command)
 	{
@@ -63,6 +78,7 @@ public sealed class GlobalOptions
 		command.Add(Output);
 		command.Add(Verbose);
 		command.Add(Plain);
+		command.Add(Lang);
 	}
 
 	public GlobalSettings Bind(ParseResult result, string currentDirectory)

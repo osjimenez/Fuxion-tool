@@ -62,8 +62,7 @@ public static class WorkspacePropsGenerator
 				if (projects.TryGetValue(name, out var existing))
 				{
 					if (!string.Equals(existing.Path, full, StringComparison.OrdinalIgnoreCase))
-						diagnostics.Add(FxDiagnostic.Warning(DuplicateProject,
-							$"Project '{name}' is in '{existing.Repository}' and in '{repo.Name}': FxReference uses the one of '{existing.Repository}'.", repository: repo.Name));
+						diagnostics.Add(FxDiagnostic.Warning(DuplicateProject, new(DuplicateProject, name, existing.Repository, repo.Name), repository: repo.Name));
 					continue;
 				}
 				projects[name] = (full, repo.Name);

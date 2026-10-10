@@ -17,10 +17,10 @@ public sealed record JsonDiagnostic(string Code, string Severity, string Module,
 		SeverityName(d.Severity),
 		d.Module,
 		d.Repository,
-		d.Message,
+		d.Message.English,
 		d.File,
 		d.Line,
-		d.Fix is null ? null : new(d.Fix.Command, d.Fix.Hint));
+		d.Fix is null ? null : new(d.Fix.Command, d.Fix.Hint?.English));
 
 	public static IReadOnlyList<JsonDiagnostic> From(IEnumerable<FxDiagnostic> diagnostics) => diagnostics.Select(From).ToList();
 
@@ -43,7 +43,7 @@ public sealed record JsonModule(string Module, string Root, string? Repository, 
 		m.Root,
 		m.Repository,
 		m.Files.Select(f => new JsonFile(f.Path, FileStatus(f.Status))).ToList(),
-		m.Actions.Select(a => new JsonRepositoryAction(a.Repository, a.Action, a.Detail)).ToList());
+		m.Actions.Select(a => new JsonRepositoryAction(a.Repository, a.Action, a.Detail?.English)).ToList());
 
 	public static string FileStatus(SyncFileStatus status) => status switch
 	{

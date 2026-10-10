@@ -16,8 +16,13 @@ fx doctor [dotnet]            check it, changing nothing
 fx version [--explain]        the version this repository would build now, and why
 fx version tag <X.Y>          create the tag version/X.Y.0 on HEAD (local; push it yourself)
 
-Global options: --root <path>, --output human|json, --verbose, --plain
+Global options: --root <path>, --output human|json, --verbose, --plain, --lang en|es
 ```
+
+- **Languages**: the messages to the user are in English or Spanish: `--lang`, else `FX_LANG`, else the system's
+  (Windows' UI language; `LC_ALL`, `LC_MESSAGES`, `LANG` and `LANGUAGE` elsewhere), else English. Codes, commands and
+  JSON are always English. The texts are in `Resources/Strings.resx` and `Strings.es.resx` of `Tools.Core` and `Tools`;
+  with native AOT both languages are inside the single exe.
 
 - **`_fx/dotnet.yaml`** is the single place for target frameworks, conditions and the packages that must be the same
   everywhere: `sdks` (written to `msbuild-sdks` in `global.json`), `variables` (a `value`, or a `when` condition) and

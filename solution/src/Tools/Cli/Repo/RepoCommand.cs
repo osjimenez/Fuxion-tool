@@ -12,21 +12,20 @@ public static class RepoCommand
 {
 	public static Command Create(GlobalOptions global, string currentDirectory)
 	{
-		var command = new Command("repo", "The repositories of the workspace.");
+		var command = new Command("repo", Texts.Get("repo"));
 
-		var list = new Command("list", "The repositories of the manifest: mount point, policy and whether they are mounted.");
+		var list = new Command("list", Texts.Get("repo.list"));
 		list.SetAction(result => List(Console(result, global, currentDirectory), withStatus: false));
 		command.Add(list);
 
-		var status = new Command("status", "The mounted repositories: branch, commits ahead and behind, changes.");
+		var status = new Command("status", Texts.Get("repo.status"));
 		status.SetAction(result => List(Console(result, global, currentDirectory), withStatus: true));
 		command.Add(status);
 
 		foreach (var mounted in new[] { true, false })
 		{
-			var names = new Argument<string[]>("names") { Description = "Repositories of the manifest.", Arity = ArgumentArity.OneOrMore };
-			var mount = new Command(mounted ? "mount" : "unmount",
-				mounted ? "Mount repositories: fx sync clones what is missing." : "Unmount repositories: fx stops managing them; nothing is deleted.")
+			var names = new Argument<string[]>("names") { Description = Texts.Get("repo.names"), Arity = ArgumentArity.OneOrMore };
+			var mount = new Command(mounted ? "mount" : "unmount", Texts.Get(mounted ? "repo.mount" : "repo.unmount"))
 			{
 				names
 			};
@@ -34,8 +33,8 @@ public static class RepoCommand
 			command.Add(mount);
 		}
 
-		var only = new Option<string[]>("--repo") { Description = "Only these repositories.", AllowMultipleArgumentsPerToken = true };
-		var pull = new Command("pull", "Fast-forward the mounted repositories that have a clean working tree.") { only };
+		var only = new Option<string[]>("--repo") { Description = Texts.Get("repo.only"), AllowMultipleArgumentsPerToken = true };
+		var pull = new Command("pull", Texts.Get("repo.pull")) { only };
 		pull.SetAction(result => Pull(Console(result, global, currentDirectory), result.GetValue(only) ?? []));
 		command.Add(pull);
 		return command;
@@ -88,17 +87,19 @@ public static class RepoCommand
 			table.Border(TableBorder.None);
 		if (withStatus)
 		{
-			table.AddColumns("Repository", "Branch", "Ahead", "Behind", "Changes");
+			table.AddColumns(Texts.Get("repo.column.repository"), Texts.Get("repo.column.branch"), Texts.Get("repo.column.ahead"),
+				Texts.Get("repo.column.behind"), Texts.Get("repo.column.changes"));
 			foreach (var r in repositories)
-				table.AddRow(r.Repository.Name, r.Status?.Branch ?? (r.Present ? "(detached)" : "(not cloned)"),
+				table.AddRow(r.Repository.Name, r.Status?.Branch ?? Texts.Get(r.Present ? "repo.detached" : "repo.not-cloned"),
 					r.Status?.Ahead.ToString() ?? "", r.Status?.Behind.ToString() ?? "", r.Status?.Changes.ToString() ?? "");
 		}
 		else
 		{
-			table.AddColumns("Repository", "Path", "Mount", "Mounted", "Cloned");
+			table.AddColumns(Texts.Get("repo.column.repository"), Texts.Get("repo.column.path"), Texts.Get("repo.column.mount"),
+				Texts.Get("repo.column.mounted"), Texts.Get("repo.column.cloned"));
 			foreach (var r in repositories)
 				table.AddRow(r.Repository.Name, r.Repository.Path, r.Repository.Mount == MountPolicy.Mandatory ? "mandatory" : "manual",
-					r.Mounted ? "yes" : "no", r.Present ? "yes" : "no");
+					Texts.Get(r.Mounted ? "yes" : "no"), Texts.Get(r.Present ? "yes" : "no"));
 		}
 		console.Out.Write(table);
 		return 0;
@@ -115,9 +116,7 @@ public static class RepoCommand
 		if (console.Settings.Output == OutputFormat.Json)
 			Json(diagnostics);
 		else if (diagnostics.Count == 0)
-			console.Out.WriteLine(mounted
-				? $"Mounted: {string.Join(", ", names)}. Run fx sync to clone what is missing."
-				: $"Unmounted: {string.Join(", ", names)}. Nothing was deleted.");
+			console.Out.WriteLine(Texts.Get(mounted ? "repo.mounted" : "repo.unmounted", string.Join(", ", names)));
 		return console.Report(diagnostics);
 	}
 
@@ -126,7 +125,7 @@ public static class RepoCommand
 		const string schema = "fx-repo-pull/1";
 		void Json(IReadOnlyList<RepositoryAction> actions, IReadOnlyList<FxDiagnostic> diagnostics)
 			=> console.WriteJson(new PullDocument(schema, FxConsole.Ok(diagnostics),
-					actions.Select(a => new JsonRepositoryAction(a.Repository, a.Action, a.Detail)).ToList(), JsonDiagnostic.From(diagnostics)),
+					actions.Select(a => new JsonRepositoryAction(a.Repository, a.Action, a.Detail?.English)).ToList(), JsonDiagnostic.From(diagnostics)),
 				FxConsole.JsonContext.PullDocument);
 		if (Manifest(console, errors => Json([], errors)) is not { } manifest)
 			return 1;
@@ -135,7 +134,7 @@ public static class RepoCommand
 			Json(result.Actions, result.Diagnostics);
 		else
 			foreach (var a in result.Actions)
-				console.Out.WriteLine($"{a.Action,-8} {a.Repository}{(a.Detail is null ? "" : $" ({a.Detail})")}");
+				console.Out.WriteLine($"{Texts.Get($"action.{a.Action}"),-8} {a.Repository}{(a.Detail is null ? "" : $" ({a.Detail})")}");
 		return console.Report(result.Diagnostics);
 	}
 }

@@ -64,7 +64,7 @@ public static class WorkspaceModule
 	{
 		var root = WorkspaceManifest.FindRoot(directory);
 		if (root is null)
-			return (null, FxDiagnostic.Error(NotAWorkspace, $"'{directory}' is not inside a workspace (no _fx/workspace.yaml above it)."));
+			return (null, FxDiagnostic.Error(NotAWorkspace, new(NotAWorkspace, directory)));
 		try
 		{
 			return (WorkspaceManifest.Load(root), null);
@@ -127,7 +127,7 @@ public static class WorkspaceModule
 			{
 				if (doctor || options.DryRun || options.Offline)
 				{
-					diagnostics.Add(FxDiagnostic.Error(Missing, $"'{name}' is mounted but not cloned at {repo.Repository.Path}.", WorkspaceManifest.RelativePath, repo.Repository.Line,
+					diagnostics.Add(FxDiagnostic.Error(Missing, new(Missing, name, repo.Repository.Path), WorkspaceManifest.RelativePath, repo.Repository.Line,
 						name, FxFix.Run(SyncCommand)));
 					actions.Add(new(name, "missing"));
 					continue;
@@ -135,7 +135,7 @@ public static class WorkspaceModule
 				var clone = progress.Step(Name, name, "clone", () => GitClient.Clone(repo.Repository.Url!, repo.FullPath, CloneTimeout), c => c.ExitCode == 0);
 				if (clone.ExitCode != 0)
 				{
-					diagnostics.Add(FxDiagnostic.Error(CloneFailed, $"'{name}' could not be cloned from {repo.Repository.Url}: {clone.StandardError.Trim()}", repository: name));
+					diagnostics.Add(FxDiagnostic.Error(CloneFailed, new(CloneFailed, name, repo.Repository.Url, clone.StandardError.Trim()), repository: name));
 					actions.Add(new(name, "clone-failed"));
 					continue;
 				}
@@ -146,13 +146,13 @@ public static class WorkspaceModule
 			var git = GitClient.Discover(repo.FullPath);
 			if (git is null || !string.Equals(Path.TrimEndingDirectorySeparator(git.Root), Path.TrimEndingDirectorySeparator(repo.FullPath), StringComparison.OrdinalIgnoreCase))
 			{
-				diagnostics.Add(FxDiagnostic.Error(NotARepository, $"'{name}': {repo.Repository.Path} is not a git repository.", repository: name));
+				diagnostics.Add(FxDiagnostic.Error(NotARepository, new(NotARepository, name, repo.Repository.Path), repository: name));
 				continue;
 			}
 			var origin = git.RemoteUrl("origin");
 			if (!SameUrl(origin, repo.Repository.Url))
 			{
-				diagnostics.Add(FxDiagnostic.Warning(OriginMismatch, $"'{name}': origin is '{origin}', the manifest says '{repo.Repository.Url}'; not fetched.", repository: name,
+				diagnostics.Add(FxDiagnostic.Warning(OriginMismatch, new(OriginMismatch, name, origin, repo.Repository.Url), repository: name,
 					fix: FxFix.Run($"git -C {repo.Repository.Path} remote set-url origin {repo.Repository.Url}")));
 				continue;
 			}
@@ -165,13 +165,13 @@ public static class WorkspaceModule
 			{
 				var name = toFetch[i].Info.Repository.Name;
 				var fetch = progress.Step(Name, name, "fetch", () => toFetch[i].Git.Fetch(FetchTimeout), f => f.ExitCode == 0);
-				results[i] = fetch.ExitCode == 0 ? new(name, "fetched") : new(name, "fetch-failed", fetch.StandardError.Trim());
+				results[i] = fetch.ExitCode == 0 ? new(name, "fetched") : new(name, "fetch-failed", FxText.Plain(fetch.StandardError.Trim()));
 			});
 			foreach (var result in results.OfType<RepositoryAction>())
 			{
 				actions.Add(result);
 				if (result.Action == "fetch-failed")
-					diagnostics.Add(FxDiagnostic.Warning(FetchFailed, $"'{result.Repository}' could not be fetched: {result.Detail}", repository: result.Repository));
+					diagnostics.Add(FxDiagnostic.Warning(FetchFailed, new(FetchFailed, result.Repository, result.Detail), repository: result.Repository));
 			}
 		}
 
@@ -181,8 +181,7 @@ public static class WorkspaceModule
 			var candidate = Path.Combine(dir, "repo");
 			var relative = Path.GetRelativePath(root, candidate).Replace('\\', '/');
 			if (Directory.Exists(Path.Combine(candidate, ".git")) && !manifest.Repositories.Any(r => string.Equals(r.Path, relative, StringComparison.OrdinalIgnoreCase)))
-				diagnostics.Add(FxDiagnostic.Warning(Orphan, $"{relative} is a clone the manifest does not list.",
-					fix: FxFix.Do("Add it to _fx/workspace.yaml, or move it out of the workspace.")));
+				diagnostics.Add(FxDiagnostic.Warning(Orphan, new(Orphan, relative), fix: FxFix.Do($"{Orphan}.fix")));
 		}
 
 		// 4. The generated files of the metarepo
@@ -219,10 +218,8 @@ public static class WorkspaceModule
 			foreach (var file in git.ListFiles(":(glob)**/*.csproj", ":(glob)**/*.props", ":(glob)**/*.targets"))
 				foreach (var (reference, line) in FxReferences(Path.Combine(git.Root, file)))
 					if (projects.TryGetValue(reference, out var target) && standalone.TryGetValue(target.Repository, out var isStandalone) && !isStandalone)
-						diagnostics.Add(FxDiagnostic.Error(StandaloneReference,
-							$"'{repo.Name}' is standalone, but it references {reference} of '{target.Repository}', which is not: outside the workspace it cannot be a package.",
-							$"{repo.Path}/{file}", line, repo.Name,
-							FxFix.Do("Mark the reference WorkspaceOnly=\"true\", or make the referenced repository standalone.")));
+						diagnostics.Add(FxDiagnostic.Error(StandaloneReference, new(StandaloneReference, repo.Name, reference, target.Repository),
+							$"{repo.Path}/{file}", line, repo.Name, FxFix.Do($"{StandaloneReference}.fix")));
 		}
 	}
 
@@ -257,11 +254,11 @@ public static class WorkspaceModule
 			// the generated files of a repository: its own fx doctor dotnet already reported them
 			var inRepository = repositoryPaths.Any(p => file.Path.StartsWith(p, StringComparison.OrdinalIgnoreCase));
 			if (file.Path.Contains("/_fx/.workspace/", StringComparison.OrdinalIgnoreCase))
-				diagnostics.Add(FxDiagnostic.Error(Outdated, "Out of date with the workspace's _fx/dotnet.yaml and _fx/dotnet/.", file.Path, fix: FxFix.Run(SyncCommand)));
+				diagnostics.Add(FxDiagnostic.Error(Outdated, new($"{Outdated}.workspace-layer"), file.Path, fix: FxFix.Run(SyncCommand)));
 			else if (!inRepository)
 				diagnostics.Add(file.Path is SolutionGenerator.FileName or WorkspacePropsGenerator.FileName
-					? FxDiagnostic.Warning(Outdated, "Out of date with the manifest and the solutions of the repositories.", file.Path, fix: FxFix.Run(SyncCommand))
-					: FxDiagnostic.Error(Outdated, "Out of date with _fx/workspace.yaml.", file.Path, fix: FxFix.Run(SyncCommand)));
+					? FxDiagnostic.Warning(Outdated, new($"{Outdated}.solutions"), file.Path, fix: FxFix.Run(SyncCommand))
+					: FxDiagnostic.Error(Outdated, new($"{Outdated}.manifest"), file.Path, fix: FxFix.Run(SyncCommand)));
 		}
 
 		var metarepo = GitClient.Discover(manifest.Root);
@@ -271,19 +268,19 @@ public static class WorkspaceModule
 			var name = repo.Repository.Name;
 			// a mounted repository the metarepo does not ignore would be added to it by the next git add (design D-12)
 			if (metarepo is not null && !metarepo.Ignores(repo.Repository.Path + "/"))
-				diagnostics.Add(FxDiagnostic.Error(NotIgnored, $"'{name}': the metarepo does not ignore {repo.Repository.Path}; a git add would take it in.", ".gitignore",
+				diagnostics.Add(FxDiagnostic.Error(NotIgnored, new(NotIgnored, name, repo.Repository.Path), ".gitignore",
 					repository: name, fix: FxFix.Run(SyncCommand)));
 			if (progress.Step(Name, name, "status", () => GitClient.Discover(repo.FullPath)?.Status(), s => s is not null) is not { } status)
 				return;
 			if (status.Changes > 0)
-				diagnostics.Add(FxDiagnostic.Warning(Dirty, $"'{name}' has {status.Changes} uncommitted change(s).", repository: name));
+				diagnostics.Add(FxDiagnostic.Warning(Dirty, new(Dirty, name, status.Changes), repository: name));
 			if (status.Detached)
-				diagnostics.Add(FxDiagnostic.Warning(Detached, $"'{name}' has a detached HEAD.", repository: name));
+				diagnostics.Add(FxDiagnostic.Warning(Detached, new(Detached, name), repository: name));
 			else if (status.Upstream is null)
-				diagnostics.Add(FxDiagnostic.Warning(NoUpstream, $"'{name}': branch '{status.Branch}' has no upstream.", repository: name,
+				diagnostics.Add(FxDiagnostic.Warning(NoUpstream, new(NoUpstream, name, status.Branch), repository: name,
 					fix: FxFix.Run($"git -C {repo.Repository.Path} push -u origin {status.Branch}")));
 			else if (status.Ahead > 0)
-				diagnostics.Add(FxDiagnostic.Warning(Unpushed, $"'{name}': {status.Ahead} commit(s) of '{status.Branch}' not pushed.", repository: name,
+				diagnostics.Add(FxDiagnostic.Warning(Unpushed, new(Unpushed, name, status.Ahead, status.Branch), repository: name,
 					fix: FxFix.Run($"git -C {repo.Repository.Path} push")));
 		});
 		if (offline)
@@ -291,8 +288,7 @@ public static class WorkspaceModule
 		Parallel.ForEach(repositories.Where(r => r.Mounted && r.Repository.Url is not null), new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = cancellationToken }, repo =>
 		{
 			if (progress.Step(Name, repo.Repository.Name, "remote", () => GitClient.LsRemote(repo.Repository.Url!, RemoteTimeout), r => r.ExitCode == 0).ExitCode != 0)
-				diagnostics.Add(FxDiagnostic.Warning(Unreachable, $"'{repo.Repository.Name}': {repo.Repository.Url} does not answer (network, VPN or access).",
-					repository: repo.Repository.Name));
+				diagnostics.Add(FxDiagnostic.Warning(Unreachable, new(Unreachable, repo.Repository.Name, repo.Repository.Url), repository: repo.Repository.Name));
 		});
 	}
 
@@ -332,8 +328,8 @@ public static class WorkspaceModule
 			if (!current.Contains("GENERATED by fx", StringComparison.Ordinal) && !adopt)
 			{
 				files.Add(new(relative, SyncFileStatus.Refused));
-				diagnostics.Add(FxDiagnostic.Error(NotGenerated, "Not written: the file has no GENERATED header, so it is not fx's (design D-11).", relative,
-					fix: new FxFix($"{SyncCommand} --adopt", "If fx should take it over.")));
+				diagnostics.Add(FxDiagnostic.Error(NotGenerated, new("fx.not-generated"), relative,
+					fix: new FxFix($"{SyncCommand} --adopt", new($"{NotGenerated}.fix"))));
 				return;
 			}
 		}
@@ -369,9 +365,9 @@ public static class WorkspaceModule
 		{
 			var repo = manifest.Repositories.FirstOrDefault(r => string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase));
 			if (repo is null)
-				diagnostics.Add(FxDiagnostic.Error(UnknownRepository, $"The manifest has no repository '{name}'.", repository: name));
+				diagnostics.Add(FxDiagnostic.Error(UnknownRepository, new(UnknownRepository, name), repository: name));
 			else if (!mounted && repo.Mount == MountPolicy.Mandatory)
-				diagnostics.Add(FxDiagnostic.Error(UnknownRepository, $"'{repo.Name}' is mandatory: it is always mounted.", repository: repo.Name));
+				diagnostics.Add(FxDiagnostic.Error(UnknownRepository, new($"{UnknownRepository}.mandatory", repo.Name), repository: repo.Name));
 			else
 				state = state.With(repo.Name, mounted);
 		}
@@ -392,12 +388,12 @@ public static class WorkspaceModule
 			var name = repo.Repository.Name;
 			if (repo.Status is { Changes: > 0 })
 			{
-				actions.Add(new(name, "skipped", "uncommitted changes"));
+				actions.Add(new(name, "skipped", new("workspace.action.uncommitted-changes")));
 				continue;
 			}
 			if (repo.Status is { Detached: true } or { Upstream: null })
 			{
-				actions.Add(new(name, "skipped", "no branch with an upstream"));
+				actions.Add(new(name, "skipped", new("workspace.action.no-upstream")));
 				continue;
 			}
 			var pull = progress.Step(Name, name, "pull", () => GitClient.Discover(repo.FullPath)!.PullFastForward(TimeSpan.FromMinutes(2)), p => p.ExitCode == 0);
@@ -405,8 +401,8 @@ public static class WorkspaceModule
 				actions.Add(new(name, "pulled"));
 			else
 			{
-				actions.Add(new(name, "failed", pull.StandardError.Trim()));
-				diagnostics.Add(FxDiagnostic.Error(PullFailed, $"'{name}': {pull.StandardError.Trim()}", repository: name));
+				actions.Add(new(name, "failed", FxText.Plain(pull.StandardError.Trim())));
+				diagnostics.Add(FxDiagnostic.Error(PullFailed, new(PullFailed, name, pull.StandardError.Trim()), repository: name));
 			}
 		}
 		return new(Name, manifest.Root, null, [], actions, diagnostics.ToList());

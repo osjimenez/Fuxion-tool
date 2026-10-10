@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Fuxion.Tools.Core.Git;
+using Fuxion.Tools.Core.Results;
 
 namespace Fuxion.Tools.Core.Versioning;
 
@@ -30,9 +31,9 @@ public static class VersionTagger
 	public static CreatedVersionTag Create(string directory, int major, int minor)
 	{
 		var git = GitClient.Discover(directory)
-		          ?? throw new VersioningException(VersioningErrorCodes.RepositoryNotFound, $"Git repository not found in '{directory}'.");
+		          ?? throw new VersioningException(VersioningErrorCodes.RepositoryNotFound, new(VersioningErrorCodes.RepositoryNotFound, directory));
 		var head = git.Head()
-		           ?? throw new VersioningException(VersioningErrorCodes.NoCommits, "The repository has no commits to tag.");
+		           ?? throw new VersioningException(VersioningErrorCodes.NoCommits, new(VersioningErrorCodes.NoCommits));
 
 		var name = $"version/{major}.{minor}.0";
 		var requested = new SemanticVersion($"{major}.{minor}.0");
@@ -40,7 +41,7 @@ public static class VersionTagger
 			.Where(t => t.Name.StartsWith("version/", StringComparison.OrdinalIgnoreCase))
 			.ToList();
 		if (existing.Any(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase)))
-			throw new VersioningException(TagExists, $"The tag '{name}' already exists.");
+			throw new VersioningException(TagExists, new(TagExists, name));
 
 		var highest = existing
 			.Select(t => SemanticVersion.TryParse(t.Name["version/".Length..], out var v) ? (Tag: t, Version: v) : default)
@@ -48,7 +49,7 @@ public static class VersionTagger
 			.OrderByDescending(x => x.Version)
 			.FirstOrDefault();
 		if (highest.Version is not null && requested.CompareTo(highest.Version) <= 0)
-			throw new VersioningException(TagNotNewer, $"'{name}' is not newer than the highest version tag, '{highest.Tag.Name}'.");
+			throw new VersioningException(TagNotNewer, new(TagNotNewer, name, highest.Tag.Name));
 
 		git.CreateTag(name, head);
 		return new(name, head);

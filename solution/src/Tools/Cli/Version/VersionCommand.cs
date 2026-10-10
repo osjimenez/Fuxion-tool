@@ -15,8 +15,8 @@ public static class VersionCommand
 
 	public static Command Create(GlobalOptions global, string currentDirectory)
 	{
-		var explain = new Option<bool>("--explain") { Description = "Show how the version was calculated." };
-		var command = new Command("version", "The version this repository would build now, from its git history.")
+		var explain = new Option<bool>("--explain") { Description = Texts.Get("version.explain") };
+		var command = new Command("version", Texts.Get("version"))
 		{
 			explain,
 			VersionTagCommand.Create(global, currentDirectory)
@@ -77,24 +77,24 @@ public static class VersionCommand
 		var grid = new Grid().AddColumn(new GridColumn().NoWrap()).AddColumn();
 		void Row(string name, string value) => grid.AddRow(new Spectre.Console.Text(name, new Style(decoration: Decoration.Bold)), new Spectre.Console.Text(value));
 
-		Row("Version", props.Version);
-		Row("Informational", props.InformationalVersion);
-		Row("Assembly", props.AssemblyVersion);
+		Row(Texts.Get("version.row.version"), props.Version);
+		Row(Texts.Get("version.row.informational"), props.InformationalVersion);
+		Row(Texts.Get("version.row.assembly"), props.AssemblyVersion);
 		if (details is not null)
 		{
-			Row("Repository", details.Repository);
-			Row("Branch", details.Branch);
-			Row("Rule", $"{RuleName(details.Rule)}: {RuleDescription(details.Rule)}");
-			Row("HEAD", Short(details.Head));
-			Row("Tag", $"{details.TagName} at {Short(details.TagCommit)}");
+			Row(Texts.Get("version.row.repository"), details.Repository);
+			Row(Texts.Get("version.row.branch"), details.Branch);
+			Row(Texts.Get("version.row.rule"), $"{RuleName(details.Rule)}: {Texts.Get($"version.rule.{RuleName(details.Rule)}")}");
+			Row(Texts.Get("version.row.head"), Short(details.Head));
+			Row(Texts.Get("version.row.tag"), Texts.Get("version.tag-at", details.TagName, Short(details.TagCommit)));
 			if (details.Rule == GitVersionRule.Feature)
 			{
-				Row("Merge base", $"{Short(details.MergeBase!)} with {Short(details.StableTip)}");
-				Row("Tag → merge base", $"{details.CommitsSinceTag} commits");
-				Row("On the branch", $"{details.BranchCommits} commits since main was last merged");
+				Row(Texts.Get("version.row.merge-base"), Texts.Get("version.merge-base-with", Short(details.MergeBase!), Short(details.StableTip)));
+				Row(Texts.Get("version.row.tag-to-merge-base"), Texts.Get("version.commits", details.CommitsSinceTag));
+				Row(Texts.Get("version.row.on-the-branch"), Texts.Get("version.branch-commits", details.BranchCommits));
 			}
 			else
-				Row("Tag → HEAD", $"{details.CommitsSinceTag} commits");
+				Row(Texts.Get("version.row.tag-to-head"), Texts.Get("version.commits", details.CommitsSinceTag));
 		}
 		console.Write(grid);
 	}
@@ -107,16 +107,6 @@ public static class VersionCommand
 		GitVersionRule.Release => "release",
 		GitVersionRule.Preview => "preview",
 		_ => "other"
-	};
-
-	static string RuleDescription(GitVersionRule rule) => rule switch
-	{
-		GitVersionRule.Stable => "X.Y.{commits since the tag}",
-		GitVersionRule.Develop => "X.Y.{commits since the tag}-alpha",
-		GitVersionRule.Feature => "X.Y.{tag → merge base}-feature.{name}.{commits since main was last merged}",
-		GitVersionRule.Release => "{tag}-rc.{name}.{commits since the tag}",
-		GitVersionRule.Preview => "{tag}-preview.{name}.{commits since the tag}",
-		_ => "X.Y.{commits since the tag}-{branch}"
 	};
 
 	static string Short(string commit) => commit.Length > 7 ? commit[..7] : commit;
