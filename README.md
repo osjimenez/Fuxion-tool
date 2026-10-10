@@ -16,7 +16,7 @@ fx doctor [dotnet]            check it, changing nothing
 fx version [--explain]        the version this repository would build now, and why
 fx version tag <X.Y>          create the tag version/X.Y.0 on HEAD (local; push it yourself)
 
-Global options: --root <path>, --output human|json, --verbose, --plain, --lang en|es
+Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain, --non-interactive, --lang en|es
 ```
 
 - **Languages**: the messages to the user are in English or Spanish: `--lang`, else `FX_LANG`, else the system's
@@ -43,7 +43,13 @@ Global options: --root <path>, --output human|json, --verbose, --plain, --lang e
   severity (`error`, `warning`, `info`), its scope (`module`, `repository`), the message, where (`file`, `line`) and,
   when there is one, the `fix` (a `command` to run or a `hint`). Codes, commands and JSON are always in English. Exit
   code 1 only with errors.
-- `--verbose` writes each step of the core on stderr as it finishes (clone, fetch, status… per repository).
+- `--verbose` writes each step of the core on stderr as it finishes (clone, fetch, status… per repository), and the
+  `info` diagnostics.
+- `--output ndjson` writes one JSON event per line as the work goes on (`fx-events/1`: `start`, `step-started`,
+  `step-finished`, `diagnostic`); the last line is the command's document, as with `--output json`.
+- fx adapts to where it runs, without changing what it does: it only asks and animates in an interactive terminal
+  (not in CI, nor in a pipe, nor for a coding agent), and only uses colours where they can be shown.
+  `--non-interactive`, `--plain` and `--output` always win. Ctrl+C cancels: exit code 130.
 
 ## `Fuxion.Tools.Sdk`
 

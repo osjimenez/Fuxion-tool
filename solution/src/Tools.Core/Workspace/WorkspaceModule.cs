@@ -108,6 +108,7 @@ public static class WorkspaceModule
 			diagnostics.Add(error!);
 			return FxModuleResult.Stopped(Name, directory, null, diagnostics.ToList());
 		}
+		cancellationToken.ThrowIfCancellationRequested();
 		var root = manifest.Root;
 		var write = !options.DryRun;
 

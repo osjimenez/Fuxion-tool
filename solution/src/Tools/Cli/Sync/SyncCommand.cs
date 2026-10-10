@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using System.CommandLine;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Fuxion.Tools.Core.Dotnet;
 using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Workspace;
@@ -28,11 +30,11 @@ public static class SyncCommand
 		var offline = new Option<bool>("--offline") { Description = Texts.Get("sync.offline") };
 		var adopt = new Option<bool>("--adopt") { Description = Texts.Get("sync.adopt") };
 		var command = new Command("sync", Texts.Get("sync")) { module, dryRun, offline, adopt };
-		command.SetAction(result =>
+		command.SetAction((result, cancellationToken) =>
 		{
 			var settings = global.Bind(result, currentDirectory);
-			return Run(new(settings, result.GetValue(module), result.GetValue(dryRun), result.GetValue(offline), result.GetValue(adopt)),
-				new(result.InvocationConfiguration.Output, result.InvocationConfiguration.Error, settings), doctor: false);
+			return Task.FromResult(Run(new(settings, result.GetValue(module), result.GetValue(dryRun), result.GetValue(offline), result.GetValue(adopt)),
+				new(result.InvocationConfiguration.Output, result.InvocationConfiguration.Error, settings), doctor: false, cancellationToken));
 		});
 		return command;
 	}
@@ -42,11 +44,11 @@ public static class SyncCommand
 		var module = ModuleArgument();
 		var offline = new Option<bool>("--offline") { Description = Texts.Get("doctor.offline") };
 		var command = new Command("doctor", Texts.Get("doctor")) { module, offline };
-		command.SetAction(result =>
+		command.SetAction((result, cancellationToken) =>
 		{
 			var settings = global.Bind(result, currentDirectory);
-			return Run(new(settings, result.GetValue(module), DryRun: true, Offline: result.GetValue(offline)),
-				new(result.InvocationConfiguration.Output, result.InvocationConfiguration.Error, settings), doctor: true);
+			return Task.FromResult(Run(new(settings, result.GetValue(module), DryRun: true, Offline: result.GetValue(offline)),
+				new(result.InvocationConfiguration.Output, result.InvocationConfiguration.Error, settings), doctor: true, cancellationToken));
 		});
 		return command;
 	}
@@ -58,7 +60,10 @@ public static class SyncCommand
 		return argument;
 	}
 
-	public static int Run(ModuleSettings settings, FxConsole console, bool doctor)
+	public static int Run(ModuleSettings settings, FxConsole console, bool doctor, CancellationToken cancellationToken = default)
+		=> console.Run(() => Execute(settings, console, doctor, cancellationToken));
+
+	static int Execute(ModuleSettings settings, FxConsole console, bool doctor, CancellationToken cancellationToken)
 	{
 		var schema = doctor ? DoctorSchema : SyncSchema;
 		var directory = settings.Global.Directory;
@@ -68,17 +73,17 @@ public static class SyncCommand
 		var modules = new List<FxModuleResult>();
 		if (runWorkspace)
 			modules.Add(doctor
-				? WorkspaceModule.Doctor(directory, settings.Offline, progress)
-				: WorkspaceModule.Sync(directory, new(settings.DryRun, settings.Offline, settings.Adopt), progress));
+				? WorkspaceModule.Doctor(directory, settings.Offline, progress, cancellationToken)
+				: WorkspaceModule.Sync(directory, new(settings.DryRun, settings.Offline, settings.Adopt), progress, cancellationToken));
 		if (runDotnet)
 			modules.Add(doctor ? DotnetModule.Doctor(directory, progress) : DotnetModule.Sync(directory, settings.DryRun, progress));
 		var diagnostics = modules.SelectMany(m => m.Diagnostics).ToList();
 		if (modules.Count == 0)
 			diagnostics.Add(FxDiagnostic.Info(NothingToDo, new FxText(NothingToDo)));
 
-		if (settings.Global.Output == OutputFormat.Json)
+		if (settings.Global.IsMachine)
 			console.WriteJson(new SyncDocument(schema, FxConsole.Ok(diagnostics), modules.Select(JsonModule.From).ToList(), JsonDiagnostic.From(diagnostics)),
-				FxConsole.JsonContext.SyncDocument);
+				c => c.SyncDocument);
 		else
 			foreach (var module in modules)
 				WriteHuman(console, module, doctor, settings.DryRun);

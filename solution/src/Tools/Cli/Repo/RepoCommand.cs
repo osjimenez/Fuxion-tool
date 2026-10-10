@@ -1,6 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.CommandLine;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Workspace;
 using Spectre.Console;
@@ -15,11 +18,11 @@ public static class RepoCommand
 		var command = new Command("repo", Texts.Get("repo"));
 
 		var list = new Command("list", Texts.Get("repo.list"));
-		list.SetAction(result => List(Console(result, global, currentDirectory), withStatus: false));
+		list.SetAction((result, cancellationToken) => Run(result, global, currentDirectory, console => List(console, withStatus: false, cancellationToken)));
 		command.Add(list);
 
 		var status = new Command("status", Texts.Get("repo.status"));
-		status.SetAction(result => List(Console(result, global, currentDirectory), withStatus: true));
+		status.SetAction((result, cancellationToken) => Run(result, global, currentDirectory, console => List(console, withStatus: true, cancellationToken)));
 		command.Add(status);
 
 		foreach (var mounted in new[] { true, false })
@@ -35,13 +38,20 @@ public static class RepoCommand
 
 		var only = new Option<string[]>("--repo") { Description = Texts.Get("repo.only"), AllowMultipleArgumentsPerToken = true };
 		var pull = new Command("pull", Texts.Get("repo.pull")) { only };
-		pull.SetAction(result => Pull(Console(result, global, currentDirectory), result.GetValue(only) ?? []));
+		pull.SetAction((result, cancellationToken) => Run(result, global, currentDirectory, console => Pull(console, result.GetValue(only) ?? [], cancellationToken)));
 		command.Add(pull);
 		return command;
 	}
 
 	static FxConsole Console(ParseResult result, GlobalOptions global, string currentDirectory)
 		=> new(result.InvocationConfiguration.Output, result.InvocationConfiguration.Error, global.Bind(result, currentDirectory));
+
+	/// <summary>A command that can take a while (git on every repository): Ctrl+C cancels it.</summary>
+	static Task<int> Run(ParseResult result, GlobalOptions global, string currentDirectory, Func<FxConsole, int> command)
+	{
+		var console = Console(result, global, currentDirectory);
+		return Task.FromResult(console.Run(() => command(console)));
+	}
 
 	/// <summary>The manifest, or the error written as the command's document.</summary>
 	static WorkspaceManifest? Manifest(FxConsole console, System.Action<IReadOnlyList<FxDiagnostic>> writeJson)
@@ -50,22 +60,22 @@ public static class RepoCommand
 		if (manifest is not null)
 			return manifest;
 		FxDiagnostic[] errors = [error!];
-		if (console.Settings.Output == OutputFormat.Json)
+		if (console.Settings.IsMachine)
 			writeJson(errors);
 		console.Report(errors);
 		return null;
 	}
 
-	static int List(FxConsole console, bool withStatus)
+	static int List(FxConsole console, bool withStatus, CancellationToken cancellationToken)
 	{
 		var schema = withStatus ? "fx-repo-status/1" : "fx-repo-list/1";
 		void Json(IReadOnlyList<JsonRepository> repositories, IReadOnlyList<FxDiagnostic> diagnostics)
 			=> console.WriteJson(new RepositoriesDocument(schema, FxConsole.Ok(diagnostics), repositories, JsonDiagnostic.From(diagnostics)),
-				FxConsole.JsonContext.RepositoriesDocument);
+				c => c.RepositoriesDocument);
 		if (Manifest(console, errors => Json([], errors)) is not { } manifest)
 			return 1;
-		var repositories = WorkspaceModule.Repositories(manifest, withStatus, console.Progress).Where(r => !withStatus || r.Mounted).ToList();
-		if (console.Settings.Output == OutputFormat.Json)
+		var repositories = WorkspaceModule.Repositories(manifest, withStatus, console.Progress, cancellationToken).Where(r => !withStatus || r.Mounted).ToList();
+		if (console.Settings.IsMachine)
 		{
 			Json(repositories.Select(r => new JsonRepository(
 				r.Repository.Name,
@@ -109,28 +119,28 @@ public static class RepoCommand
 	{
 		const string schema = "fx-repo-mount/1";
 		void Json(IReadOnlyList<FxDiagnostic> diagnostics)
-			=> console.WriteJson(new MountDocument(schema, FxConsole.Ok(diagnostics), JsonDiagnostic.From(diagnostics)), FxConsole.JsonContext.MountDocument);
+			=> console.WriteJson(new MountDocument(schema, FxConsole.Ok(diagnostics), JsonDiagnostic.From(diagnostics)), c => c.MountDocument);
 		if (Manifest(console, Json) is not { } manifest)
 			return 1;
 		var diagnostics = WorkspaceModule.SetMount(manifest, names, mounted);
-		if (console.Settings.Output == OutputFormat.Json)
+		if (console.Settings.IsMachine)
 			Json(diagnostics);
 		else if (diagnostics.Count == 0)
 			console.Out.WriteLine(Texts.Get(mounted ? "repo.mounted" : "repo.unmounted", string.Join(", ", names)));
 		return console.Report(diagnostics);
 	}
 
-	static int Pull(FxConsole console, IReadOnlyCollection<string> only)
+	static int Pull(FxConsole console, IReadOnlyCollection<string> only, CancellationToken cancellationToken)
 	{
 		const string schema = "fx-repo-pull/1";
 		void Json(IReadOnlyList<RepositoryAction> actions, IReadOnlyList<FxDiagnostic> diagnostics)
 			=> console.WriteJson(new PullDocument(schema, FxConsole.Ok(diagnostics),
 					actions.Select(a => new JsonRepositoryAction(a.Repository, a.Action, a.Detail?.English)).ToList(), JsonDiagnostic.From(diagnostics)),
-				FxConsole.JsonContext.PullDocument);
+				c => c.PullDocument);
 		if (Manifest(console, errors => Json([], errors)) is not { } manifest)
 			return 1;
-		var result = WorkspaceModule.Pull(manifest, only, console.Progress);
-		if (console.Settings.Output == OutputFormat.Json)
+		var result = WorkspaceModule.Pull(manifest, only, console.Progress, cancellationToken);
+		if (console.Settings.IsMachine)
 			Json(result.Actions, result.Diagnostics);
 		else
 			foreach (var a in result.Actions)

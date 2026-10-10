@@ -5,13 +5,23 @@ namespace Fuxion.Tools.Cli;
 
 public enum OutputFormat
 {
+	/// <summary>For people: rich in an interactive terminal, plain elsewhere.</summary>
 	Human,
-	Json
+
+	/// <summary>One JSON document on stdout, with a versioned schema.</summary>
+	Json,
+
+	/// <summary>One JSON event per line as the work goes on; the last line is the document of <see cref="Json"/>.</summary>
+	Ndjson
 }
 
 /// <summary>The options every command accepts (design §10.2), already bound.</summary>
 /// <param name="Directory">Where the command acts: <c>--root</c>, or the current directory.</param>
-public sealed record GlobalSettings(string Directory, OutputFormat Output, bool Verbose, bool Plain);
+public sealed record GlobalSettings(string Directory, OutputFormat Output, bool Verbose, bool Plain, bool NonInteractive = false)
+{
+	/// <summary>The output is for a machine (JSON or NDJSON): no human text on stdout.</summary>
+	public bool IsMachine => Output != OutputFormat.Human;
+}
 
 /// <summary>The global options, declared once and recursive, and their binder.</summary>
 public sealed class GlobalOptions
@@ -25,7 +35,7 @@ public sealed class GlobalOptions
 
 	public Option<string> Output { get; } = CreateOutput();
 
-	public Option<bool> Verbose { get; } = new("--verbose")
+	public Option<bool> Verbose { get; } = new("--verbose", "-v")
 	{
 		Description = Texts.Get("option.verbose"),
 		Recursive = true
@@ -34,6 +44,13 @@ public sealed class GlobalOptions
 	public Option<bool> Plain { get; } = new("--plain")
 	{
 		Description = Texts.Get("option.plain"),
+		Recursive = true
+	};
+
+	/// <summary>No questions and no live region, whatever the terminal (plan O, decision 4).</summary>
+	public Option<bool> NonInteractive { get; } = new("--non-interactive")
+	{
+		Description = Texts.Get("option.non-interactive"),
 		Recursive = true
 	};
 
@@ -46,7 +63,7 @@ public sealed class GlobalOptions
 			Recursive = true,
 			DefaultValueFactory = _ => "human"
 		};
-		option.AcceptOnlyFromAmong("human", "json");
+		option.AcceptOnlyFromAmong("human", "json", "ndjson");
 		return option;
 	}
 
@@ -78,6 +95,7 @@ public sealed class GlobalOptions
 		command.Add(Output);
 		command.Add(Verbose);
 		command.Add(Plain);
+		command.Add(NonInteractive);
 		command.Add(Lang);
 	}
 
@@ -89,8 +107,14 @@ public sealed class GlobalOptions
 			directory = workspace;
 		return new(
 			directory,
-			result.GetValue(Output) == "json" ? OutputFormat.Json : OutputFormat.Human,
+			result.GetValue(Output) switch
+			{
+				"json" => OutputFormat.Json,
+				"ndjson" => OutputFormat.Ndjson,
+				_ => OutputFormat.Human
+			},
 			result.GetValue(Verbose),
-			result.GetValue(Plain));
+			result.GetValue(Plain),
+			result.GetValue(NonInteractive));
 	}
 }

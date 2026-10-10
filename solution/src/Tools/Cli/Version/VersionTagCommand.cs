@@ -40,13 +40,13 @@ public static class VersionTagCommand
 		catch (VersioningException ex)
 		{
 			FxDiagnostic[] errors = [ex.ToDiagnostic()];
-			if (settings.Global.Output == OutputFormat.Json)
-				console.WriteJson(new VersionTagDocument(Schema, false, null, null, JsonDiagnostic.From(errors)), FxConsole.JsonContext.VersionTagDocument);
+			if (settings.Global.IsMachine)
+				console.WriteJson(new VersionTagDocument(Schema, false, null, null, JsonDiagnostic.From(errors)), c => c.VersionTagDocument);
 			return console.Report(errors);
 		}
 
-		if (settings.Global.Output == OutputFormat.Json)
-			console.WriteJson(new VersionTagDocument(Schema, true, created.Name, created.Commit, []), FxConsole.JsonContext.VersionTagDocument);
+		if (settings.Global.IsMachine)
+			console.WriteJson(new VersionTagDocument(Schema, true, created.Name, created.Commit, []), c => c.VersionTagDocument);
 		else
 			console.Out.WriteLine(Texts.Get("version.tag.created", created.Name, created.Commit[..7]));
 		return 0;

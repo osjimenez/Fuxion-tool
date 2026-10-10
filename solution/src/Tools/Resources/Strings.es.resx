@@ -25,6 +25,9 @@
   <data name="option.plain" xml:space="preserve">
     <value>Sin colores ni bordes.</value>
   </data>
+  <data name="option.non-interactive" xml:space="preserve">
+    <value>Sin preguntas ni progreso en vivo, sea cual sea la terminal (para scripts y el CI).</value>
+  </data>
   <data name="option.workspace" xml:space="preserve">
     <value>Actuar sobre todo el workspace, desde cualquier sitio dentro de él.</value>
   </data>
@@ -120,6 +123,9 @@
   </data>
   <data name="severity.info" xml:space="preserve">
     <value>info</value>
+  </data>
+  <data name="cancelled" xml:space="preserve">
+    <value>Cancelado.</value>
   </data>
   <data name="step.ok" xml:space="preserve">
     <value>bien</value>

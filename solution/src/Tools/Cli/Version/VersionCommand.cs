@@ -43,14 +43,14 @@ public static class VersionCommand
 		catch (VersioningException ex)
 		{
 			FxDiagnostic[] errors = [ex.ToDiagnostic()];
-			if (settings.Global.Output == OutputFormat.Json)
-				console.WriteJson(new VersionDocument(Schema, false, null, null, null, null, null, null, JsonDiagnostic.From(errors)), FxConsole.JsonContext.VersionDocument);
+			if (settings.Global.IsMachine)
+				console.WriteJson(new VersionDocument(Schema, false, null, null, null, null, null, null, JsonDiagnostic.From(errors)), c => c.VersionDocument);
 			return console.Report(errors);
 		}
 
 		var props = DefaultVersionPropsProvider.FromInputs(result.Inputs);
-		if (settings.Global.Output == OutputFormat.Json)
-			console.WriteJson(Document(props, result.Details), FxConsole.JsonContext.VersionDocument);
+		if (settings.Global.IsMachine)
+			console.WriteJson(Document(props, result.Details), c => c.VersionDocument);
 		else if (settings.Explain)
 			WriteExplanation(console.Out, props, result.Details);
 		else

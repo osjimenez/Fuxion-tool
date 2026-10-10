@@ -107,6 +107,15 @@ public sealed record VersionDocument(
 /// <summary><c>fx-version-tag/1</c>.</summary>
 public sealed record VersionTagDocument(string Schema, bool Ok, string? Tag, string? Commit, IReadOnlyList<JsonDiagnostic> Diagnostics);
 
+// The events of --output ndjson (fx-events/1): one per line, "type" first; the last line is the command's document.
+
+public sealed record JsonStartEvent(string Type, string Schema);
+
+/// <summary><c>step-started</c> and <c>step-finished</c> (this one with whether it succeeded and how long it took).</summary>
+public sealed record JsonStepEvent(string Type, string Module, string? Repository, string Step, bool? Succeeded, long? ElapsedMs);
+
+public sealed record JsonDiagnosticEvent(string Type, JsonDiagnostic Diagnostic);
+
 [JsonSourceGenerationOptions(
 	PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
 	DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -117,4 +126,7 @@ public sealed record VersionTagDocument(string Schema, bool Ok, string? Tag, str
 [JsonSerializable(typeof(PullDocument))]
 [JsonSerializable(typeof(VersionDocument))]
 [JsonSerializable(typeof(VersionTagDocument))]
+[JsonSerializable(typeof(JsonStartEvent))]
+[JsonSerializable(typeof(JsonStepEvent))]
+[JsonSerializable(typeof(JsonDiagnosticEvent))]
 public sealed partial class FxJsonContext : JsonSerializerContext;
