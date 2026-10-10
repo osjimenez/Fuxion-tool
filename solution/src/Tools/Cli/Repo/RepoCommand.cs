@@ -184,7 +184,7 @@ public static class RepoCommand
 		if (console.Settings.IsMachine)
 			Json(result.Actions, result.Diagnostics);
 		else
-			foreach (var a in result.Actions)
+			foreach (var a in console.NotShown(result.Actions))
 			{
 				var color = a.Action switch { "pulled" => "green", "failed" => "red", _ => "gray" };
 				console.Line($"[{color}]{FxConsole.Escape(Texts.Get($"action.{a.Action}")),-8}[/] {FxConsole.Escape(a.Repository)}{(a.Detail is null ? "" : $" [gray]({FxConsole.Escape(a.Detail.ToString())})[/]")}");

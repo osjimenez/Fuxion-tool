@@ -26,6 +26,9 @@ sealed class LiveSteps : IFxProgress
 {
 	static readonly HashSet<string> LongSteps = ["clone", "fetch", "pull", "remote"];
 
+	/// <summary>The actions of the core whose step stays as a line above the region: the result does not repeat them.</summary>
+	public static readonly HashSet<string> ShownActions = ["cloned", "clone-failed", "fetched", "fetch-failed", "pulled", "failed"];
+
 	readonly ConcurrentQueue<FxEvent> _events = new();
 	readonly List<(string Module, string? Repository, string Step, Stopwatch Clock)> _active = [];
 	readonly State<int> _version = new(0);

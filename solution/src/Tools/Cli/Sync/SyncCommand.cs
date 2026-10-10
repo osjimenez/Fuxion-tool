@@ -99,7 +99,7 @@ public static class SyncCommand
 
 	static void WriteHuman(FxConsole console, FxModuleResult module, bool dryRun)
 	{
-		foreach (var action in module.Actions)
+		foreach (var action in console.NotShown(module.Actions))
 		{
 			var color = action.Action.EndsWith("failed") || action.Action == "missing" ? "red" : "green";
 			console.Line($"[{color}]{FxConsole.Escape(Texts.Get($"action.{action.Action}")),-11}[/] {FxConsole.Escape(action.Repository)}");

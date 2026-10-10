@@ -76,6 +76,16 @@ public sealed partial class FxConsole
 	/// <summary>The progress of the core without a live region: NDJSON events, or each finished step on stderr (<c>--verbose</c>).</summary>
 	public IFxProgress? Progress { get; }
 
+	/// <summary>Whether <see cref="WithProgress{T}"/> showed the live region, so its long steps are already on screen.</summary>
+	public bool ShowedLiveRegion { get; private set; }
+
+	/// <summary>
+	/// The actions to write as the result: after the live region, not those whose step it left on screen (plan O,
+	/// decision 9: the progress stays above, the result does not repeat it).
+	/// </summary>
+	public IEnumerable<RepositoryAction> NotShown(IEnumerable<RepositoryAction> actions)
+		=> ShowedLiveRegion ? actions.Where(a => !LiveSteps.ShownActions.Contains(a.Action)) : actions;
+
 	/// <summary>A line of XenoAtom markup on stdout (<c>[green]✓[/]</c>), with colours or plain. Escape what is not fx's with <see cref="Escape"/>.</summary>
 	public void Line(string markup = "") => _stdout.WriteLine(Render(markup));
 
@@ -129,6 +139,7 @@ public sealed partial class FxConsole
 			return work(Progress, cancellationToken);
 		using var cancel = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 		var live = new LiveSteps(cancel);
+		ShowedLiveRegion = true;
 		var task = Task.Run(() => work(live, cancel.Token), cancel.Token);
 		using (XenoAtom.Terminal.Terminal.Open())
 			XenoAtom.Terminal.Terminal.Live(live.Root, context =>
