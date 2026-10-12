@@ -650,4 +650,26 @@ public sealed class DotnetTest
 		FxApp.Run(["doctor"], english, new StringWriter(), repo.Git.Path);
 		Assert.Contains("Out of date: fx sync would change it.", english.ToString());
 	}
+
+	[Fact(DisplayName = "a composed solution keeps the paths as its solutions write them, also under a '~' (a worktree), whatever the case on disk")]
+	public void Solution_PathsAsWritten()
+	{
+		// .NET takes a path with '~' for an 8.3 short name and, on Windows, gives it the case it has on disk
+		var root = Directory.CreateTempSubdirectory("fx~").FullName;
+		try
+		{
+			Directory.CreateDirectory(Path.Combine(root, "sub", "src", "xUnit"));
+			File.WriteAllText(Path.Combine(root, "sub", "src", "xUnit", "A.csproj"), "<Project />");
+			File.WriteAllText(Path.Combine(root, "sub", "Sub.slnx"), "<Solution>\n  <Project Path=\"src/Xunit/A.csproj\" />\n  <Project Path=\"./src/../src/Xunit/A.csproj\" />\n</Solution>\n");
+			var solution = new DotnetSolution("build/All.slnx", [new DotnetSolutionFolder("/sub", ["sub/Sub.slnx"], ["sub/Sub.slnx"], 1)], 1);
+			var composed = SolutionComposer.Compose(root, solution, null, new FxDiagnostics(), p => p);
+			Assert.Contains("<Project Path=\"../sub/src/Xunit/A.csproj\" />", composed);
+			Assert.Contains("<File Path=\"../sub/Sub.slnx\" />", composed);
+			Assert.Single(composed.Split('\n'), l => l.Contains("A.csproj"));
+		}
+		finally
+		{
+			Directory.Delete(root, recursive: true);
+		}
+	}
 }

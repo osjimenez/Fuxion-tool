@@ -35,8 +35,9 @@ public static class SolutionComposer
 
 	public static string Compose(string root, DotnetSolution solution, string? previous, FxDiagnostics diagnostics, Func<string, string> display)
 	{
-		var outFile = FxLayout.Full(root, solution.Path);
-		var outDir = Path.GetDirectoryName(outFile)!;
+		var outDir = Path.GetDirectoryName(FxLayout.Full(root, solution.Path))!;
+		// the folder of the solution, relative to the root: the paths in it are made as text (Relative)
+		var outFolder = Path.GetDirectoryName(solution.Path.Replace('\\', '/'))?.Replace('\\', '/') ?? "";
 		var platforms = new List<string>();
 		var buildTypes = new List<string>();
 		var folders = new SortedDictionary<string, List<XElement>>(StringComparer.Ordinal);
@@ -58,12 +59,13 @@ public static class SolutionComposer
 			return name.Length == 0 ? "/" : $"/{name}/";
 		}
 
-		void Add(XElement item, string folder, string fullPath)
+		// an item, by its path relative to the folder of the solution, as it is written
+		void Add(XElement item, string folder, string relative)
 		{
-			if (!seen.Add(fullPath))
+			if (!seen.Add(Path.GetFullPath(Path.Combine(outDir, relative))))
 				return;
 			var copy = new XElement(item);
-			copy.SetAttributeValue("Path", Path.GetRelativePath(outDir, fullPath).Replace('\\', '/'));
+			copy.SetAttributeValue("Path", relative);
 			Folder(folder).Add(copy);
 		}
 
@@ -82,11 +84,14 @@ public static class SolutionComposer
 			var folder = Join(declared.Name, "");
 			Folder(folder);
 			foreach (var file in declared.Files)
-				Add(new XElement("File"), folder, FxLayout.Full(root, file));
+				Add(new XElement("File"), folder, Relative(outFolder, file));
 			foreach (var sub in declared.Solutions)
 			{
 				var subFile = FxLayout.Full(root, sub);
-				var subDir = Path.GetDirectoryName(subFile)!;
+				var subFolder = Path.GetDirectoryName(sub.Replace('\\', '/'))?.Replace('\\', '/') ?? "";
+				string Item(string itemPath) => Path.IsPathRooted(itemPath)
+					? Path.GetRelativePath(outDir, itemPath).Replace('\\', '/')
+					: Relative(outFolder, $"{subFolder}/{itemPath}");
 				// what it is made of, on disk or not: the solution does not change with what is mounted (decision 13)
 				sources.Add(sub);
 				if (File.Exists(subFile) && Parse(File.ReadAllText(subFile)) is { } document)
@@ -94,27 +99,27 @@ public static class SolutionComposer
 					Configurations(document);
 					foreach (var item in Items(document))
 						if ((string?)item.Attribute("Path") is { } itemPath)
-							Add(item, folder, Path.GetFullPath(Path.Combine(subDir, itemPath)));
-					foreach (var subFolder in document.Elements("Folder"))
+							Add(item, folder, Item(itemPath));
+					foreach (var group in document.Elements("Folder"))
 					{
-						var name = Join(folder, (string?)subFolder.Attribute("Name") ?? "/");
+						var name = Join(folder, (string?)group.Attribute("Name") ?? "/");
 						Folder(name);
-						foreach (var item in Items(subFolder))
+						foreach (var item in Items(group))
 							if ((string?)item.Attribute("Path") is { } itemPath)
-								Add(item, name, Path.GetFullPath(Path.Combine(subDir, itemPath)));
+								Add(item, name, Item(itemPath));
 					}
 					continue;
 				}
 				// not on disk (not mounted): what the generated solution already had of it, under this folder: its items, its
 				// folders (the empty ones too) and its configurations
-				var prefix = Path.GetRelativePath(outDir, subDir).Replace('\\', '/').TrimEnd('/') + "/";
+				var prefix = Relative(outFolder, subFolder).TrimEnd('/') + "/";
 				var kept = previousDocument is null ? [] : PreviousItems(previousDocument, folder, prefix).ToList();
 				if (kept.Count == 0)
 					diagnostics.Add(FxDiagnostic.Warning(MissingSolution, new(MissingSolution, sub, solution.Path), display(FxLayout.Full(root, DotnetModule.ConfigFile)), declared.Line));
 				foreach (var (name, item) in kept)
 				{
 					Folder(name);
-					Add(item, name, Path.GetFullPath(Path.Combine(outDir, (string)item.Attribute("Path")!)));
+					Add(item, name, Normalize((string)item.Attribute("Path")!));
 				}
 				if (previousDocument is not null && folder != "/")
 				{
@@ -190,6 +195,35 @@ public static class SolutionComposer
 			if ((string?)f.Attribute("Name") is { } name && Under(name))
 				foreach (var item in Items(f).Where(Matches))
 					yield return (name, item);
+	}
+
+	/// <summary>A path with '/' and its '.' and '..' resolved, as text: the case stays as it is written.</summary>
+	static string Normalize(string path)
+	{
+		var parts = new List<string>();
+		foreach (var part in path.Replace('\\', '/').Split('/'))
+			if (part is "" or ".")
+				continue;
+			else if (part == ".." && parts.Count > 0 && parts[^1] != "..")
+				parts.RemoveAt(parts.Count - 1);
+			else
+				parts.Add(part);
+		return string.Join('/', parts);
+	}
+
+	/// <summary>
+	/// <paramref name="path"/> from <paramref name="folder"/>, both relative to the root, as text. Not with the disk: with a
+	/// '~' in a path (a worktree, in <c>_fx/~$worktrees/</c>) .NET takes it for an 8.3 short name and expands it, giving
+	/// each folder the case it has on disk, and the solution would change with where it is generated.
+	/// </summary>
+	static string Relative(string folder, string path)
+	{
+		var from = Normalize(folder).Split('/', StringSplitOptions.RemoveEmptyEntries);
+		var to = Normalize(path).Split('/', StringSplitOptions.RemoveEmptyEntries);
+		var common = 0;
+		while (common < from.Length && common < to.Length && string.Equals(from[common], to[common], StringComparison.OrdinalIgnoreCase))
+			common++;
+		return string.Join('/', Enumerable.Repeat("..", from.Length - common).Concat(to.Skip(common)));
 	}
 
 	static XElement? Parse(string? text)

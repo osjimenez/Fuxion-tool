@@ -179,6 +179,7 @@ public sealed class WorktreeTest : SampleTree
 		// the whole worktree
 		Ok(WorktreeModule.Remove(acme.Path, "feature/x", cancellationToken: Token));
 		Assert.False(Directory.Exists(root));
+		Assert.False(Directory.Exists(Path.Combine(acme.Path, "_fx", "~$worktrees")));
 		Assert.Empty(acme.Git("branch", "--list", "feature/x").Trim());
 		Assert.Empty(acme.Git("-C", Path.Combine(acme.Path, "libs", "shared"), "branch", "--list", "feature/x").Trim());
 		Assert.Empty(WorktreeModule.List(acme.Path));
@@ -219,6 +220,7 @@ public sealed class WorktreeTest : SampleTree
 			Assert.Equal("fix/l", Assert.Single(WorktreeModule.List(loose.Path)).Card.Branch);
 			Ok(WorktreeModule.Remove(loose.Path, "fix/l", cancellationToken: Token));
 			Assert.False(Directory.Exists(root));
+			Assert.False(Directory.Exists(Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(root))));
 		}
 		finally
 		{

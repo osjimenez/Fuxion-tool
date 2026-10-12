@@ -491,9 +491,12 @@ public static class WorktreeModule
 		var session = new Session(worktree.Root, worktree.Card, actions, diagnostics, progress, cancellationToken);
 		if (session.Remove(worktree.Card.Worktrees))
 		{
-			// what git leaves of it (fx's local files): the folder goes
+			// what git leaves of it (fx's local files): the folder goes, and the folder of the worktrees if it is left empty
 			if (Directory.Exists(worktree.Root))
 				Directory.Delete(worktree.Root, recursive: true);
+			var parent = Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(worktree.Root));
+			if (parent is not null && Directory.Exists(parent) && !Directory.EnumerateFileSystemEntries(parent).Any())
+				Directory.Delete(parent);
 		}
 		else if (Directory.Exists(worktree.Root))
 			session.Save();
