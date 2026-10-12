@@ -4,19 +4,21 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using Fuxion.Tools.Cli;
+using Fuxion.Tools.Core.Layout;
 using Fuxion.Tools.Core.Results;
-using Fuxion.Tools.Core.Dotnet;
+using Fuxion.Tools.Core.Sync;
 using Fuxion.Tools.Core.Workspace;
 using Xunit;
 
 namespace Fuxion.Tools.Test;
 
-/// <summary>The workspace module: manifest, local state, sync, doctor and fx repo (plan M).</summary>
+/// <summary>The workspace module and the sync of a tree: manifest, local state, inheritance, sync, doctor and fx repo (plans M and P).</summary>
 public sealed class WorkspaceTest
 {
 	/// <summary>
-	/// A metarepo (a git repository with <c>_fx/workspace.yaml</c>) and, for each repository of the manifest, an
-	/// "origin": a local repository with a commit and a solution, cloned by URL (its path).
+	/// A workspace (a git repository with <c>_fx/workspace/</c>) and, for each repository of the manifest, an "origin": a
+	/// local repository with a commit, two projects and a solution, cloned by URL (its path). The workspace composes
+	/// <c>Test.slnx</c> from their solutions; its .NET module goes down to the repositories tagged <c>dotnet</c>.
 	/// </summary>
 	sealed class Workspace : IDisposable
 	{
@@ -26,37 +28,51 @@ public sealed class WorkspaceTest
 		public Workspace(params (string Name, string Mount)[] repositories)
 		{
 			foreach (var (name, _) in repositories)
-			{
-				var origin = new TempGitRepository();
-				origin.WriteFile($"Fx{name}.slnx", $"""
-					<Solution>
-					  <Configurations>
-					    <Platform Name="Any CPU" />
-					  </Configurations>
-					  <Folder Name="/src/">
-					    <Project Path="solution/src/{name}/{name}.csproj" />
-					  </Folder>
-					  <Folder Name="/tools/">
-					    <Project Path="solution/tools/Tool/Tool.csproj" />
-					  </Folder>
-					</Solution>
-					""");
-				origin.CommitAll("c1");
-				Origins[name] = origin;
-			}
+				Origins[name] = Origin(name);
+			Meta.WriteFile(Path.Combine("_fx", "fx.yaml"), "schema: 1.0.0\nname: test\ntags:\n  - name: dotnet\n  - name: x\n  - name: other\n");
 			WriteManifest(repositories.Select(r => (r.Name, r.Mount, "")).ToArray());
-			Meta.CommitAll("metarepo");
+			WriteDotnet("", repositories.Select(r => r.Name).ToArray());
+			Meta.CommitAll("workspace");
+		}
+
+		/// <summary>A repository to clone: its solution, two projects and a .gitignore that ignores fx's local files.</summary>
+		public static TempGitRepository Origin(string name)
+		{
+			var origin = new TempGitRepository();
+			origin.WriteFile(".gitignore", "~$*\n");
+			origin.WriteFile($"Fx{name}.slnx", $"""
+				<Solution>
+				  <Configurations>
+				    <Platform Name="Any CPU" />
+				  </Configurations>
+				  <Folder Name="/src/">
+				    <Project Path="solution/src/{name}/{name}.csproj" />
+				  </Folder>
+				  <Folder Name="/tools/">
+				    <Project Path="solution/tools/Tool/Tool.csproj" />
+				  </Folder>
+				</Solution>
+				""");
+			origin.WriteFile(Path.Combine("solution", "src", name, $"{name}.csproj"), "<Project />\n");
+			origin.WriteFile(Path.Combine("solution", "tools", "Tool", "Tool.csproj"), "<Project />\n");
+			origin.CommitAll("c1");
+			return origin;
 		}
 
 		public void WriteManifest(params (string Name, string Mount, string Extra)[] repositories)
-			=> Meta.WriteFile(Path.Combine("_fx", "workspace.yaml"), "version: 1\nworkspace:\n  name: test\nfolders: [_docs]\nrepositories:\n" + string.Concat(repositories.Select(r => $"""
+			=> Meta.WriteFile(Path.Combine("_fx", "workspace", "workspace.yaml"), "schema: 1.0.0\npaths:\n  - path: _docs/\nrepositories:\n" + string.Concat(repositories.Select(r => $"""
 				  - name: {r.Name}
 				    path: {r.Name}/repo
 				    url: {Origins[r.Name].Path.Replace('\\', '/')}
 				    mount: {r.Mount}
-				    solution: Fx{r.Name}.slnx
 				{r.Extra}
 				""")));
+
+		/// <summary>The .NET module of the workspace: <paramref name="extra"/> and <c>Test.slnx</c> with a folder per repository.</summary>
+		public void WriteDotnet(string extra, params string[] solutions)
+			=> Meta.WriteFile(Path.Combine("_fx", "dotnet", "dotnet.yaml"), "schema: 1.0.0\napplies-to:\n  tags: [dotnet]\n" + extra
+				+ "solutions:\n  - path: Test.slnx\n    folders:\n      - name: /test\n        files: [_fx/workspace/workspace.yaml]\n"
+				+ string.Concat(solutions.Select(s => $"      - name: /{s}\n        solutions: [{s}/repo/Fx{s}.slnx]\n")));
 
 		public string Root => Meta.Path;
 
@@ -74,61 +90,104 @@ public sealed class WorkspaceTest
 		}
 	}
 
-	static IEnumerable<string> Codes(FxModuleResult result) => result.Diagnostics.Select(d => d.Code);
+	static IReadOnlyList<FxModuleResult> Sync(string directory, SyncOptions? options = null, IFxProgress? progress = null)
+		=> SyncEngine.Sync(directory, options ?? new(), progress, TestContext.Current.CancellationToken);
+
+	static IReadOnlyList<FxModuleResult> Doctor(string directory, bool offline = true, IFxProgress? progress = null)
+		=> SyncEngine.Doctor(directory, new(Offline: offline), progress, TestContext.Current.CancellationToken);
+
+	static IEnumerable<FxDiagnostic> Diagnostics(IEnumerable<FxModuleResult> results) => results.SelectMany(r => r.Diagnostics);
+
+	static IEnumerable<string> Codes(IEnumerable<FxModuleResult> results) => Diagnostics(results).Select(d => d.Code);
+
+	static IEnumerable<SyncFile> Files(IEnumerable<FxModuleResult> results) => results.SelectMany(r => r.Files);
+
+	static IEnumerable<RepositoryAction> Actions(IEnumerable<FxModuleResult> results) => results.SelectMany(r => r.Actions);
+
+	static IEnumerable<FxDiagnostic> Errors(IEnumerable<FxModuleResult> results) => Diagnostics(results).Where(d => d.Severity == FxSeverity.Error);
 
 	// Manifest
 
 	[Theory(DisplayName = "manifest: every problem, with its line")]
 	[InlineData("  - name: Plus\n    path: plus/repo\n    url: x\n", "lowercase letters, digits and '-'")]
-	[InlineData("  - name: plus\n    path: Plus/Repo\n    url: x\n", "must be lowercase")]
 	[InlineData("  - name: plus\n    path: ../plus\n    url: x\n", "without '.' or '..'")]
-	[InlineData("  - name: plus\n    path: _fx/repo\n    url: x\n", "reserved for the metarepo")]
-	[InlineData("  - name: plus\n    path: _docs/repo\n    url: x\n", "reserved for the metarepo")]
+	[InlineData("  - name: plus\n    path: _fx/repo\n    url: x\n", "is fx's or git's")]
+	[InlineData("  - name: plus\n    path: libs/~$old\n    url: x\n", "is fx's or git's")]
 	[InlineData("  - name: plus\n    path: plus/repo\n", "needs 'url'")]
 	[InlineData("  - name: plus\n    path: plus/repo\n    url: x\n    mount: always\n", "'mandatory' or 'manual'")]
-	[InlineData("  - name: plus\n    path: plus/repo\n    url: x\n    dependsOn: [oss]\n", "depends on 'oss'")]
+	[InlineData("  - name: plus\n    path: plus/repo\n    url: x\n    depends-on: [oss]\n", "depends on 'oss'")]
+	[InlineData("  - name: plus\n    path: plus/repo\n    url: x\n    dependsOn: [oss]\n", "Unknown key 'dependsOn'")]
 	[InlineData("  - name: a\n    path: a/repo\n    url: x\n  - name: a\n    path: b/repo\n    url: y\n", "used more than once")]
+	[InlineData("  - name: a\n    path: Libs/A\n    url: x\n  - name: b\n    path: libs/a\n    url: y\n", "used more than once")]
 	[InlineData("  - name: a\n    path: a/repo\n    url: x\n  - name: b\n    path: a/repo/b\n    url: y\n", "mounted inside 'a'")]
 	public void Manifest_Invalid(string repositories, string message)
 	{
-		var ex = Assert.Throws<WorkspaceManifestException>(() => WorkspaceManifest.Read("root", "version: 1\nfolders: [_docs]\nrepositories:\n" + repositories, strict: true));
-		Assert.Contains(ex.Diagnostics, d => d.Code == WorkspaceManifest.InvalidManifest && d.Message.English.Contains(message) && d.Line is > 0);
+		var ex = Assert.Throws<WorkspaceManifestException>(() => WorkspaceManifest.Read("root", "schema: 1.0.0\nrepositories:\n" + repositories, strict: true));
+		Assert.Contains(ex.Diagnostics, d => d.Severity == FxSeverity.Error && d.Message.English.Contains(message) && d.Line is > 0);
 	}
 
-	[Fact(DisplayName = "manifest: the design's example reads (§5)")]
+	[Fact(DisplayName = "manifest: repositories anywhere, paths as objects, shares; nothing about solutions")]
 	public void Manifest_Read()
 	{
 		var manifest = WorkspaceManifest.Read("root", """
-			version: 1
-			workspace:
-			  name: fuxion
-			  major: 11
-			  fx: 1.4.0
-			folders: [_docs]
+			schema: 1.0.0
 			repositories:
-			  - name: oss
-			    path: oss/repo
-			    url: https://github.com/osjimenez/Fuxion.git
+			  - name: repo-w1
+			    aliases: [w1]
+			    url: https://git.acme.example/acme/product-w1.git
+			    path: repo-w1
 			    mount: mandatory
-			    standalone: true
-			    solution: Fuxion.slnx
-			    tags: [dotnet, public]
-			  - name: next
-			    path: next/repo
-			    url: https://github.com/osjimenez/Fuxion-next.git
-			    dependsOn: [oss]
-			    solution: FxNext.slnx
-			    solutionExclude: [solution/old]
+			    tags: [dotnet, product]
+			  - name: shared
+			    url: https://git.acme.example/acme/shared.git
+			    path: libs/shared
+			    inherits: false
+			    depends-on: [repo-w1]
+			paths:
+			  - path: README.md
+			  - path: _docs/
+			    worktree: false
+			  - path: _docs/drafts/
+			    exclude: true
+			  - path: libs/
+			shares:
+			  - path: res/icon.png
+			    applies-to:
+			      tags: [nuget-package]
 			""", strict: true);
-		Assert.Equal("fuxion", manifest.Name);
-		Assert.Equal(11, manifest.Major);
-		Assert.Equal("1.4.0", manifest.MinimumFx);
-		var oss = manifest.Repositories[0];
-		Assert.Equal(MountPolicy.Mandatory, oss.Mount);
-		Assert.True(oss.Standalone);
-		Assert.Equal(["dotnet", "public"], oss.Tags);
-		Assert.Equal(["oss"], manifest.Repositories[1].DependsOn);
-		Assert.Equal(["solution/old"], manifest.Repositories[1].SolutionExclude);
+		var w1 = manifest.Repositories[0];
+		Assert.Equal(MountPolicy.Mandatory, w1.Mount);
+		Assert.Equal(["w1"], w1.Aliases);
+		Assert.Equal(["dotnet", "product"], w1.Tags);
+		var shared = manifest.Repositories[1];
+		Assert.False(shared.Inherits);
+		Assert.Equal(["repo-w1"], shared.DependsOn);
+		Assert.Equal(4, manifest.Paths!.Count);
+		Assert.False(manifest.Paths[1].Worktree);
+		Assert.True(manifest.Paths[2].Exclude);
+		Assert.True(manifest.Versions("libs/README.md"));
+		Assert.True(manifest.Versions("_docs/plans/a.md"));
+		Assert.False(manifest.Versions("_docs/drafts/a.md"));
+		Assert.False(manifest.Versions("notes/"));
+		var share = Assert.Single(manifest.Shares!);
+		Assert.Equal("res/icon.png", share.Destination);
+		Assert.Equal(["nuget-package"], share.AppliesTo.Tags);
+	}
+
+	[Fact(DisplayName = "schema: a newer major is not read; a newer minor, unknown keys only warn; none, a warning")]
+	public void Manifest_Schema()
+	{
+		var newer = Assert.Throws<WorkspaceManifestException>(() => WorkspaceManifest.Read("root", "schema: 2.0.0\nrepositories: []\n", strict: true));
+		Assert.Contains(newer.Diagnostics, d => d.Code == FxYamlReader.SchemaNewer);
+
+		var minor = WorkspaceManifest.Read("root", "schema: 1.3.0\nfuture: 1\nrepositories: []\n", strict: true);
+		Assert.Empty(minor.Repositories);
+		var unknown = Assert.Throws<WorkspaceManifestException>(() => WorkspaceManifest.Read("root", "schema: 1.0.0\nfuture: 1\n", strict: true));
+		Assert.Contains(unknown.Diagnostics, d => d.Message.English.Contains("Unknown key 'future'"));
+
+		var reader = new FxYamlReader("x", "file.yaml");
+		Assert.NotNull(reader.Load("repositories: []\n"));
+		Assert.Contains(reader.Diagnostics, d => d.Code == FxYamlReader.SchemaMissing && d.Severity == FxSeverity.Warning);
 	}
 
 	// State
@@ -173,7 +232,7 @@ public sealed class WorkspaceTest
 	{
 		using var ws = new Workspace(("plus", "mandatory"), ("lab", "mandatory"));
 		var sync = new Recorder();
-		WorkspaceModule.Sync(ws.Root, new(), sync, TestContext.Current.CancellationToken);
+		Sync(ws.Root, progress: sync);
 		foreach (var repo in new[] { "plus", "lab" })
 		{
 			Assert.Contains(sync.Events, e => e is FxStepStarted { Module: "workspace", Step: "clone" } s && s.Repository == repo);
@@ -182,13 +241,13 @@ public sealed class WorkspaceTest
 
 		new TempGitRepository(init: false, path: ws.RepoPath("lab")).WriteFile("dirty.txt", "x");
 		var doctor = new Recorder();
-		var result = WorkspaceModule.Doctor(ws.Root, offline: true, doctor, TestContext.Current.CancellationToken);
+		var results = Doctor(ws.Root, progress: doctor);
 		Assert.Contains(doctor.Events, e => e is FxStepFinished { Step: "status", Repository: "lab", Succeeded: true });
-		var dirty = Assert.Single(result.Diagnostics, d => d.Code == WorkspaceModule.Dirty);
+		var dirty = Assert.Single(Diagnostics(results), d => d.Code == WorkspaceModule.Dirty);
 		Assert.Equal("lab", dirty.Repository);
 		Assert.Equal("workspace", dirty.Module);
 		// every diagnostic of the result went through the channel, once
-		Assert.Equal(result.Diagnostics.Count, doctor.Events.OfType<FxDiagnosticFound>().Count());
+		Assert.Equal(Diagnostics(results).Count(), doctor.Events.OfType<FxDiagnosticFound>().Count());
 		Assert.Contains(doctor.Events, e => e is FxDiagnosticFound { Diagnostic.Code: WorkspaceModule.Dirty, Repository: "lab" });
 	}
 
@@ -198,54 +257,56 @@ public sealed class WorkspaceTest
 		using var ws = new Workspace(("plus", "mandatory"));
 		using var cancelled = new System.Threading.CancellationTokenSource();
 		cancelled.Cancel();
-		Assert.ThrowsAny<OperationCanceledException>(() => WorkspaceModule.Sync(ws.Root, new(), cancellationToken: cancelled.Token));
+		Assert.ThrowsAny<OperationCanceledException>(() => SyncEngine.Sync(ws.Root, new(), cancellationToken: cancelled.Token));
 		Assert.False(Directory.Exists(ws.RepoPath("plus")));
 	}
 
 	// Sync
 
-	[Fact(DisplayName = "sync: clones the mandatory repos, generates .gitignore and Fuxion.slnx, saves the state")]
-	public void Sync()
+	[Fact(DisplayName = "sync: clones the mandatory repos, generates .gitignore, the solution and the map, saves the state")]
+	public void Sync_Workspace()
 	{
 		using var ws = new Workspace(("plus", "mandatory"), ("lab", "manual"));
-		var result = WorkspaceModule.Sync(ws.Root, new(), cancellationToken: TestContext.Current.CancellationToken);
-		Assert.Empty(result.Diagnostics);
-		Assert.Contains(new RepositoryAction("plus", "cloned"), result.Actions);
+		var results = Sync(ws.Root);
+		Assert.Empty(Errors(results));
+		// lab is declared in the solution but not mounted: nothing to take its projects from yet
+		Assert.Contains("dotnet.missing-solution", Codes(results));
+		Assert.Contains(new RepositoryAction("plus", "cloned"), Actions(results));
 		Assert.True(File.Exists(Path.Combine(ws.RepoPath("plus"), "Fxplus.slnx")));
 		Assert.False(Directory.Exists(ws.RepoPath("lab")));
 
 		var gitignore = ws.Read(".gitignore");
-		Assert.StartsWith("# GENERATED by fx", gitignore);
-		Assert.Contains("/*\n", gitignore);
-		Assert.Contains("!/_docs/\n", gitignore);
-		Assert.Contains("!/global.json\n", gitignore);
+		Assert.StartsWith($"# {FxHeader.Title}\n", gitignore);
+		Assert.Contains("\n*\n", gitignore);
+		Assert.Contains("!/_docs/\n!/_docs/**\n", gitignore);
+		Assert.Contains("!/Test.slnx\n", gitignore);
+		Assert.EndsWith("~$*\n", gitignore);
 		Assert.True(ws.Meta.Git("check-ignore", "plus/repo/").Length > 0);
 
-		var solution = ws.Read("Fuxion.slnx");
-		Assert.Contains("GENERATED by fx", solution);
+		var solution = ws.Read("Test.slnx");
+		Assert.Contains(FxHeader.Title, solution);
 		Assert.Contains("<Folder Name=\"/plus/\" />", solution);
 		Assert.Contains("<Folder Name=\"/plus/src/\">", solution);
 		Assert.Contains("<Project Path=\"plus/repo/solution/src/plus/plus.csproj\" />", solution);
-		Assert.Contains("<File Path=\"_fx/workspace.yaml\" />", solution);
+		Assert.Contains("<File Path=\"_fx/workspace/workspace.yaml\" />", solution);
 		Assert.Contains("<Platform Name=\"Any CPU\" />", solution);
 
-		Assert.Contains("name: plus\n    mount: true", ws.Read("_fx/~$workspace.yaml"));
+		Assert.Contains("name: plus\n    mount: true", ws.Read("_fx/workspace/~$state.yaml"));
 
-		var map = ws.Read("_fx/~$workspace.props");
+		var map = ws.Read("_fx/dotnet/~$workspace.props");
 		Assert.Contains("<FxWorkspaceProject Include=\"plus\" Repository=\"plus\"", map);
 		Assert.Contains("<ProjectReference Include=\"@(FxReference->WithMetadataValue('Identity', 'plus')->'", map);
-		var again = WorkspaceModule.Sync(ws.Root, new(), cancellationToken: TestContext.Current.CancellationToken);
-		Assert.All(again.Files, f => Assert.Equal(SyncFileStatus.Unchanged, f.Status));
+		var again = Sync(ws.Root);
+		Assert.All(Files(again), f => Assert.Equal(SyncFileStatus.Unchanged, f.Status));
 	}
 
 	[Fact(DisplayName = "sync: fetches the mounted repos (online), never pulls")]
 	public void Sync_Fetch()
 	{
 		using var ws = new Workspace(("plus", "mandatory"));
-		WorkspaceModule.Sync(ws.Root, new(), cancellationToken: TestContext.Current.CancellationToken);
+		Sync(ws.Root);
 		ws.Origins["plus"].Commit("c2");
-		var result = WorkspaceModule.Sync(ws.Root, new(), cancellationToken: TestContext.Current.CancellationToken);
-		Assert.Contains(new RepositoryAction("plus", "fetched"), result.Actions);
+		Assert.Contains(new RepositoryAction("plus", "fetched"), Actions(Sync(ws.Root)));
 		var status = WorkspaceModule.Repositories(WorkspaceManifest.Load(ws.Root), withStatus: true, cancellationToken: TestContext.Current.CancellationToken).Single().Status!;
 		Assert.Equal(1, status.Behind);
 	}
@@ -254,8 +315,8 @@ public sealed class WorkspaceTest
 	public void Sync_DryRun()
 	{
 		using var ws = new Workspace(("plus", "mandatory"));
-		var result = WorkspaceModule.Sync(ws.Root, new(DryRun: true, Offline: true), cancellationToken: TestContext.Current.CancellationToken);
-		Assert.Contains(WorkspaceModule.Missing, Codes(result));
+		var results = Sync(ws.Root, new(DryRun: true, Offline: true));
+		Assert.Contains(WorkspaceModule.Missing, Codes(results));
 		Assert.False(Directory.Exists(ws.RepoPath("plus")));
 		Assert.False(File.Exists(Path.Combine(ws.Root, ".gitignore")));
 	}
@@ -265,88 +326,214 @@ public sealed class WorkspaceTest
 	{
 		using var ws = new Workspace(("plus", "mandatory"));
 		ws.Meta.WriteFile(".gitignore", "/*\n!/_fx/\n");
-		var refused = WorkspaceModule.Sync(ws.Root, new(), cancellationToken: TestContext.Current.CancellationToken);
-		Assert.Contains(refused.Files, f => f.Path == ".gitignore" && f.Status == SyncFileStatus.Refused);
-		Assert.Contains(WorkspaceModule.NotGenerated, Codes(refused));
+		var refused = Sync(ws.Root);
+		Assert.Contains(Files(refused), f => f.Path == ".gitignore" && f.Status == SyncFileStatus.Refused);
+		Assert.Contains(FxOutputs.NotGenerated, Codes(refused));
 		Assert.Equal("/*\n!/_fx/\n", ws.Read(".gitignore"));
 
-		var adopted = WorkspaceModule.Sync(ws.Root, new(Adopt: true), cancellationToken: TestContext.Current.CancellationToken);
-		Assert.Contains(adopted.Files, f => f.Path == ".gitignore" && f.Status == SyncFileStatus.Written);
-		Assert.StartsWith("# GENERATED by fx", ws.Read(".gitignore"));
+		var adopted = Sync(ws.Root, new(Adopt: true));
+		Assert.Contains(Files(adopted), f => f.Path == ".gitignore" && f.Status == SyncFileStatus.Written);
+		Assert.StartsWith($"# {FxHeader.Title}", ws.Read(".gitignore"));
 	}
 
-	[Fact(DisplayName = "Fuxion.slnx: solutionExclude leaves projects out; a project two repos bring appears once")]
-	public void Solution_ExcludeAndDedupe()
+	[Fact(DisplayName = ".gitignore: paths at any depth, exclusions, a repository inside a versioned folder; as git reads it")]
+	public void Gitignore()
 	{
-		using var ws = new Workspace(("plus", "mandatory"), ("tools", "mandatory"));
-		ws.WriteManifest(("plus", "mandatory", "    solutionExclude: [solution/tools]\n"), ("tools", "mandatory", ""));
-		Assert.Empty(WorkspaceModule.Sync(ws.Root, new(), cancellationToken: TestContext.Current.CancellationToken).Diagnostics);
-		var solution = ws.Read("Fuxion.slnx");
-		Assert.DoesNotContain("plus/repo/solution/tools", solution);
-		Assert.Contains("tools/repo/solution/tools/Tool/Tool.csproj", solution);
-		Assert.DoesNotContain("<Folder Name=\"/plus/tools/\"", solution);
-		Assert.Contains("<Folder Name=\"/tools/tools/\">", solution);
-		Assert.Contains("<FxWorkspaceProject Include=\"Tool\" Repository=\"tools\"", ws.Read("_fx/~$workspace.props"));
+		var manifest = WorkspaceManifest.Read("root", """
+			schema: 1.0.0
+			repositories:
+			  - name: shared
+			    url: x
+			    path: libs/shared
+			  - name: app
+			    url: y
+			    path: apps/app
+			paths:
+			  - path: README.md
+			  - path: libs/
+			  - path: docs/guides/
+			  - path: docs/guides/drafts/
+			    exclude: true
+			""", strict: true);
+		using var repo = new TempGitRepository();
+		repo.WriteFile(".gitignore", GitignoreGenerator.Generate(manifest, ["build/All.slnx"]));
+		bool Ignored(string path)
+		{
+			try
+			{
+				repo.Git("check-ignore", "--quiet", "--no-index", path);
+				return true;
+			}
+			catch (InvalidOperationException)
+			{
+				return false;
+			}
+		}
+		Assert.False(Ignored("README.md"));
+		Assert.False(Ignored("libs/README.md"));
+		Assert.True(Ignored("libs/shared/"));
+		Assert.True(Ignored("libs/shared/x.cs"));
+		Assert.False(Ignored("docs/guides/a.md"));
+		Assert.True(Ignored("docs/guides/drafts/a.md"));
+		Assert.True(Ignored("docs/other.md"));
+		Assert.False(Ignored("build/All.slnx"));
+		Assert.True(Ignored("apps/app/"));
+		Assert.True(Ignored("notes/todo.md"));
+		Assert.False(Ignored("_fx/workspace/workspace.yaml"));
+		Assert.True(Ignored("_fx/workspace/~$state.yaml"));
+		Assert.True(Ignored("libs/~$tmp"));
+		Assert.False(Ignored(".gitignore"));
 	}
 
-	[Fact(DisplayName = "sync: the dotnet module gives its repos _fx/dotnet.yaml and the folder _fx/dotnet/ whole, in _fx/.workspace/")]
-	public void Sync_ModulePropagation()
+	[Fact(DisplayName = "solutions: composed from others; a repository not on disk keeps what the generated one had of it")]
+	public void Solution_Compose()
+	{
+		using var ws = new Workspace(("plus", "mandatory"), ("lab", "manual"));
+		Assert.Empty(WorkspaceModule.SetMount(WorkspaceManifest.Load(ws.Root), ["lab"], mounted: true));
+		Assert.DoesNotContain(Errors(Sync(ws.Root)), _ => true);
+		Assert.Contains("lab/repo/solution/src/lab/lab.csproj", ws.Read("Test.slnx"));
+
+		// lab unmounted and gone: the solution still lists its projects (unavailable in Visual Studio)
+		Assert.Empty(WorkspaceModule.SetMount(WorkspaceManifest.Load(ws.Root), ["lab"], mounted: false));
+		new TempGitRepository(init: false, path: ws.RepoPath("lab")).Dispose();
+		var results = Sync(ws.Root);
+		Assert.DoesNotContain(Codes(results), c => c == "dotnet.missing-solution");
+		var solution = ws.Read("Test.slnx");
+		Assert.Contains("<Project Path=\"lab/repo/solution/src/lab/lab.csproj\" />", solution);
+		Assert.Contains("<Folder Name=\"/lab/src/\">", solution);
+		Assert.DoesNotContain("lab.csproj", ws.Read("_fx/dotnet/~$workspace.props"));
+	}
+
+	[Fact(DisplayName = "solutions: two different projects with the same name in one folder are an error")]
+	public void Solution_DuplicateName()
+	{
+		using var ws = new Workspace(("plus", "mandatory"), ("lab", "mandatory"));
+		ws.Meta.WriteFile(Path.Combine("_fx", "dotnet", "dotnet.yaml"),
+			"schema: 1.0.0\nsolutions:\n  - path: All.slnx\n    folders:\n      - name: /all\n        solutions: [plus/repo/Fxplus.slnx, lab/repo/Fxlab.slnx]\n");
+		var error = Assert.Single(Errors(Sync(ws.Root)));
+		Assert.Equal("dotnet.duplicate-project-name", error.Code);
+		Assert.Contains("'Tool' in the folder /all/tools/", error.Message.English);
+	}
+
+	[Fact(DisplayName = "inheritance: the .NET module goes down to the repos of applies-to, merged, with its folder, in _fx/.inherited/")]
+	public void Sync_Inheritance()
 	{
 		using var ws = new Workspace(("plus", "mandatory"), ("docs", "mandatory"));
 		ws.WriteManifest(("plus", "mandatory", "    tags: [dotnet]\n"), ("docs", "mandatory", ""));
-		File.AppendAllText(Path.Combine(ws.Root, "_fx", "workspace.yaml"), "modules:\n  dotnet:\n    tags: [dotnet]\n");
-		ws.Meta.WriteFile(Path.Combine("_fx", "dotnet.yaml"), "imports:\n  - props: dotnet/default.props\n");
+		ws.WriteDotnet("imports:\n  - props: default.props\n", "plus");
 		ws.Meta.WriteFile(Path.Combine("_fx", "dotnet", "default.props"), "<Project />\n");
 		ws.Meta.WriteFile(Path.Combine("_fx", "dotnet", "unused.targets"), "<Project />\n");
 		var icon = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0xFF };
 		Directory.CreateDirectory(Path.Combine(ws.Root, "_fx", "dotnet", "assets"));
 		File.WriteAllBytes(Path.Combine(ws.Root, "_fx", "dotnet", "assets", "icon.png"), icon);
-		Assert.DoesNotContain(WorkspaceModule.Sync(ws.Root, new(), cancellationToken: TestContext.Current.CancellationToken).Diagnostics, d => d.Severity == FxSeverity.Error);
+		Assert.Empty(Errors(Sync(ws.Root)));
 
-		// the folder whole, binaries byte for byte; the yaml as it is
-		var copy = Path.Combine(ws.RepoPath("plus"), "_fx", ".workspace");
-		Assert.Equal("imports:\n  - props: dotnet/default.props\n", ws.Read("plus/repo/_fx/.workspace/dotnet.yaml"));
-		Assert.True(File.Exists(Path.Combine(copy, "dotnet", "unused.targets")));
-		Assert.Equal(icon, File.ReadAllBytes(Path.Combine(copy, "dotnet", "assets", "icon.png")));
-		var repository = ws.Read("plus/repo/_fx/.workspace/repository.yaml");
-		Assert.Contains("name: plus\ntags: [dotnet]\n", repository);
-		Assert.Contains("  - dotnet/assets/icon.png\n", repository);
-		Assert.Equal(["dotnet"], ModulePropagation.RepositoryTags(ws.RepoPath("plus")));
-		Assert.Contains("$(MSBuildThisFileDirectory).workspace/dotnet/default.props", ws.Read("plus/repo/_fx/dotnet.g.props"));
-		Assert.False(Directory.Exists(Path.Combine(ws.RepoPath("docs"), "_fx"))); // no dotnet tag
-		Assert.DoesNotContain(WorkspaceModule.Doctor(ws.Root, offline: true, cancellationToken: TestContext.Current.CancellationToken).Diagnostics, d => d.Code == WorkspaceModule.Outdated);
+		// the yaml merged and without the solutions; the folder whole, binaries byte for byte, text with the header
+		var inherited = Path.Combine(ws.RepoPath("plus"), "_fx", ".inherited");
+		var yaml = ws.Read("plus/repo/_fx/.inherited/dotnet/dotnet.yaml");
+		Assert.StartsWith($"# {FxHeader.Title}\n# Generated from: workspace /test (_fx/dotnet/dotnet.yaml)\n", yaml);
+		Assert.Contains("applies-to:\n  tags: [dotnet]\nimports:\n  - props: default.props\n", yaml);
+		Assert.DoesNotContain("solutions", yaml);
+		Assert.Contains(FxHeader.Title, ws.Read("plus/repo/_fx/.inherited/dotnet/unused.targets"));
+		Assert.Equal(icon, File.ReadAllBytes(Path.Combine(inherited, "dotnet", "assets", "icon.png")));
+		var card = FxInherited.Load(ws.RepoPath("plus"))!;
+		Assert.Equal("/test/plus", card.Repository.FullName);
+		Assert.Equal(["dotnet"], card.Repository.Tags);
+		Assert.Equal("/test", card.Parent.FullName);
+		Assert.Contains(card.Files, f => f.Path == "dotnet/assets/icon.png" && f.From.SequenceEqual(["/test"]));
+		Assert.Contains("name: dotnet", ws.Read("plus/repo/_fx/.inherited/fx.yaml"));
+		var props = ws.Read("plus/repo/_fx/dotnet/dotnet.g.props");
+		Assert.Contains("$(MSBuildThisFileDirectory)../.inherited/dotnet/default.props", props);
+		Assert.Contains("<FxRepositoryFullName>/test/plus</FxRepositoryFullName>", props);
+		Assert.False(Directory.Exists(Path.Combine(ws.RepoPath("docs"), "_fx"))); // nothing applies to it
+		Assert.DoesNotContain(Codes(Doctor(ws.Root)), c => c is WorkspaceModule.Outdated or "dotnet.outdated");
 
-		// a change in the workspace is outdated in the repo until the next sync; what goes, goes from the repo
+		// a change in the workspace is out of date in the repo until the next sync; what goes, goes from the repo
 		ws.Meta.WriteFile(Path.Combine("_fx", "dotnet", "default.props"), "<Project><PropertyGroup><X>1</X></PropertyGroup></Project>\n");
-		Assert.Contains(WorkspaceModule.Doctor(ws.Root, offline: true, cancellationToken: TestContext.Current.CancellationToken).Diagnostics,
-			d => d.Code == WorkspaceModule.Outdated && d.File == "plus/repo/_fx/.workspace/dotnet/default.props");
+		Assert.Contains(Diagnostics(Doctor(ws.Root)), d => d.Code == WorkspaceModule.Outdated && d.File == "plus/repo/_fx/.inherited/dotnet/default.props");
 		File.Delete(Path.Combine(ws.Root, "_fx", "dotnet", "unused.targets"));
-		WorkspaceModule.Sync(ws.Root, new(), cancellationToken: TestContext.Current.CancellationToken);
-		Assert.False(File.Exists(Path.Combine(copy, "dotnet", "unused.targets")));
-		Assert.Contains("<X>1</X>", ws.Read("plus/repo/_fx/.workspace/dotnet/default.props"));
+		Sync(ws.Root);
+		Assert.False(File.Exists(Path.Combine(inherited, "dotnet", "unused.targets")));
+		Assert.Contains("<X>1</X>", ws.Read("plus/repo/_fx/.inherited/dotnet/default.props"));
 
-		// a repo that stops using the module loses its copy
+		// a repo the module no longer applies to loses all of it
 		ws.WriteManifest(("plus", "mandatory", "    tags: [other]\n"), ("docs", "mandatory", ""));
-		File.AppendAllText(Path.Combine(ws.Root, "_fx", "workspace.yaml"), "modules:\n  dotnet:\n    tags: [dotnet]\n");
-		WorkspaceModule.Sync(ws.Root, new(), cancellationToken: TestContext.Current.CancellationToken);
-		Assert.Empty(Directory.EnumerateFiles(copy, "*", SearchOption.AllDirectories));
+		Sync(ws.Root);
+		Assert.False(Directory.Exists(inherited));
 	}
 
-	[Fact(DisplayName = "manifest: modules, with their tags; an unknown module is an error")]
-	public void Manifest_Modules()
+	[Fact(DisplayName = "nested workspaces: each level inherits from its parent, merged; the solutions are composed from the bottom up")]
+	public void Sync_Nested()
 	{
-		var manifest = WorkspaceManifest.Read("root", "version: 1\nrepositories: []\nmodules:\n  dotnet:\n    tags: [dotnet, windows]\n", strict: true);
-		Assert.Equal(["dotnet", "windows"], manifest.Module("dotnet")!.Tags);
-		var ex = Assert.Throws<WorkspaceManifestException>(() => WorkspaceManifest.Read("root", "version: 1\nmodules:\n  angular: {}\n", strict: true));
-		Assert.Contains("Unknown module 'angular'", ex.Diagnostics[0].Message.English);
+		using var c1 = new TempGitRepository();
+		c1.WriteFile(".gitignore", "~$*\n");
+		c1.WriteFile(Path.Combine("src", "App", "C1.App.csproj"), "<Project><ItemGroup><PackageReference Include=\"xunit.v3\" /><PackageReference Include=\"Serilog\" /></ItemGroup></Project>\n");
+		c1.WriteFile("C1.slnx", "<Solution>\n  <Folder Name=\"/src/\">\n    <Project Path=\"src/App/C1.App.csproj\" />\n  </Folder>\n</Solution>\n");
+		c1.CommitAll("c1");
+		using var w1 = new TempGitRepository();
+		w1.WriteFile(Path.Combine("_fx", "fx.yaml"), "schema: 1.0.0\ntags:\n  - name: mobile\n");
+		w1.WriteFile(Path.Combine("_fx", "workspace", "workspace.yaml"),
+			$"schema: 1.0.0\nrepositories:\n  - name: c1\n    url: {c1.Path.Replace('\\', '/')}\n    path: c1\n    mount: mandatory\n    tags: [dotnet, mobile]\n");
+		w1.WriteFile(Path.Combine("_fx", "dotnet", "dotnet.yaml"),
+			"schema: 1.0.0\npackages:\n  - ids: [Serilog]\n    versions:\n      - version: 4.0.0\nsolutions:\n  - path: W1.slnx\n    folders:\n      - name: /C1\n        solutions: [c1/C1.slnx]\n");
+		w1.CommitAll("w1");
+		using var acme = new TempGitRepository();
+		acme.WriteFile(Path.Combine("_fx", "fx.yaml"), "schema: 1.0.0\nname: acme\nrequires: 0.1.0\ntags:\n  - name: dotnet\n  - name: product\n");
+		acme.WriteFile(Path.Combine("_fx", "workspace", "workspace.yaml"),
+			$"schema: 1.0.0\nrepositories:\n  - name: w1\n    url: {w1.Path.Replace('\\', '/')}\n    path: products/w1\n    mount: mandatory\n    tags: [product]\n");
+		acme.WriteFile(Path.Combine("_fx", "dotnet", "dotnet.yaml"),
+			"schema: 1.0.0\napplies-to:\n  tags: [dotnet]\npackages:\n  - ids: [xunit.v3]\n    versions:\n      - version: 4.0.0\n"
+			+ "solutions:\n  - path: Acme.slnx\n    folders:\n      - name: /products/w1\n        solutions: [products/w1/W1.slnx]\n");
+		acme.CommitAll("acme");
+		Assert.Empty(Errors(Sync(acme.Path)));
+		string Read(string relative) => File.ReadAllText(Path.Combine(acme.Path, relative)).Replace("\r\n", "\n");
+
+		// w1 is a conduit: it gets acme's .NET although it is not tagged dotnet, to pass it on
+		Assert.Contains("ids: [xunit.v3]", Read("products/w1/_fx/.inherited/dotnet/dotnet.yaml"));
+		Assert.False(File.Exists(Path.Combine(acme.Path, "products", "w1", "_fx", "dotnet", "dotnet.g.props"))); // no projects of its own
+		// c1: acme's and w1's, merged; its full name, the chain from the root; the catalog of both levels
+		var card = FxInherited.Load(Path.Combine(acme.Path, "products", "w1", "c1"))!;
+		Assert.Equal("/acme/w1/c1", card.Repository.FullName);
+		Assert.Equal("/acme/w1", card.Parent.FullName);
+		Assert.Contains(card.Files, f => f.Path == "dotnet/dotnet.yaml" && f.From.SequenceEqual(["/acme", "/acme/w1"]));
+		var yaml = Read("products/w1/c1/_fx/.inherited/dotnet/dotnet.yaml");
+		Assert.Contains("ids: [xunit.v3]", yaml);
+		Assert.Contains("ids: [Serilog]", yaml);
+		Assert.Contains("name: mobile", Read("products/w1/c1/_fx/.inherited/fx.yaml"));
+		Assert.Contains("requires: 0.1.0", Read("products/w1/c1/_fx/.inherited/fx.yaml"));
+		var targets = Read("products/w1/c1/_fx/dotnet/dotnet.g.targets");
+		Assert.Contains("<PackageReference Update=\"xunit.v3\" Version=\"4.0.0\" />", targets);
+		Assert.Contains("<PackageReference Update=\"Serilog\" Version=\"4.0.0\" />", targets);
+		Assert.Contains("<FxRepositoryFullName>/acme/w1/c1</FxRepositoryFullName>", Read("products/w1/c1/_fx/dotnet/dotnet.g.props"));
+		// the solutions from the bottom up, and the map of the highest workspace
+		Assert.Contains("<Project Path=\"c1/src/App/C1.App.csproj\" />", Read("products/w1/W1.slnx"));
+		Assert.Contains("<Folder Name=\"/products/w1/C1/src/\">", Read("Acme.slnx"));
+		Assert.Contains("<Project Path=\"products/w1/c1/src/App/C1.App.csproj\" />", Read("Acme.slnx"));
+		Assert.Contains("Include=\"C1.App\" Repository=\"c1\"", Read("_fx/dotnet/~$workspace.props"));
+		Assert.False(File.Exists(Path.Combine(acme.Path, "products", "w1", "_fx", "dotnet", "~$workspace.props")));
+
+		// the same sync from c1 alone: it reads its parent on disk and finds nothing to change
+		Assert.All(Files(Sync(Path.Combine(acme.Path, "products", "w1", "c1"))), f => Assert.Equal(SyncFileStatus.Unchanged, f.Status));
 	}
 
-	[Fact(DisplayName = "doctor: a standalone repo cannot reference a project of a repo that is not (§6)")]
+	[Fact(DisplayName = "requires: a fx older than the tree requires reads, but writes nothing")]
+	public void Requires()
+	{
+		using var ws = new Workspace(("plus", "mandatory"));
+		ws.Meta.WriteFile(Path.Combine("_fx", "fx.yaml"), "schema: 1.0.0\nname: test\nrequires: 9.0.0\n");
+		var results = Sync(ws.Root, new(FxVersion: "1.2.0"));
+		Assert.Contains(SyncEngine.Requires, Codes(results));
+		Assert.False(Directory.Exists(ws.RepoPath("plus")));
+		Assert.False(File.Exists(Path.Combine(ws.Root, ".gitignore")));
+		Assert.DoesNotContain(SyncEngine.Requires, Codes(Sync(ws.Root, new(FxVersion: "9.0.1-local"))));
+	}
+
+	[Fact(DisplayName = "doctor: a standalone repo cannot reference a project of a repo that is not")]
 	public void Doctor_StandaloneReference()
 	{
 		using var ws = new Workspace(("plus", "mandatory"), ("next", "mandatory"));
-		ws.WriteManifest(("plus", "mandatory", "    standalone: true\n"), ("next", "mandatory", ""));
-		WorkspaceModule.Sync(ws.Root, new(), cancellationToken: TestContext.Current.CancellationToken);
+		Sync(ws.Root);
+		new TempGitRepository(init: false, path: ws.RepoPath("plus")).WriteFile(Path.Combine("_fx", "dotnet", "dotnet.yaml"), "schema: 1.0.0\nstandalone: true\n");
 		File.WriteAllText(Path.Combine(ws.RepoPath("plus"), "uses.props"), """
 			<Project>
 			  <ItemGroup>
@@ -356,7 +543,7 @@ public sealed class WorkspaceTest
 			  </ItemGroup>
 			</Project>
 			""");
-		var diagnostic = Assert.Single(WorkspaceModule.Doctor(ws.Root, offline: true, cancellationToken: TestContext.Current.CancellationToken).Diagnostics, d => d.Code == WorkspaceModule.StandaloneReference);
+		var diagnostic = Assert.Single(Diagnostics(Doctor(ws.Root)), d => d.Code == SyncEngine.StandaloneReference);
 		Assert.Contains("references next of 'next'", diagnostic.Message.English);
 		Assert.Equal("plus/repo/uses.props", diagnostic.File);
 		Assert.Equal(3, diagnostic.Line);
@@ -368,11 +555,11 @@ public sealed class WorkspaceTest
 		using var ws = new Workspace(("plus", "mandatory"), ("lab", "manual"));
 		var manifest = WorkspaceManifest.Load(ws.Root);
 		Assert.Empty(WorkspaceModule.SetMount(manifest, ["lab"], mounted: true));
-		Assert.Contains(new RepositoryAction("lab", "cloned"), WorkspaceModule.Sync(ws.Root, new(), cancellationToken: TestContext.Current.CancellationToken).Actions);
+		Assert.Contains(new RepositoryAction("lab", "cloned"), Actions(Sync(ws.Root)));
 		Assert.Empty(WorkspaceModule.SetMount(manifest, ["lab"], mounted: false));
-		WorkspaceModule.Sync(ws.Root, new(), cancellationToken: TestContext.Current.CancellationToken);
+		Sync(ws.Root);
 		Assert.True(Directory.Exists(ws.RepoPath("lab")));
-		Assert.DoesNotContain("lab/repo", ws.Read("Fuxion.slnx"));
+		Assert.DoesNotContain("lab.csproj", ws.Read("_fx/dotnet/~$workspace.props"));
 		Assert.Single(WorkspaceModule.SetMount(manifest, ["plus"], mounted: false));
 		Assert.Single(WorkspaceModule.SetMount(manifest, ["nope"], mounted: true));
 	}
@@ -383,42 +570,49 @@ public sealed class WorkspaceTest
 	public void Doctor_AllRight()
 	{
 		using var ws = new Workspace(("plus", "mandatory"));
-		WorkspaceModule.Sync(ws.Root, new(), cancellationToken: TestContext.Current.CancellationToken);
-		Assert.Empty(WorkspaceModule.Doctor(ws.Root, offline: false, cancellationToken: TestContext.Current.CancellationToken).Diagnostics);
+		Sync(ws.Root);
+		Assert.DoesNotContain(Diagnostics(Doctor(ws.Root, offline: false)), d => d.Severity != FxSeverity.Info);
 	}
 
-	[Fact(DisplayName = "doctor: changes, commits not pushed, detached HEAD, orphans, origin and outdated files")]
+	[Fact(DisplayName = "doctor: changes, commits not pushed, detached HEAD, undeclared repos, origin, unknown tags, local files not ignored")]
 	public void Doctor_Problems()
 	{
 		using var ws = new Workspace(("plus", "mandatory"), ("lab", "mandatory"));
-		WorkspaceModule.Sync(ws.Root, new(), cancellationToken: TestContext.Current.CancellationToken);
+		Sync(ws.Root);
 		var plus = new TempGitRepository(init: false, path: ws.RepoPath("plus"));
 		plus.Commit("local");
 		plus.WriteFile("new.txt", "x");
+		File.Delete(Path.Combine(ws.RepoPath("plus"), ".gitignore"));
 		var lab = new TempGitRepository(init: false, path: ws.RepoPath("lab"));
 		lab.Checkout(lab.Head());
 		Directory.CreateDirectory(Path.Combine(ws.Root, "stray", "repo", ".git"));
-		ws.WriteManifest(("plus", "mandatory", ""), ("lab", "mandatory", "    tags: [x]\n"));
-		File.AppendAllText(Path.Combine(ws.Root, "_fx", "workspace.yaml"), "");
+		ws.Meta.WriteFile(Path.Combine("notes", "todo.md"), "mine");
+		ws.WriteManifest(("plus", "mandatory", ""), ("lab", "mandatory", "    tags: [unheard]\n"));
 		ws.Meta.Git("-C", ws.RepoPath("plus"), "remote", "set-url", "origin", "https://example.invalid/other.git");
 
-		var codes = Codes(WorkspaceModule.Doctor(ws.Root, offline: true, cancellationToken: TestContext.Current.CancellationToken)).ToList();
+		var diagnostics = Diagnostics(Doctor(ws.Root)).ToList();
+		var codes = diagnostics.Select(d => d.Code).ToList();
 		Assert.Contains(WorkspaceModule.Dirty, codes);
 		Assert.Contains(WorkspaceModule.Unpushed, codes);
 		Assert.Contains(WorkspaceModule.Detached, codes);
-		Assert.Contains(WorkspaceModule.Orphan, codes);
 		Assert.Contains(WorkspaceModule.OriginMismatch, codes);
+		Assert.Contains(diagnostics, d => d.Code == WorkspaceModule.Orphan && d.Message.English.StartsWith("stray/repo "));
+		Assert.Contains(diagnostics, d => d.Code == WorkspaceModule.NotVersioned && d.Severity == FxSeverity.Info && d.Message.English.StartsWith("notes/ "));
+		Assert.Contains(diagnostics, d => d.Code == WorkspaceModule.UnknownTag && d.Repository == "lab");
+		Assert.Contains(diagnostics, d => d.Code == WorkspaceModule.LocalNotIgnored && d.Repository == "plus");
+		// a folder that only holds a repository is not reported
+		Assert.DoesNotContain(diagnostics, d => d.Code == WorkspaceModule.NotVersioned && d.Message.English.StartsWith("plus/"));
 	}
 
-	[Fact(DisplayName = "doctor: a mounted repo the metarepo does not ignore is an error")]
+	[Fact(DisplayName = "doctor: a mounted repo the workspace does not ignore is an error")]
 	public void Doctor_NotIgnored()
 	{
 		using var ws = new Workspace(("plus", "mandatory"));
-		WorkspaceModule.Sync(ws.Root, new(), cancellationToken: TestContext.Current.CancellationToken);
-		File.WriteAllText(Path.Combine(ws.Root, ".gitignore"), "# GENERATED by fx\n!/everything\n");
-		var result = WorkspaceModule.Doctor(ws.Root, offline: true, cancellationToken: TestContext.Current.CancellationToken);
-		Assert.Contains(result.Diagnostics, d => d.Code == WorkspaceModule.NotIgnored && d.Severity == FxSeverity.Error);
-		Assert.Contains(result.Diagnostics, d => d.Code == WorkspaceModule.Outdated && d.File == ".gitignore");
+		Sync(ws.Root);
+		File.WriteAllText(Path.Combine(ws.Root, ".gitignore"), $"# {FxHeader.Title}\n!/everything\n");
+		var diagnostics = Diagnostics(Doctor(ws.Root)).ToList();
+		Assert.Contains(diagnostics, d => d.Code == WorkspaceModule.NotIgnored && d.Severity == FxSeverity.Error);
+		Assert.Contains(diagnostics, d => d.Code == WorkspaceModule.Outdated && d.File == ".gitignore");
 	}
 
 	// fx repo pull
@@ -427,7 +621,7 @@ public sealed class WorkspaceTest
 	public void Pull()
 	{
 		using var ws = new Workspace(("plus", "mandatory"), ("lab", "mandatory"));
-		WorkspaceModule.Sync(ws.Root, new(), cancellationToken: TestContext.Current.CancellationToken);
+		Sync(ws.Root);
 		ws.Origins["plus"].Commit("c2");
 		ws.Origins["lab"].Commit("c2");
 		new TempGitRepository(init: false, path: ws.RepoPath("lab")).WriteFile("dirty.txt", "x");
@@ -439,7 +633,7 @@ public sealed class WorkspaceTest
 
 	// CLI
 
-	[Fact(DisplayName = "fx sync in the metarepo runs the workspace module; -w from inside a repo too")]
+	[Fact(DisplayName = "fx sync in the workspace clones; fx doctor inside a repo; -w from inside a repo checks the workspace")]
 	public void Cli_Scope()
 	{
 		using var ws = new Workspace(("plus", "mandatory"));

@@ -32,10 +32,24 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		""";
 
 	/// <summary>
-	/// A repository with a packable library (net10.0 and net11.0) that uses the SDK and publishes locally
-	/// (FxLocalPublish); tagged version/2.3.0 on its first commit and with one more commit, so its version is 2.3.1.
+	/// The local publishing of a company (plan P, decision 24): a plain props that sets PackageOutputPath with the
+	/// SDK's properties; fx has nothing to do with it.
 	/// </summary>
-	TempGitRepository Sample(string? path = null, bool tag = true, string properties = "", string code = UsesMetadata)
+	const string PublishProps = """
+		<Project>
+			<PropertyGroup>
+				<PackageOutputPath Condition="'$(FxWorkspaceRoot)' != ''">$(FxWorkspaceRoot)~$publish/$(FxRepositoryName)/nupkgs/</PackageOutputPath>
+				<PackageOutputPath Condition="'$(FxWorkspaceRoot)' == ''">$(FxRepositoryRoot)~$publish/nupkgs/</PackageOutputPath>
+			</PropertyGroup>
+		</Project>
+		""";
+
+	/// <summary>
+	/// A repository with a packable library (net10.0 and net11.0) that uses the SDK and, with <paramref name="publish"/>,
+	/// publishes locally (its dotnet.yaml imports <see cref="PublishProps"/>; fx sync generates it, in its workspace if
+	/// it is in one); tagged version/2.3.0 on its first commit and with one more commit, so its version is 2.3.1.
+	/// </summary>
+	TempGitRepository Sample(string? path = null, bool tag = true, string properties = "", string code = UsesMetadata, bool publish = true)
 	{
 		var repo = new TempGitRepository(path: path);
 		fixture.SetUp(repo, $"""
@@ -45,7 +59,6 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 					<GenerateDocumentationFile>true</GenerateDocumentationFile>
 					<IncludeSymbols>true</IncludeSymbols>
 					<SymbolPackageFormat>snupkg</SymbolPackageFormat>
-					<FxLocalPublish>true</FxLocalPublish>
 					{properties}
 				</PropertyGroup>
 				<Import Project="Sdk.props" Sdk="Fuxion.Tools.Sdk" />
@@ -60,11 +73,39 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 			</Project>
 			""");
 		repo.WriteFile(Path.Combine("solution", "src", "Lib", "Info.cs"), code);
+		if (publish)
+		{
+			repo.WriteFile(Path.Combine("_fx", "dotnet", "dotnet.yaml"), "schema: 1.0.0\nimports:\n  - props: publish.props\n");
+			repo.WriteFile(Path.Combine("_fx", "dotnet", "publish.props"), PublishProps);
+			var stderr = new StringWriter();
+			Assert.True(FxApp.Run(["sync", "--offline"], new StringWriter(), stderr, repo.Path) == 0, stderr.ToString());
+		}
 		repo.CommitAll("c1");
 		if (tag)
 			repo.Tag("version/2.3.0");
 		repo.Commit("c2");
 		return repo;
+	}
+
+	/// <summary>A folder with <c>_fx/</c> that makes it a workspace named ws, declaring <paramref name="repositories"/> (name and path).</summary>
+	string Workspace(params (string Name, string Path)[] repositories)
+	{
+		var workspace = Directory.CreateDirectory(Path.Combine(fixture.Root, "ws-" + Guid.NewGuid().ToString("N")[..8])).FullName;
+		Directory.CreateDirectory(Path.Combine(workspace, "_fx", "workspace"));
+		File.WriteAllText(Path.Combine(workspace, "_fx", "fx.yaml"), "schema: 1.0.0\nname: ws\n");
+		File.WriteAllText(Path.Combine(workspace, "_fx", "workspace", "workspace.yaml"), "schema: 1.0.0\nrepositories:\n"
+			+ string.Concat(repositories.Select(r => $"  - name: {r.Name}\n    path: {r.Path}\n    url: https://example.invalid/{r.Name}.git\n")));
+		return workspace;
+	}
+
+	/// <summary>The value of MSBuild properties of the library, as MSBuild evaluates them (with two or more, msbuild writes JSON).</summary>
+	static JsonElement Properties(TempGitRepository repo, params string[] names)
+	{
+		var result = ProcessRunner.Run("dotnet", repo.Path,
+			["msbuild", Path.Combine(Lib(repo), "Lib.csproj"), "-p:TargetFramework=net10.0", .. names.Append("MSBuildProjectName").Select(n => $"-getProperty:{n}"), "-nologo"],
+			TimeSpan.FromMinutes(5), SdkFixture.CleanEnvironment(), TestContext.Current.CancellationToken);
+		Succeeded(result);
+		return JsonDocument.Parse(result.StandardOutput).RootElement.GetProperty("Properties");
 	}
 
 	static string Lib(TempGitRepository repo) => Path.Combine(repo.Path, "solution", "src", "Lib");
@@ -105,7 +146,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		Assert.Equal(written, File.GetLastWriteTimeUtc(MetadataFile(repo)));
 	}
 
-	[Fact(DisplayName = "FxLocalPublish outside a workspace: <repo>/~$publish/nupkgs, with the version and the docs")]
+	[Fact(DisplayName = "a publish props of the repo: outside a workspace, <repo>/~$publish/nupkgs, with the version and the docs")]
 	public void Pack()
 	{
 		using var repo = Sample();
@@ -120,60 +161,59 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		Assert.Contains("lib/net11.0/Lib.xml", entries);
 	}
 
-	[Fact(DisplayName = "without FxLocalPublish the SDK leaves PackageOutputPath alone (design D-37)")]
+	[Fact(DisplayName = "without a publish props the SDK leaves PackageOutputPath alone: it decides nothing of the repo's")]
 	public void Pack_NotLocal()
 	{
-		using var repo = Sample(properties: "<FxLocalPublish>false</FxLocalPublish>");
+		using var repo = Sample(publish: false);
 		Succeeded(fixture.Build(Lib(repo), "-t:Pack"));
 		Assert.True(File.Exists(Path.Combine(Lib(repo), "bin", "Release", "Lib.2.3.1.nupkg")) || File.Exists(Path.Combine(Lib(repo), "bin", "Debug", "Lib.2.3.1.nupkg")),
 			string.Join(", ", Directory.EnumerateFiles(repo.Path, "*.nupkg", SearchOption.AllDirectories)));
 		Assert.False(Directory.Exists(Path.Combine(repo.Path, "~$publish")));
 	}
 
-	[Fact(DisplayName = "FxLocalPublish from a props that dotnet.yaml imports (after the SDK's early part)")]
-	public void Pack_LocalFromImport()
-	{
-		using var repo = Sample();
-		repo.WriteFile(Path.Combine("solution", "Directory.Build.props"), """
-			<Project>
-				<PropertyGroup>
-					<IsPackable>true</IsPackable>
-				</PropertyGroup>
-				<Import Project="Sdk.props" Sdk="Fuxion.Tools.Sdk" />
-			</Project>
-			""");
-		repo.WriteFile(Path.Combine("_fx", "dotnet.yaml"), "imports:\n  - props: dotnet/packable.props\n    when: \"'$(IsPackable)' == 'true'\"\n");
-		repo.WriteFile(Path.Combine("_fx", "dotnet", "packable.props"), "<Project><PropertyGroup><FxLocalPublish>true</FxLocalPublish></PropertyGroup></Project>");
-		Assert.Equal(0, FxApp.Run(["sync", "dotnet"], new StringWriter(), new StringWriter(), repo.Path));
-		repo.CommitAll("c3");
-		Succeeded(fixture.Build(Lib(repo), "-t:Pack"));
-		Assert.True(File.Exists(Path.Combine(repo.Path, "~$publish", "nupkgs", "Lib.2.3.2.nupkg")),
-			string.Join(", ", Directory.EnumerateFiles(repo.Path, "*.nupkg", SearchOption.AllDirectories)));
-	}
-
-	[Fact(DisplayName = "FxLocalPublish in a workspace: <workspace>/~$publish/<repo>/nupkgs")]
+	[Fact(DisplayName = "in a workspace, at any path: <workspace>/~$publish/<name>/nupkgs, the name its workspace gives it")]
 	public void Pack_Workspace()
 	{
-		var workspace = Directory.CreateDirectory(Path.Combine(fixture.Root, "ws-" + Guid.NewGuid().ToString("N")[..8])).FullName;
-		Directory.CreateDirectory(Path.Combine(workspace, "_fx"));
-		File.WriteAllText(Path.Combine(workspace, "_fx", "workspace.yaml"), "version: 1\n");
-		using var repo = Sample(path: Path.Combine(workspace, "lib", "repo"));
+		var workspace = Workspace(("lib", "apps/library"));
+		using var repo = Sample(path: Path.Combine(workspace, "apps", "library"));
 		Succeeded(fixture.Build(Lib(repo), "-t:Pack"));
 
-		Assert.True(File.Exists(Path.Combine(workspace, "~$publish", "lib", "nupkgs", "Lib.2.3.1.nupkg")));
+		Assert.True(File.Exists(Path.Combine(workspace, "~$publish", "lib", "nupkgs", "Lib.2.3.1.nupkg")),
+			string.Join(", ", Directory.EnumerateFiles(workspace, "*.nupkg", SearchOption.AllDirectories)));
 		Assert.False(Directory.Exists(Path.Combine(repo.Path, "~$publish")));
+		var properties = Properties(repo, "FxRepositoryName", "FxRepositoryFullName", "FxWorkspaceRoot", "FxRepositoryRoot");
+		Assert.Equal("lib", properties.GetProperty("FxRepositoryName").GetString());
+		Assert.Equal("/ws/lib", properties.GetProperty("FxRepositoryFullName").GetString());
+		Assert.Equal(workspace.TrimEnd('\\', '/'), properties.GetProperty("FxWorkspaceRoot").GetString()!.TrimEnd('\\', '/'));
+		Assert.Equal(repo.Path.TrimEnd('\\', '/'), properties.GetProperty("FxRepositoryRoot").GetString()!.TrimEnd('\\', '/'));
 	}
 
-	[Fact(DisplayName = "FxLocalPublish in a workspace from a repo not at <name>/repo (a submodule): <workspace>/~$publish/<folder>/nupkgs")]
-	public void Pack_WorkspaceSubmodule()
+	[Fact(DisplayName = "nested workspaces: FxWorkspaceRoot is the highest; the root of a worktree stops the search")]
+	public void WorkspaceRoot()
 	{
-		var workspace = Directory.CreateDirectory(Path.Combine(fixture.Root, "ws-" + Guid.NewGuid().ToString("N")[..8])).FullName;
-		Directory.CreateDirectory(Path.Combine(workspace, "_fx"));
-		File.WriteAllText(Path.Combine(workspace, "_fx", "workspace.yaml"), "version: 1\n");
-		using var repo = Sample(path: Path.Combine(workspace, "plus", "repo", "lib"));
-		Succeeded(fixture.Build(Lib(repo), "-t:Pack"));
+		var top = Workspace(("w1", "w1"));
+		var w1 = Path.Combine(top, "w1");
+		Directory.CreateDirectory(Path.Combine(w1, "_fx", "workspace"));
+		File.WriteAllText(Path.Combine(w1, "_fx", "workspace", "workspace.yaml"), "schema: 1.0.0\nrepositories:\n  - name: lib\n    path: lib\n    url: x\n");
+		using var nested = Sample(path: Path.Combine(w1, "lib"), publish: false);
+		Assert.Equal(top.TrimEnd('\\', '/'), Properties(nested, "FxWorkspaceRoot").GetProperty("FxWorkspaceRoot").GetString()!.TrimEnd('\\', '/'));
 
-		Assert.True(File.Exists(Path.Combine(workspace, "~$publish", "lib", "nupkgs", "Lib.2.3.1.nupkg")));
+		// a worktree of w1, inside it: for the code, a closed tree
+		var worktree = Path.Combine(w1, "_fx", "~$worktrees", "feature-x");
+		Directory.CreateDirectory(Path.Combine(worktree, "_fx", "workspace"));
+		File.WriteAllText(Path.Combine(worktree, "~$worktree.yaml"), "schema: 1.0.0\nbranch: feature/x\n");
+		File.WriteAllText(Path.Combine(worktree, "_fx", "workspace", "workspace.yaml"), "schema: 1.0.0\nrepositories:\n  - name: lib\n    path: lib\n    url: x\n");
+		using var inWorktree = Sample(path: Path.Combine(worktree, "lib"), publish: false);
+		Assert.Equal(worktree.TrimEnd('\\', '/'), Properties(inWorktree, "FxWorkspaceRoot").GetProperty("FxWorkspaceRoot").GetString()!.TrimEnd('\\', '/'));
+	}
+
+	[Fact(DisplayName = "fx's local files and folders (~$) are not part of a project")]
+	public void LocalFilesExcluded()
+	{
+		using var repo = Sample(publish: false, code: Plain);
+		repo.WriteFile(Path.Combine("solution", "src", "Lib", "~$scratch", "Broken.cs"), "this does not compile");
+		repo.WriteFile(Path.Combine("solution", "src", "Lib", "~$Broken.cs"), "this does not compile either");
+		Succeeded(fixture.Build(Lib(repo)));
 	}
 
 	[Fact(DisplayName = "FxDocumentationLanguages: the English XML copied to ~$docs/en, the translations packed")]
@@ -247,15 +287,15 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 	{
 		// The repo's conventions are plain MSBuild files; dotnet.yaml says where they go (plan N, decision 15)
 		using var repo = CentralPackages("");
-		repo.WriteFile(Path.Combine("_fx", "dotnet.yaml"), """
+		repo.WriteFile(Path.Combine("_fx", "dotnet", "dotnet.yaml"), """
 			variables:
 			  - name: IsOldFramework
 			    when: "'$(TargetFramework)' == 'netstandard2.0'"
 			imports:
-			  - props: dotnet/default.props
-			  - targets: dotnet/test.targets
+			  - props: default.props
+			  - targets: test.targets
 			    when: "'$(IsTestProject)' == 'true'"
-			  - targets: dotnet/polysharp.targets
+			  - targets: polysharp.targets
 			    when: "$(IsOldFramework)"
 			""");
 		repo.WriteFile(Path.Combine("_fx", "dotnet", "default.props"), """
@@ -341,7 +381,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 				<Import Project="Sdk.props" Sdk="Fuxion.Tools.Sdk" />
 			</Project>
 			""");
-		repo.WriteFile(Path.Combine("_fx", "dotnet.yaml"), """
+		repo.WriteFile(Path.Combine("_fx", "dotnet", "dotnet.yaml"), """
 			packages:
 			  - ids: [Spectre.Console]
 			    versions:
@@ -358,7 +398,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 			</Project>
 			""");
 		Assert.Equal(0, FxApp.Run(["sync", "dotnet"], new StringWriter(), new StringWriter(), repo.Path));
-		Assert.False(File.Exists(Path.Combine(repo.Path, "_fx", "packages.g.props")));
+		Assert.False(File.Exists(Path.Combine(repo.Path, "_fx", "dotnet", "packages.g.props")));
 		repo.CommitAll("c1");
 		repo.Tag("version/1.0.0");
 
@@ -399,7 +439,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 	public void DotnetYaml()
 	{
 		using var repo = CentralPackages("");
-		repo.WriteFile(Path.Combine("_fx", "dotnet.yaml"), $"""
+		repo.WriteFile(Path.Combine("_fx", "dotnet", "dotnet.yaml"), $"""
 			sdks:
 			  Fuxion.Tools.Sdk: {fixture.Version}
 			variables:
@@ -460,7 +500,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 
 		var stdout = new StringWriter();
 		Assert.Equal(0, FxApp.Run(["sync"], stdout, new StringWriter(), repo.Path));
-		Assert.Contains("written     _fx/packages.g.props", stdout.ToString());
+		Assert.Contains("written     _fx/dotnet/packages.g.props", stdout.ToString());
 		repo.CommitAll("c1");
 		repo.Tag("version/1.0.0");
 
@@ -476,19 +516,19 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 	public void FxReference()
 	{
 		using var workspace = new TempGitRepository(path: Path.Combine(fixture.Root, "ws-" + Guid.NewGuid().ToString("N")[..8]));
-		workspace.WriteFile(Path.Combine("_fx", "workspace.yaml"), """
-			version: 1
+		workspace.WriteFile(Path.Combine("_fx", "fx.yaml"), "schema: 1.0.0\nname: ws\n");
+		workspace.WriteFile(Path.Combine("_fx", "dotnet", "dotnet.yaml"), "schema: 1.0.0\n");
+		workspace.WriteFile(Path.Combine("_fx", "workspace", "workspace.yaml"), """
+			schema: 1.0.0
 			repositories:
 			  - name: lib
 			    path: lib/repo
 			    url: https://example.invalid/lib.git
 			    mount: mandatory
-			    solution: Lib.slnx
 			  - name: app
 			    path: app/repo
 			    url: https://example.invalid/app.git
 			    mount: mandatory
-			    solution: App.slnx
 			""");
 		using var lib = Sample(path: Path.Combine(workspace.Path, "lib", "repo"));
 		lib.WriteFile("Lib.slnx", """<Solution><Project Path="solution/src/Lib/Lib.csproj" /></Solution>""");
@@ -520,8 +560,8 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		var appProject = Path.Combine(app.Path, "solution", "src", "App");
 
 		// In the workspace: fx sync writes the map, and Lib is a project
-		Assert.Equal(0, FxApp.Run(["sync", "workspace", "--offline"], new StringWriter(), new StringWriter(), workspace.Path));
-		Assert.Contains("Include=\"Lib\" Repository=\"lib\"", File.ReadAllText(Path.Combine(workspace.Path, "_fx", "~$workspace.props")));
+		Assert.Equal(0, FxApp.Run(["sync", "--offline"], new StringWriter(), new StringWriter(), workspace.Path));
+		Assert.Contains("Include=\"Lib\" Repository=\"lib\"", File.ReadAllText(Path.Combine(workspace.Path, "_fx", "dotnet", "~$workspace.props")));
 		Succeeded(fixture.Build(appProject));
 		Assert.Equal("project", LibraryType(app, "Lib"));
 		Assert.True(File.Exists(Path.Combine(appProject, "bin", "Debug", "net10.0", "Lib.dll")));

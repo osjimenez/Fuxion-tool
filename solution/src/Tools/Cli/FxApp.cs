@@ -21,7 +21,7 @@ public static class FxApp
 			SyncCommand.CreateDoctor(global, currentDirectory),
 			RepoCommand.Create(global, currentDirectory),
 			ManifestCommands.CreateModule(global, currentDirectory),
-			ManifestCommands.CreateFolder(global, currentDirectory),
+			ManifestCommands.CreatePath(global, currentDirectory),
 			VersionCommand.Create(global, currentDirectory)
 		};
 		global.AddTo(root);

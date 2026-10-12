@@ -1,0 +1,194 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Xml;
+using System.Xml.Linq;
+using Fuxion.Tools.Core.Layout;
+using Fuxion.Tools.Core.Results;
+
+namespace Fuxion.Tools.Core.Dotnet;
+
+/// <summary>
+/// The solutions a root generates (plan P, decision 13), composed by hand in its <c>dotnet.yaml</c> with the vocabulary
+/// of the <c>.slnx</c>: each folder takes files and the content of other solutions (their projects, files and folders,
+/// as subfolders). They are versioned with everything declared: a solution of a repository that is not on disk keeps
+/// what the generated solution already had of it (Visual Studio shows it as unavailable; plan P, P1, detail 2). A project
+/// that arrives twice appears once; two different projects with the same name in the same folder are an error (Visual
+/// Studio does not take them).
+/// </summary>
+public static class SolutionComposer
+{
+	public const string MissingSolution = "dotnet.missing-solution";
+	public const string DuplicateName = "dotnet.duplicate-project-name";
+
+	public static void Run(FxNode node, IReadOnlyList<DotnetSolution> solutions, FxOutputs outputs, FxDiagnostics diagnostics)
+	{
+		foreach (var solution in solutions)
+		{
+			var path = node.Full(solution.Path);
+			var previous = File.Exists(path) ? File.ReadAllText(path) : null;
+			outputs.Generated(path, Compose(node.Root, solution, previous, diagnostics, outputs.Display));
+		}
+	}
+
+	public static string Compose(string root, DotnetSolution solution, string? previous, FxDiagnostics diagnostics, Func<string, string> display)
+	{
+		var outFile = FxLayout.Full(root, solution.Path);
+		var outDir = Path.GetDirectoryName(outFile)!;
+		var platforms = new List<string>();
+		var buildTypes = new List<string>();
+		var folders = new SortedDictionary<string, List<XElement>>(StringComparer.Ordinal);
+		var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		var previousDocument = Parse(previous);
+		var sources = new List<string> { $"{DotnetModule.ConfigFile} ({solution.Path})" };
+
+		List<XElement> Folder(string name)
+		{
+			if (!folders.TryGetValue(name, out var items))
+				folders[name] = items = [];
+			return items;
+		}
+
+		// "/" is the root of the solution; any other folder, "/a/b/"
+		static string Join(string folder, string sub)
+		{
+			var name = (folder.Trim('/') + "/" + sub.Trim('/')).Trim('/');
+			return name.Length == 0 ? "/" : $"/{name}/";
+		}
+
+		void Add(XElement item, string folder, string fullPath)
+		{
+			if (!seen.Add(fullPath))
+				return;
+			var copy = new XElement(item);
+			copy.SetAttributeValue("Path", Path.GetRelativePath(outDir, fullPath).Replace('\\', '/'));
+			Folder(folder).Add(copy);
+		}
+
+		foreach (var declared in solution.Folders)
+		{
+			var folder = Join(declared.Name, "");
+			Folder(folder);
+			foreach (var file in declared.Files)
+				Add(new XElement("File"), folder, FxLayout.Full(root, file));
+			foreach (var sub in declared.Solutions)
+			{
+				var subFile = FxLayout.Full(root, sub);
+				var subDir = Path.GetDirectoryName(subFile)!;
+				if (File.Exists(subFile) && Parse(File.ReadAllText(subFile)) is { } document)
+				{
+					sources.Add(sub);
+					foreach (var platform in document.Elements("Configurations").Elements("Platform").Select(p => (string?)p.Attribute("Name")).OfType<string>())
+						if (!platforms.Contains(platform, StringComparer.OrdinalIgnoreCase))
+							platforms.Add(platform);
+					foreach (var buildType in document.Elements("Configurations").Elements("BuildType").Select(p => (string?)p.Attribute("Name")).OfType<string>())
+						if (!buildTypes.Contains(buildType, StringComparer.OrdinalIgnoreCase))
+							buildTypes.Add(buildType);
+					foreach (var item in Items(document))
+						if ((string?)item.Attribute("Path") is { } itemPath)
+							Add(item, folder, Path.GetFullPath(Path.Combine(subDir, itemPath)));
+					foreach (var subFolder in document.Elements("Folder"))
+					{
+						var name = Join(folder, (string?)subFolder.Attribute("Name") ?? "/");
+						Folder(name);
+						foreach (var item in Items(subFolder))
+							if ((string?)item.Attribute("Path") is { } itemPath)
+								Add(item, name, Path.GetFullPath(Path.Combine(subDir, itemPath)));
+					}
+					continue;
+				}
+				// not on disk (not mounted): what the generated solution already had of it, under this folder
+				var prefix = Path.GetRelativePath(outDir, subDir).Replace('\\', '/').TrimEnd('/') + "/";
+				var kept = previousDocument is null ? [] : PreviousItems(previousDocument, folder, prefix).ToList();
+				if (kept.Count == 0)
+					diagnostics.Add(FxDiagnostic.Warning(MissingSolution, new(MissingSolution, sub, solution.Path), display(FxLayout.Full(root, DotnetModule.ConfigFile)), declared.Line));
+				foreach (var (name, item) in kept)
+				{
+					Folder(name);
+					Add(item, name, Path.GetFullPath(Path.Combine(outDir, (string)item.Attribute("Path")!)));
+				}
+			}
+		}
+
+		// two different projects with the same name in one folder: Visual Studio does not take them
+		foreach (var (name, items) in folders)
+			foreach (var duplicate in items.Where(i => i.Name.LocalName == "Project")
+				         .GroupBy(i => Path.GetFileNameWithoutExtension((string?)i.Attribute("Path") ?? ""), StringComparer.OrdinalIgnoreCase)
+				         .Where(g => g.Count() > 1))
+				diagnostics.Add(FxDiagnostic.Error(DuplicateName, new(DuplicateName, duplicate.Key, name, solution.Path,
+					string.Join(", ", duplicate.Select(i => (string?)i.Attribute("Path")))), display(FxLayout.Full(root, DotnetModule.ConfigFile)), solution.Line));
+
+		// every parent folder is declared too (/a/ and /a/b/ for /a/b/c/)
+		foreach (var name in folders.Keys.Where(n => n != "/").ToList())
+		{
+			var parts = name.Trim('/').Split('/');
+			for (var i = 1; i < parts.Length; i++)
+				Folder("/" + string.Join('/', parts.Take(i)) + "/");
+		}
+
+		var b = new StringBuilder();
+		b.Append("<Solution>\n");
+		b.Append(FxHeader.Xml(string.Join(", ", sources), indent: "  "));
+		if (platforms.Count > 0 || buildTypes.Count > 0)
+		{
+			b.Append("  <Configurations>\n");
+			foreach (var buildType in buildTypes)
+				b.Append($"    <BuildType Name=\"{buildType}\" />\n");
+			foreach (var platform in platforms)
+				b.Append($"    <Platform Name=\"{platform}\" />\n");
+			b.Append("  </Configurations>\n");
+		}
+		if (folders.TryGetValue("/", out var rootItems))
+			foreach (var item in Sorted(rootItems))
+				b.Append("  ").Append(item.ToString(SaveOptions.DisableFormatting)).Append('\n');
+		foreach (var (name, items) in folders.Where(f => f.Key != "/"))
+		{
+			if (items.Count == 0)
+			{
+				b.Append($"  <Folder Name=\"{name}\" />\n");
+				continue;
+			}
+			b.Append($"  <Folder Name=\"{name}\">\n");
+			foreach (var item in Sorted(items))
+				b.Append("    ").Append(item.ToString(SaveOptions.DisableFormatting)).Append('\n');
+			b.Append("  </Folder>\n");
+		}
+		b.Append("</Solution>\n");
+		return b.ToString();
+	}
+
+	static IEnumerable<XElement> Sorted(IEnumerable<XElement> items)
+		=> items.OrderBy(i => i.Name.LocalName == "File" ? 0 : 1).ThenBy(i => (string?)i.Attribute("Path"), StringComparer.OrdinalIgnoreCase);
+
+	static IEnumerable<XElement> Items(XElement parent) => parent.Elements().Where(e => e.Name.LocalName is "Project" or "File");
+
+	/// <summary>The items of a generated solution under <paramref name="folder"/> whose path starts with <paramref name="prefix"/>, with their folder.</summary>
+	static IEnumerable<(string Folder, XElement Item)> PreviousItems(XElement document, string folder, string prefix)
+	{
+		bool Under(string name) => folder == "/" || name.StartsWith(folder, StringComparison.Ordinal);
+		bool Matches(XElement item) => ((string?)item.Attribute("Path") ?? "").StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+		if (folder == "/")
+			foreach (var item in Items(document).Where(Matches))
+				yield return ("/", item);
+		foreach (var f in document.Elements("Folder"))
+			if ((string?)f.Attribute("Name") is { } name && Under(name))
+				foreach (var item in Items(f).Where(Matches))
+					yield return (name, item);
+	}
+
+	static XElement? Parse(string? text)
+	{
+		if (text is null)
+			return null;
+		try
+		{
+			return XDocument.Parse(text).Root;
+		}
+		catch (XmlException)
+		{
+			return null;
+		}
+	}
+}

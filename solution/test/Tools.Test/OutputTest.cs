@@ -51,7 +51,9 @@ public sealed class OutputTest
 		using var origin = new TempGitRepository();
 		origin.WriteFile("FxPlus.slnx", "<Solution />\n");
 		origin.Commit("c1");
-		meta.WriteFile(Path.Combine("_fx", "workspace.yaml"), $"""
+		meta.WriteFile(Path.Combine("_fx", "fx.yaml"), "schema: 1.0.0\nname: test\n");
+		meta.WriteFile(Path.Combine("_fx", "workspace", "workspace.yaml"), $"""
+			schema: 1.0.0
 			repositories:
 			  - name: plus
 			    path: plus/repo
@@ -79,7 +81,7 @@ public sealed class OutputTest
 	public void Cancelled()
 	{
 		using var meta = new TempGitRepository();
-		meta.WriteFile(Path.Combine("_fx", "workspace.yaml"), "repositories: []\n");
+		meta.WriteFile(Path.Combine("_fx", "workspace", "workspace.yaml"), "schema: 1.0.0\nrepositories: []\n");
 		meta.Commit("manifest");
 		using var cancelled = new CancellationTokenSource();
 		cancelled.Cancel();

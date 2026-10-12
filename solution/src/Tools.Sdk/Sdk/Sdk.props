@@ -12,15 +12,19 @@
 		msbuild-sdks section of the global.json at the root of the repo. The rest is hooked in here: nothing to import in
 		Directory.Build.targets.
 
-		Minimally intrusive (design D-37): the SDK adds Fx* variables for its own features and decides nothing else.
-		Language version, nullable, test frameworks, packaging metadata… are the repo's: plain props and targets that
-		_fx/dotnet.yaml imports where they apply (its imports: section, design §7.3).
+		Minimally intrusive: the SDK adds Fx* variables for its own features and decides nothing else. Language version,
+		nullable, test frameworks, packaging metadata, where the packages go… are the repo's: plain props and targets that
+		_fx/dotnet/dotnet.yaml imports where they apply (its imports: section).
 
 		What it gives:
-		  FxRepositoryRoot, FxWorkspaceRoot, FxRepositoryName   where the repo and its workspace are
+		  FxRepositoryRoot        the repository: where fx generated its .NET (_fx/dotnet/), or its global.json
+		  FxWorkspaceRoot         the highest workspace above it on disk (empty for a repository on its own)
+		  FxRepositoryName        its name, as its workspace declares it (or its own, for a root)
+		  FxRepositoryFullName    its full name, from the root: /acme/product/app
 		  FxIsCi                  true on a CI server (GITHUB_ACTIONS, CI)
-		  _fx/dotnet.g.props      the variables and the props: imports of dotnet.yaml (here, before the project file)
-		  _fx/dotnet.g.targets    the when variables and the targets: imports (right after the project file)
+		  _fx/dotnet/dotnet.g.props    the variables and the props: imports of dotnet.yaml (here, before the project file)
+		  _fx/dotnet/dotnet.g.targets  the when variables and the targets: imports (right after the project file)
+		The ~$ files and folders (fx's local ones) are not taken by the default globs of the projects.
 
 		Settings (all optional):
 		  FxVersioningEnabled     version from git (default true); FxVersionFailOnError (default true),
@@ -28,45 +32,54 @@
 		  FxStaticMetadataEnabled the Fuxion.Metadata.<Project> classes (default: as FxVersioningEnabled);
 		                          FxStaticMetadataNamespace (default Fuxion.Metadata)
 		  FxDocumentationLanguages translated XML documentation to pack, from ~$docs/<lang> (for example: es)
-		  FxLocalPublish          packages to <workspace>/~$publish/<repo>/nupkgs, or <repo>/~$publish/nupkgs outside
-		                          a workspace (design D-36); FxPublishDirectory to choose another folder
+		  FxUsePackages           every FxReference as a package, also in a workspace (CI)
+		  FxRequiresWorkspace     an FxReference that would be a package is an error (FXTL001)
 	-->
 
 	<PropertyGroup>
 		<FxSdkImported>true</FxSdkImported>
 
-		<!-- The repo: where its global.json is (design D-33). The workspace, if the repo is mounted in one (D-36). -->
+		<!-- The repository: the nearest of the folder where fx generated its .NET and the folder of its global.json -->
 		<!-- (paths with NormalizeDirectory and '/', so they work on Windows and on Linux) -->
+		<_FxGeneratedDirectory>$([MSBuild]::GetDirectoryNameOfFileAbove('$(MSBuildProjectDirectory)', '_fx/dotnet/dotnet.g.props'))</_FxGeneratedDirectory>
 		<_FxGlobalJsonDirectory>$([MSBuild]::GetDirectoryNameOfFileAbove('$(MSBuildProjectDirectory)', 'global.json'))</_FxGlobalJsonDirectory>
-		<FxRepositoryRoot Condition="'$(FxRepositoryRoot)' == '' And '$(_FxGlobalJsonDirectory)' != ''">$([MSBuild]::NormalizeDirectory('$(_FxGlobalJsonDirectory)'))</FxRepositoryRoot>
-		<_FxWorkspaceDirectory Condition="'$(FxWorkspaceRoot)' == '' And '$(FxRepositoryRoot)' != ''">$([MSBuild]::GetDirectoryNameOfFileAbove($([MSBuild]::NormalizeDirectory('$(FxRepositoryRoot)', '..')), '_fx/workspace.yaml'))</_FxWorkspaceDirectory>
-		<FxWorkspaceRoot Condition="'$(FxWorkspaceRoot)' == '' And '$(_FxWorkspaceDirectory)' != ''">$([MSBuild]::NormalizeDirectory('$(_FxWorkspaceDirectory)'))</FxWorkspaceRoot>
-		<!-- The name of the repo in a workspace: mounted at <name>/repo, the folder above; otherwise (a submodule, like
-		     plus/repo/oss) its own folder -->
-		<_FxRepositoryFolder Condition="'$(FxRepositoryRoot)' != ''">$([System.IO.Path]::GetFileName($(FxRepositoryRoot.TrimEnd('\').TrimEnd('/'))))</_FxRepositoryFolder>
-		<FxRepositoryName Condition="'$(FxRepositoryName)' == '' And '$(FxWorkspaceRoot)' != '' And '$(_FxRepositoryFolder)' == 'repo'">$([System.IO.Path]::GetFileName($([System.IO.Path]::GetDirectoryName($(FxRepositoryRoot.TrimEnd('\').TrimEnd('/'))))))</FxRepositoryName>
-		<FxRepositoryName Condition="'$(FxRepositoryName)' == '' And '$(FxWorkspaceRoot)' != ''">$(_FxRepositoryFolder)</FxRepositoryName>
+		<_FxRepositoryDirectory>$(_FxGlobalJsonDirectory)</_FxRepositoryDirectory>
+		<_FxRepositoryDirectory Condition="'$(_FxGeneratedDirectory)' != '' And $(_FxGeneratedDirectory.Length) &gt;= $(_FxGlobalJsonDirectory.Length)">$(_FxGeneratedDirectory)</_FxRepositoryDirectory>
+		<FxRepositoryRoot Condition="'$(FxRepositoryRoot)' == '' And '$(_FxRepositoryDirectory)' != ''">$([MSBuild]::NormalizeDirectory('$(_FxRepositoryDirectory)'))</FxRepositoryRoot>
 
-		<!-- Local publishing, only if asked (it changes PackageOutputPath, a standard property; D-36, D-37) -->
-		<FxPublishDirectory Condition="'$(FxPublishDirectory)' == '' And '$(FxWorkspaceRoot)' != ''">$([MSBuild]::NormalizeDirectory('$(FxWorkspaceRoot)', '~$publish', '$(FxRepositoryName)'))</FxPublishDirectory>
-		<FxPublishDirectory Condition="'$(FxPublishDirectory)' == '' And '$(FxRepositoryRoot)' != ''">$([MSBuild]::NormalizeDirectory('$(FxRepositoryRoot)', '~$publish'))</FxPublishDirectory>
+		<!-- The workspace: the highest one on disk, from the repository itself up (a workspace with projects of its own is
+		     its own), up to five levels; the root of a worktree stops it: for the code, a worktree is a closed tree -->
+		<_FxWorkspaceFile>_fx/workspace/workspace.yaml</_FxWorkspaceFile>
+		<_FxW1 Condition="'$(FxWorkspaceRoot)' == '' And '$(FxRepositoryRoot)' != ''">$([MSBuild]::GetDirectoryNameOfFileAbove('$(FxRepositoryRoot)', '$(_FxWorkspaceFile)'))</_FxW1>
+		<_FxStop Condition="'$(_FxW1)' != '' And Exists('$(_FxW1)/~$worktree.yaml')">true</_FxStop>
+		<_FxW2 Condition="'$(_FxW1)' != '' And '$(_FxStop)' != 'true'">$([MSBuild]::GetDirectoryNameOfFileAbove($([MSBuild]::NormalizeDirectory('$(_FxW1)', '..')), '$(_FxWorkspaceFile)'))</_FxW2>
+		<_FxStop Condition="'$(_FxW2)' != '' And Exists('$(_FxW2)/~$worktree.yaml')">true</_FxStop>
+		<_FxW3 Condition="'$(_FxW2)' != '' And '$(_FxStop)' != 'true'">$([MSBuild]::GetDirectoryNameOfFileAbove($([MSBuild]::NormalizeDirectory('$(_FxW2)', '..')), '$(_FxWorkspaceFile)'))</_FxW3>
+		<_FxStop Condition="'$(_FxW3)' != '' And Exists('$(_FxW3)/~$worktree.yaml')">true</_FxStop>
+		<_FxW4 Condition="'$(_FxW3)' != '' And '$(_FxStop)' != 'true'">$([MSBuild]::GetDirectoryNameOfFileAbove($([MSBuild]::NormalizeDirectory('$(_FxW3)', '..')), '$(_FxWorkspaceFile)'))</_FxW4>
+		<_FxStop Condition="'$(_FxW4)' != '' And Exists('$(_FxW4)/~$worktree.yaml')">true</_FxStop>
+		<_FxW5 Condition="'$(_FxW4)' != '' And '$(_FxStop)' != 'true'">$([MSBuild]::GetDirectoryNameOfFileAbove($([MSBuild]::NormalizeDirectory('$(_FxW4)', '..')), '$(_FxWorkspaceFile)'))</_FxW5>
+		<_FxWorkspaceDirectory>$(_FxW1)</_FxWorkspaceDirectory>
+		<_FxWorkspaceDirectory Condition="'$(_FxW2)' != ''">$(_FxW2)</_FxWorkspaceDirectory>
+		<_FxWorkspaceDirectory Condition="'$(_FxW3)' != ''">$(_FxW3)</_FxWorkspaceDirectory>
+		<_FxWorkspaceDirectory Condition="'$(_FxW4)' != ''">$(_FxW4)</_FxWorkspaceDirectory>
+		<_FxWorkspaceDirectory Condition="'$(_FxW5)' != ''">$(_FxW5)</_FxWorkspaceDirectory>
+		<FxWorkspaceRoot Condition="'$(FxWorkspaceRoot)' == '' And '$(_FxWorkspaceDirectory)' != ''">$([MSBuild]::NormalizeDirectory('$(_FxWorkspaceDirectory)'))</FxWorkspaceRoot>
 
 		<!-- On a CI server (for the repo's own props: ContinuousIntegrationBuild…) -->
 		<FxIsCi Condition="'$(GITHUB_ACTIONS)' == 'true' Or '$(CI)' == 'true' Or '$(CI)' == '1'">true</FxIsCi>
+
+		<!-- fx's local files and folders (~$…) are not part of any project -->
+		<DefaultItemExcludes>$(DefaultItemExcludes);**/~%24*/**;**/~%24*</DefaultItemExcludes>
 	</PropertyGroup>
 
-	<!-- The variables of dotnet.yaml and its props: imports (design §7.3) -->
-	<Import Project="$(FxRepositoryRoot)_fx/dotnet.g.props" Condition="'$(FxRepositoryRoot)' != '' And Exists('$(FxRepositoryRoot)_fx/dotnet.g.props')" />
-
-	<!-- After them: one of the repo's props can ask for it (FxLocalPublish) -->
-	<PropertyGroup>
-		<PackageOutputPath Condition="'$(FxLocalPublish)' == 'true' And '$(FxPublishDirectory)' != ''">$([MSBuild]::NormalizeDirectory('$(FxPublishDirectory)', 'nupkgs'))</PackageOutputPath>
-	</PropertyGroup>
+	<!-- Who the repository is, the variables of dotnet.yaml and its props: imports -->
+	<Import Project="$(FxRepositoryRoot)_fx/dotnet/dotnet.g.props" Condition="'$(FxRepositoryRoot)' != '' And Exists('$(FxRepositoryRoot)_fx/dotnet/dotnet.g.props')" />
 
 	<PropertyGroup>
 		<!-- Right after the project file, before the .NET SDK computes anything (the start of its Sdk.targets): the when
 		     variables and the targets: imports of dotnet.yaml, which see what the project declares and can still set
-		     properties like OutputType (plan N, decision 15; the .NET SDK imports BeforeMicrosoftNETSdkTargets there) -->
+		     properties like OutputType (the .NET SDK imports BeforeMicrosoftNETSdkTargets there) -->
 		<_FxPreviousBeforeMicrosoftNETSdkTargets>$(BeforeMicrosoftNETSdkTargets)</_FxPreviousBeforeMicrosoftNETSdkTargets>
 		<BeforeMicrosoftNETSdkTargets>$(MSBuildThisFileDirectory)../build/Fuxion.Tools.Sdk.Project.targets</BeforeMicrosoftNETSdkTargets>
 

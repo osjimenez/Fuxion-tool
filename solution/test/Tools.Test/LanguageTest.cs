@@ -102,14 +102,16 @@ public sealed partial class LanguageTest
 	public void CodesHaveTexts()
 	{
 		var english = Texts(Manager("core"), CultureInfo.InvariantCulture);
-		var codes = new[] { typeof(WorkspaceModule), typeof(ModulePropagation), typeof(SolutionGenerator), typeof(WorkspacePropsGenerator), typeof(WorkspaceManifest),
-				typeof(Core.Dotnet.DotnetModule), typeof(Core.Dotnet.DotnetYamlReader), typeof(Core.Versioning.VersioningErrorCodes), typeof(Core.Versioning.VersionTagger), typeof(ManifestEditor) }
+		var codes = new[] { typeof(WorkspaceModule), typeof(WorkspacePropsGenerator), typeof(WorkspaceManifest), typeof(Core.Sync.SyncEngine), typeof(Core.Sync.Inheritance),
+				typeof(Core.Layout.FxYamlReader), typeof(Core.Layout.FxOutputs), typeof(Core.Layout.FxNode), typeof(Core.Layout.FxConfig), typeof(Core.Layout.FxInherited),
+				typeof(Core.Dotnet.DotnetModule), typeof(Core.Dotnet.DotnetYamlReader), typeof(Core.Dotnet.SolutionComposer), typeof(Core.Versioning.VersioningErrorCodes),
+				typeof(Core.Versioning.VersionTagger), typeof(ManifestEditor) }
 			.SelectMany(t => t.GetFields().Where(f => f.IsLiteral && f.FieldType == typeof(string)).Select(f => (string)f.GetRawConstantValue()!))
-			.Where(c => Regex.IsMatch(c, @"^(workspace|dotnet|version)\.[a-z-]+$"))
+			.Where(c => Regex.IsMatch(c, @"^(fx|workspace|dotnet|version)\.[a-z-]+$"))
 			.ToList();
 		Assert.NotEmpty(codes);
 		// codes whose message is git's or a parser's (FxText.Plain), or that reuse another text
-		string[] plain = ["dotnet.invalid-yaml", "version.git-failed", "version.invalid-tag", "workspace.invalid-dotnet", "dotnet.not-generated", "workspace.not-generated"];
+		string[] plain = ["dotnet.invalid-yaml", "version.git-failed", "version.invalid-tag"];
 		Assert.DoesNotContain(codes.Except(plain), c => !english.ContainsKey(c) && !english.Keys.Any(k => k.StartsWith(c + ".", StringComparison.Ordinal)));
 	}
 

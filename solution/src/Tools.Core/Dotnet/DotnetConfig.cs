@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Fuxion.Tools.Core.Layout;
 
 namespace Fuxion.Tools.Core.Dotnet;
 
@@ -9,7 +10,7 @@ namespace Fuxion.Tools.Core.Dotnet;
 /// <c>when</c> condition (true or false); a <c>when</c> one can also <c>define</c> compilation constants
 /// (<c>OLD_FRAMEWORKS</c>, for <c>#if</c>) where its condition holds.
 /// </summary>
-public sealed record DotnetVariable(string Name, string? Value, string? When, IReadOnlyList<string> Tags, string Source, int Line, string? Define = null)
+public sealed record DotnetVariable(string Name, string? Value, string? When, FxAppliesTo AppliesTo, string Source, int Line, string? Define = null)
 {
 	public bool IsWhen => When is not null;
 }
@@ -18,25 +19,35 @@ public sealed record DotnetVariable(string Name, string? Value, string? When, IR
 public sealed record DotnetPackageVersion(string? When, string Version, int Line);
 
 /// <summary>Packages that share their versions.</summary>
-public sealed record DotnetPackage(IReadOnlyList<string> Ids, IReadOnlyList<DotnetPackageVersion> Versions, IReadOnlyList<string> Tags, string Source, int Line);
+public sealed record DotnetPackage(IReadOnlyList<string> Ids, IReadOnlyList<DotnetPackageVersion> Versions, FxAppliesTo AppliesTo, string Source, int Line);
 
 /// <summary>
-/// An import of <c>dotnet.yaml</c> (plan N, decision 15): plain MSBuild files of the repo or the workspace, imported in
-/// the projects where <c>when</c> holds (all, without it). <c>Props</c> go before the project file; <c>Targets</c> right
-/// after it, before the .NET SDK computes anything. The paths are relative to the folder of the yaml that declares them,
-/// which is <c>Base</c> relative to <c>_fx/</c> (empty for the repo's <c>_fx/dotnet.yaml</c>, <c>.workspace</c> for the
-/// copy of the workspace's).
+/// An import of <c>dotnet.yaml</c>: plain MSBuild files, imported in the projects where <c>when</c> holds (all, without
+/// it). <c>Props</c> go before the project file; <c>Targets</c> right after it, before the .NET SDK computes anything.
+/// The paths are relative to the folder of the yaml that declares them; <c>Base</c> is that folder, relative to
+/// <c>_fx/dotnet/</c>, where the generated files are (empty for the repository's own, <c>../.inherited/dotnet</c> for
+/// what it inherits).
 /// </summary>
-public sealed record DotnetImport(IReadOnlyList<string> Props, IReadOnlyList<string> Targets, string? When, IReadOnlyList<string> Tags, string Source, int Line, string Base = "")
+public sealed record DotnetImport(IReadOnlyList<string> Props, IReadOnlyList<string> Targets, string? When, FxAppliesTo AppliesTo, string Source, int Line, string Base = "")
 {
-	/// <summary>Every file, relative to <c>_fx/</c>.</summary>
-	public IEnumerable<string> Files => Props.Concat(Targets).Select(FromFx);
+	/// <summary>Every file, relative to the folder of its yaml.</summary>
+	public IEnumerable<string> Files => Props.Concat(Targets);
 
-	/// <summary>A path of this import, relative to <c>_fx/</c>.</summary>
-	public string FromFx(string path) => Base.Length == 0 ? path : $"{Base}/{path}";
+	/// <summary>A path of this import, relative to <c>_fx/dotnet/</c>.</summary>
+	public string FromModule(string path) => Base.Length == 0 ? path : $"{Base}/{path}";
 }
 
-/// <summary><c>_fx/dotnet.yaml</c>: MSBuild SDKs, variables, imports and common packages (design §7.3).</summary>
+/// <summary>A folder of a generated solution, like <c>&lt;Folder Name&gt;</c>: other solutions whose content goes in it, and files.</summary>
+public sealed record DotnetSolutionFolder(string Name, IReadOnlyList<string> Solutions, IReadOnlyList<string> Files, int Line);
+
+/// <summary>A solution the root generates (plan P, decision 13), relative to the root, and its folders.</summary>
+public sealed record DotnetSolution(string Path, IReadOnlyList<DotnetSolutionFolder> Folders, int Line);
+
+/// <summary>
+/// <c>_fx/dotnet/dotnet.yaml</c> (design §7.3, plan P): MSBuild SDKs, variables, imports and common packages, which go
+/// down to the repositories of <see cref="AppliesTo"/>; and what does not go down: the solutions this root generates and
+/// whether it builds on its own (<see cref="Standalone"/>).
+/// </summary>
 public sealed record DotnetConfig(
 	IReadOnlyDictionary<string, string> Sdks,
 	IReadOnlyList<DotnetVariable> Variables,
@@ -45,41 +56,70 @@ public sealed record DotnetConfig(
 {
 	public static DotnetConfig Empty { get; } = new(new Dictionary<string, string>(), [], [], []);
 
+	/// <summary>Who the configuration is for; null: it does not say (everyone, or what it inherits says).</summary>
+	public FxAppliesTo? AppliesTo { get; init; }
+
+	public IReadOnlyList<DotnetSolution> Solutions { get; init; } = [];
+
+	public bool Standalone { get; init; }
+
+	public bool Enabled { get; init; } = true;
+
+	public bool IsEmpty => Sdks.Count == 0 && Variables.Count == 0 && Packages.Count == 0 && Imports.Count == 0;
+
 	/// <summary>
-	/// The workspace layer (<c>_fx/.workspace/dotnet.yaml</c>) with the repo on top: the repo wins by SDK name, variable
-	/// name and package id; the imports of both apply, the workspace's first (design §7.3).
+	/// What comes from above with <paramref name="own"/> on top (plan P, decision 16: the nearest wins by name): by SDK
+	/// name, variable name, package id and imported file; its <c>applies-to</c>, if it says one. The solutions and
+	/// <c>standalone</c> are <paramref name="own"/>'s: they do not go down.
 	/// </summary>
-	public static DotnetConfig Combine(DotnetConfig workspace, DotnetConfig repo)
+	public static DotnetConfig Combine(DotnetConfig inherited, DotnetConfig own)
 	{
-		var sdks = new Dictionary<string, string>(workspace.Sdks, StringComparer.OrdinalIgnoreCase);
-		foreach (var (name, version) in repo.Sdks)
+		var sdks = new Dictionary<string, string>(inherited.Sdks, StringComparer.OrdinalIgnoreCase);
+		foreach (var (name, version) in own.Sdks)
 			sdks[name] = version;
 
-		var repoVariables = repo.Variables.Select(v => v.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-		var variables = workspace.Variables.Where(v => !repoVariables.Contains(v.Name)).Concat(repo.Variables).ToList();
+		var ownVariables = own.Variables.Select(v => v.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+		var variables = inherited.Variables.Where(v => !ownVariables.Contains(v.Name)).Concat(own.Variables).ToList();
 
-		var repoIds = repo.Packages.SelectMany(p => p.Ids).ToHashSet(StringComparer.OrdinalIgnoreCase);
-		var packages = workspace.Packages
-			.Select(p => p with { Ids = p.Ids.Where(id => !repoIds.Contains(id)).ToList() })
+		var ownIds = own.Packages.SelectMany(p => p.Ids).ToHashSet(StringComparer.OrdinalIgnoreCase);
+		var packages = inherited.Packages
+			.Select(p => p with { Ids = p.Ids.Where(id => !ownIds.Contains(id)).ToList() })
 			.Where(p => p.Ids.Count > 0)
-			.Concat(repo.Packages)
+			.Concat(own.Packages)
 			.ToList();
 
-		return new(sdks, variables, packages, workspace.Imports.Concat(repo.Imports).ToList());
-	}
+		var ownFiles = own.Imports.SelectMany(i => i.Files).ToHashSet(StringComparer.OrdinalIgnoreCase);
+		var imports = inherited.Imports
+			.Select(i => i with { Props = i.Props.Where(p => !ownFiles.Contains(p)).ToList(), Targets = i.Targets.Where(t => !ownFiles.Contains(t)).ToList() })
+			.Where(i => i.Props.Count + i.Targets.Count > 0)
+			.Concat(own.Imports)
+			.ToList();
 
-	/// <summary>Only what applies to a repo with these tags: what has no tags, or shares one (design §7.3).</summary>
-	public DotnetConfig ForTags(IReadOnlyCollection<string> repoTags)
-	{
-		bool Applies(IReadOnlyList<string> tags) => tags.Count == 0 || tags.Any(t => repoTags.Contains(t, StringComparer.OrdinalIgnoreCase));
-		return this with
+		return new(sdks, variables, packages, imports)
 		{
-			Variables = Variables.Where(v => Applies(v.Tags)).ToList(),
-			Packages = Packages.Where(p => Applies(p.Tags)).ToList(),
-			Imports = Imports.Where(i => Applies(i.Tags)).ToList()
+			AppliesTo = own.AppliesTo ?? inherited.AppliesTo,
+			Solutions = own.Solutions,
+			Standalone = own.Standalone
 		};
 	}
 
-	/// <summary>The imports, every one from the folder <paramref name="base"/> (relative to <c>_fx/</c>).</summary>
+	/// <summary>Only what is for <paramref name="who"/>: what has no <c>applies-to</c>, or one that matches.</summary>
+	public DotnetConfig ForTarget(FxIdentity who) => this with
+	{
+		Variables = Variables.Where(v => v.AppliesTo.Matches(who)).ToList(),
+		Packages = Packages.Where(p => p.AppliesTo.Matches(who)).ToList(),
+		Imports = Imports.Where(i => i.AppliesTo.Matches(who)).ToList()
+	};
+
+	/// <summary>Every <c>applies-to</c> with its repositories absolute, as written by <paramref name="writer"/> (decision 16).</summary>
+	public DotnetConfig Absolute(string writer) => this with
+	{
+		AppliesTo = AppliesTo?.Absolute(writer),
+		Variables = Variables.Select(v => v with { AppliesTo = v.AppliesTo.Absolute(writer) }).ToList(),
+		Packages = Packages.Select(p => p with { AppliesTo = p.AppliesTo.Absolute(writer) }).ToList(),
+		Imports = Imports.Select(i => i with { AppliesTo = i.AppliesTo.Absolute(writer) }).ToList()
+	};
+
+	/// <summary>The imports, every one from the folder <paramref name="base"/> (relative to <c>_fx/dotnet/</c>).</summary>
 	public DotnetConfig WithBase(string @base) => this with { Imports = Imports.Select(i => i with { Base = @base }).ToList() };
 }

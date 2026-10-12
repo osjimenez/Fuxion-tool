@@ -1,10 +1,12 @@
 using System.Collections.Generic;
 using System.CommandLine;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Fuxion.Tools.Core.Dotnet;
 using Fuxion.Tools.Core.Results;
+using Fuxion.Tools.Core.Sync;
 using Fuxion.Tools.Core.Workspace;
 
 namespace Fuxion.Tools.Cli.Sync;
@@ -12,9 +14,8 @@ namespace Fuxion.Tools.Cli.Sync;
 public sealed record ModuleSettings(GlobalSettings Global, string? Module, bool DryRun, bool Offline = false, bool Adopt = false);
 
 /// <summary>
-/// <c>fx sync [module]</c> and <c>fx doctor [module]</c> (design §10.2): with a module, only that one; without one,
-/// every module that applies here. <c>workspace</c> applies in the metarepo (or anywhere with <c>-w</c>); <c>dotnet</c>
-/// in a repository with <c>_fx/dotnet.yaml</c>.
+/// <c>fx sync [module]</c> and <c>fx doctor [module]</c> (plan P, decision 17 and proposal B): the root of fx where
+/// they run and everything mounted below; with a module, only that one.
 /// </summary>
 public static class SyncCommand
 {
@@ -62,23 +63,17 @@ public static class SyncCommand
 	public static int Run(ModuleSettings settings, FxConsole console, bool doctor, CancellationToken cancellationToken = default)
 		=> console.Run(token => Execute(settings, console, doctor, token), cancellationToken);
 
+	/// <summary>The version of fx, for <c>requires</c> (plan P, decision 4).</summary>
+	static string? Version => typeof(SyncCommand).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0];
+
 	static int Execute(ModuleSettings settings, FxConsole console, bool doctor, CancellationToken cancellationToken)
 	{
 		var schema = doctor ? DoctorSchema : SyncSchema;
 		var directory = settings.Global.Directory;
-		var runWorkspace = settings.Module == WorkspaceModule.Name || (settings.Module is null && WorkspaceModule.Applies(directory));
-		var runDotnet = settings.Module == DotnetModule.Name || (settings.Module is null && DotnetModule.Applies(directory));
-		var modules = console.WithProgress((progress, cancel) =>
-		{
-			var results = new List<FxModuleResult>();
-			if (runWorkspace)
-				results.Add(doctor
-					? WorkspaceModule.Doctor(directory, settings.Offline, progress, cancel)
-					: WorkspaceModule.Sync(directory, new(settings.DryRun, settings.Offline, settings.Adopt), progress, cancel));
-			if (runDotnet)
-				results.Add(doctor ? DotnetModule.Doctor(directory, progress) : DotnetModule.Sync(directory, settings.DryRun, progress));
-			return results;
-		}, cancellationToken);
+		var options = new SyncOptions(settings.DryRun, settings.Offline, settings.Adopt, settings.Module, Version);
+		var modules = console.WithProgress((progress, cancel) => doctor
+			? SyncEngine.Doctor(directory, options, progress, cancel)
+			: SyncEngine.Sync(directory, options, progress, cancel), cancellationToken).ToList();
 		var diagnostics = modules.SelectMany(m => m.Diagnostics).ToList();
 		if (modules.Count == 0)
 			diagnostics.Add(FxDiagnostic.Info(NothingToDo, new FxText(NothingToDo)));

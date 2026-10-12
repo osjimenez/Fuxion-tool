@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Fuxion.Tools.Core.Dotnet;
+using Fuxion.Tools.Core.Layout;
 using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Text;
 using Fuxion.Tools.Core.Yaml;
@@ -10,10 +12,11 @@ using Fuxion.Tools.Core.Yaml;
 namespace Fuxion.Tools.Core.Workspace;
 
 /// <summary>
-/// A change to the manifest: the text before, the editor after, what changed in words and what was found. With an
-/// error, it cannot be written; without changes (<see cref="Changed"/>), the info diagnostics say why.
+/// A change to a configuration file of fx (<see cref="File"/>, relative to the root): the text before, the editor
+/// after, what changed in words and what was found. With an error, it cannot be written; without changes
+/// (<see cref="Changed"/>), the info diagnostics say why.
 /// </summary>
-public sealed record ManifestChange(string Before, YamlEditor After, IReadOnlyList<string> Edits, IReadOnlyList<FxDiagnostic> Diagnostics)
+public sealed record ManifestChange(string File, string Before, YamlEditor After, IReadOnlyList<string> Edits, IReadOnlyList<FxDiagnostic> Diagnostics)
 {
 	public bool Changed => Before != After.Text;
 
@@ -23,10 +26,11 @@ public sealed record ManifestChange(string Before, YamlEditor After, IReadOnlyLi
 }
 
 /// <summary>
-/// The commands that edit the manifest (plan O, O3.4: <c>fx repo add|remove|tag|set</c>, <c>fx module
-/// enable|disable</c>, <c>fx folder add|remove</c>), on the edit engine of O2.2: each changes only what it must and
-/// keeps the rest of the file, comments included. The result is validated as the manifest is read (strict): a change
-/// that would leave it invalid has errors and is not written. They never touch the clones nor the folders.
+/// The commands that edit the configuration of a workspace (plan O, O3.4; plan P): <c>fx repo add|remove|tag|set</c>
+/// and <c>fx path add|remove</c> edit <c>_fx/workspace/workspace.yaml</c>; <c>fx module enable|disable</c>, the yaml
+/// of the module (creating its folder, or <c>enabled: false</c>). Each changes only what it must and keeps the rest of
+/// the file, comments included. The result is validated as the file is read (strict): a change that would leave it
+/// invalid has errors and is not written. They never touch the clones nor the folders.
 /// </summary>
 public static partial class ManifestEditor
 {
@@ -40,18 +44,21 @@ public static partial class ManifestEditor
 	public const string CloneNotMoved = "workspace.clone-not-moved";
 	public const string Unchanged = "workspace.unchanged";
 
+	/// <summary>The modules fx knows: a folder of <c>_fx/</c> each.</summary>
+	public static readonly IReadOnlyList<string> KnownModules = [WorkspaceModule.Name, DotnetModule.Name];
+
 	/// <summary>The keys of a repository, in the order fx writes them.</summary>
-	public static readonly IReadOnlyList<string> RepositoryKeys = ["name", "path", "url", "mount", "standalone", "dependsOn", "solution", "solutionExclude", "tags"];
+	public static readonly IReadOnlyList<string> RepositoryKeys = ["name", "aliases", "url", "path", "mount", "inherits", "depends-on", "tags"];
 
 	/// <summary>What <see cref="SetRepository"/> changes (the name is the identity; the tags, <see cref="TagRepository"/>).</summary>
-	public static readonly IReadOnlyList<string> SettableKeys = ["url", "path", "mount", "standalone", "dependsOn", "solution", "solutionExclude"];
+	public static readonly IReadOnlyList<string> SettableKeys = ["url", "path", "mount", "inherits", "depends-on"];
 
-	static readonly IReadOnlyList<string> ListKeys = ["dependsOn", "solutionExclude"];
+	static readonly IReadOnlyList<string> ListKeys = ["depends-on"];
 
 	[GeneratedRegex("[^a-z0-9]+")]
 	private static partial Regex NotNameChars();
 
-	public static string ManifestPath(string root) => Path.Combine(root, "_fx", "workspace.yaml");
+	public static string ManifestPath(string root) => FxLayout.Full(root, WorkspaceManifest.RelativePath);
 
 	/// <summary>The name a repository gets from its URL: the last segment, lowercase, without <c>.git</c> (<c>Fuxion-docs.git</c> → <c>fuxion-docs</c>).</summary>
 	public static string NameFromUrl(string url)
@@ -63,42 +70,36 @@ public static partial class ManifestEditor
 	}
 
 	/// <summary>Writes the change (with the byte order mark of the file, if it had one).</summary>
-	public static void Write(string root, ManifestChange change) => change.After.WriteFile(ManifestPath(root));
+	public static void Write(string root, ManifestChange change)
+	{
+		var path = FxLayout.Full(root, change.File);
+		Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+		change.After.WriteFile(path);
+	}
 
 	/// <summary>
 	/// A new repository at the end of <c>repositories</c>, mounted at <paramref name="path"/> (the layout of the
 	/// workspace is the user's: fx has no default for it); the name, by default from the URL. Only what differs from
-	/// the defaults is written (manual, not standalone).
+	/// the defaults is written (manual, inherits).
 	/// </summary>
-	public static ManifestChange AddRepository(string root, string url, string path, string? name = null, bool mandatory = false, bool standalone = false,
-		string? solution = null, IReadOnlyList<string>? dependsOn = null, IReadOnlyList<string>? tags = null)
+	public static ManifestChange AddRepository(string root, string url, string path, string? name = null, bool mandatory = false,
+		IReadOnlyList<string>? dependsOn = null, IReadOnlyList<string>? tags = null, bool inherits = true)
 	{
 		var s = new Session(root);
 		name ??= NameFromUrl(url);
 		path = path.Replace('\\', '/').Trim('/');
 		if (s.Current.Resolve($"repositories[name={name}]") is not null)
 			return s.Error(RepositoryExists, new FxText(RepositoryExists, name), name);
-		var entries = new List<(string, YamlValue)> { ("name", name), ("path", path), ("url", url) };
+		var entries = new List<(string, YamlValue)> { ("name", name), ("url", url), ("path", path) };
 		if (mandatory)
 			entries.Add(("mount", "mandatory"));
-		if (standalone)
-			entries.Add(("standalone", new YamlValue.Raw("true")));
+		if (!inherits)
+			entries.Add(("inherits", new YamlValue.Raw("false")));
 		if (dependsOn is { Count: > 0 })
-			entries.Add(("dependsOn", Flow(dependsOn)));
-		if (solution is not null)
-			entries.Add(("solution", solution));
+			entries.Add(("depends-on", Flow(dependsOn)));
 		if (tags is { Count: > 0 })
 			entries.Add(("tags", Flow(tags)));
-		var repository = new YamlValue.Map(entries.ToArray());
-		if (s.Current.Resolve("repositories") is YamlSequence { IsFlow: false })
-			s.Apply(s.Current.Append("repositories", repository));
-		else
-		{
-			// none yet (no key, empty, or [] left by the last removal): a block list
-			if (s.Current.Resolve("repositories") is not null)
-				s.Apply(s.Current.Remove("repositories"));
-			s.Apply(s.Current.AddKey("", "repositories", new YamlValue.Block(repository)));
-		}
+		s.AppendItem("repositories", new YamlValue.Map(entries.ToArray()));
 		return s.Done();
 	}
 
@@ -149,7 +150,7 @@ public static partial class ManifestEditor
 
 	/// <summary>
 	/// Sets a key of a repository (<see cref="SettableKeys"/>); without values, removes it. <c>mount</c> takes
-	/// <c>mandatory</c> or <c>manual</c>, <c>standalone</c> <c>true</c> or <c>false</c>; the lists, several values.
+	/// <c>mandatory</c> or <c>manual</c>, <c>inherits</c> <c>true</c> or <c>false</c>; the lists, several values.
 	/// </summary>
 	public static ManifestChange SetRepository(string root, string name, string key, IReadOnlyList<string> values)
 	{
@@ -169,14 +170,14 @@ public static partial class ManifestEditor
 		string[]? allowed = key switch
 		{
 			"mount" => ["mandatory", "manual"],
-			"standalone" => ["true", "false"],
+			"inherits" => ["true", "false"],
 			_ => null
 		};
 		if ((!ListKeys.Contains(key) && values.Count > 1) || (allowed is not null && !allowed.Contains(values[0])))
 			return s.Error(InvalidValue, allowed is null
 				? new FxText($"{InvalidValue}.single", key, string.Join(" ", values))
 				: new FxText(InvalidValue, key, string.Join(" ", values), string.Join(", ", allowed)), name);
-		YamlValue value = ListKeys.Contains(key) ? Flow(values) : key == "standalone" ? new YamlValue.Raw(values[0]) : values[0];
+		YamlValue value = ListKeys.Contains(key) ? Flow(values) : key == "inherits" ? new YamlValue.Raw(values[0]) : values[0];
 		if (value is not YamlValue.Flow && s.Current.Resolve($"{at}.{key}") is YamlScalar)
 			s.Apply(s.Current.SetScalar($"{at}.{key}", value));
 		else if (value is YamlValue.Flow && s.Current.Resolve($"{at}.{key}") is YamlSequence)
@@ -193,99 +194,100 @@ public static partial class ManifestEditor
 		return s.Done();
 	}
 
-	/// <summary>Enables a module of fx for the repositories with these tags (for every repository, without tags); on an enabled one, changes its tags.</summary>
+	/// <summary>
+	/// Something the git of the workspace versions (<c>paths</c>): a file, or a folder ending in '/'; with
+	/// <paramref name="exclude"/>, an exception inside something included; without <paramref name="worktree"/>, left out
+	/// of the worktrees. Only the manifest: nothing is created.
+	/// </summary>
+	public static ManifestChange AddPath(string root, string path, bool exclude = false, bool worktree = true)
+	{
+		var s = new Session(root);
+		path = path.Replace('\\', '/').TrimStart('/');
+		if (s.Current.Resolve($"paths[path={path}]") is not null)
+			return s.Info(new FxText($"{Unchanged}.path-present", path));
+		var entries = new List<(string, YamlValue)> { ("path", path) };
+		if (exclude)
+			entries.Add(("exclude", new YamlValue.Raw("true")));
+		if (!worktree)
+			entries.Add(("worktree", new YamlValue.Raw("false")));
+		s.AppendItem("paths", new YamlValue.Map(entries.ToArray()));
+		return s.Done();
+	}
+
+	/// <summary>Takes a path out of <c>paths</c>; what is on disk stays.</summary>
+	public static ManifestChange RemovePath(string root, string path)
+	{
+		var s = new Session(root);
+		path = path.Replace('\\', '/').TrimStart('/');
+		if (s.Current.Resolve($"paths[path={path}]") is null)
+			return s.Info(new FxText($"{Unchanged}.path-absent", path));
+		s.Apply(s.Current.Remove($"paths[path={path}]"));
+		return s.Done();
+	}
+
+	/// <summary>
+	/// Enables a module (plan P, decision 2): creates its folder with its yaml, or takes out its <c>enabled: false</c>.
+	/// With <paramref name="tags"/>, its <c>applies-to</c> (who it goes down to).
+	/// </summary>
 	public static ManifestChange EnableModule(string root, string module, IReadOnlyList<string> tags)
 	{
-		var s = new Session(root);
-		if (!WorkspaceManifest.KnownModules.Contains(module))
-			return s.Error(UnknownModule, new FxText(UnknownModule, module, string.Join(", ", WorkspaceManifest.KnownModules)));
-		YamlValue settings = tags.Count > 0 ? new YamlValue.Map(("tags", Flow(tags))) : new YamlValue.Map();
-		var existing = s.Current.Resolve($"modules.{module}");
-		if (existing is YamlMapping current)
+		if (!KnownModules.Contains(module))
+			return ModuleSession.Unknown(root, module);
+		var s = new ModuleSession(root, module);
+		var changed = false;
+		if (s.Current.Resolve("enabled") is YamlScalar { Value: "false" })
 		{
-			if (tags.Count == 0)
-				return s.Info(new FxText($"{Unchanged}.module-enabled", module));
-			if (current["tags"] is YamlSequence)
-				s.ReplaceList($"modules.{module}.tags", tags);
+			s.Apply(s.Current.Remove("enabled"));
+			changed = true;
+		}
+		if (tags.Count > 0)
+		{
+			if (s.Current.Resolve("applies-to.tags") is YamlSequence)
+				s.ReplaceList("applies-to.tags", tags);
+			else if (s.Current.Resolve("applies-to") is YamlMapping { IsFlow: false } appliesTo && appliesTo.Entries.Count > 0)
+				s.Apply(s.Current.AddKey("applies-to", "tags", Flow(tags)));
 			else
 			{
-				if (current["tags"] is not null)
-					s.Apply(s.Current.Remove($"modules.{module}.tags"));
-				s.Apply(s.Current.AddKey($"modules.{module}", "tags", Flow(tags)));
+				if (s.Current.Resolve("applies-to") is not null)
+					s.Apply(s.Current.Remove("applies-to"));
+				s.Apply(s.Current.AddKey("", "applies-to", new YamlValue.Map(("tags", Flow(tags))), after: s.Current.Resolve("schema") is null ? null : "schema"));
 			}
+			changed = true;
 		}
-		else if (existing is null && s.Current.Resolve("modules") is YamlMapping { IsFlow: false })
-			s.Apply(s.Current.AddKey("modules", module, settings));
-		else
-		{
-			// no modules yet, or a module with no settings (dotnet:): written again
-			if (existing is not null)
-				s.Apply(s.Current.Remove($"modules.{module}"));
-			if (s.Current.Resolve("modules") is YamlMapping { IsFlow: false } modules && modules.Entries.Count > 0)
-				s.Apply(s.Current.AddKey("modules", module, settings));
-			else
-			{
-				if (s.Current.Resolve("modules") is not null)
-					s.Apply(s.Current.Remove("modules"));
-				s.Apply(s.Current.AddKey("", "modules", new YamlValue.Map((module, settings)), after: s.LastOf("workspace", "folders")));
-			}
-		}
+		if (!changed && !s.Created)
+			return s.Info(new FxText($"{Unchanged}.module-enabled", module));
 		return s.Done();
 	}
 
-	/// <summary>Disables a module; with the last one, <c>modules</c> goes too.</summary>
+	/// <summary>Turns a module off without losing its configuration (<c>enabled: false</c>).</summary>
 	public static ManifestChange DisableModule(string root, string module)
 	{
-		var s = new Session(root);
-		if (s.Current.Resolve($"modules.{module}") is null)
+		if (!KnownModules.Contains(module))
+			return ModuleSession.Unknown(root, module);
+		if (!Directory.Exists(FxLayout.Full(root, FxLayout.ModuleFolder(module))))
+			return ModuleSession.Info(root, module, new FxText($"{Unchanged}.module-disabled", module));
+		var s = new ModuleSession(root, module);
+		if (s.Current.Resolve("enabled") is YamlScalar { Value: "false" })
 			return s.Info(new FxText($"{Unchanged}.module-disabled", module));
-		s.Apply(s.Current.Resolve("modules") is YamlMapping { Entries.Count: 1 } ? s.Current.Remove("modules") : s.Current.Remove($"modules.{module}"));
-		return s.Done();
-	}
-
-	/// <summary>A folder of the metarepo (<c>folders</c>): only the manifest, the folder is not created.</summary>
-	public static ManifestChange AddFolder(string root, string folder)
-	{
-		var s = new Session(root);
-		if (s.Current.Resolve($"folders[={folder}]") is not null)
-			return s.Info(new FxText($"{Unchanged}.folder-present", folder));
-		if (s.Current.Resolve("folders") is YamlSequence)
-			s.Apply(s.Current.Append("folders", folder));
+		if (s.Current.Resolve("enabled") is YamlScalar)
+			s.Apply(s.Current.SetScalar("enabled", new YamlValue.Raw("false")));
 		else
-		{
-			if (s.Current.Resolve("folders") is not null)
-				s.Apply(s.Current.Remove("folders"));
-			s.Apply(s.Current.AddKey("", "folders", Flow([folder]), after: s.LastOf("workspace")));
-		}
-		return s.Done();
-	}
-
-	/// <summary>Takes a folder out of <c>folders</c>; the folder stays.</summary>
-	public static ManifestChange RemoveFolder(string root, string folder)
-	{
-		var s = new Session(root);
-		if (s.Current.Resolve($"folders[={folder}]") is null)
-			return s.Info(new FxText($"{Unchanged}.folder-absent", folder));
-		s.Apply(s.Current.Remove($"folders[={folder}]"));
+			s.Apply(s.Current.AddKey("", "enabled", new YamlValue.Raw("false"), after: s.Current.Resolve("schema") is null ? null : "schema"));
 		return s.Done();
 	}
 
 	static YamlValue.Flow Flow(IEnumerable<string> items) => new(items.Select(i => (YamlValue)i).ToArray());
 
-	/// <summary>One edit of the manifest: the file as it is, the editor as it goes, what was done and found.</summary>
-	sealed class Session(string root)
+	/// <summary>One edit of a file: the text as it is, the editor as it goes, what was done and found.</summary>
+	abstract class Edit(string file, string before, YamlEditor current)
 	{
-		readonly string _before = File.ReadAllText(ManifestPath(root));
+		public string File => file;
 
-		public YamlEditor Current { get; private set; } = YamlEditor.ReadFile(ManifestPath(root));
-
-		public WorkspaceManifest Manifest { get; } = WorkspaceManifest.Read(root, File.ReadAllText(ManifestPath(root)));
+		public YamlEditor Current { get; private set; } = current;
 
 		public List<string> Edits { get; } = [];
 
 		public List<FxDiagnostic> Diagnostics { get; } = [];
-
-		public WorkspaceRepository? Repository(string name) => Manifest.Repositories.FirstOrDefault(r => r.Name == name);
 
 		public void Apply(YamlEdit edit)
 		{
@@ -293,33 +295,36 @@ public static partial class ManifestEditor
 			Edits.Add(edit.What);
 		}
 
-		/// <summary>Adds a key to a repository after the last one that goes before it (<see cref="RepositoryKeys"/>).</summary>
-		public void Set(string at, string key, YamlValue value)
+		/// <summary>An item at the end of a block list, which is created if there is none (or it is empty, or flow).</summary>
+		public void AppendItem(string list, YamlValue item)
 		{
-			var mapping = (YamlMapping)Current.Resolve(at)!;
-			var before = RepositoryKeys.TakeWhile(k => k != key).LastOrDefault(k => mapping[k] is not null);
-			Apply(Current.AddKey(at, key, value, after: before));
+			if (Current.Resolve(list) is YamlSequence { IsFlow: false, Items.Count: > 0 })
+				Apply(Current.Append(list, item));
+			else
+			{
+				if (Current.Resolve(list) is not null)
+					Apply(Current.Remove(list));
+				Apply(Current.AddKey("", list, new YamlValue.Block(item)));
+			}
 		}
 
 		/// <summary>
-		/// A list becomes <paramref name="wanted"/>: the items that go are removed and the new ones appended, so the
-		/// list keeps its style (flow or block) and the comments of the items that stay.
+		/// A list becomes <paramref name="wanted"/>: the new items are appended and the ones that go are removed (in
+		/// that order, so it is never empty on the way), so the list keeps its style (flow or block) and the comments of
+		/// the items that stay.
 		/// </summary>
 		public void ReplaceList(string path, IReadOnlyList<string> wanted)
 		{
-			var current = ((YamlSequence)Current.Resolve(path)!).Items.OfType<YamlScalar>().Select(i => i.Value).ToList();
-			foreach (var item in current.Where(i => !wanted.Contains(i)))
-				Apply(Current.Remove($"{path}[={item}]"));
-			foreach (var item in wanted.Distinct().Where(i => !current.Contains(i)))
+			var items = ((YamlSequence)Current.Resolve(path)!).Items.OfType<YamlScalar>().Select(i => i.Value).ToList();
+			foreach (var item in wanted.Distinct().Where(i => !items.Contains(i)))
 				Apply(Current.Append(path, item));
+			foreach (var item in items.Where(i => !wanted.Contains(i)))
+				Apply(Current.Remove($"{path}[={item}]"));
 		}
-
-		/// <summary>The last of these root keys that the manifest has, to add another after it (at the end, if none).</summary>
-		public string? LastOf(params string[] keys) => keys.LastOrDefault(k => Current.Resolve(k) is not null);
 
 		public ManifestChange Error(string code, FxText text, string? repository = null)
 		{
-			Diagnostics.Add(FxDiagnostic.Error(code, text, WorkspaceManifest.RelativePath, repository: repository));
+			Diagnostics.Add(FxDiagnostic.Error(code, text, File, repository: repository));
 			return Done();
 		}
 
@@ -329,19 +334,92 @@ public static partial class ManifestEditor
 			return Done();
 		}
 
-		/// <summary>The change, validated as the manifest is read: an invalid result has the errors, each with its line.</summary>
+		protected abstract void Validate(string text);
+
+		/// <summary>The change, validated as the file is read: an invalid result has the errors, each with its line.</summary>
 		public ManifestChange Done()
 		{
-			if (Current.Text != _before && Diagnostics.All(d => d.Severity != FxSeverity.Error))
-				try
-				{
-					WorkspaceManifest.Read(root, Current.Text, strict: true);
-				}
-				catch (WorkspaceManifestException ex)
-				{
-					Diagnostics.AddRange(ex.Diagnostics);
-				}
-			return new(_before, Current, Edits, Diagnostics);
+			if (Current.Text != before && Diagnostics.All(d => d.Severity != FxSeverity.Error))
+				Validate(Current.Text);
+			return new(File, before, Current, Edits, Diagnostics);
+		}
+	}
+
+	/// <summary>An edit of <c>_fx/workspace/workspace.yaml</c>.</summary>
+	sealed class Session(string root) : Edit(WorkspaceManifest.RelativePath, Text(root), YamlEditor.ReadFile(ManifestPath(root)))
+	{
+		public WorkspaceManifest Manifest { get; } = WorkspaceManifest.Read(root, System.IO.File.ReadAllText(ManifestPath(root)));
+
+		static string Text(string root) => System.IO.File.ReadAllText(ManifestPath(root));
+
+		public WorkspaceRepository? Repository(string name) => Manifest.Repositories.FirstOrDefault(r => r.Name == name);
+
+		/// <summary>Adds a key to a repository after the last one that goes before it (<see cref="RepositoryKeys"/>).</summary>
+		public void Set(string at, string key, YamlValue value)
+		{
+			var mapping = (YamlMapping)Current.Resolve(at)!;
+			var before = RepositoryKeys.TakeWhile(k => k != key).LastOrDefault(k => mapping[k] is not null);
+			Apply(Current.AddKey(at, key, value, after: before));
+		}
+
+		protected override void Validate(string text)
+		{
+			try
+			{
+				WorkspaceManifest.Read(root, text, strict: true);
+			}
+			catch (WorkspaceManifestException ex)
+			{
+				Diagnostics.AddRange(ex.Diagnostics);
+			}
+		}
+	}
+
+	/// <summary>An edit of the yaml of a module, created (with its schema) if it does not exist.</summary>
+	sealed class ModuleSession : Edit
+	{
+		readonly string _root;
+
+		public ModuleSession(string root, string module) : this(root, module, FxLayout.ModuleFile(module)) { }
+
+		ModuleSession(string root, string module, string file)
+			: base(file, Existing(root, file) ?? "", YamlEditor.Parse(Existing(root, file) ?? $"schema: {FxYamlReader.Schema}\n"))
+		{
+			_root = root;
+			Module = module;
+			Created = Existing(root, file) is null;
+		}
+
+		public string Module { get; }
+
+		/// <summary>The yaml did not exist: enabling the module creates it.</summary>
+		public bool Created { get; }
+
+		static string? Existing(string root, string file) => System.IO.File.Exists(FxLayout.Full(root, file)) ? System.IO.File.ReadAllText(FxLayout.Full(root, file)) : null;
+
+		public static ManifestChange Unknown(string root, string module)
+		{
+			var s = new ModuleSession(root, KnownModules[0]);
+			return s.Error(UnknownModule, new FxText(UnknownModule, module, string.Join(", ", KnownModules)));
+		}
+
+		/// <summary>Nothing to change in a module that does not exist (and nothing is created).</summary>
+		public static ManifestChange Info(string root, string module, FxText text)
+			=> new(FxLayout.ModuleFile(module), "", YamlEditor.Parse(""), [], [FxDiagnostic.Info(Unchanged, text)]);
+
+		protected override void Validate(string text)
+		{
+			try
+			{
+				if (Module == DotnetModule.Name)
+					DotnetYamlReader.Read(text, File);
+				else if (Module == WorkspaceModule.Name)
+					WorkspaceManifest.Read(_root, text, strict: true);
+			}
+			catch (Exception ex) when (ex is DotnetConfigException or WorkspaceManifestException)
+			{
+				Diagnostics.AddRange(ex is DotnetConfigException d ? d.Diagnostics : ((WorkspaceManifestException)ex).Diagnostics);
+			}
 		}
 	}
 }

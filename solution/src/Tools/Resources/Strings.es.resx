@@ -38,7 +38,7 @@
     <value>idioma</value>
   </data>
   <data name="sync" xml:space="preserve">
-    <value>Genera y actualiza lo que es de fx aquí, a partir de la configuración de _fx.</value>
+    <value>Genera y pone al día lo que es de fx aquí y en todo lo montado debajo, a partir de la configuración de _fx.</value>
   </data>
   <data name="sync.dry-run" xml:space="preserve">
     <value>Enseña lo que cambiaría, sin escribir.</value>
@@ -50,7 +50,7 @@
     <value>Hacerse cargo de ficheros escritos a mano (sin la cabecera GENERATED).</value>
   </data>
   <data name="doctor" xml:space="preserve">
-    <value>Comprueba, sin cambiar nada, que lo que es de fx aquí está bien.</value>
+    <value>Comprueba, sin cambiar nada, que lo que es de fx aquí y debajo está bien.</value>
   </data>
   <data name="doctor.offline" xml:space="preserve">
     <value>Sin red: no pregunta a los remotos.</value>
@@ -376,12 +376,6 @@
   <data name="repo.add.mandatory" xml:space="preserve">
     <value>Siempre montado (por defecto, solo cuando alguien lo monta).</value>
   </data>
-  <data name="repo.add.standalone" xml:space="preserve">
-    <value>Compila solo, fuera del workspace.</value>
-  </data>
-  <data name="repo.add.solution" xml:space="preserve">
-    <value>Su solución, relativa al repositorio (entra en la del workspace).</value>
-  </data>
   <data name="repo.add.depends-on" xml:space="preserve">
     <value>Los repositorios que necesita.</value>
   </data>
@@ -416,31 +410,19 @@
     <value>El repositorio.</value>
   </data>
   <data name="modules" xml:space="preserve">
-    <value>Los módulos de fx que usan los repositorios (modules: del manifiesto).</value>
+    <value>Los módulos de fx en esta raíz: una carpeta de _fx cada uno.</value>
   </data>
   <data name="module.enable" xml:space="preserve">
-    <value>Activa un módulo para los repositorios con estas etiquetas (para todos, sin etiquetas).</value>
+    <value>Activa un módulo: crea su carpeta en _fx, o le quita su enabled: false.</value>
   </data>
   <data name="module.disable" xml:space="preserve">
-    <value>Desactiva un módulo.</value>
+    <value>Apaga un módulo sin perder su configuración (enabled: false).</value>
   </data>
   <data name="module.name" xml:space="preserve">
-    <value>El módulo: dotnet.</value>
+    <value>El módulo: workspace o dotnet.</value>
   </data>
   <data name="module.tag" xml:space="preserve">
-    <value>Las etiquetas de los repositorios que lo usan.</value>
-  </data>
-  <data name="folder" xml:space="preserve">
-    <value>Las carpetas del metarepo (folders: del manifiesto).</value>
-  </data>
-  <data name="folder.add" xml:space="preserve">
-    <value>Añade una carpeta del metarepo al manifiesto; no se crea.</value>
-  </data>
-  <data name="folder.remove" xml:space="preserve">
-    <value>Saca una carpeta del manifiesto; no se borra.</value>
-  </data>
-  <data name="folder.name" xml:space="preserve">
-    <value>La carpeta, un solo segmento (como _docs).</value>
+    <value>Las etiquetas de los repositorios a los que baja (su applies-to).</value>
   </data>
   <data name="manifest.dry-run-option" xml:space="preserve">
     <value>Enseña el cambio, sin escribirlo.</value>
@@ -487,13 +469,34 @@
   <data name="module.ask.disable" xml:space="preserve">
     <value>Módulo que desactivar</value>
   </data>
-  <data name="folder.ask.add" xml:space="preserve">
-    <value>Carpeta que añadir</value>
-  </data>
-  <data name="folder.ask.remove" xml:space="preserve">
-    <value>Carpeta que quitar</value>
-  </data>
   <data name="repo.ask.path" xml:space="preserve">
     <value>Carpeta donde montarlo, relativa al workspace</value>
+  </data>
+  <data name="repo.add.guest" xml:space="preserve">
+    <value>Invitado: el workspace lo usa, pero hereda de su propio padre (inherits: false).</value>
+  </data>
+  <data name="path" xml:space="preserve">
+    <value>Lo que versiona el git del workspace (paths: del manifiesto).</value>
+  </data>
+  <data name="path.add" xml:space="preserve">
+    <value>Versiona un fichero o una carpeta (terminada en /) del workspace; no se crea nada.</value>
+  </data>
+  <data name="path.remove" xml:space="preserve">
+    <value>Deja de versionar una ruta; no se borra nada.</value>
+  </data>
+  <data name="path.name" xml:space="preserve">
+    <value>La ruta, relativa al workspace (una carpeta termina en /).</value>
+  </data>
+  <data name="path.exclude" xml:space="preserve">
+    <value>Una excepción dentro de algo versionado (exclude: true).</value>
+  </data>
+  <data name="path.no-worktree" xml:space="preserve">
+    <value>Se queda fuera de los worktrees del workspace (worktree: false).</value>
+  </data>
+  <data name="path.ask.add" xml:space="preserve">
+    <value>Ruta que versionar</value>
+  </data>
+  <data name="path.ask.remove" xml:space="preserve">
+    <value>Ruta que dejar de versionar</value>
   </data>
 </root>

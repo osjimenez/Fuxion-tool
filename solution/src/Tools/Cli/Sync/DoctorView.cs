@@ -12,14 +12,12 @@ namespace Fuxion.Tools.Cli.Sync;
 /// </summary>
 static class DoctorView
 {
-	static readonly string[] Order = ["workspace", "dotnet", "version"];
+	static readonly string[] Order = ["fx", "workspace", "dotnet", "version"];
 
 	public static void Write(FxConsole console, IReadOnlyList<FxModuleResult> modules, IReadOnlyList<FxDiagnostic> diagnostics)
 	{
 		var shown = diagnostics.Where(d => d.Severity != FxSeverity.Info || console.Settings.Verbose).ToList();
 		var names = modules.Select(m => m.Module)
-			// the workspace also checks the .NET module of each repository
-			.Concat(modules.Any(m => m.Files.Any(f => f.Path.Contains("/_fx/dotnet.g.", System.StringComparison.OrdinalIgnoreCase))) ? ["dotnet"] : [])
 			.Concat(shown.Select(d => d.Module))
 			.Distinct()
 			.OrderBy(n => System.Array.IndexOf(Order, n) is var i and >= 0 ? i : Order.Length)
