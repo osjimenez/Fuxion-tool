@@ -167,10 +167,10 @@
     <value>Repositorios del manifiesto.</value>
   </data>
   <data name="repo.mount" xml:space="preserve">
-    <value>Montar repositorios: fx sync clona lo que falte.</value>
+    <value>Montar repositorios: uno aparcado vuelve ahora; fx sync clona lo que falte.</value>
   </data>
   <data name="repo.unmount" xml:space="preserve">
-    <value>Desmontar repositorios: fx deja de gestionarlos; no se borra nada.</value>
+    <value>Desmontar repositorios: se aparcan en _fx/~$parking/, nunca se borran.</value>
   </data>
   <data name="repo.only" xml:space="preserve">
     <value>Solo estos repositorios.</value>
@@ -216,12 +216,6 @@
   </data>
   <data name="no" xml:space="preserve">
     <value>no</value>
-  </data>
-  <data name="repo.mounted" xml:space="preserve">
-    <value>Montado: {0}. Ejecuta fx sync para clonar lo que falte.</value>
-  </data>
-  <data name="repo.unmounted" xml:space="preserve">
-    <value>Desmontado: {0}. No se ha borrado nada.</value>
   </data>
   <data name="version" xml:space="preserve">
     <value>La versión que compilaría ahora este repositorio, según su historia de git.</value>
@@ -513,5 +507,26 @@
   </data>
   <data name="repo.ask.new-name" xml:space="preserve">
     <value>Nombre nuevo</value>
+  </data>
+  <data name="action.parked" xml:space="preserve">
+    <value>aparcado</value>
+  </data>
+  <data name="action.unparked" xml:space="preserve">
+    <value>devuelto</value>
+  </data>
+  <data name="action.superseded" xml:space="preserve">
+    <value>sobra</value>
+  </data>
+  <data name="action.mounted" xml:space="preserve">
+    <value>montado</value>
+  </data>
+  <data name="action.unmounted" xml:space="preserve">
+    <value>desmontado</value>
+  </data>
+  <data name="repo.parked" xml:space="preserve">
+    <value>(aparcado)</value>
+  </data>
+  <data name="repo.superseded" xml:space="preserve">
+    <value>(sobra)</value>
   </data>
 </root>

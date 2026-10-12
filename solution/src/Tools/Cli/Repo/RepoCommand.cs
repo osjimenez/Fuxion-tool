@@ -77,9 +77,12 @@ public static class RepoCommand
 		return null;
 	}
 
-	/// <summary>A repository that asks for attention: not cloned, with changes, ahead or behind, without a branch with an upstream.</summary>
+	/// <summary>
+	/// A repository that asks for attention: not cloned (or parked, unless a higher copy is used), with changes, ahead or
+	/// behind, without a branch with an upstream.
+	/// </summary>
 	static bool NeedsAttention(RepositoryState r)
-		=> !r.Present || r.Status is null or { Changes: > 0 } or { Ahead: > 0 } or { Behind: > 0 } or { Detached: true } or { Upstream: null };
+		=> r.SupersededBy is null && !r.Present || r.Present && r.Status is null or { Changes: > 0 } or { Ahead: > 0 } or { Behind: > 0 } or { Detached: true } or { Upstream: null };
 
 	static Table Table(FxConsole console, params string[] headers)
 	{
@@ -106,7 +109,7 @@ public static class RepoCommand
 			=> console.WriteJson(new RepositoriesDocument(schema, FxConsole.Ok(diagnostics), repositories, JsonDiagnostic.From(diagnostics)), c => c.RepositoriesDocument);
 		if (Manifest(console, errors => Json([], errors)) is not { } manifest)
 			return 1;
-		var repositories = console.WithProgress((progress, cancel) => WorkspaceModule.Repositories(manifest, withStatus, progress, cancel), cancellationToken)
+		var repositories = console.WithProgress((progress, cancel) => WorkspaceModule.Repositories(manifest, withStatus, progress, cancel, WorkspaceCopies.Survey(manifest.Root)), cancellationToken)
 			.Where(r => !withStatus || r.Mounted)
 			.ToList();
 		if (console.Settings.IsMachine)
@@ -117,6 +120,8 @@ public static class RepoCommand
 				r.Repository.Mount == MountPolicy.Mandatory ? "mandatory" : "manual",
 				r.Mounted,
 				r.Present,
+				r.Parked,
+				r.SupersededBy?.FullName,
 				r.Status?.Branch,
 				r.Status?.Detached,
 				r.Status?.Upstream,
@@ -137,7 +142,7 @@ public static class RepoCommand
 				foreach (var r in shown)
 					table.AddRow(
 						Cell(console, r.Repository.Name),
-						Cell(console, r.Status?.Branch ?? Texts.Get(r.Present ? "repo.detached" : "repo.not-cloned"), r.Present ? null : "red"),
+						Cell(console, r.Status?.Branch ?? Texts.Get(r.Present ? "repo.detached" : Where(r)), r.Present ? null : NeedsAttention(r) ? "red" : "gray"),
 						Cell(console, r.Status?.Ahead.ToString() ?? "", r.Status?.Ahead > 0 ? "yellow" : null),
 						Cell(console, r.Status?.Behind.ToString() ?? "", r.Status?.Behind > 0 ? "yellow" : null),
 						Cell(console, r.Status?.Changes.ToString() ?? "", r.Status?.Changes > 0 ? "yellow" : null));
@@ -159,17 +164,21 @@ public static class RepoCommand
 				Cell(console, r.Repository.Path),
 				Cell(console, r.Repository.Mount == MountPolicy.Mandatory ? "mandatory" : "manual"),
 				Cell(console, Texts.Get(r.Mounted ? "yes" : "no"), r.Mounted ? "green" : "gray"),
-				Cell(console, Texts.Get(r.Present ? "yes" : "no"), r.Present ? "green" : r.Mounted ? "red" : "gray"));
+				Cell(console, Texts.Get(r.Present ? "yes" : r.Parked || r.SupersededBy is not null ? Where(r) : "no"), r.Present ? "green" : NeedsAttention(r) && r.Mounted ? "red" : "gray"));
 		console.Write(repoTable);
 		return 0;
 	}
 
+	/// <summary>Where a repository that is not at its place is: parked (and why), or not cloned.</summary>
+	static string Where(RepositoryState r) => r.SupersededBy is not null ? "repo.superseded" : r.Parked ? "repo.parked" : "repo.not-cloned";
+
 	static int Mount(FxConsole console, IReadOnlyList<string> names, bool mounted, CancellationToken cancellationToken)
 	{
 		const string schema = "fx-repo-mount/1";
-		void Json(IReadOnlyList<FxDiagnostic> diagnostics)
-			=> console.WriteJson(new MountDocument(schema, FxConsole.Ok(diagnostics), JsonDiagnostic.From(diagnostics)), c => c.MountDocument);
-		if (Manifest(console, Json) is not { } manifest)
+		void Json(IReadOnlyList<RepositoryAction> actions, IReadOnlyList<FxDiagnostic> diagnostics)
+			=> console.WriteJson(new MountDocument(schema, FxConsole.Ok(diagnostics),
+				actions.Select(a => new JsonRepositoryAction(a.Repository, a.Action, a.Detail?.English)).ToList(), JsonDiagnostic.From(diagnostics)), c => c.MountDocument);
+		if (Manifest(console, errors => Json([], errors)) is not { } manifest)
 			return 1;
 		if (names.Count == 0)
 		{
@@ -189,12 +198,16 @@ public static class RepoCommand
 				.ToList();
 			Ask.Equivalent(console, $"fx repo {verb} {string.Join(' ', names)}");
 		}
-		var diagnostics = WorkspaceModule.SetMount(manifest, names, mounted);
+		var result = WorkspaceModule.SetMount(manifest, names, mounted);
 		if (console.Settings.IsMachine)
-			Json(diagnostics);
-		else if (diagnostics.Count == 0)
-			console.Line($"[green]✓[/] {FxConsole.Escape(Texts.Get(mounted ? "repo.mounted" : "repo.unmounted", string.Join(", ", names)))}");
-		return console.Report(diagnostics);
+			Json(result.Actions, result.Diagnostics);
+		else
+			foreach (var a in result.Actions)
+			{
+				var color = a.Action is "superseded" or "unmounted" ? "gray" : "green";
+				console.Line($"[{color}]{FxConsole.Escape(Texts.Get($"action.{a.Action}")),-10}[/] {FxConsole.Escape(a.Repository)}{(a.Detail is null ? "" : $" [gray]({FxConsole.Escape(a.Detail.ToString())})[/]")}");
+			}
+		return console.Report(result.Diagnostics);
 	}
 
 	static int Pull(FxConsole console, IReadOnlyCollection<string> only, CancellationToken cancellationToken)

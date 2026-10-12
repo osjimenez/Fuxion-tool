@@ -175,6 +175,12 @@ public sealed class GitClient
 	public bool Ignores(string relativePath)
 		=> Run(Root, _timeout, "check-ignore", "--quiet", "--no-index", relativePath).ExitCode == 0;
 
+	/// <summary>
+	/// <c>git worktree repair</c>: git keeps absolute paths between a repository and its worktrees; after one of them
+	/// moves, this fixes the links from the end that moved.
+	/// </summary>
+	public ProcessResult RepairWorktrees() => Run(Root, _timeout, "worktree", "repair");
+
 	/// <summary><c>git clone</c> (with long paths on), run in the parent folder of <paramref name="path"/>.</summary>
 	public static ProcessResult Clone(string url, string path, TimeSpan timeout, CancellationToken cancellationToken = default)
 	{

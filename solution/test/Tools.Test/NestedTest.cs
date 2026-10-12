@@ -13,9 +13,9 @@ using Xunit;
 namespace Fuxion.Tools.Test;
 
 /// <summary>
-/// Workspaces inside workspaces (plan P, P4), on the sample tree of the plan: acme, the root, mounts the product
-/// repo-w1 (a workspace with repo-c1 and repo-c2) and the library shared. Every repository has a bare origin, so a
-/// clone of repo-w1 on its own reads acme from its remote.
+/// Workspaces inside workspaces (plan P, P4 and P5), on the sample tree of the plan: acme, the root, mounts the
+/// products repo-w1 (a workspace with repo-c1 and repo-c2) and repo-w2 (with c3, and shared as a guest), and the
+/// library shared. Every repository has a bare origin, so a clone of a product on its own reads acme from its remote.
 /// </summary>
 public sealed class NestedTest : IDisposable
 {
@@ -26,8 +26,9 @@ public sealed class NestedTest : IDisposable
 	{
 		var source = new TempGitRepository();
 		_repos.Add(source);
+		// LF, whatever the line endings of this file in the checkout (its raw literals take them)
 		foreach (var (path, content) in files)
-			source.WriteFile(path, content);
+			source.WriteFile(path, content.Replace("\r\n", "\n"));
 		source.CommitAll("c1");
 		return Bare(source);
 	}
@@ -51,7 +52,7 @@ public sealed class NestedTest : IDisposable
 
 	static string Url(TempGitRepository repo) => repo.Path.Replace('\\', '/');
 
-	readonly TempGitRepository _acmeOrigin, _w1Origin;
+	readonly TempGitRepository _acmeOrigin, _w1Origin, _w2Origin, _sharedOrigin;
 
 	public NestedTest()
 	{
@@ -64,7 +65,7 @@ public sealed class NestedTest : IDisposable
 			(".gitignore", "~$*\n"),
 			("C2.slnx", "<Solution>\n  <Project Path=\"C2.Lib/C2.Lib.csproj\" />\n</Solution>\n"),
 			("C2.Lib/C2.Lib.csproj", "<Project />\n"));
-		var shared = Origin(
+		var shared = _sharedOrigin = Origin(
 			(".gitignore", "~$*\n"),
 			("Shared.slnx", "<Solution>\n  <Project Path=\"Shared.csproj\" />\n</Solution>\n"),
 			("Shared.csproj", "<Project />\n"));
@@ -103,6 +104,40 @@ public sealed class NestedTest : IDisposable
 				      - name: /C2
 				        solutions: [repo-c2/C2.slnx]
 				"""));
+		var c3 = Origin(
+			(".gitignore", "~$*\n"),
+			("C3.slnx", "<Solution>\n  <Project Path=\"C3.Api/C3.Api.csproj\" />\n</Solution>\n"),
+			("C3.Api/C3.Api.csproj", "<Project />\n"));
+		// shared, also here as a guest: used, but it inherits from acme
+		_w2Origin = Origin(
+			("README.md", "repo-w2\n"),
+			("_fx/workspace/workspace.yaml", $"""
+				schema: 1.0.0
+				repositories:
+				  - name: c3
+				    url: {Url(c3)}
+				    path: apps/c3
+				    mount: mandatory
+				    tags: [dotnet, app]
+				  - name: shared
+				    url: {Url(shared)}
+				    path: libs/shared
+				    mount: mandatory
+				    inherits: false
+				    tags: [dotnet]
+				paths:
+				  - path: README.md
+				"""),
+			("_fx/dotnet/dotnet.yaml", """
+				schema: 1.0.0
+				solutions:
+				  - path: W2.slnx
+				    folders:
+				      - name: /C3
+				        solutions: [apps/c3/C3.slnx]
+				      - name: /shared
+				        solutions: [libs/shared/Shared.slnx]
+				"""));
 		_acmeOrigin = Origin(
 			("README.md", "acme\n"),
 			("libs/README.md", "libraries\n"),
@@ -113,6 +148,11 @@ public sealed class NestedTest : IDisposable
 				  - name: repo-w1
 				    url: {Url(_w1Origin)}
 				    path: repo-w1
+				    mount: mandatory
+				    tags: [dotnet, product]
+				  - name: repo-w2
+				    url: {Url(_w2Origin)}
+				    path: repo-w2
 				    mount: mandatory
 				    tags: [dotnet, product]
 				  - name: shared
@@ -145,6 +185,8 @@ public sealed class NestedTest : IDisposable
 				        solutions: [libs/shared/Shared.slnx]
 				      - name: /products/w1
 				        solutions: [repo-w1/W1.slnx]
+				      - name: /products/w2
+				        solutions: [repo-w2/W2.slnx]
 				"""));
 	}
 
@@ -190,7 +232,7 @@ public sealed class NestedTest : IDisposable
 	public void Tree()
 	{
 		var acme = Acme();
-		foreach (var path in new[] { "repo-w1", "libs/shared", "repo-w1/repo-c1", "repo-w1/repo-c2" })
+		foreach (var path in new[] { "repo-w1", "libs/shared", "repo-w1/repo-c1", "repo-w1/repo-c2", "repo-w2", "repo-w2/apps/c3" })
 			Assert.True(FxLayout.IsGitRoot(Path.Combine(acme.Path, path)), path);
 
 		var c1 = FxInherited.Load(Path.Combine(acme.Path, "repo-w1", "repo-c1"))!;
@@ -340,5 +382,79 @@ public sealed class NestedTest : IDisposable
 		Assert.False(json.GetProperty("written").GetBoolean());
 		Assert.Equal(["_fx/workspace/workspace.yaml", "_fx/dotnet/dotnet.yaml"], json.GetProperty("files").EnumerateArray().Select(f => f.GetProperty("file").GetString()));
 		Assert.Contains("+    aliases: [repo-c1]", json.GetProperty("files")[0].GetProperty("diff").GetString());
+	}
+
+	static string Project(params string[] path) => $"Path=\"{Path.GetFullPath(Path.Combine(path))}\"";
+
+	[Fact(DisplayName = "a guest on its own tree: used (its solution, the map), but nothing reaches it from the workspace that mounts it")]
+	public void Guest_Alone()
+	{
+		var acme = Acme();
+		// what repo-w2 got from acme, versioned, as its team would push it
+		var w2 = new TempGitRepository(init: false, path: Path.Combine(acme.Path, "repo-w2"));
+		w2.CommitAll("inherited");
+		w2.Git("push", "--quiet", "origin", "HEAD");
+
+		WithCache(_ =>
+		{
+			var loose = Clone(_w2Origin);
+			Assert.Empty(Errors(Sync(loose.Path)));
+			Assert.True(FxLayout.IsGitRoot(Path.Combine(loose.Path, "libs", "shared")));
+			Assert.Contains("<Project Path=\"libs/shared/Shared.csproj\" />", Read(loose.Path, "W2.slnx"));
+			Assert.Contains(Project(loose.Path, "libs", "shared", "Shared.csproj"), Read(loose.Path, "_fx/dotnet/~$workspace.props"));
+			Assert.False(Directory.Exists(Path.Combine(loose.Path, "libs", "shared", "_fx")));
+			// c3 is its own: it inherits through repo-w2
+			Assert.Equal("/acme/repo-w2/c3", FxInherited.Load(Path.Combine(loose.Path, "apps", "c3"))!.Repository.FullName);
+			return 0;
+		});
+	}
+
+	[Fact(DisplayName = "the highest copy is used: a lower one is not cloned, or is parked; it comes back when the higher one goes; two at the same height are an error")]
+	public void Guest_HighestCopy()
+	{
+		var acme = Acme();
+		var w2 = Path.Combine(acme.Path, "repo-w2");
+		var map = () => Read(acme.Path, "_fx/dotnet/~$workspace.props");
+
+		// from acme, two copies of shared: acme's is the highest, so repo-w2's is never cloned
+		Assert.True(FxLayout.IsGitRoot(Path.Combine(w2, "apps", "c3")));
+		Assert.False(Directory.Exists(Path.Combine(w2, "libs", "shared")));
+		var superseded = Assert.Single(Sync(acme.Path).SelectMany(r => r.Actions), a => a.Action == "superseded");
+		Assert.Equal("shared", superseded.Repository);
+		Assert.Equal("the copy of /acme/shared is used", superseded.Detail!.English);
+		Assert.Contains(Project(acme.Path, "libs", "shared", "Shared.csproj"), map());
+		Assert.Contains(Project(w2, "apps", "c3", "C3.Api", "C3.Api.csproj"), map());
+
+		// a clone of it put there by hand: the doctor says it is not used, and sync parks it
+		Clone(_sharedOrigin, Path.Combine(w2, "libs", "shared"));
+		var notParked = Assert.Single(SyncEngine.Doctor(acme.Path, new(Offline: true), cancellationToken: TestContext.Current.CancellationToken).SelectMany(r => r.Diagnostics),
+			d => d.Code == WorkspaceModule.NotParked);
+		Assert.Equal("'shared' at libs/shared is not used: the copy of /acme/shared is higher. fx sync parks this one.", notParked.Message.English);
+		Assert.Contains(Sync(acme.Path).SelectMany(r => r.Actions), a => a is { Repository: "shared", Action: "parked" });
+		Assert.True(FxLayout.IsGitRoot(Path.Combine(w2, "_fx", "~$parking", "libs", "shared")));
+		Assert.Contains(Project(acme.Path, "libs", "shared", "Shared.csproj"), map());
+
+		// acme stops mounting its copy: repo-w2's is the highest now, and comes back, still a guest
+		var manifest = Path.Combine(acme.Path, "_fx", "workspace", "workspace.yaml");
+		File.WriteAllText(manifest, Read(acme.Path, "_fx/workspace/workspace.yaml").Replace("    path: libs/shared\n    mount: mandatory\n", "    path: libs/shared\n    mount: manual\n"));
+		Assert.Empty(WorkspaceModule.SetMount(WorkspaceManifest.Load(acme.Path), ["shared"], mounted: false).Diagnostics);
+		var back = Sync(acme.Path);
+		Assert.Empty(Errors(back));
+		Assert.Contains(back.SelectMany(r => r.Actions), a => a is { Repository: "shared", Action: "unparked" });
+		Assert.True(FxLayout.IsGitRoot(Path.Combine(w2, "libs", "shared")));
+		Assert.Contains(Project(w2, "libs", "shared", "Shared.csproj"), map());
+		Assert.False(Directory.Exists(Path.Combine(w2, "libs", "shared", "_fx")));
+
+		// repo-w1 mounts it as a guest too: two copies at the same height, an error, and nothing moves
+		var w1Manifest = Path.Combine(acme.Path, "repo-w1", "_fx", "workspace", "workspace.yaml");
+		File.WriteAllText(w1Manifest, Read(acme.Path, "repo-w1/_fx/workspace/workspace.yaml")
+			.Replace("paths:\n", $"  - name: shared\n    url: {Url(_sharedOrigin)}\n    path: libs/shared\n    mount: mandatory\n    inherits: false\n    tags: [dotnet]\npaths:\n"));
+		var tie = Assert.Single(Errors(Sync(acme.Path)));
+		Assert.Equal(WorkspaceCopies.SameHeight, tie.Code);
+		Assert.Equal("'shared' is mounted twice at the same height, as /acme/repo-w1/shared and /acme/repo-w2/shared: fx cannot tell which copy to use, and parks neither.",
+			tie.Message.English);
+		Assert.Equal("repo-w1/_fx/workspace/workspace.yaml", tie.File);
+		Assert.True(FxLayout.IsGitRoot(Path.Combine(w2, "libs", "shared")));
+		Assert.True(FxLayout.IsGitRoot(Path.Combine(acme.Path, "repo-w1", "libs", "shared")));
 	}
 }

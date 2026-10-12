@@ -18,7 +18,7 @@ fx doctor [module]            check it, changing nothing
 fx version [--explain]        the version this repository would build now, and why
 fx version tag <X.Y>          create the tag version/X.Y.0 on HEAD (local; push it yourself)
 fx repo list|status [--all]   the repositories of the workspace; status, only those that ask for attention
-fx repo mount|unmount|pull    mount or unmount repositories of the manifest; pull the mounted ones
+fx repo mount|unmount|pull    mount (back from the parking) or unmount (park) repositories; pull the mounted ones
 fx repo add|remove|tag|set    edit the repositories of the manifest (a diff; --dry-run)
 fx repo rename <name> <new>   rename one: its references here change, the old name stays in aliases
 fx path add|remove            what the git of the workspace versions
@@ -44,6 +44,14 @@ Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain
   of one commit and only `_fx/`, in a cache of the user (`%LOCALAPPDATA%\fx\cache`, or `FX_CACHE`), used as it is
   with `--offline`. `fx repo rename` keeps the old name in `aliases`, so references to it keep working while they
   change (the doctor warns about them).
+- **Mounted is at its place**: fx manages it, Visual Studio loads it and `FxReference` uses its projects. Unmounting
+  parks it: the clone moves to `_fx/~$parking/<its path>` of its workspace, with its work, and its worktrees still
+  linked. Moving is a rename on the same disk, instant whatever it holds; if something has it open, nothing moves and
+  fx says so. Mounting brings it back without cloning. fx never deletes a clone.
+- **Guests**: a workspace can mount a repository of another one with `inherits: false`. It uses it (its solution, the
+  map), but nothing of the workspace reaches it: it inherits from its own parent. When a tree has several copies of a
+  repository (the same `url`), the highest one is used, guest or not, and `fx sync` parks the others (it brings one
+  back if the higher copy goes). Two copies at the same height are an error: mount it higher, or in only one of them.
 
 - **Languages**: the messages to the user are in English or Spanish: `--lang`, else `FX_LANG`, else the system's
   (Windows' UI language; `LC_ALL`, `LC_MESSAGES`, `LANG` and `LANGUAGE` elsewhere), else English. Codes, commands and

@@ -63,6 +63,8 @@ public sealed record JsonRepository(
 	string Mount,
 	bool Mounted,
 	bool Present,
+	bool Parked,
+	string? SupersededBy,
 	string? Branch = null,
 	bool? Detached = null,
 	string? Upstream = null,
@@ -73,8 +75,8 @@ public sealed record JsonRepository(
 /// <summary><c>fx-repo-list/1</c> and <c>fx-repo-status/1</c>.</summary>
 public sealed record RepositoriesDocument(string Schema, bool Ok, IReadOnlyList<JsonRepository> Repositories, IReadOnlyList<JsonDiagnostic> Diagnostics);
 
-/// <summary><c>fx-repo-mount/1</c> (also for unmount).</summary>
-public sealed record MountDocument(string Schema, bool Ok, IReadOnlyList<JsonDiagnostic> Diagnostics);
+/// <summary><c>fx-repo-mount/1</c> (also for unmount): what happened to each repository.</summary>
+public sealed record MountDocument(string Schema, bool Ok, IReadOnlyList<JsonRepositoryAction> Repositories, IReadOnlyList<JsonDiagnostic> Diagnostics);
 
 /// <summary><c>fx-repo-pull/1</c>.</summary>
 public sealed record PullDocument(string Schema, bool Ok, IReadOnlyList<JsonRepositoryAction> Repositories, IReadOnlyList<JsonDiagnostic> Diagnostics);

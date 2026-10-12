@@ -105,8 +105,9 @@ public static class SyncCommand
 	{
 		foreach (var action in console.NotShown(module.Actions))
 		{
-			var color = action.Action.EndsWith("failed") || action.Action == "missing" ? "red" : "green";
-			console.Line($"[{color}]{FxConsole.Escape(Texts.Get($"action.{action.Action}")),-11}[/] {FxConsole.Escape(action.Repository)}");
+			var color = action.Action.EndsWith("failed") || action.Action == "missing" ? "red" : action.Action == "superseded" ? "gray" : "green";
+			var detail = action.Detail is null ? "" : $" [gray]({FxConsole.Escape(action.Detail.ToString())})[/]";
+			console.Line($"[{color}]{FxConsole.Escape(Texts.Get($"action.{action.Action}")),-11}[/] {FxConsole.Escape(action.Repository)}{detail}");
 		}
 		foreach (var file in module.Files.Where(f => f.Status != SyncFileStatus.Unchanged || console.Settings.Verbose))
 		{

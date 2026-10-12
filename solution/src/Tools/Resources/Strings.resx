@@ -167,10 +167,10 @@
     <value>Repositories of the manifest.</value>
   </data>
   <data name="repo.mount" xml:space="preserve">
-    <value>Mount repositories: fx sync clones what is missing.</value>
+    <value>Mount repositories: a parked one comes back now; fx sync clones what is missing.</value>
   </data>
   <data name="repo.unmount" xml:space="preserve">
-    <value>Unmount repositories: fx stops managing them; nothing is deleted.</value>
+    <value>Unmount repositories: they are parked in _fx/~$parking/, never deleted.</value>
   </data>
   <data name="repo.only" xml:space="preserve">
     <value>Only these repositories.</value>
@@ -216,12 +216,6 @@
   </data>
   <data name="no" xml:space="preserve">
     <value>no</value>
-  </data>
-  <data name="repo.mounted" xml:space="preserve">
-    <value>Mounted: {0}. Run fx sync to clone what is missing.</value>
-  </data>
-  <data name="repo.unmounted" xml:space="preserve">
-    <value>Unmounted: {0}. Nothing was deleted.</value>
   </data>
   <data name="version" xml:space="preserve">
     <value>The version this repository would build now, from its git history.</value>
@@ -513,5 +507,26 @@
   </data>
   <data name="repo.ask.new-name" xml:space="preserve">
     <value>New name</value>
+  </data>
+  <data name="action.parked" xml:space="preserve">
+    <value>parked</value>
+  </data>
+  <data name="action.unparked" xml:space="preserve">
+    <value>unparked</value>
+  </data>
+  <data name="action.superseded" xml:space="preserve">
+    <value>superseded</value>
+  </data>
+  <data name="action.mounted" xml:space="preserve">
+    <value>mounted</value>
+  </data>
+  <data name="action.unmounted" xml:space="preserve">
+    <value>unmounted</value>
+  </data>
+  <data name="repo.parked" xml:space="preserve">
+    <value>(parked)</value>
+  </data>
+  <data name="repo.superseded" xml:space="preserve">
+    <value>(superseded)</value>
   </data>
 </root>

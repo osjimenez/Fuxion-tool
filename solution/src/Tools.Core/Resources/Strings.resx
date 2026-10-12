@@ -475,4 +475,37 @@
   <data name="workspace.unchanged.renamed" xml:space="preserve">
     <value>'{0}' already has that name.</value>
   </data>
+  <data name="workspace.missing.parked" xml:space="preserve">
+    <value>'{0}' is mounted but parked in {2}: fx sync brings it back to {1}.</value>
+  </data>
+  <data name="workspace.not-parked" xml:space="preserve">
+    <value>'{0}' is unmounted but still at {1}: fx sync parks it.</value>
+  </data>
+  <data name="workspace.not-parked.superseded" xml:space="preserve">
+    <value>'{0}' at {1} is not used: the copy of {2} is higher. fx sync parks this one.</value>
+  </data>
+  <data name="workspace.move-failed" xml:space="preserve">
+    <value>Cannot move '{0}' from {1} to {2}: {3}</value>
+  </data>
+  <data name="workspace.move-failed.fix" xml:space="preserve">
+    <value>Close what has it open (Visual Studio, a terminal inside it) and run it again: nothing moved.</value>
+  </data>
+  <data name="workspace.move-failed.occupied" xml:space="preserve">
+    <value>Cannot move '{0}' from {1} to {2}: there is already something there. Move it or remove it first.</value>
+  </data>
+  <data name="workspace.same-height" xml:space="preserve">
+    <value>'{0}' is mounted twice at the same height, as {1} and {2}: fx cannot tell which copy to use, and parks neither.</value>
+  </data>
+  <data name="workspace.same-height.fix" xml:space="preserve">
+    <value>Mount it higher, in a workspace above both, or in only one of them.</value>
+  </data>
+  <data name="workspace.action.superseded" xml:space="preserve">
+    <value>the copy of {0} is used</value>
+  </data>
+  <data name="workspace.action.parked-in" xml:space="preserve">
+    <value>in {0}</value>
+  </data>
+  <data name="workspace.action.to-clone" xml:space="preserve">
+    <value>fx sync clones it</value>
+  </data>
 </root>

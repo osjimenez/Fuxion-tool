@@ -168,11 +168,17 @@ public static class SyncEngine
 			{
 				var mounted = context.Runs(WorkspaceModule.Name)
 					? WorkspaceModule.Mount(manifest, context, diagnostics, actions)
-					: WorkspaceModule.Repositories(manifest, withStatus: false).Where(r => r.Mounted && r.Present).Select(r => r.Repository).ToList();
+					: WorkspaceModule.Repositories(manifest, withStatus: false, copies: WorkspaceCopies.Survey(manifest.Root))
+						.Where(r => r.Mounted && r.Present && r.SupersededBy is null)
+						.Select(r => r.Repository)
+						.ToList();
 				// with --only, this level alone
 				if (!context.OnlyHere)
-					foreach (var repository in mounted.Where(r => r.Inherits))
-						Process(run, new FxNode(manifest.FullPath(repository)), new Parent(node, identity, repository));
+					foreach (var repository in mounted)
+						if (repository.Inherits)
+							Process(run, new FxNode(manifest.FullPath(repository)), new Parent(node, identity, repository));
+						else
+							Guest(run, manifest, identity, repository);
 			}
 		}
 
@@ -209,20 +215,45 @@ public static class SyncEngine
 	}
 
 	/// <summary>
+	/// A guest (decision 18): the workspace uses it, so its projects go into the map, but it inherits from its own parent
+	/// and nothing of it is processed here. Its own .NET configuration is read, for the doctor.
+	/// </summary>
+	static void Guest(Run_ run, WorkspaceManifest manifest, FxIdentity workspace, WorkspaceRepository repository)
+	{
+		var node = new FxNode(manifest.FullPath(repository));
+		var identity = new FxIdentity(repository.Name, $"{workspace.FullName}/{repository.Name}", repository.Tags);
+		DotnetConfig? own = null;
+		try
+		{
+			own = DotnetModule.Configuration(node, identity, [])?.Own;
+		}
+		catch (DotnetConfigException)
+		{
+			// its own sync reports it
+		}
+		run.Mounted.Add((node, identity, own));
+	}
+
+	/// <summary>
 	/// A standalone repository (it builds without the workspace, design D-2) cannot reference a project of a repository
 	/// that is not: outside the workspace that reference would have to be a package, and that repository publishes
 	/// none (design §6). <c>WorkspaceOnly="true"</c> references only exist in the workspace by definition.
 	/// </summary>
 	static void CheckStandalone(Run_ run, IReadOnlyDictionary<string, (string Path, string Repository)> projects, FxDiagnostics diagnostics)
 	{
-		var standalone = run.Mounted.ToDictionary(m => m.Identity.Name, m => m.Own?.Standalone ?? false, StringComparer.OrdinalIgnoreCase);
+		// whether the repository of a project is standalone: the deepest mounted root that contains it (names can repeat in a tree)
+		bool? Standalone(string project) => run.Mounted
+			.Where(m => project.StartsWith(m.Node.Root, StringComparison.OrdinalIgnoreCase))
+			.OrderByDescending(m => m.Node.Root.Length)
+			.Select(m => (bool?)(m.Own?.Standalone ?? false))
+			.FirstOrDefault();
 		foreach (var (node, identity, own) in run.Mounted.Where(m => m.Own?.Standalone == true))
 		{
 			if (GitClient.Discover(node.Root) is not { } git || !FxLayout.SameFolder(git.Root, node.Root))
 				continue;
 			foreach (var file in git.ListFiles(":(glob)**/*.csproj", ":(glob)**/*.props", ":(glob)**/*.targets"))
 				foreach (var (reference, line) in FxReferences(Path.Combine(git.Root, file)))
-					if (projects.TryGetValue(reference, out var target) && standalone.TryGetValue(target.Repository, out var isStandalone) && !isStandalone)
+					if (projects.TryGetValue(reference, out var target) && Standalone(target.Path) == false)
 						diagnostics.Add(FxDiagnostic.Error(StandaloneReference, new(StandaloneReference, identity.Name, reference, target.Repository),
 							FxLayout.Relative(run.Start.Root, Path.Combine(git.Root, file)), line, identity.Name, FxFix.Do($"{StandaloneReference}.fix")));
 		}

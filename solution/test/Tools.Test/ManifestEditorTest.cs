@@ -128,7 +128,7 @@ public sealed class ManifestEditorTest
 	[Fact(DisplayName = "repo remove: the item and the comment above it; the clone stays, with a warning")]
 	public void RemoveRepository()
 	{
-		using var ws = new Workspace(Manifest.Replace("    depends-on: [oss]\n", ""));
+		using var ws = new Workspace(Manifest.Replace("\r\n", "\n").Replace("    depends-on: [oss]\n", ""));
 		Directory.CreateDirectory(Path.Combine(ws.Root, "plus", "repo"));
 		var change = ManifestEditor.RemoveRepository(ws.Root, "plus");
 		var text = After(change);
@@ -177,7 +177,7 @@ public sealed class ManifestEditorTest
 		Assert.DoesNotContain("depends-on", After(ManifestEditor.SetRepository(ws.Root, "plus", "depends-on", [])));
 
 		// a list, item by item: it keeps its style
-		using var block = new Workspace(Manifest.Replace("    depends-on: [oss]\n", "    depends-on:\n      - oss\n")
+		using var block = new Workspace(Manifest.Replace("\r\n", "\n").Replace("    depends-on: [oss]\n", "    depends-on:\n      - oss\n")
 			+ "  - name: lab\n    url: https://example.org/lab.git\n    path: lab/repo\n");
 		Assert.Contains("    depends-on:\n      - lab\n", After(ManifestEditor.SetRepository(block.Root, "plus", "depends-on", ["lab"])));
 	}
