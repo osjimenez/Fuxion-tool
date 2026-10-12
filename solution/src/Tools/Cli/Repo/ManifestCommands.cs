@@ -28,6 +28,9 @@ public static class ManifestCommands
 	/// <summary>What a command does once it has its values: the change, or null if something is missing with no one to ask.</summary>
 	delegate ManifestChange? Edit(ParseResult result, FxConsole console, WorkspaceManifest manifest, CancellationToken cancellationToken);
 
+	/// <summary>The same, for a command that changes several files (<c>fx repo rename</c>).</summary>
+	delegate IReadOnlyList<ManifestChange>? EditMany(ParseResult result, FxConsole console, WorkspaceManifest manifest, CancellationToken cancellationToken);
+
 	/// <summary>The same, for a command that edits any root of fx (not only a workspace).</summary>
 	delegate ManifestChange? RootEdit(ParseResult result, FxConsole console, string root, CancellationToken cancellationToken);
 
@@ -155,6 +158,31 @@ public static class ManifestCommands
 			return ManifestEditor.SetRepository(manifest.Root, n, k, given);
 		});
 		repo.Add(set);
+
+		var renamed = RepositoryArgument();
+		var newName = new Argument<string?>("new-name") { Description = Texts.Get("repo.rename.new-name"), Arity = ArgumentArity.ZeroOrOne };
+		var rename = new Command("rename", Texts.Get("repo.rename")) { renamed, newName };
+		WireMany(rename, global, currentDirectory, (result, console, manifest, token) =>
+		{
+			var asked = string.IsNullOrWhiteSpace(result.GetValue(renamed));
+			if (Repository(result, console, manifest, renamed, "fx repo rename <name> <new-name>", Texts.Get("repo.ask.repository"), token) is not { } n)
+				return null;
+			var to = result.GetValue(newName);
+			if (string.IsNullOrWhiteSpace(to))
+			{
+				if (!console.Capabilities.CanPrompt)
+				{
+					console.Missing("<new-name>", $"fx repo rename {n} <new-name>");
+					return null;
+				}
+				to = Ask.Text(console, Texts.Get("repo.ask.new-name"), token);
+				asked = true;
+			}
+			if (asked)
+				Ask.Equivalent(console, $"fx repo rename {n} {to}");
+			return ManifestEditor.RenameRepository(manifest.Root, n, to);
+		});
+		repo.Add(rename);
 	}
 
 	/// <summary><c>fx module enable|disable</c>, in the root of fx where it runs.</summary>
@@ -264,6 +292,10 @@ public static class ManifestCommands
 
 	/// <summary>The action of an editing command: the manifest, the values (given or asked), the change, and its result.</summary>
 	static void Wire(Command command, GlobalOptions global, string currentDirectory, Edit edit, Func<ParseResult, string>? next = null)
+		=> WireMany(command, global, currentDirectory, (result, console, manifest, token) => edit(result, console, manifest, token) is { } change ? [change] : null, next);
+
+	/// <summary>The action of an editing command that may change several files.</summary>
+	static void WireMany(Command command, GlobalOptions global, string currentDirectory, EditMany edit, Func<ParseResult, string>? next = null)
 	{
 		var dryRun = new Option<bool>("--dry-run") { Description = Texts.Get("manifest.dry-run-option") };
 		command.Add(dryRun);
@@ -273,12 +305,12 @@ public static class ManifestCommands
 			return Task.FromResult(console.Run(token =>
 			{
 				void Json(IReadOnlyList<FxDiagnostic> diagnostics)
-					=> console.WriteJson(new ManifestEditDocument(Schema, false, WorkspaceManifest.RelativePath, false, false, "", JsonDiagnostic.From(diagnostics)), c => c.ManifestEditDocument);
+					=> console.WriteJson(new ManifestEditDocument(Schema, false, false, false, [], JsonDiagnostic.From(diagnostics)), c => c.ManifestEditDocument);
 				if (RepoCommand.Manifest(console, Json) is not { } manifest)
 					return 1;
-				if (edit(result, console, manifest, token) is not { } change)
+				if (edit(result, console, manifest, token) is not { } changes)
 					return FxConsole.UsageError;
-				return Apply(console, manifest.Root, change, result.GetValue(dryRun), next?.Invoke(result) ?? Sync);
+				return Apply(console, manifest.Root, changes, result.GetValue(dryRun), next?.Invoke(result) ?? Sync);
 			}, cancellationToken));
 		});
 	}
@@ -297,40 +329,49 @@ public static class ManifestCommands
 				{
 					var error = FxDiagnostic.Error(FxNode.NotARoot, new(FxNode.NotARoot, console.Settings.Directory));
 					if (console.Settings.IsMachine)
-						console.WriteJson(new ManifestEditDocument(Schema, false, "", false, false, "", JsonDiagnostic.From([error])), c => c.ManifestEditDocument);
+						console.WriteJson(new ManifestEditDocument(Schema, false, false, false, [], JsonDiagnostic.From([error])), c => c.ManifestEditDocument);
 					return console.Report([error]);
 				}
 				if (edit(result, console, root, token) is not { } change)
 					return FxConsole.UsageError;
-				return Apply(console, root, change, result.GetValue(dryRun), Sync);
+				return Apply(console, root, [change], result.GetValue(dryRun), Sync);
 			}, cancellationToken));
 		});
 	}
 
-	/// <summary>Writes the change (unless <c>--dry-run</c> or with errors) and shows it: the diff, or why nothing changes.</summary>
-	static int Apply(FxConsole console, string root, ManifestChange change, bool dryRun, string next)
+	/// <summary>
+	/// Writes the changes (unless <c>--dry-run</c> or with errors in any of them: all or nothing) and shows them: the
+	/// diff of each file, or why nothing changes.
+	/// </summary>
+	static int Apply(FxConsole console, string root, IReadOnlyList<ManifestChange> changes, bool dryRun, string next)
 	{
-		var written = change.Ok && change.Changed && !dryRun;
+		var diagnostics = changes.SelectMany(c => c.Diagnostics).ToList();
+		var ok = changes.All(c => c.Ok);
+		var changed = changes.Where(c => c.Changed).ToList();
+		var written = ok && changed.Count > 0 && !dryRun;
 		if (written)
-			ManifestEditor.Write(root, change);
-		var problems = change.Diagnostics.Where(d => d.Severity != FxSeverity.Info).ToList();
+			foreach (var change in changed)
+				ManifestEditor.Write(root, change);
+		var problems = diagnostics.Where(d => d.Severity != FxSeverity.Info).ToList();
 		if (console.Settings.IsMachine)
 		{
-			console.WriteJson(new ManifestEditDocument(Schema, change.Ok, change.File, change.Ok && change.Changed, written,
-				change.Ok ? LineDiff.Unified(change.Diff) : "", JsonDiagnostic.From(change.Diagnostics)), c => c.ManifestEditDocument);
-			return FxConsole.ExitCode(change.Diagnostics);
+			console.WriteJson(new ManifestEditDocument(Schema, ok, ok && changed.Count > 0, written,
+				ok ? changed.Select(c => new JsonFileEdit(c.File, LineDiff.Unified(c.Diff))).ToList() : [], JsonDiagnostic.From(diagnostics)),
+				c => c.ManifestEditDocument);
+			return FxConsole.ExitCode(diagnostics);
 		}
-		if (change.Ok && !change.Changed)
+		if (ok && changed.Count == 0)
 		{
-			var reasons = change.Diagnostics.Where(d => d.Severity == FxSeverity.Info).Select(d => d.Message.ToString()).ToList();
+			var reasons = diagnostics.Where(d => d.Severity == FxSeverity.Info).Select(d => d.Message.ToString()).ToList();
 			console.Line($"[gray]{FxConsole.Escape(reasons.Count > 0 ? string.Join(" ", reasons) : Texts.Get("manifest.unchanged"))}[/]");
 		}
-		else if (change.Ok)
+		else if (ok)
 		{
-			WriteDiff(console, change.File, change.Diff);
+			foreach (var change in changed)
+				WriteDiff(console, change.File, change.Diff);
 			console.Line(dryRun
 				? $"[yellow]{FxConsole.Escape(Texts.Get("manifest.dry-run"))}[/]"
-				: $"[green]✓[/] {FxConsole.Escape(Texts.Get("manifest.written", change.File))} [gray]{FxConsole.Escape(Texts.Get("manifest.next", next))}[/]");
+				: $"[green]✓[/] {FxConsole.Escape(Texts.Get("manifest.written", string.Join(", ", changed.Select(c => c.File))))} [gray]{FxConsole.Escape(Texts.Get("manifest.next", next))}[/]");
 		}
 		return console.Report(problems);
 	}

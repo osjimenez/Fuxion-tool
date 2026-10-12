@@ -285,7 +285,7 @@ public sealed class ManifestEditorTest
 		Assert.Equal(Fuxion.Tools.Cli.Repo.ManifestCommands.Schema, json.GetProperty("schema").GetString());
 		Assert.True(json.GetProperty("changed").GetBoolean());
 		Assert.True(json.GetProperty("written").GetBoolean());
-		Assert.Contains("+enabled: false", json.GetProperty("diff").GetString());
+		Assert.Contains("+enabled: false", json.GetProperty("files")[0].GetProperty("diff").GetString());
 		Assert.Contains("enabled: false", File.ReadAllText(Path.Combine(ws.Root, "_fx", "dotnet", "dotnet.yaml")));
 	}
 

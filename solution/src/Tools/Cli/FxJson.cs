@@ -111,7 +111,10 @@ public sealed record VersionTagDocument(string Schema, bool Ok, string? Tag, str
 /// <c>fx-manifest-edit/1</c>, of the commands that edit the manifest: whether it changed and was written (not with
 /// <c>--dry-run</c> nor with errors) and the change as <c>diff -u</c> hunks.
 /// </summary>
-public sealed record ManifestEditDocument(string Schema, bool Ok, string File, bool Changed, bool Written, string Diff, IReadOnlyList<JsonDiagnostic> Diagnostics);
+/// <summary>A file a command that edits changes, and its diff.</summary>
+public sealed record JsonFileEdit(string File, string Diff);
+
+public sealed record ManifestEditDocument(string Schema, bool Ok, bool Changed, bool Written, IReadOnlyList<JsonFileEdit> Files, IReadOnlyList<JsonDiagnostic> Diagnostics);
 
 // The events of --output ndjson (fx-events/1): one per line, "type" first; the last line is the command's document.
 

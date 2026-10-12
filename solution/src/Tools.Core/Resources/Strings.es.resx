@@ -451,4 +451,28 @@
   <data name="dotnet.invalid-yaml.enabled" xml:space="preserve">
     <value>'enabled' tiene que ser true o false.</value>
   </data>
+  <data name="workspace.parent-unavailable" xml:space="preserve">
+    <value>No se puede leer el padre {0} de su remoto: lo que hereda este repositorio se queda como está.</value>
+  </data>
+  <data name="workspace.parent-unavailable.offline" xml:space="preserve">
+    <value>Sin red, y el padre {0} aún no está en la caché: lo que hereda este repositorio se queda como está.</value>
+  </data>
+  <data name="workspace.parent-unavailable.git" xml:space="preserve">
+    <value>No se puede leer el padre {0} ({1}): {2}</value>
+  </data>
+  <data name="workspace.parent-not-declared" xml:space="preserve">
+    <value>El padre {0} ya no declara '{1}': lo que hereda se queda como está.</value>
+  </data>
+  <data name="workspace.too-deep" xml:space="preserve">
+    <value>'{0}' está a más de {1} workspaces de profundidad: Fuxion.Tools.Sdk no mira más arriba.</value>
+  </data>
+  <data name="workspace.alias-reference" xml:space="preserve">
+    <value>'{0}' usa '{1}', un nombre viejo de '{2}': aún funciona, pero cámbialo.</value>
+  </data>
+  <data name="workspace.alias-reference.fix" xml:space="preserve">
+    <value>Usa el nombre actual; cuando nada use el viejo, quítalo de aliases.</value>
+  </data>
+  <data name="workspace.unchanged.renamed" xml:space="preserve">
+    <value>'{0}' ya tiene ese nombre.</value>
+  </data>
 </root>

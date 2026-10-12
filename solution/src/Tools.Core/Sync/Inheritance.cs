@@ -29,7 +29,9 @@ public static class Inheritance
 	public const string InvalidParent = "workspace.invalid-parent";
 
 	/// <summary>What <paramref name="child"/> (declared by <paramref name="parent"/> as <paramref name="identity"/>) receives, written or checked.</summary>
-	public static void Run(FxNode parent, FxIdentity parentIdentity, FxNode child, FxIdentity identity, FxOutputs outputs, FxDiagnostics diagnostics)
+	/// <param name="parentRef">The branch read of a parent read from its remote (on disk, the one it has).</param>
+	public static void Run(FxNode parent, FxIdentity parentIdentity, FxNode child, FxIdentity identity, FxOutputs outputs, FxDiagnostics diagnostics,
+		string? parentRef = null)
 	{
 		var expected = new SortedDictionary<string, (byte[] Content, IReadOnlyList<string> From)>(StringComparer.Ordinal);
 		var parentInherited = parent.Inherited();
@@ -58,15 +60,14 @@ public static class Inheritance
 		{
 			var git = GitClient.Discover(parent.Root);
 			var inherited = new FxInherited(identity,
-				new(parentIdentity.FullName, git?.RemoteUrl("origin"), git?.CurrentBranch(), git?.Head() is { Length: >= 7 } head ? head[..7] : null),
+				new(parentIdentity.FullName, git?.RemoteUrl("origin"), parentRef ?? git?.CurrentBranch(), git?.Head() is { Length: >= 7 } head ? head[..7] : null),
 				expected.Select(e => new FxInheritedFile(e.Key, e.Value.From)).ToList(), []);
-			// the branch and the commit of the parent only change if what is inherited changes
-			var unchanged = inherited.SameContent(existingInherited)
-			                && expected.All(e => File.Exists(Path.Combine(folder, e.Key)));
-			if (unchanged)
-				inherited = inherited with { Parent = existingInherited!.Parent };
+			var before = outputs.Files.Count;
 			foreach (var (relative, (content, _)) in expected)
 				outputs.Owned(Path.Combine(folder, relative), content);
+			// the branch and the commit of the parent only change if what is inherited changes
+			if (inherited.SameContent(existingInherited) && outputs.Files.Skip(before).All(f => f.Status == SyncFileStatus.Unchanged))
+				inherited = inherited with { Parent = existingInherited!.Parent };
 			outputs.Owned(Path.Combine(folder, "inherited.yaml"), Encoding.UTF8.GetBytes(inherited.ToYaml()));
 		}
 

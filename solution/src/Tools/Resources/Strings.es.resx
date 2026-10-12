@@ -499,4 +499,19 @@
   <data name="path.ask.remove" xml:space="preserve">
     <value>Ruta que dejar de versionar</value>
   </data>
+  <data name="sync.only" xml:space="preserve">
+    <value>Solo esta raíz, no lo montado debajo (ni el mapa de FxReference).</value>
+  </data>
+  <data name="sync.parent-ref" xml:space="preserve">
+    <value>Lee el padre de su remoto, en esta rama (para probar lo que da, sin versionar la elección).</value>
+  </data>
+  <data name="repo.rename" xml:space="preserve">
+    <value>Renombra un repositorio: cambian sus referencias en este workspace y el nombre viejo queda en aliases.</value>
+  </data>
+  <data name="repo.rename.new-name" xml:space="preserve">
+    <value>El nombre nuevo.</value>
+  </data>
+  <data name="repo.ask.new-name" xml:space="preserve">
+    <value>Nombre nuevo</value>
+  </data>
 </root>

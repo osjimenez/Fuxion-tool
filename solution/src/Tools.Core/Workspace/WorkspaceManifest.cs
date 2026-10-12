@@ -208,7 +208,8 @@ public sealed record WorkspaceManifest(
 			if (string.IsNullOrWhiteSpace(repo.Url))
 				yield return Error(repo.Line, "url", repo.Name);
 			foreach (var dependency in repo.DependsOn ?? [])
-				if (!Repositories.Any(r => r.Name == dependency))
+				// an old name still works (its doctor warns)
+				if (!Repositories.Any(r => r.Name == dependency || (r.Aliases ?? []).Contains(dependency)))
 					yield return Error(repo.Line, "depends-on", repo.Name, dependency);
 			foreach (var alias in repo.Aliases ?? [])
 				if (!FxConfig.NamePattern().IsMatch(alias))
@@ -216,6 +217,10 @@ public sealed record WorkspaceManifest(
 		}
 		foreach (var duplicate in Repositories.GroupBy(r => r.Name, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1))
 			yield return Error(duplicate.Last().Line, "duplicate-name", duplicate.Key);
+		// an old name is still a name: it cannot be another repository's
+		foreach (var repo in Repositories)
+			foreach (var alias in (repo.Aliases ?? []).Where(a => Repositories.Any(o => o != repo && (o.Name == a || (o.Aliases ?? []).Contains(a)))))
+				yield return Error(repo.Line, "duplicate-name", alias);
 		// two paths that only differ in case are the same folder on Windows and macOS
 		foreach (var duplicate in Repositories.GroupBy(r => r.Path, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1))
 			yield return Error(duplicate.Last().Line, "duplicate-path", duplicate.Key);

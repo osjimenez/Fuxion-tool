@@ -11,7 +11,8 @@ using Fuxion.Tools.Core.Workspace;
 
 namespace Fuxion.Tools.Cli.Sync;
 
-public sealed record ModuleSettings(GlobalSettings Global, string? Module, bool DryRun, bool Offline = false, bool Adopt = false);
+public sealed record ModuleSettings(GlobalSettings Global, string? Module, bool DryRun, bool Offline = false, bool Adopt = false, bool OnlyHere = false,
+	string? ParentRef = null);
 
 /// <summary>
 /// <c>fx sync [module]</c> and <c>fx doctor [module]</c> (plan P, decision 17 and proposal B): the root of fx where
@@ -29,11 +30,13 @@ public static class SyncCommand
 		var dryRun = new Option<bool>("--dry-run") { Description = Texts.Get("sync.dry-run") };
 		var offline = new Option<bool>("--offline") { Description = Texts.Get("sync.offline") };
 		var adopt = new Option<bool>("--adopt") { Description = Texts.Get("sync.adopt") };
-		var command = new Command("sync", Texts.Get("sync")) { module, dryRun, offline, adopt };
+		var (only, parentRef) = LevelOptions();
+		var command = new Command("sync", Texts.Get("sync")) { module, dryRun, offline, adopt, only, parentRef };
 		command.SetAction((result, cancellationToken) =>
 		{
 			var settings = global.Bind(result, currentDirectory);
-			return Task.FromResult(Run(new(settings, result.GetValue(module), result.GetValue(dryRun), result.GetValue(offline), result.GetValue(adopt)),
+			return Task.FromResult(Run(new(settings, result.GetValue(module), result.GetValue(dryRun), result.GetValue(offline), result.GetValue(adopt), result.GetValue(only),
+				result.GetValue(parentRef)),
 				new(result.InvocationConfiguration.Output, result.InvocationConfiguration.Error, settings), doctor: false, cancellationToken));
 		});
 		return command;
@@ -43,15 +46,21 @@ public static class SyncCommand
 	{
 		var module = ModuleArgument();
 		var offline = new Option<bool>("--offline") { Description = Texts.Get("doctor.offline") };
-		var command = new Command("doctor", Texts.Get("doctor")) { module, offline };
+		var (only, parentRef) = LevelOptions();
+		var command = new Command("doctor", Texts.Get("doctor")) { module, offline, only, parentRef };
 		command.SetAction((result, cancellationToken) =>
 		{
 			var settings = global.Bind(result, currentDirectory);
-			return Task.FromResult(Run(new(settings, result.GetValue(module), DryRun: true, Offline: result.GetValue(offline)),
+			return Task.FromResult(Run(new(settings, result.GetValue(module), DryRun: true, Offline: result.GetValue(offline), OnlyHere: result.GetValue(only),
+				ParentRef: result.GetValue(parentRef)),
 				new(result.InvocationConfiguration.Output, result.InvocationConfiguration.Error, settings), doctor: true, cancellationToken));
 		});
 		return command;
 	}
+
+	/// <summary><c>--only</c> (this root alone) and <c>--parent-ref</c> (the branch of the parent, from its remote).</summary>
+	static (Option<bool> Only, Option<string?> ParentRef) LevelOptions()
+		=> (new("--only") { Description = Texts.Get("sync.only") }, new("--parent-ref") { Description = Texts.Get("sync.parent-ref"), HelpName = "branch" });
 
 	static Argument<string?> ModuleArgument()
 	{
@@ -70,7 +79,7 @@ public static class SyncCommand
 	{
 		var schema = doctor ? DoctorSchema : SyncSchema;
 		var directory = settings.Global.Directory;
-		var options = new SyncOptions(settings.DryRun, settings.Offline, settings.Adopt, settings.Module, Version);
+		var options = new SyncOptions(settings.DryRun, settings.Offline, settings.Adopt, settings.Module, Version, settings.OnlyHere, settings.ParentRef);
 		var modules = console.WithProgress((progress, cancel) => doctor
 			? SyncEngine.Doctor(directory, options, progress, cancel)
 			: SyncEngine.Sync(directory, options, progress, cancel), cancellationToken).ToList();

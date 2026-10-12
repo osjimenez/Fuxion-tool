@@ -45,6 +45,7 @@ public static class WorkspaceModule
 	public const string Unreachable = "workspace.unreachable";
 	public const string UnknownRepository = "workspace.unknown-repository";
 	public const string UnknownTag = "workspace.unknown-tag";
+	public const string AliasReference = "workspace.alias-reference";
 	public const string PullFailed = "workspace.pull-failed";
 
 	static readonly TimeSpan CloneTimeout = TimeSpan.FromMinutes(10);
@@ -177,7 +178,8 @@ public static class WorkspaceModule
 	/// What the workspace generates (its <c>.gitignore</c>, with <paramref name="versioned"/>, what its modules
 	/// generate and version) and, in the doctor, what only it checks.
 	/// </summary>
-	public static void Outputs(FxNode node, WorkspaceManifest manifest, FxConfig config, IEnumerable<string> versioned, SyncContext context, FxOutputs outputs, FxDiagnostics diagnostics)
+	public static void Outputs(FxNode node, FxIdentity identity, WorkspaceManifest manifest, FxConfig config, IEnumerable<string> versioned, SyncContext context,
+		FxOutputs outputs, FxDiagnostics diagnostics)
 	{
 		outputs.Generated(node.Full(GitignoreGenerator.FileName), GitignoreGenerator.Generate(manifest, versioned));
 		if (!context.Doctor)
@@ -186,8 +188,57 @@ public static class WorkspaceModule
 		foreach (var repo in manifest.Repositories)
 			foreach (var tag in repo.Tags.Where(t => !config.Knows(t)))
 				diagnostics.Add(FxDiagnostic.Warning(UnknownTag, new(UnknownTag, tag, repo.Name), manifestFile, repo.Line, repo.Name, FxFix.Do($"{UnknownTag}.fix")));
+		AliasReferences(node, identity, manifest, context, diagnostics);
 		Walk(node.Root, manifest, context, diagnostics);
 		Check(manifest, context, diagnostics);
+	}
+
+	/// <summary>
+	/// The references of this workspace that use an old name of one of its repositories (<c>aliases</c>, plan P,
+	/// decision 12): they still work, but they should change. In <c>depends-on</c> and in the <c>applies-to</c> of the
+	/// shares and of the .NET module.
+	/// </summary>
+	static void AliasReferences(FxNode node, FxIdentity identity, WorkspaceManifest manifest, SyncContext context, FxDiagnostics diagnostics)
+	{
+		var aliases = manifest.Repositories.SelectMany(r => (r.Aliases ?? []).Select(a => (Alias: a, r.Name))).ToList();
+		if (aliases.Count == 0)
+			return;
+		void Check(string reference, string file, int line)
+		{
+			var relative = reference.StartsWith(identity.FullName + "/", StringComparison.Ordinal) ? reference[(identity.FullName.Length + 1)..]
+				: reference.StartsWith('/') ? null
+				: reference;
+			var first = relative?.Split('/')[0];
+			foreach (var (alias, name) in aliases.Where(a => a.Alias == first))
+				diagnostics.Add(FxDiagnostic.Warning(AliasReference, new(AliasReference, reference, alias, name), file, line, name, FxFix.Do($"{AliasReference}.fix")));
+		}
+		var manifestFile = Display(context, node.Root, WorkspaceManifest.RelativePath);
+		foreach (var repo in manifest.Repositories)
+			foreach (var dependency in repo.DependsOn ?? [])
+				Check(dependency, manifestFile, repo.Line);
+		foreach (var share in manifest.Shares ?? [])
+			foreach (var reference in share.AppliesTo.Repositories)
+				Check(reference, manifestFile, share.Line);
+		var dotnetFile = node.Full(FxLayout.ModuleFile(Dotnet.DotnetModule.Name));
+		if (!File.Exists(dotnetFile))
+			return;
+		Dotnet.DotnetConfig dotnet;
+		try
+		{
+			dotnet = Dotnet.DotnetYamlReader.ReadFile(dotnetFile);
+		}
+		catch (Dotnet.DotnetConfigException)
+		{
+			return;
+		}
+		var display = Display(context, node.Root, FxLayout.ModuleFile(Dotnet.DotnetModule.Name));
+		foreach (var reference in dotnet.AppliesTo?.Repositories ?? [])
+			Check(reference, display, 1);
+		foreach (var (appliesTo, line) in dotnet.Variables.Select(v => (v.AppliesTo, v.Line))
+			         .Concat(dotnet.Imports.Select(i => (i.AppliesTo, i.Line)))
+			         .Concat(dotnet.Packages.Select(p => (p.AppliesTo, p.Line))))
+			foreach (var reference in appliesTo.Repositories)
+				Check(reference, display, line);
 	}
 
 	/// <summary>

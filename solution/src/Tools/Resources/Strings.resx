@@ -499,4 +499,19 @@
   <data name="path.ask.remove" xml:space="preserve">
     <value>Path to stop versioning</value>
   </data>
+  <data name="sync.only" xml:space="preserve">
+    <value>Only this root, not what is mounted below it (nor the map of FxReference).</value>
+  </data>
+  <data name="sync.parent-ref" xml:space="preserve">
+    <value>Read the parent from its remote, on this branch (to try what it gives, without versioning the choice).</value>
+  </data>
+  <data name="repo.rename" xml:space="preserve">
+    <value>Rename a repository: its references in this workspace change, and the old name stays in aliases.</value>
+  </data>
+  <data name="repo.rename.new-name" xml:space="preserve">
+    <value>The new name.</value>
+  </data>
+  <data name="repo.ask.new-name" xml:space="preserve">
+    <value>New name</value>
+  </data>
 </root>

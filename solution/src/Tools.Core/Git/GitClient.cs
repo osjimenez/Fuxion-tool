@@ -187,6 +187,43 @@ public sealed class GitClient
 	public static ProcessResult LsRemote(string url, TimeSpan timeout, CancellationToken cancellationToken = default)
 		=> ProcessRunner.Run("git", System.IO.Path.GetTempPath(), ["ls-remote", "--quiet", url, "HEAD"], timeout, Environment, cancellationToken);
 
+	/// <summary>The branch HEAD of a remote points to (its default branch), or null if it does not answer.</summary>
+	public static string? DefaultBranch(string url, TimeSpan timeout, CancellationToken cancellationToken = default)
+	{
+		var result = ProcessRunner.Run("git", System.IO.Path.GetTempPath(), ["ls-remote", "--symref", url, "HEAD"], timeout, Environment, cancellationToken);
+		if (result.ExitCode != 0)
+			return null;
+		// ref: refs/heads/main	HEAD
+		return Lines(result.StandardOutput).Where(l => l.StartsWith("ref: refs/heads/", StringComparison.Ordinal))
+			.Select(l => l["ref: refs/heads/".Length..].Split('\t')[0])
+			.FirstOrDefault();
+	}
+
+	/// <summary>
+	/// A clone of one branch with only its last commit and only <paramref name="folders"/> (and the files of the root) in
+	/// the working tree: to read another repository's configuration without bringing the rest.
+	/// </summary>
+	public static ProcessResult CloneSparse(string url, string path, string branch, IReadOnlyList<string> folders, TimeSpan timeout, CancellationToken cancellationToken = default)
+	{
+		var parent = System.IO.Path.GetDirectoryName(System.IO.Path.TrimEndingDirectorySeparator(path))!;
+		Directory.CreateDirectory(parent);
+		var clone = ProcessRunner.Run("git", parent,
+			["-c", "core.longpaths=true", "clone", "--quiet", "--depth", "1", "--filter=blob:none", "--sparse", "--branch", branch, url, path],
+			timeout, Environment, cancellationToken);
+		return clone.ExitCode != 0
+			? clone
+			: ProcessRunner.Run("git", path, ["-C", path, "sparse-checkout", "set", .. folders], timeout, Environment, cancellationToken);
+	}
+
+	/// <summary>The last commit of <paramref name="branch"/> of origin, checked out (detached).</summary>
+	public ProcessResult FetchCheckout(string branch, TimeSpan timeout, CancellationToken cancellationToken = default)
+	{
+		var fetch = ProcessRunner.Run("git", Root, ["-C", Root, "fetch", "--quiet", "--depth", "1", "origin", branch], timeout, Environment, cancellationToken);
+		return fetch.ExitCode != 0
+			? fetch
+			: ProcessRunner.Run("git", Root, ["-C", Root, "checkout", "--quiet", "--detach", "FETCH_HEAD"], timeout, Environment, cancellationToken);
+	}
+
 	/// <summary>Creates a lightweight tag. Local only: nothing is pushed.</summary>
 	public void CreateTag(string name, string commit) => Required("tag", name, commit);
 

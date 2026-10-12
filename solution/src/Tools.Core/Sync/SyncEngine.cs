@@ -30,7 +30,13 @@ public static class SyncEngine
 	public static IReadOnlyList<FxModuleResult> Doctor(string directory, SyncOptions options, IFxProgress? progress = null, CancellationToken cancellationToken = default)
 		=> Run(directory, options with { DryRun = true }, doctor: true, progress, cancellationToken);
 
-	sealed record Parent(FxNode Node, FxIdentity Identity, WorkspaceRepository Declaration);
+	public const string TooDeep = "workspace.too-deep";
+
+	/// <summary>How many workspaces above a repository Fuxion.Tools.Sdk looks at (its <c>Sdk.props</c>).</summary>
+	const int MaxDepth = 5;
+
+	/// <summary>The parent of a root: on disk, or read from its remote (then, the branch read).</summary>
+	sealed record Parent(FxNode Node, FxIdentity Identity, WorkspaceRepository Declaration, string? Ref = null);
 
 	sealed class Run_(FxNode start, SyncContext context)
 	{
@@ -57,13 +63,16 @@ public static class SyncEngine
 			first.Add(FxDiagnostic.Error(Requires, new(Requires, config.Requires, version), FxLayout.ConfigFile, fix: FxFix.Do($"{Requires}.fix")));
 			write = false;
 		}
-		var context = new SyncContext(start.Root, write, options.Adopt, doctor, options.Offline, progress, cancellationToken) { Only = options.Module };
+		var context = new SyncContext(start.Root, write, options.Adopt, doctor, options.Offline, progress, cancellationToken)
+		{
+			Only = options.Module,
+			OnlyHere = options.OnlyHere
+		};
 		var run = new Run_(start, context);
-		var parent = start.FindParent();
-		Process(run, start, parent is { } p ? new Parent(p.Workspace, p.Workspace.SelfIdentity(), p.Declaration) : null, first);
+		Process(run, start, FindParent(start, options, progress, first, cancellationToken), first);
 
-		// The map of FxReference: only the highest workspace on disk makes it (decision 19)
-		if (start.IsWorkspace && start.HasModule(DotnetModule.Name) && context.Runs(DotnetModule.Name)
+		// The map of FxReference: only the highest workspace on disk makes it (decision 19), from all it has mounted
+		if (!options.OnlyHere && start.IsWorkspace && start.HasModule(DotnetModule.Name) && context.Runs(DotnetModule.Name)
 		    && WorkspaceManifest.FindRoot(Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(start.Root))!) is null)
 		{
 			var diagnostics = new FxDiagnostics(progress);
@@ -77,17 +86,56 @@ public static class SyncEngine
 		return run.Results;
 	}
 
+	/// <summary>
+	/// The parent of the root where the run starts: the workspace on disk that declares it; if there is none (a clone on
+	/// its own) or <c>--parent-ref</c> asks for a branch, the one its <c>inherited.yaml</c> names, read from its remote.
+	/// Its declaration there is found by the URL of the repository (or by its name, or an old one).
+	/// </summary>
+	static Parent? FindParent(FxNode start, SyncOptions options, IFxProgress? progress, FxDiagnostics diagnostics, CancellationToken cancellationToken)
+	{
+		var found = start.FindParent();
+		Parent? onDisk = found is { } f ? new(f.Workspace, f.Workspace.SelfIdentity(), f.Declaration) : null;
+		if (options.ParentRef is null && onDisk is not null)
+			return onDisk;
+		// from its remote: its main branch, or the one asked for
+		if (start.Inherited() is not { Parent.Url: { } url } inherited)
+			return onDisk;
+		if (RemoteParent.Read(url, options.ParentRef, options.Offline, progress, diagnostics, cancellationToken) is not { } remote)
+			return onDisk;
+		var file = remote.Node.Full(WorkspaceManifest.RelativePath);
+		var manifest = WorkspaceManifest.Read(remote.Node.Root, File.Exists(file) ? File.ReadAllText(file) : "");
+		var origin = GitClient.Discover(start.Root)?.RemoteUrl("origin");
+		var declaration = manifest.Repositories.FirstOrDefault(r => origin is not null && WorkspaceModule.SameUrl(r.Url, origin))
+		                  ?? manifest.Repositories.FirstOrDefault(r => r.Name == inherited.Repository.Name || (r.Aliases ?? []).Contains(inherited.Repository.Name));
+		if (declaration is null)
+		{
+			diagnostics.Add(FxDiagnostic.Warning(RemoteParent.NotDeclared, new(RemoteParent.NotDeclared, inherited.Parent.FullName, inherited.Repository.Name)));
+			return null;
+		}
+		return new(remote.Node, remote.Node.SelfIdentity(), declaration, remote.Branch);
+	}
+
 	static void Process(Run_ run, FxNode node, Parent? parent, FxDiagnostics? first = null)
 	{
 		var context = run.Context;
 		context.CancellationToken.ThrowIfCancellationRequested();
 		var isStart = node == run.Start;
-		// who it is: as its parent declares it; a root nobody declares, by its own name
+		// who it is: as its parent declares it (its old names too, with the old names of the parent); a root nobody
+		// declares, by its own name
 		var found = new List<FxDiagnostic>();
-		var identity = parent is null
-			? node.SelfIdentity(found)
-			: new FxIdentity(parent.Declaration.Name, $"{parent.Identity.FullName}/{parent.Declaration.Name}", parent.Declaration.Tags,
-				(parent.Declaration.Aliases ?? []).Select(a => $"{parent.Identity.FullName}/{a}").ToList());
+		FxIdentity identity;
+		if (parent is null)
+			identity = node.SelfIdentity(found);
+		else
+		{
+			var fullName = $"{parent.Identity.FullName}/{parent.Declaration.Name}";
+			var aliases = new[] { parent.Identity.FullName }.Concat(parent.Identity.Aliases ?? [])
+				.SelectMany(p => new[] { parent.Declaration.Name }.Concat(parent.Declaration.Aliases ?? []).Select(n => $"{p}/{n}"))
+				.Where(a => a != fullName)
+				.Distinct()
+				.ToList();
+			identity = new(parent.Declaration.Name, fullName, parent.Declaration.Tags, aliases);
+		}
 		var label = isStart && node.IsWorkspace ? null : identity.Name;
 		var diagnostics = first ?? new FxDiagnostics(context.Progress, label);
 		diagnostics.AddRange(found);
@@ -96,9 +144,13 @@ public static class SyncEngine
 		var at = run.Results.Count;
 		run.Results.Add(null!); // the workspace result goes before the results of what is below
 
+		// Fuxion.Tools.Sdk looks for the highest workspace up to five levels above a repository
+		if (context.Doctor && identity.FullName.Count(c => c == '/') - 1 > MaxDepth)
+			diagnostics.Add(FxDiagnostic.Error(TooDeep, new(TooDeep, identity.FullName, MaxDepth)));
+
 		// 1. What it inherits from its parent
 		if (parent is not null)
-			Inheritance.Run(parent.Node, parent.Identity, node, identity, outputs, diagnostics);
+			Inheritance.Run(parent.Node, parent.Identity, node, identity, outputs, diagnostics, parent.Ref);
 
 		// 2. A workspace: its repositories, each with the same sync
 		WorkspaceManifest? manifest = null;
@@ -117,8 +169,10 @@ public static class SyncEngine
 				var mounted = context.Runs(WorkspaceModule.Name)
 					? WorkspaceModule.Mount(manifest, context, diagnostics, actions)
 					: WorkspaceModule.Repositories(manifest, withStatus: false).Where(r => r.Mounted && r.Present).Select(r => r.Repository).ToList();
-				foreach (var repository in mounted.Where(r => r.Inherits))
-					Process(run, new FxNode(manifest.FullPath(repository)), new Parent(node, identity, repository));
+				// with --only, this level alone
+				if (!context.OnlyHere)
+					foreach (var repository in mounted.Where(r => r.Inherits))
+						Process(run, new FxNode(manifest.FullPath(repository)), new Parent(node, identity, repository));
 			}
 		}
 
@@ -142,7 +196,7 @@ public static class SyncEngine
 
 		// 4. What the workspace generates: its .gitignore, which versions the solutions
 		if (manifest is not null && context.Runs(WorkspaceModule.Name))
-			WorkspaceModule.Outputs(node, manifest, node.Config(), (own?.Solutions ?? []).Select(s => s.Path), context, outputs, diagnostics);
+			WorkspaceModule.Outputs(node, identity, manifest, node.Config(), (own?.Solutions ?? []).Select(s => s.Path), context, outputs, diagnostics);
 
 		// in the doctor, what sync would change is out of date
 		if (context.Doctor)

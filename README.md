@@ -12,12 +12,15 @@ XenoAtom.Terminal.UI. It reads git with the `git` executable, so `git` must be o
 
 ```text
 fx sync [module] [--dry-run]  generate what fx owns here and in everything mounted below, from _fx
+        [--only]              this root alone
+        [--parent-ref <b>]    read the parent from its remote, on that branch
 fx doctor [module]            check it, changing nothing
 fx version [--explain]        the version this repository would build now, and why
 fx version tag <X.Y>          create the tag version/X.Y.0 on HEAD (local; push it yourself)
 fx repo list|status [--all]   the repositories of the workspace; status, only those that ask for attention
 fx repo mount|unmount|pull    mount or unmount repositories of the manifest; pull the mounted ones
 fx repo add|remove|tag|set    edit the repositories of the manifest (a diff; --dry-run)
+fx repo rename <name> <new>   rename one: its references here change, the old name stays in aliases
 fx path add|remove            what the git of the workspace versions
 fx module enable|disable      the modules of fx in this root (a folder of _fx each)
 fx                            the commands by topic and the global options (also fx --help)
@@ -36,7 +39,11 @@ Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain
   its module folders), already merged (the nearest wins by name), with the repositories of `applies-to` made absolute
   (`/acme/product/app`). A repository nothing applies to gets nothing. `fx sync` works on the root where it runs and
   everything mounted below, never above: what goes down, from the top; the solutions, from the bottom up. The map of
-  `FxReference` is made by the highest workspace on disk (`_fx/dotnet/~$workspace.props`).
+  `FxReference` is made by the highest workspace on disk (`_fx/dotnet/~$workspace.props`). A repository whose parent
+  is not on disk above it (a clone on its own) reads it from its remote, on its main branch or `--parent-ref`: a clone
+  of one commit and only `_fx/`, in a cache of the user (`%LOCALAPPDATA%\fx\cache`, or `FX_CACHE`), used as it is
+  with `--offline`. `fx repo rename` keeps the old name in `aliases`, so references to it keep working while they
+  change (the doctor warns about them).
 
 - **Languages**: the messages to the user are in English or Spanish: `--lang`, else `FX_LANG`, else the system's
   (Windows' UI language; `LC_ALL`, `LC_MESSAGES`, `LANG` and `LANGUAGE` elsewhere), else English. Codes, commands and

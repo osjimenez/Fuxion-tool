@@ -109,7 +109,7 @@ public static partial class ManifestEditor
 		var s = new Session(root);
 		if (s.Repository(name) is not { } repository)
 			return s.Error(WorkspaceModule.UnknownRepository, new FxText(WorkspaceModule.UnknownRepository, name), name);
-		var dependents = s.Manifest.Repositories.Where(r => (r.DependsOn ?? []).Contains(name)).Select(r => r.Name).ToList();
+		var dependents = s.Manifest.Repositories.Where(r => (r.DependsOn ?? []).Any(d => d == name || (repository.Aliases ?? []).Contains(d))).Select(r => r.Name).ToList();
 		if (dependents.Count > 0)
 			return s.Error(RepositoryNeeded, new FxText(RepositoryNeeded, name, string.Join(", ", dependents)), name);
 		s.Apply(s.Current.Remove($"repositories[name={name}]"));
@@ -192,6 +192,63 @@ public static partial class ManifestEditor
 		if (key == "path" && values[0] != repository.Path && Directory.Exists(full))
 			s.Diagnostics.Add(FxDiagnostic.Warning(CloneNotMoved, new FxText(CloneNotMoved, name, repository.Path, values[0]), repository: name));
 		return s.Done();
+	}
+
+	/// <summary>
+	/// Renames a repository (plan P, decision 12): its name, the references to it in this workspace
+	/// (<c>depends-on</c>, the <c>applies-to</c> of the shares and of the modules: relative ones, and absolute ones from
+	/// this workspace), and its old name in <c>aliases</c>, so that the references elsewhere keep working while they
+	/// change. The clone is not moved. One change per file it touches, the manifest first.
+	/// </summary>
+	public static IReadOnlyList<ManifestChange> RenameRepository(string root, string name, string newName)
+	{
+		var s = new Session(root);
+		if (s.Repository(name) is null)
+			return [s.Error(WorkspaceModule.UnknownRepository, new FxText(WorkspaceModule.UnknownRepository, name), name)];
+		if (s.Manifest.Repositories.Any(r => r.Name != name && (r.Name == newName || (r.Aliases ?? []).Contains(newName))))
+			return [s.Error(RepositoryExists, new FxText(RepositoryExists, newName), name)];
+		if (name == newName)
+			return [s.Info(new FxText($"{Unchanged}.renamed", name), name)];
+		var workspace = new FxNode(root).SelfIdentity().FullName;
+		string Rewrite(string reference)
+		{
+			foreach (var (from, to) in new[] { (name, newName), ($"{workspace}/{name}", $"{workspace}/{newName}") })
+				if (reference == from || reference.StartsWith(from + "/", StringComparison.Ordinal))
+					return to + reference[from.Length..];
+			return reference;
+		}
+
+		var at = $"repositories[name={newName}]";
+		s.Apply(s.Current.SetScalar($"repositories[name={name}].name", newName));
+		var aliases = (s.Current.Resolve($"{at}.aliases") as YamlSequence)?.Items.OfType<YamlScalar>().Select(i => i.Value).ToList();
+		if (aliases is null)
+			s.Set(at, "aliases", Flow([name]));
+		else
+		{
+			if (!aliases.Contains(name))
+				s.Apply(s.Current.Append($"{at}.aliases", name));
+			// back to an old name: it is no longer an alias
+			if (aliases.Contains(newName))
+				s.Apply(s.Current.Remove($"{at}.aliases[={newName}]"));
+		}
+		foreach (var other in s.Manifest.Repositories.Where(r => r.Name != name && (r.DependsOn ?? []).Contains(name)))
+			s.Apply(s.Current.SetScalar($"repositories[name={other.Name}].depends-on[={name}]", newName));
+		for (var i = 0; s.Current.Resolve($"shares[{i}]") is not null; i++)
+			s.RewriteList($"shares[{i}].applies-to.repositories", Rewrite);
+		var changes = new List<ManifestChange> { s.Done() };
+
+		// the references of the modules of this workspace
+		foreach (var module in KnownModules.Where(m => m != WorkspaceModule.Name && File.Exists(FxLayout.Full(root, FxLayout.ModuleFile(m)))))
+		{
+			var m = new ModuleSession(root, module);
+			m.RewriteList("applies-to.repositories", Rewrite);
+			foreach (var section in new[] { "variables", "imports", "packages" })
+				for (var i = 0; m.Current.Resolve($"{section}[{i}]") is not null; i++)
+					m.RewriteList($"{section}[{i}].applies-to.repositories", Rewrite);
+			if (m.Edits.Count > 0)
+				changes.Add(m.Done());
+		}
+		return changes;
 	}
 
 	/// <summary>
@@ -320,6 +377,16 @@ public static partial class ManifestEditor
 				Apply(Current.Append(path, item));
 			foreach (var item in items.Where(i => !wanted.Contains(i)))
 				Apply(Current.Remove($"{path}[={item}]"));
+		}
+
+		/// <summary>The scalars of the list at <paramref name="path"/> (if there is one) through <paramref name="rewrite"/>, each in place.</summary>
+		public void RewriteList(string path, Func<string, string> rewrite)
+		{
+			if (Current.Resolve(path) is not YamlSequence list)
+				return;
+			foreach (var value in list.Items.OfType<YamlScalar>().Select(i => i.Value).ToList())
+				if (rewrite(value) is var rewritten && rewritten != value)
+					Apply(Current.SetScalar($"{path}[={value}]", rewritten));
 		}
 
 		public ManifestChange Error(string code, FxText text, string? repository = null)
