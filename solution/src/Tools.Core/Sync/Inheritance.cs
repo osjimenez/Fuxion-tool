@@ -19,7 +19,9 @@ namespace Fuxion.Tools.Core.Sync;
 /// <list type="bullet">
 /// <item><c>fx.yaml</c>: <c>requires</c> and the catalog of tags.</item>
 /// <item><c>dotnet/</c>: the merged <c>dotnet.yaml</c> (without the solutions) and the files of the module folders.</item>
-/// <item><c>inherited.yaml</c>: who the repository is for its parent, whose it is and where each file comes from.</item>
+/// <item><c>workspace/</c>, in a workspace: the shares, to pass them on (<see cref="WorkspaceShares"/>).</item>
+/// <item><c>inherited.yaml</c>: who the repository is for its parent, whose it is and where each file comes from,
+/// also the shares it receives, written outside <c>_fx/</c>.</item>
 /// </list>
 /// Only where something applies (a module, a share) or to a workspace, which passes it on: a repository nothing applies
 /// to gets nothing (plan P, P1, detail 1).
@@ -28,18 +30,26 @@ public static class Inheritance
 {
 	public const string InvalidParent = "workspace.invalid-parent";
 
-	/// <summary>What <paramref name="child"/> (declared by <paramref name="parent"/> as <paramref name="identity"/>) receives, written or checked.</summary>
+	/// <summary>
+	/// What <paramref name="child"/> (declared by <paramref name="parent"/> as <paramref name="identity"/>) receives,
+	/// written or checked. Returns the destinations of the shares that are fx's in it now.
+	/// </summary>
 	/// <param name="parentRef">The branch read of a parent read from its remote (on disk, the one it has).</param>
-	public static void Run(FxNode parent, FxIdentity parentIdentity, FxNode child, FxIdentity identity, FxOutputs outputs, FxDiagnostics diagnostics,
+	public static IReadOnlyList<string> Run(FxNode parent, FxIdentity parentIdentity, FxNode child, FxIdentity identity, FxOutputs outputs, FxDiagnostics diagnostics,
 		string? parentRef = null)
 	{
 		var expected = new SortedDictionary<string, (byte[] Content, IReadOnlyList<string> From)>(StringComparer.Ordinal);
 		var parentInherited = parent.Inherited();
 		IReadOnlyList<string> FromOf(string relative)
 			=> parentInherited?.Files.FirstOrDefault(f => string.Equals(f.Path, relative, StringComparison.OrdinalIgnoreCase))?.From ?? [parentInherited?.Parent.FullName ?? parentIdentity.FullName];
+		var existingInherited = child.Inherited();
 
 		var dotnet = Dotnet(parent, parentIdentity, identity, child.IsWorkspace, expected, FromOf, diagnostics);
-		var applies = dotnet || child.IsWorkspace;
+		var flows = WorkspaceShares.Of(parent, parentIdentity, FromOf);
+		var received = WorkspaceShares.For(flows, identity);
+		if (child.IsWorkspace && flows.Count > 0)
+			Conduit(child, flows, existingInherited, expected);
+		var applies = dotnet || child.IsWorkspace || received.Any;
 		if (applies)
 		{
 			// fx.yaml: requires and the catalog, from above and from the parent
@@ -54,14 +64,16 @@ public static class Inheritance
 			expected["fx.yaml"] = (Encoding.UTF8.GetBytes(merged.ToInheritedYaml(Workspaces(from, "_fx/fx.yaml"))), from.Distinct().ToList());
 		}
 
+		// the shares in the repository itself, outside _fx/ (also removing what it no longer gets)
+		var shares = WorkspaceShares.Apply(child, received, existingInherited, outputs, diagnostics);
+
 		var folder = child.Full(FxLayout.Inherited);
-		var existingInherited = child.Inherited();
 		if (applies)
 		{
 			var git = GitClient.Discover(parent.Root);
 			var inherited = new FxInherited(identity,
 				new(parentIdentity.FullName, git?.RemoteUrl("origin"), parentRef ?? git?.CurrentBranch(), git?.Head() is { Length: >= 7 } head ? head[..7] : null),
-				expected.Select(e => new FxInheritedFile(e.Key, e.Value.From)).ToList(), []);
+				expected.Select(e => new FxInheritedFile(e.Key, e.Value.From)).ToList(), shares);
 			var before = outputs.Files.Count;
 			foreach (var (relative, (content, _)) in expected)
 				outputs.Owned(Path.Combine(folder, relative), content);
@@ -82,6 +94,28 @@ public static class Inheritance
 			}
 			outputs.Prune(folder);
 		}
+		return shares.Select(s => s.Destination).ToList();
+	}
+
+	/// <summary>
+	/// A workspace passes the shares on (decision 23): in its <c>.inherited/workspace/</c>, the merged entries and their
+	/// files, under their destination. Of a share whose source is not there, it keeps what it had.
+	/// </summary>
+	static void Conduit(FxNode child, IReadOnlyList<ShareFlow> flows, FxInherited? existing,
+		SortedDictionary<string, (byte[] Content, IReadOnlyList<string> From)> expected)
+	{
+		var folder = WorkspaceShares.Folder;
+		var froms = flows.SelectMany(f => f.Files?.Select(file => file.From) ?? []).Distinct().ToList();
+		expected[$"{folder}/{folder}.yaml"] = (Encoding.UTF8.GetBytes(WorkspaceShares.ToYaml(flows, Workspaces(froms, $"_fx/{folder}/{folder}.yaml"))), froms);
+		foreach (var flow in flows)
+			if (flow.Files is not null)
+				foreach (var file in flow.Files)
+					expected[$"{folder}/{file.Destination}"] = (file.Content, [file.From]);
+			else
+				foreach (var kept in (existing?.Files ?? []).Where(f => f.Path.StartsWith(folder + "/", StringComparison.Ordinal)
+				                                                     && WorkspaceShares.Under(f.Path[(folder.Length + 1)..], flow.Share.Destination)))
+					if (File.Exists(child.Full($"{FxLayout.Inherited}/{kept.Path}")))
+						expected[kept.Path] = (File.ReadAllBytes(child.Full($"{FxLayout.Inherited}/{kept.Path}")), kept.From);
 	}
 
 	/// <summary>

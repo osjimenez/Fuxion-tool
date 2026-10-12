@@ -126,6 +126,19 @@ public sealed class WorkspaceTest
 		Assert.Contains(ex.Diagnostics, d => d.Severity == FxSeverity.Error && d.Message.English.Contains(message) && d.Line is > 0);
 	}
 
+	[Theory(DisplayName = "manifest: a share comes from inside the workspace and goes inside the repository, out of what is fx's or git's; one per destination")]
+	[InlineData("  - path: ../x\n", "has to come from a path inside the workspace")]
+	[InlineData("  - path: _fx/.inherited/dotnet/x.props\n", "has to come from a path inside the workspace")]
+	[InlineData("  - path: x\n    destination: _fx/dotnet/x\n", "cannot go to '_fx/dotnet/x'")]
+	[InlineData("  - path: x\n    destination: .git/hooks/x\n", "cannot go to '.git/hooks/x'")]
+	[InlineData("  - path: x\n    destination: ~$x\n", "cannot go to '~$x'")]
+	[InlineData("  - path: a\n    destination: x\n  - path: b\n    destination: x\n", "Two shares go to 'x'")]
+	public void Manifest_InvalidShare(string shares, string message)
+	{
+		var ex = Assert.Throws<WorkspaceManifestException>(() => WorkspaceManifest.Read("root", "schema: 1.0.0\nrepositories: []\nshares:\n" + shares, strict: true));
+		Assert.Contains(ex.Diagnostics, d => d.Severity == FxSeverity.Error && d.Message.English.Contains(message) && d.Line is > 0);
+	}
+
 	[Fact(DisplayName = "manifest: repositories anywhere, paths as objects, shares; nothing about solutions")]
 	public void Manifest_Read()
 	{
@@ -154,6 +167,10 @@ public sealed class WorkspaceTest
 			  - path: res/icon.png
 			    applies-to:
 			      tags: [nuget-package]
+			  - path: res/
+			    destination: icons
+			  - path: LICENSE
+			    destination: legal/
 			""", strict: true);
 		var w1 = manifest.Repositories[0];
 		Assert.Equal(MountPolicy.Mandatory, w1.Mount);
@@ -169,9 +186,11 @@ public sealed class WorkspaceTest
 		Assert.True(manifest.Versions("_docs/plans/a.md"));
 		Assert.False(manifest.Versions("_docs/drafts/a.md"));
 		Assert.False(manifest.Versions("notes/"));
-		var share = Assert.Single(manifest.Shares!);
+		var share = manifest.Shares![0];
 		Assert.Equal("res/icon.png", share.Destination);
 		Assert.Equal(["nuget-package"], share.AppliesTo.Tags);
+		// a folder goes to a folder; a file to a folder keeps its name
+		Assert.Equal(["res/icon.png", "icons/", "legal/LICENSE"], manifest.Shares.Select(s => s.Destination));
 	}
 
 	[Fact(DisplayName = "schema: a newer major is not read; a newer minor, unknown keys only warn; none, a warning")]

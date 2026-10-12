@@ -31,9 +31,10 @@ Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain
 - **What fx fixes, and nothing else**: `_fx/`, the anchor of a root of fx (a repository or a workspace), with a folder
   per module (`_fx/workspace/workspace.yaml`, `_fx/dotnet/dotnet.yaml`…; a module is on if its folder is there,
   `enabled: false` turns it off); `_fx/fx.yaml` (the name of a root, `requires` and the catalog of tags);
-  `_fx/.inherited/`, what a repository receives from its workspace; the local files, `~$…`; and the `.gitignore` of a
-  workspace (a whitelist: `*`, then `_fx/`, its `paths`, the solutions it generates, the repositories inside versioned
-  folders and `~$*`). Where the repositories go, what the workspace versions and which solutions it composes are the
+  `_fx/.inherited/`, what a repository receives from its workspace; the shares it receives, which its `inherited.yaml`
+  lists; the local files, `~$…`; and the `.gitignore` of a
+  workspace (a whitelist: `*`, then `_fx/`, its `paths`, the solutions it generates, the shares it receives, the
+  repositories inside versioned folders and `~$*`). Where the repositories go, what the workspace versions and which solutions it composes are the
   user's. Every YAML file starts with its own `schema` (semver); keys are kebab-case.
 - **Workspaces inside workspaces**: each root inherits from its parent only, one level up (its `_fx/.inherited/` and
   its module folders), already merged (the nearest wins by name), with the repositories of `applies-to` made absolute
@@ -52,6 +53,13 @@ Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain
   map), but nothing of the workspace reaches it: it inherits from its own parent. When a tree has several copies of a
   repository (the same `url`), the highest one is used, guest or not, and `fx sync` parks the others (it brings one
   back if the higher copy goes). Two copies at the same height are an error: mount it higher, or in only one of them.
+- **Shares**: files a workspace gives the repositories below it, outside `_fx/` (an icon, a `LICENSE`…): `shares` in
+  its `workspace.yaml`, each with its `path` (a file, or a folder ending in `/`; versioned by the workspace first: the
+  doctor checks it), an optional `destination` and `applies-to`. They go down like the rest of what is inherited: a
+  workspace in between keeps them in its `_fx/.inherited/workspace/` to pass them on, and a repository they apply to
+  receives them at their destination, versioned. They are fx's because its `inherited.yaml` lists them (an image takes
+  no header): fx updates them, removes them when they are no longer given, and never overwrites a file of the
+  repository's own (unless `--adopt`). At the same destination, the nearest workspace wins.
 
 - **Languages**: the messages to the user are in English or Spanish: `--lang`, else `FX_LANG`, else the system's
   (Windows' UI language; `LC_ALL`, `LC_MESSAGES`, `LANG` and `LANGUAGE` elsewhere), else English. Codes, commands and

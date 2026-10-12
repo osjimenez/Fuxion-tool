@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -7,12 +8,13 @@ using System.Threading;
 using Fuxion.Tools.Core.Git;
 using Fuxion.Tools.Core.Layout;
 using Fuxion.Tools.Core.Results;
+using Fuxion.Tools.Core.Workspace;
 
 namespace Fuxion.Tools.Core.Sync;
 
 /// <summary>
 /// The parent of a repository that is not on disk above it, read from its remote (plan P, decision 15 and proposal E):
-/// a clone of one branch, with only its last commit and only <c>_fx/</c>, in a cache of the user
+/// a clone of one branch, with only its last commit and only <c>_fx/</c> (and the sources of its shares), in a cache of the user
 /// (<c>%LOCALAPPDATA%\fx\cache\</c>, or <c>FX_CACHE</c>), brought up to date on each read. Without network
 /// (<c>--offline</c>) the cache is used as it is. Read-only: nobody writes there but fx.
 /// </summary>
@@ -67,6 +69,9 @@ public static class RemoteParent
 			var result = present
 				? GitClient.Discover(folder)!.FetchCheckout(branch, Timeout, cancellationToken)
 				: GitClient.CloneSparse(url, folder, branch, [FxLayout.Folder], Timeout, cancellationToken);
+			// the sources of its shares are outside _fx/ (decision 23): the folders that hold them too
+			if (result.ExitCode == 0 && Shares(folder) is { Count: > 1 } folders)
+				result = GitClient.Discover(folder)!.SparseCheckout(folders, Timeout, cancellationToken);
 			if (result.ExitCode != 0)
 			{
 				diagnostics.Add(FxDiagnostic.Warning(Unavailable, new($"{Unavailable}.git", url, branch, result.StandardError.Trim())));
@@ -74,6 +79,19 @@ public static class RemoteParent
 			}
 			return (new FxNode(folder), branch);
 		}, r => r is not null);
+	}
+
+	/// <summary>What the cache of a parent has in its working tree: <c>_fx/</c> and the folders of the sources of its shares.</summary>
+	static IReadOnlyList<string> Shares(string folder)
+	{
+		var manifest = Path.Combine(folder, WorkspaceManifest.RelativePath);
+		var shares = File.Exists(manifest) ? WorkspaceManifest.Read(folder, File.ReadAllText(manifest)).Shares ?? [] : [];
+		return new[] { FxLayout.Folder }
+			.Concat(shares.Where(s => WorkspaceShares.SafeSource(s.Path))
+				.Select(s => s.Path.EndsWith('/') ? s.Path.TrimEnd('/') : Path.GetDirectoryName(s.Path)?.Replace('\\', '/') ?? ""))
+			.Where(f => f.Length > 0)
+			.Distinct(StringComparer.OrdinalIgnoreCase)
+			.ToList();
 	}
 
 	const string WorkspaceModuleName = "workspace";

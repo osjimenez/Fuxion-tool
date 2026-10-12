@@ -176,6 +176,11 @@ public sealed record WorkspaceManifest(
 				reader.Keys(entry, "path", "destination", "applies-to");
 				path = path.Replace('\\', '/').TrimStart('/');
 				var destination = FxYamlReader.Scalar(entry["destination"])?.Replace('\\', '/').TrimStart('/') ?? path;
+				// a folder goes to a folder; a file to a folder ('/' at the end) keeps its name
+				if (path.EndsWith('/') && !destination.EndsWith('/'))
+					destination += "/";
+				else if (!path.EndsWith('/') && destination.EndsWith('/'))
+					destination += System.IO.Path.GetFileName(path);
 				shares.Add(new(path, destination, FxAppliesTo.Read(entry, reader) ?? FxAppliesTo.All, item.Line));
 			}
 
@@ -240,6 +245,15 @@ public sealed record WorkspaceManifest(
 		}
 		foreach (var duplicate in (Paths ?? []).GroupBy(p => p.Path, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1))
 			yield return Error(duplicate.Last().Line, "duplicate-path-entry", duplicate.Key);
+		foreach (var share in Shares ?? [])
+		{
+			if (!WorkspaceShares.SafeSource(share.Path))
+				yield return Error(share.Line, "share-path", share.Path);
+			if (!WorkspaceShares.SafeDestination(share.Destination))
+				yield return Error(share.Line, "share-destination", share.Path, share.Destination);
+		}
+		foreach (var duplicate in (Shares ?? []).GroupBy(s => s.Destination, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1))
+			yield return Error(duplicate.Last().Line, "duplicate-share", duplicate.Key);
 	}
 
 	/// <summary>Full path of a repository's mount point, with a trailing separator.</summary>

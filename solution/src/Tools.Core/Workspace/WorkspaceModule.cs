@@ -233,15 +233,17 @@ public static class WorkspaceModule
 
 	/// <summary>
 	/// What the workspace generates (its <c>.gitignore</c>, with <paramref name="versioned"/>, what its modules
-	/// generate and version) and, in the doctor, what only it checks.
+	/// generate and version, and <paramref name="shared"/>, the shares it receives) and, in the doctor, what only it
+	/// checks. Its own shares, in both.
 	/// </summary>
-	public static void Outputs(FxNode node, FxIdentity identity, WorkspaceManifest manifest, FxConfig config, IEnumerable<string> versioned, SyncContext context,
-		FxOutputs outputs, FxDiagnostics diagnostics)
+	public static void Outputs(FxNode node, FxIdentity identity, WorkspaceManifest manifest, FxConfig config, IEnumerable<string> versioned, IEnumerable<string> shared,
+		SyncContext context, FxOutputs outputs, FxDiagnostics diagnostics)
 	{
-		outputs.Generated(node.Full(GitignoreGenerator.FileName), GitignoreGenerator.Generate(manifest, versioned));
+		outputs.Generated(node.Full(GitignoreGenerator.FileName), GitignoreGenerator.Generate(manifest, versioned, shared));
+		var manifestFile = Display(context, node.Root, WorkspaceManifest.RelativePath);
+		WorkspaceShares.Check(node, manifest, manifestFile, context.Doctor, diagnostics);
 		if (!context.Doctor)
 			return;
-		var manifestFile = Display(context, node.Root, WorkspaceManifest.RelativePath);
 		foreach (var repo in manifest.Repositories)
 			foreach (var tag in repo.Tags.Where(t => !config.Knows(t)))
 				diagnostics.Add(FxDiagnostic.Warning(UnknownTag, new(UnknownTag, tag, repo.Name), manifestFile, repo.Line, repo.Name, FxFix.Do($"{UnknownTag}.fix")));

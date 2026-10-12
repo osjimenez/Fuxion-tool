@@ -221,6 +221,10 @@ public sealed class GitClient
 			: ProcessRunner.Run("git", path, ["-C", path, "sparse-checkout", "set", .. folders], timeout, Environment, cancellationToken);
 	}
 
+	/// <summary>The folders of a sparse working tree (cone mode: they, entire, and the files of the root).</summary>
+	public ProcessResult SparseCheckout(IReadOnlyList<string> folders, TimeSpan timeout, CancellationToken cancellationToken = default)
+		=> ProcessRunner.Run("git", Root, ["-C", Root, "sparse-checkout", "set", .. folders], timeout, Environment, cancellationToken);
+
 	/// <summary>The last commit of <paramref name="branch"/> of origin, checked out (detached).</summary>
 	public ProcessResult FetchCheckout(string branch, TimeSpan timeout, CancellationToken cancellationToken = default)
 	{

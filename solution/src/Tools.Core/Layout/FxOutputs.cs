@@ -21,7 +21,23 @@ public sealed class FxOutputs(string displayRoot, bool write, bool adopt, FxDiag
 
 	public bool Write => write;
 
+	/// <summary>Whether fx takes over files that are not its own (<c>--adopt</c>).</summary>
+	public bool Adopt => adopt;
+
 	public string Display(string path) => FxLayout.Relative(displayRoot, path);
+
+	/// <summary>A file fx does not write because it is not its own; the caller says why.</summary>
+	public void Refused(string path) => Files.Add(new(Display(path), SyncFileStatus.Refused));
+
+	/// <summary>Whether <paramref name="path"/> exists and holds <paramref name="content"/>: text without minding the line endings, binaries byte for byte.</summary>
+	public static bool Same(string path, byte[] content)
+	{
+		if (!File.Exists(path))
+			return false;
+		return IsText(content)
+			? Normalize(File.ReadAllText(path)) == Normalize(new UTF8Encoding(false).GetString(content).TrimStart('﻿'))
+			: File.ReadAllBytes(path).AsSpan().SequenceEqual(content);
+	}
 
 	/// <summary>A file fx generates, with its header in <paramref name="content"/> ('\n').</summary>
 	public void Generated(string path, string content)

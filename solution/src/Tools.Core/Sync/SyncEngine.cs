@@ -148,9 +148,10 @@ public static class SyncEngine
 		if (context.Doctor && identity.FullName.Count(c => c == '/') - 1 > MaxDepth)
 			diagnostics.Add(FxDiagnostic.Error(TooDeep, new(TooDeep, identity.FullName, MaxDepth)));
 
-		// 1. What it inherits from its parent
-		if (parent is not null)
-			Inheritance.Run(parent.Node, parent.Identity, node, identity, outputs, diagnostics, parent.Ref);
+		// 1. What it inherits from its parent (without one at hand, the shares it has stay)
+		var shared = parent is not null
+			? Inheritance.Run(parent.Node, parent.Identity, node, identity, outputs, diagnostics, parent.Ref)
+			: node.Inherited()?.Shares.Select(s => s.Destination).ToList() ?? [];
 
 		// 2. A workspace: its repositories, each with the same sync
 		WorkspaceManifest? manifest = null;
@@ -200,9 +201,9 @@ public static class SyncEngine
 		}
 		run.Mounted.Add((node, identity, own));
 
-		// 4. What the workspace generates: its .gitignore, which versions the solutions
+		// 4. What the workspace generates: its .gitignore, which versions the solutions and the shares it receives
 		if (manifest is not null && context.Runs(WorkspaceModule.Name))
-			WorkspaceModule.Outputs(node, identity, manifest, node.Config(), (own?.Solutions ?? []).Select(s => s.Path), context, outputs, diagnostics);
+			WorkspaceModule.Outputs(node, identity, manifest, node.Config(), (own?.Solutions ?? []).Select(s => s.Path), shared, context, outputs, diagnostics);
 
 		// in the doctor, what sync would change is out of date
 		if (context.Doctor)

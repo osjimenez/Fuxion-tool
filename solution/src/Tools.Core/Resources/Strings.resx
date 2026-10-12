@@ -508,4 +508,25 @@
   <data name="workspace.action.to-clone" xml:space="preserve">
     <value>fx sync clones it</value>
   </data>
+  <data name="workspace.share-missing" xml:space="preserve">
+    <value>'{0}' is shared, but it is not there: nothing of it goes down, and the repositories keep what they have of it.</value>
+  </data>
+  <data name="workspace.share-not-versioned" xml:space="preserve">
+    <value>'{0}' is shared, but the workspace does not version it: add it to paths, so that a clone of the workspace has it.</value>
+  </data>
+  <data name="workspace.share-refused" xml:space="preserve">
+    <value>{0} is the repository's own: fx does not overwrite it with the share of {1}.</value>
+  </data>
+  <data name="workspace.share-refused.fix" xml:space="preserve">
+    <value>fx sync --adopt takes it over (and overwrites it); to keep yours, leave this repository out of the applies-to of the share.</value>
+  </data>
+  <data name="workspace.invalid-manifest.share-path" xml:space="preserve">
+    <value>The share '{0}' has to come from a path inside the workspace, without '.' or '..', out of .git/, _fx/.inherited/ and the local files (~$).</value>
+  </data>
+  <data name="workspace.invalid-manifest.share-destination" xml:space="preserve">
+    <value>The share '{0}' cannot go to '{1}': a destination is relative, inside the repository, without '.' or '..', out of .git/, _fx/ and the local files (~$).</value>
+  </data>
+  <data name="workspace.invalid-manifest.duplicate-share" xml:space="preserve">
+    <value>Two shares go to '{0}'.</value>
+  </data>
 </root>
