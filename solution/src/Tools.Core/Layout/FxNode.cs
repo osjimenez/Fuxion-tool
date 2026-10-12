@@ -60,10 +60,13 @@ public sealed class FxNode(string root)
 
 	/// <summary>
 	/// The workspace on disk that declares it as its own (not as a guest), with that declaration: the nearest above
-	/// that does. A guest declaration is skipped: its parent is further up.
+	/// that does. A guest declaration is skipped: its parent is further up. The root of a worktree is its main clone in
+	/// worktree mode: its parent is that one's, in the main tree (plan P, decision 28).
 	/// </summary>
 	public (FxNode Workspace, WorkspaceManifest Manifest, WorkspaceRepository Declaration)? FindParent()
 	{
+		if (File.Exists(Full(FxLayout.WorktreeFile)) && Git.GitClient.Discover(Root)?.MainRoot() is { } main && !FxLayout.SameFolder(main, Root))
+			return new FxNode(main).FindParent();
 		for (var dir = Directory.GetParent(Path.TrimEndingDirectorySeparator(Root)); dir is not null; dir = dir.Parent)
 		{
 			if (!WorkspaceManifest.IsWorkspace(dir.FullName))

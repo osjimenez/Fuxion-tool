@@ -67,6 +67,16 @@ public static class SolutionComposer
 			Folder(folder).Add(copy);
 		}
 
+		void Configurations(XElement document)
+		{
+			foreach (var platform in document.Elements("Configurations").Elements("Platform").Select(p => (string?)p.Attribute("Name")).OfType<string>())
+				if (!platforms.Contains(platform, StringComparer.OrdinalIgnoreCase))
+					platforms.Add(platform);
+			foreach (var buildType in document.Elements("Configurations").Elements("BuildType").Select(p => (string?)p.Attribute("Name")).OfType<string>())
+				if (!buildTypes.Contains(buildType, StringComparer.OrdinalIgnoreCase))
+					buildTypes.Add(buildType);
+		}
+
 		foreach (var declared in solution.Folders)
 		{
 			var folder = Join(declared.Name, "");
@@ -77,15 +87,11 @@ public static class SolutionComposer
 			{
 				var subFile = FxLayout.Full(root, sub);
 				var subDir = Path.GetDirectoryName(subFile)!;
+				// what it is made of, on disk or not: the solution does not change with what is mounted (decision 13)
+				sources.Add(sub);
 				if (File.Exists(subFile) && Parse(File.ReadAllText(subFile)) is { } document)
 				{
-					sources.Add(sub);
-					foreach (var platform in document.Elements("Configurations").Elements("Platform").Select(p => (string?)p.Attribute("Name")).OfType<string>())
-						if (!platforms.Contains(platform, StringComparer.OrdinalIgnoreCase))
-							platforms.Add(platform);
-					foreach (var buildType in document.Elements("Configurations").Elements("BuildType").Select(p => (string?)p.Attribute("Name")).OfType<string>())
-						if (!buildTypes.Contains(buildType, StringComparer.OrdinalIgnoreCase))
-							buildTypes.Add(buildType);
+					Configurations(document);
 					foreach (var item in Items(document))
 						if ((string?)item.Attribute("Path") is { } itemPath)
 							Add(item, folder, Path.GetFullPath(Path.Combine(subDir, itemPath)));
@@ -99,7 +105,8 @@ public static class SolutionComposer
 					}
 					continue;
 				}
-				// not on disk (not mounted): what the generated solution already had of it, under this folder
+				// not on disk (not mounted): what the generated solution already had of it, under this folder: its items, its
+				// folders (the empty ones too) and its configurations
 				var prefix = Path.GetRelativePath(outDir, subDir).Replace('\\', '/').TrimEnd('/') + "/";
 				var kept = previousDocument is null ? [] : PreviousItems(previousDocument, folder, prefix).ToList();
 				if (kept.Count == 0)
@@ -108,6 +115,13 @@ public static class SolutionComposer
 				{
 					Folder(name);
 					Add(item, name, Path.GetFullPath(Path.Combine(outDir, (string)item.Attribute("Path")!)));
+				}
+				if (previousDocument is not null && folder != "/")
+				{
+					foreach (var name in previousDocument.Elements("Folder").Select(f => (string?)f.Attribute("Name")).OfType<string>()
+						         .Where(n => n.StartsWith(folder, StringComparison.Ordinal)))
+						Folder(name);
+					Configurations(previousDocument);
 				}
 			}
 		}

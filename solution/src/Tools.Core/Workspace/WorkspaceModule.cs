@@ -10,6 +10,7 @@ using Fuxion.Tools.Core.Layout;
 using Fuxion.Tools.Core.Processes;
 using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Sync;
+using Fuxion.Tools.Core.Worktree;
 
 namespace Fuxion.Tools.Core.Workspace;
 
@@ -111,6 +112,10 @@ public static class WorkspaceModule
 	public static IReadOnlyList<WorkspaceRepository> Mount(WorkspaceManifest manifest, SyncContext context, FxDiagnostics diagnostics, List<RepositoryAction> actions)
 	{
 		var root = manifest.Root;
+		// inside a worktree nothing is mandatory: mounted is what is there (fx worktree mounts it), and sync neither
+		// clones, nor parks, nor fetches, nor keeps a state (plan P, decisions 27 and 28)
+		if (WorktreeCard.FindRoot(root) is not null)
+			return manifest.Repositories.Where(r => FxLayout.IsGitRoot(manifest.FullPath(r))).ToList();
 		var cancellationToken = context.CancellationToken;
 		var progress = context.Progress;
 		var state = WorkspaceState.Load(root);
@@ -347,6 +352,9 @@ public static class WorkspaceModule
 			.ToList();
 		var metarepo = GitClient.Discover(manifest.Root);
 		var mounted = repositories.Where(r => r.Mounted && r.Present).ToList();
+		var inWorktree = WorktreeCard.FindRoot(manifest.Root) is not null;
+		if (!inWorktree)
+			WorktreeModule.Check(manifest.Root, new FxNode(manifest.Root).SelfIdentity().Name, diagnostics.Add);
 		Parallel.ForEach(mounted, new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = cancellationToken }, repo =>
 		{
 			var name = repo.Repository.Name;
@@ -360,6 +368,9 @@ public static class WorkspaceModule
 			if (!git.Ignores(FxLayout.LocalPrefix + "fx-probe"))
 				diagnostics.Add(FxDiagnostic.Error(LocalNotIgnored, new(LocalNotIgnored, name), $"{repo.Repository.Path}/.gitignore", repository: name,
 					fix: FxFix.Do($"{LocalNotIgnored}.fix")));
+			// its worktrees out of their place, or lost (plan P, decision 30): of the main clones, not inside a worktree
+			if (!inWorktree)
+				WorktreeModule.Check(repo.FullPath, name, diagnostics.Add);
 			if (progress.Step(Name, name, "status", git.Status, _ => true) is not { } status)
 				return;
 			if (status.Changes > 0)

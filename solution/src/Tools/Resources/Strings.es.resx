@@ -389,7 +389,7 @@
     <value>Quita las etiquetas en vez de añadirlas.</value>
   </data>
   <data name="repo.set" xml:space="preserve">
-    <value>Cambia una clave de un repositorio: url, path, mount, standalone, dependsOn, solution o solutionExclude.</value>
+    <value>Cambia una clave de un repositorio: url, path, mount, depends-on o inherits.</value>
   </data>
   <data name="repo.set.key" xml:space="preserve">
     <value>La clave.</value>
@@ -528,5 +528,59 @@
   </data>
   <data name="repo.superseded" xml:space="preserve">
     <value>(sobra)</value>
+  </data>
+  <data name="worktree" xml:space="preserve">
+    <value>Worktrees: una rama para trabajar aparte, sin tocar el árbol principal.</value>
+  </data>
+  <data name="worktree.add" xml:space="preserve">
+    <value>Crea un worktree de una rama en el workspace más cercano (o --in), con lo de donde estás montado en él.</value>
+  </data>
+  <data name="worktree.mount" xml:space="preserve">
+    <value>Monta más del árbol en un worktree: repositorios (con los workspaces del camino) o rutas que se dejaron fuera.</value>
+  </data>
+  <data name="worktree.unmount" xml:space="preserve">
+    <value>Saca repositorios de un worktree (no con cambios sin comitear).</value>
+  </data>
+  <data name="worktree.list" xml:space="preserve">
+    <value>Los worktrees de los workspaces de por aquí.</value>
+  </data>
+  <data name="worktree.remove" xml:space="preserve">
+    <value>Quita un worktree (no con cambios sin comitear); las ramas que creó fx se van si git las borra sin forzar.</value>
+  </data>
+  <data name="worktree.branch" xml:space="preserve">
+    <value>La rama.</value>
+  </data>
+  <data name="worktree.in" xml:space="preserve">
+    <value>El workspace donde va: uno de los de encima, por nombre, nombre completo o ruta.</value>
+  </data>
+  <data name="worktree.mandatory" xml:space="preserve">
+    <value>También los repositorios obligatorios de lo que se monta, hacia abajo.</value>
+  </data>
+  <data name="worktree.mount.targets" xml:space="preserve">
+    <value>Repositorios (nombre, ruta o nombre completo) o rutas que se dejaron fuera.</value>
+  </data>
+  <data name="worktree.unmount.repositories" xml:space="preserve">
+    <value>Repositorios (nombre o ruta).</value>
+  </data>
+  <data name="worktree.ready" xml:space="preserve">
+    <value>Worktree '{0}' en {1}</value>
+  </data>
+  <data name="worktree.removed" xml:space="preserve">
+    <value>Worktree '{0}' quitado.</value>
+  </data>
+  <data name="worktree.none" xml:space="preserve">
+    <value>No hay worktrees aquí.</value>
+  </data>
+  <data name="worktree.column.branch" xml:space="preserve">
+    <value>Rama</value>
+  </data>
+  <data name="worktree.column.from" xml:space="preserve">
+    <value>Desde</value>
+  </data>
+  <data name="worktree.column.repositories" xml:space="preserve">
+    <value>Repositorios</value>
+  </data>
+  <data name="action.removed" xml:space="preserve">
+    <value>quitado</value>
   </data>
 </root>

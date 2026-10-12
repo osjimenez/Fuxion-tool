@@ -529,4 +529,61 @@
   <data name="workspace.invalid-manifest.duplicate-share" xml:space="preserve">
     <value>Dos shares van a '{0}'.</value>
   </data>
+  <data name="worktree.inside-worktree" xml:space="preserve">
+    <value>{0} es un worktree: crea el nuevo desde el árbol principal.</value>
+  </data>
+  <data name="worktree.exists" xml:space="preserve">
+    <value>Ya hay un worktree de '{0}' en {1}.</value>
+  </data>
+  <data name="worktree.unknown-workspace" xml:space="preserve">
+    <value>'{0}' no es uno de los workspaces de por aquí ({1}).</value>
+  </data>
+  <data name="worktree.not-found" xml:space="preserve">
+    <value>No hay ningún worktree de '{0}' por aquí.</value>
+  </data>
+  <data name="worktree.unknown-target" xml:space="preserve">
+    <value>'{0}' no es un repositorio de este árbol, ni una ruta que se haya dejado fuera del worktree.</value>
+  </data>
+  <data name="worktree.unknown-target.ambiguous" xml:space="preserve">
+    <value>'{0}' es más de un repositorio ({1}): di cuál por su ruta.</value>
+  </data>
+  <data name="worktree.not-declared" xml:space="preserve">
+    <value>'{0}' no está declarado en el camino desde '{1}': fx no puede montarlo en un worktree.</value>
+  </data>
+  <data name="worktree.not-a-repository" xml:space="preserve">
+    <value>{0} no está en un repositorio ni en un workspace.</value>
+  </data>
+  <data name="worktree.add-failed" xml:space="preserve">
+    <value>'{0}': git no ha hecho su worktree: {1}</value>
+  </data>
+  <data name="worktree.clone-failed" xml:space="preserve">
+    <value>'{0}' no tiene clon principal, y clonarlo de {1} ha fallado: {2}</value>
+  </data>
+  <data name="worktree.dirty" xml:space="preserve">
+    <value>'{0}' ({1}) tiene cambios sin comitear: no se quita nada. Comítalos, o guárdalos con stash, antes.</value>
+  </data>
+  <data name="worktree.remove-failed" xml:space="preserve">
+    <value>'{0}' ({1}): git no ha quitado su worktree: {2}</value>
+  </data>
+  <data name="worktree.branch-kept" xml:space="preserve">
+    <value>La rama '{0}' de '{1}' se queda: tiene commits que no están en otro sitio.</value>
+  </data>
+  <data name="worktree.root" xml:space="preserve">
+    <value>La raíz del worktree de '{0}' no se desmonta: quita el worktree entero.</value>
+  </data>
+  <data name="worktree.action.parked" xml:space="preserve">
+    <value>su clon principal, aparcado</value>
+  </data>
+  <data name="worktree.invalid-card.shape" xml:space="preserve">
+    <value>La ficha del worktree no tiene rama.</value>
+  </data>
+  <data name="workspace.worktree-outside" xml:space="preserve">
+    <value>'{0}' tiene un worktree en {1} (rama {2}), fuera de los worktrees de sus workspaces.</value>
+  </data>
+  <data name="workspace.worktree-outside.fix" xml:space="preserve">
+    <value>fx worktree add los hace donde van; cuando acabes con este, git worktree remove.</value>
+  </data>
+  <data name="workspace.worktree-prunable" xml:space="preserve">
+    <value>'{0}' tiene un worktree en {1} cuya carpeta ya no existe.</value>
+  </data>
 </root>

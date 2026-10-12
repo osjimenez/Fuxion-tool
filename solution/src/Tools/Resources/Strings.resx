@@ -389,7 +389,7 @@
     <value>Remove the tags instead of adding them.</value>
   </data>
   <data name="repo.set" xml:space="preserve">
-    <value>Change a key of a repository: url, path, mount, standalone, dependsOn, solution or solutionExclude.</value>
+    <value>Change a key of a repository: url, path, mount, depends-on or inherits.</value>
   </data>
   <data name="repo.set.key" xml:space="preserve">
     <value>The key.</value>
@@ -528,5 +528,59 @@
   </data>
   <data name="repo.superseded" xml:space="preserve">
     <value>(superseded)</value>
+  </data>
+  <data name="worktree" xml:space="preserve">
+    <value>Worktrees: a branch to work on apart, without touching the main tree.</value>
+  </data>
+  <data name="worktree.add" xml:space="preserve">
+    <value>Create a worktree of a branch in the nearest workspace (or --in), with where you are mounted in it.</value>
+  </data>
+  <data name="worktree.mount" xml:space="preserve">
+    <value>Mount more of the tree in a worktree: repositories (with the workspaces on the way) or paths left out.</value>
+  </data>
+  <data name="worktree.unmount" xml:space="preserve">
+    <value>Take repositories out of a worktree (not with uncommitted changes).</value>
+  </data>
+  <data name="worktree.list" xml:space="preserve">
+    <value>The worktrees of the workspaces around here.</value>
+  </data>
+  <data name="worktree.remove" xml:space="preserve">
+    <value>Remove a worktree (not with uncommitted changes); the branches fx created go if git deletes them safely.</value>
+  </data>
+  <data name="worktree.branch" xml:space="preserve">
+    <value>The branch.</value>
+  </data>
+  <data name="worktree.in" xml:space="preserve">
+    <value>The workspace where it goes: one of those above, by name, full name or path.</value>
+  </data>
+  <data name="worktree.mandatory" xml:space="preserve">
+    <value>Also the mandatory repositories of what is mounted, down.</value>
+  </data>
+  <data name="worktree.mount.targets" xml:space="preserve">
+    <value>Repositories (name, path or full name) or paths left out.</value>
+  </data>
+  <data name="worktree.unmount.repositories" xml:space="preserve">
+    <value>Repositories (name or path).</value>
+  </data>
+  <data name="worktree.ready" xml:space="preserve">
+    <value>Worktree '{0}' at {1}</value>
+  </data>
+  <data name="worktree.removed" xml:space="preserve">
+    <value>Worktree '{0}' removed.</value>
+  </data>
+  <data name="worktree.none" xml:space="preserve">
+    <value>No worktrees here.</value>
+  </data>
+  <data name="worktree.column.branch" xml:space="preserve">
+    <value>Branch</value>
+  </data>
+  <data name="worktree.column.from" xml:space="preserve">
+    <value>From</value>
+  </data>
+  <data name="worktree.column.repositories" xml:space="preserve">
+    <value>Repositories</value>
+  </data>
+  <data name="action.removed" xml:space="preserve">
+    <value>removed</value>
   </data>
 </root>

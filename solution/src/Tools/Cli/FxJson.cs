@@ -78,6 +78,17 @@ public sealed record RepositoriesDocument(string Schema, bool Ok, IReadOnlyList<
 /// <summary><c>fx-repo-mount/1</c> (also for unmount): what happened to each repository.</summary>
 public sealed record MountDocument(string Schema, bool Ok, IReadOnlyList<JsonRepositoryAction> Repositories, IReadOnlyList<JsonDiagnostic> Diagnostics);
 
+/// <summary><c>fx-worktree-add/1</c>, <c>-mount/1</c>, <c>-unmount/1</c> and <c>-remove/1</c>: the worktree, what happened to each repository and the sync that followed.</summary>
+public sealed record WorktreeDocument(string Schema, bool Ok, string? Path, string Branch, IReadOnlyList<JsonRepositoryAction> Repositories, IReadOnlyList<JsonModule> Modules,
+	IReadOnlyList<JsonDiagnostic> Diagnostics);
+
+public sealed record JsonWorktreeMount(string Path, string Repository, bool CreatedBranch, int? Changes);
+
+public sealed record JsonWorktree(string Branch, string Path, string From, IReadOnlyList<string> LeftOut, IReadOnlyList<JsonWorktreeMount> Repositories);
+
+/// <summary><c>fx-worktree-list/1</c>.</summary>
+public sealed record WorktreeListDocument(string Schema, bool Ok, IReadOnlyList<JsonWorktree> Worktrees, IReadOnlyList<JsonDiagnostic> Diagnostics);
+
 /// <summary><c>fx-repo-pull/1</c>.</summary>
 public sealed record PullDocument(string Schema, bool Ok, IReadOnlyList<JsonRepositoryAction> Repositories, IReadOnlyList<JsonDiagnostic> Diagnostics);
 
@@ -138,6 +149,8 @@ public sealed record JsonDiagnosticEvent(string Type, JsonDiagnostic Diagnostic)
 [JsonSerializable(typeof(VersionDocument))]
 [JsonSerializable(typeof(VersionTagDocument))]
 [JsonSerializable(typeof(ManifestEditDocument))]
+[JsonSerializable(typeof(WorktreeDocument))]
+[JsonSerializable(typeof(WorktreeListDocument))]
 [JsonSerializable(typeof(JsonStartEvent))]
 [JsonSerializable(typeof(JsonStepEvent))]
 [JsonSerializable(typeof(JsonDiagnosticEvent))]

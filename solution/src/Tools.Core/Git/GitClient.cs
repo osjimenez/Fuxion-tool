@@ -12,6 +12,9 @@ public sealed record GitTag(string Name, string Commit);
 /// <summary>The state of a working tree: branch (null if detached), upstream, commits ahead and behind it, and changes.</summary>
 public sealed record GitStatus(string? Branch, bool Detached, string? Upstream, int Ahead, int Behind, int Changes);
 
+/// <summary>A worktree of a repository: where, its branch (none if detached) and whether git takes it for lost (its folder is gone).</summary>
+public sealed record GitWorktree(string Path, string? Branch, bool Prunable);
+
 /// <summary>
 /// Reads a repository with the git executable (design D-25): the same behavior as the user's git (configuration,
 /// worktrees, credentials) and no native library. Every call runs <c>git -C &lt;root&gt;</c> with a timeout.
@@ -219,6 +222,78 @@ public sealed class GitClient
 		return clone.ExitCode != 0
 			? clone
 			: ProcessRunner.Run("git", path, ["-C", path, "sparse-checkout", "set", .. folders], timeout, Environment, cancellationToken);
+	}
+
+	/// <summary>The main clone of this working tree: itself, or the one a worktree comes from (its common git folder).</summary>
+	public string? MainRoot()
+		=> Optional("rev-parse", "--path-format=absolute", "--git-common-dir") is { } common
+			? Path.TrimEndingDirectorySeparator(Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(Path.GetFullPath(common)))!) + Path.DirectorySeparatorChar
+			: null;
+
+	/// <summary>
+	/// <c>git worktree add</c> of <paramref name="branch"/> at <paramref name="path"/> (plan P, decision 26), with long
+	/// paths on: the local branch, if there is one; if not, a new one that follows <c>origin/&lt;branch&gt;</c>, if that
+	/// exists; if not, a new one from HEAD. Whether fx created the branch. Without <paramref name="checkout"/>, nothing
+	/// is checked out yet (for a sparse working tree).
+	/// </summary>
+	public (ProcessResult Result, bool CreatedBranch) AddWorktree(string path, string branch, bool checkout, CancellationToken cancellationToken = default)
+	{
+		string[] args = BranchTip(branch) is not null ? [path, branch]
+			: RemoteBranchTip("origin", branch) is not null ? ["--track", "-b", branch, path, $"origin/{branch}"]
+			: ["-b", branch, path];
+		var created = args[0] != path;
+		var parent = Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(path))!;
+		Directory.CreateDirectory(parent);
+		var result = ProcessRunner.Run("git", Root, ["-c", "core.longpaths=true", "-C", Root, "worktree", "add", "--quiet", .. checkout ? Array.Empty<string>() : ["--no-checkout"], .. args],
+			TimeSpan.FromMinutes(10), Environment, cancellationToken);
+		return (result, created);
+	}
+
+	/// <summary>
+	/// What of this working tree is checked out (plan P, decision 26): all but <paramref name="leftOut"/> (paths
+	/// relative to it, folders ending in '/'), with sparse patterns of this working tree only; nothing left out, no
+	/// sparse checkout. Then it checks out what is missing.
+	/// </summary>
+	public ProcessResult SparseLeaveOut(IReadOnlyList<string> leftOut, CancellationToken cancellationToken = default)
+	{
+		var sparse = leftOut.Count == 0
+			? ProcessRunner.Run("git", Root, ["-C", Root, "sparse-checkout", "disable"], TimeSpan.FromMinutes(10), Environment, cancellationToken)
+			: ProcessRunner.Run("git", Root, ["-C", Root, "sparse-checkout", "set", "--no-cone", "/*", .. leftOut.Select(p => $"!/{p}")], TimeSpan.FromMinutes(10), Environment,
+				cancellationToken);
+		return sparse.ExitCode != 0 ? sparse : ProcessRunner.Run("git", Root, ["-c", "core.longpaths=true", "-C", Root, "checkout", "--quiet"], TimeSpan.FromMinutes(10), Environment,
+			cancellationToken);
+	}
+
+	/// <summary><c>git worktree remove</c> of the worktree at <paramref name="path"/>, from this, its main clone (only a clean one).</summary>
+	public ProcessResult RemoveWorktree(string path) => Run(Root, TimeSpan.FromMinutes(2), "worktree", "remove", path);
+
+	/// <summary><c>git worktree prune</c>: forgets the worktrees whose folder is gone.</summary>
+	public ProcessResult PruneWorktrees() => Run(Root, _timeout, "worktree", "prune");
+
+	/// <summary><c>git branch -d</c>: only a branch with nothing that is not already in HEAD or in its upstream.</summary>
+	public ProcessResult DeleteBranch(string branch) => Run(Root, _timeout, "branch", "--delete", "--quiet", branch);
+
+	/// <summary>The worktrees of this repository, its main working tree first (<c>git worktree list --porcelain</c>).</summary>
+	public IReadOnlyList<GitWorktree> Worktrees()
+	{
+		var result = new List<GitWorktree>();
+		string? path = null, branch = null;
+		var prunable = false;
+		foreach (var line in Required("worktree", "list", "--porcelain").Split('\n').Select(l => l.TrimEnd('\r')).Append(""))
+		{
+			if (line.StartsWith("worktree ", StringComparison.Ordinal))
+				path = Path.GetFullPath(line[9..]);
+			else if (line.StartsWith("branch refs/heads/", StringComparison.Ordinal))
+				branch = line[18..];
+			else if (line.StartsWith("prunable", StringComparison.Ordinal))
+				prunable = true;
+			else if (line.Length == 0 && path is not null)
+			{
+				result.Add(new(path, branch, prunable));
+				(path, branch, prunable) = (null, null, false);
+			}
+		}
+		return result;
 	}
 
 	/// <summary>The folders of a sparse working tree (cone mode: they, entire, and the files of the root).</summary>

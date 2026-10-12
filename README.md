@@ -22,6 +22,10 @@ fx repo mount|unmount|pull    mount (back from the parking) or unmount (park) re
 fx repo add|remove|tag|set    edit the repositories of the manifest (a diff; --dry-run)
 fx repo rename <name> <new>   rename one: its references here change, the old name stays in aliases
 fx path add|remove            what the git of the workspace versions
+fx worktree add <branch>      a worktree of a branch in the nearest workspace (--in another), with where you are
+        [--in <ws>] [--mandatory]
+fx worktree mount|unmount     more (or less) of the tree in a worktree: repositories, or paths left out
+fx worktree list|remove       the worktrees around here; remove one (not with uncommitted changes)
 fx module enable|disable      the modules of fx in this root (a folder of _fx each)
 fx                            the commands by topic and the global options (also fx --help)
 
@@ -60,6 +64,19 @@ Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain
   receives them at their destination, versioned. They are fx's because its `inherited.yaml` lists them (an image takes
   no header): fx updates them, removes them when they are no longer given, and never overwrites a file of the
   repository's own (unless `--adopt`). At the same destination, the nearest workspace wins.
+- **Worktrees**: a branch to work on apart, without touching the main tree. `fx worktree add <branch>` creates it in
+  the nearest workspace (or `--in` one above), in its `_fx/~$worktrees/<branch>/`, never inside a repository of code
+  (a repository on its own, in `%LOCALAPPDATA%\fx\worktrees`, or `FX_WORKTREES`). Its root is always that workspace in
+  worktree mode: a `git worktree` of its main clone, sparse (without the `paths` marked `worktree: false`). Mounting
+  in it is a `git worktree add` of each repository from its main clone (cloned once, parked, if there is none), in
+  the same branch and at the same path: the local branch if there is one; if not, one that follows `origin`; if not,
+  a new one from HEAD. Nothing is mandatory in a worktree: it starts with its workspace and the node where you are
+  (with the workspaces on the way), `fx worktree mount` adds more and `--mandatory` brings the mandatory ones down. For
+  the code it is a closed tree: its own map of `FxReference` (what is not in it is a package), what is inherited read
+  inside it, but its root, from the main tree; `fx sync` there neither clones nor parks. `fx worktree unmount` and
+  `remove` never take out a repository with uncommitted changes, and delete the branches fx created with
+  `git branch -d`. The card of each one is its `~$worktree.yaml`. The doctor warns of the worktrees out of their
+  place (made by `git worktree add` or by an agent).
 
 - **Languages**: the messages to the user are in English or Spanish: `--lang`, else `FX_LANG`, else the system's
   (Windows' UI language; `LC_ALL`, `LC_MESSAGES`, `LANG` and `LANGUAGE` elsewhere), else English. Codes, commands and

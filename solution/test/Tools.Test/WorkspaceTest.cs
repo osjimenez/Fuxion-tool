@@ -411,12 +411,21 @@ public sealed class WorkspaceTest
 		Assert.Empty(WorkspaceModule.SetMount(WorkspaceManifest.Load(ws.Root), ["lab"], mounted: true).Diagnostics);
 		Assert.DoesNotContain(Errors(Sync(ws.Root)), _ => true);
 		Assert.Contains("lab/repo/solution/src/lab/lab.csproj", ws.Read("Test.slnx"));
+		// an empty folder and a build type only lab has
+		var labSolution = Path.Combine(ws.RepoPath("lab"), "Fxlab.slnx");
+		File.WriteAllText(labSolution, File.ReadAllText(labSolution).Replace("<Configurations>", "<Configurations>\n    <BuildType Name=\"Lab\" />")
+			.Replace("</Solution>", "  <Folder Name=\"/empty/\" />\n</Solution>"));
+		Sync(ws.Root);
+		var before = ws.Read("Test.slnx");
+		Assert.Contains("<BuildType Name=\"Lab\" />", before);
+		Assert.Contains("<Folder Name=\"/lab/empty/\" />", before);
 
-		// lab unmounted, so parked: the solution still lists its projects (unavailable in Visual Studio)
+		// lab unmounted, so parked: the solution does not change, its projects are still there (unavailable in Visual Studio)
 		Assert.Empty(WorkspaceModule.SetMount(WorkspaceManifest.Load(ws.Root), ["lab"], mounted: false).Diagnostics);
 		var results = Sync(ws.Root);
 		Assert.DoesNotContain(Codes(results), c => c == "dotnet.missing-solution");
 		var solution = ws.Read("Test.slnx");
+		Assert.Equal(before, solution);
 		Assert.Contains("<Project Path=\"lab/repo/solution/src/lab/lab.csproj\" />", solution);
 		Assert.Contains("<Folder Name=\"/lab/src/\">", solution);
 		Assert.DoesNotContain("lab.csproj", ws.Read("_fx/dotnet/~$workspace.props"));

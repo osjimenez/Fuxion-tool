@@ -22,6 +22,7 @@ public static class FxApp
 			RepoCommand.Create(global, currentDirectory),
 			ManifestCommands.CreateModule(global, currentDirectory),
 			ManifestCommands.CreatePath(global, currentDirectory),
+			Worktree.WorktreeCommand.Create(global, currentDirectory),
 			VersionCommand.Create(global, currentDirectory)
 		};
 		global.AddTo(root);

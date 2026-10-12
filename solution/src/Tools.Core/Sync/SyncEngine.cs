@@ -71,9 +71,10 @@ public static class SyncEngine
 		var run = new Run_(start, context);
 		Process(run, start, FindParent(start, options, progress, first, cancellationToken), first);
 
-		// The map of FxReference: only the highest workspace on disk makes it (decision 19), from all it has mounted
+		// The map of FxReference: only the highest workspace on disk makes it (decision 19), from all it has mounted; in a
+		// worktree, its root (a closed tree, decision 28)
 		if (!options.OnlyHere && start.IsWorkspace && start.HasModule(DotnetModule.Name) && context.Runs(DotnetModule.Name)
-		    && WorkspaceManifest.FindRoot(Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(start.Root))!) is null)
+		    && WorkspaceCopies.Top(start.Root) is { } top && FxLayout.SameFolder(top, start.Root))
 		{
 			var diagnostics = new FxDiagnostics(progress);
 			var outputs = new FxOutputs(start.Root, write, options.Adopt, diagnostics);
