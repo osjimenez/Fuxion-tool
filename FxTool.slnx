@@ -14,6 +14,10 @@
     <File Path="solution/.config/targets/Tools.Metadata.targets" />
     <File Path="solution/.config/targets/Tools.Versioning.targets" />
   </Folder>
+  <Folder Name="/dev/">
+    <File Path="solution/dev/resx.pl" />
+    <Project Path="solution/dev/Pty/Fuxion.Tools.Pty.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="solution/src/Tools.Core/Fuxion.Tools.Core.csproj" />
     <Project Path="solution/src/Tools.Sdk/Fuxion.Tools.Sdk.csproj" />

@@ -5,12 +5,15 @@ namespace Fuxion.Tools.Test;
 
 /// <summary>
 /// A screen of characters that applies what a full screen app writes (cursor moves, erases and text; colors and modes
-/// are skipped), to read back what is on it: how the tests see <c>fx ui</c> without a terminal.
+/// are skipped), to read back what is on it: how the tests see <c>fx ui</c> without a terminal, and how the harness of
+/// <c>dev/Pty</c> takes pictures of a real one. A full line wraps when the next character comes, as terminals do (a
+/// pseudoconsole counts on it).
 /// </summary>
 sealed class TestScreen(int width, int height)
 {
 	readonly char[] _cells = new string(' ', width * height).ToCharArray();
 	int _row, _col, _savedRow, _savedCol;
+	bool _wrap;
 
 	public void Apply(string text)
 	{
@@ -53,6 +56,7 @@ sealed class TestScreen(int width, int height)
 
 	void Csi(char final, string parameters)
 	{
+		_wrap = false;
 		if (parameters.StartsWith('?'))
 			return;
 		var parts = parameters.Split(';');
@@ -90,6 +94,9 @@ sealed class TestScreen(int width, int height)
 				var from = P(0, 0) == 2 ? 0 : _col;
 				Array.Fill(_cells, ' ', _row * width + from, width - from);
 				break;
+			case 'X':
+				Array.Fill(_cells, ' ', _row * width + _col, Math.Min(P(0, 1), width - _col));
+				break;
 		}
 	}
 
@@ -98,16 +105,21 @@ sealed class TestScreen(int width, int height)
 		switch (c)
 		{
 			case '\r':
-				_col = 0;
+				(_col, _wrap) = (0, false);
 				return;
 			case '\n':
-				(_row, _col) = (Math.Min(height - 1, _row + 1), 0);
+				(_row, _col, _wrap) = (Math.Min(height - 1, _row + 1), 0, false);
 				return;
 			case < ' ':
 				return;
 		}
+		if (_wrap)
+			(_row, _col, _wrap) = (Math.Min(height - 1, _row + 1), 0, false);
 		_cells[_row * width + _col] = c;
-		_col = Math.Min(width - 1, _col + 1);
+		if (_col == width - 1)
+			_wrap = true;
+		else
+			_col++;
 	}
 
 	public override string ToString()

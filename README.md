@@ -203,6 +203,10 @@ The settings are listed at the top of `solution/src/Tools.Sdk/Sdk/Sdk.props`.
   own SDK yet.
 - `solution/sketches/NugetPackageManager` (list, unlist and deprecate Fuxion packages on nuget.org) is in no solution
   yet: it needs Fuxion 11.
+- `solution/dev` has tools to work on `fx`, not tests: `Pty`, a harness to try it in a real terminal without a person
+  (Windows: a pseudoconsole; how to use it, at the top of its `Program.cs`), and `resx.pl`, which adds, changes or
+  removes a text in English and Spanish at once (`perl solution/dev/resx.pl <data.tsv> <Strings.resx>
+  <Strings.es.resx>`, with lines `key<TAB>english<TAB>spanish`, or `-key`).
 - `solution/.config` keeps the MSBuild targets that integrate the old tool in the Fuxion-plus build, which the SDK
   replaces.
 
