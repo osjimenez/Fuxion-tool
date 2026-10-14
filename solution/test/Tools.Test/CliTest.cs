@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.CommandLine;
 using System.IO;
@@ -224,9 +225,10 @@ public sealed class CliTest
 		Assert.Contains("  version tag [<X.Y>]", alone.Out);
 		Assert.Contains("  -v, --verbose", alone.Out);
 		Assert.Contains("  --output <format>", alone.Out);
-		// generated from the commands: none is missing
+		// generated from the commands: none is missing; fx ui, at the top (plan O, O4)
 		foreach (var command in Commands(FxApp.Build(Path.GetTempPath()), ""))
-			Assert.Contains($"  {command}", alone.Out);
+			Assert.Contains(command == "ui" ? "fx ui · " : $"  {command}", alone.Out);
+		Assert.True(alone.Out.IndexOf("fx ui · ", StringComparison.Ordinal) < alone.Out.IndexOf("Usage:", StringComparison.Ordinal));
 
 		var help = Fx(Path.GetTempPath(), "--help");
 		Assert.Equal(0, help.ExitCode);

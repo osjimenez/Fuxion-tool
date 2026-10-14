@@ -87,8 +87,9 @@ public sealed record JsonOption(string Name, IReadOnlyList<string> Aliases, stri
 /// <param name="Writes">Whether it changes something: files, clones, branches, tags.</param>
 /// <param name="Network">Whether it may use the network.</param>
 /// <param name="DryRun">Whether it takes <c>--dry-run</c>.</param>
+/// <param name="Interactive">Whether it needs a terminal and a person (<c>fx ui</c>): no JSON, not for agents.</param>
 public sealed record JsonCommand(string Name, string Description, IReadOnlyList<JsonArgument> Arguments, IReadOnlyList<JsonOption> Options, string? Output, bool Writes,
-	bool Network, bool DryRun);
+	bool Network, bool DryRun, bool Interactive);
 
 public sealed record JsonExitCode(int Code, string Meaning);
 

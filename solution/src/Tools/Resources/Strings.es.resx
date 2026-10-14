@@ -637,4 +637,250 @@
   <data name="help.exit-codes" xml:space="preserve">
     <value>Códigos de salida: 0 hecho, 1 errores, 2 uso incorrecto, 130 cancelado. fx describe: todos los comandos, para agentes.</value>
   </data>
+  <data name="ui" xml:space="preserve">
+    <value>El workspace a pantalla completa: su árbol, qué es cada nodo y qué le llega, y el doctor (en una terminal).</value>
+  </data>
+  <data name="ui.no-terminal" xml:space="preserve">
+    <value>fx ui necesita una terminal con una persona delante: aquí no la hay (CI, una tubería, un agente o --output json).</value>
+  </data>
+  <data name="help.ui" xml:space="preserve">
+    <value>el workspace a pantalla completa (en una terminal; Ctrl+Q lo cierra)</value>
+  </data>
+  <data name="ui.problems" xml:space="preserve">
+    <value>Problemas</value>
+  </data>
+  <data name="ui.key.problems" xml:space="preserve">
+    <value>Problemas</value>
+  </data>
+  <data name="ui.key.problems.description" xml:space="preserve">
+    <value>Enseña u oculta la lista de problemas; Enter va al nodo.</value>
+  </data>
+  <data name="ui.key.all" xml:space="preserve">
+    <value>Todo</value>
+  </data>
+  <data name="ui.key.all.description" xml:space="preserve">
+    <value>Enseña también lo que no le importa a fx, y los ficheros locales.</value>
+  </data>
+  <data name="ui.key.refresh" xml:space="preserve">
+    <value>Refrescar</value>
+  </data>
+  <data name="ui.key.refresh.description" xml:space="preserve">
+    <value>Vuelve a leer el árbol y a pasar el doctor.</value>
+  </data>
+  <data name="ui.doctor.running" xml:space="preserve">
+    <value>doctor…</value>
+  </data>
+  <data name="ui.doctor.clean" xml:space="preserve">
+    <value>sin problemas</value>
+  </data>
+  <data name="ui.doctor.problems" xml:space="preserve">
+    <value>{0} problemas</value>
+  </data>
+  <data name="ui.state.not-cloned" xml:space="preserve">
+    <value>sin clonar</value>
+  </data>
+  <data name="ui.state.not-mounted" xml:space="preserve">
+    <value>no montado</value>
+  </data>
+  <data name="ui.state.parked" xml:space="preserve">
+    <value>aparcado</value>
+  </data>
+  <data name="ui.state.superseded" xml:space="preserve">
+    <value>sobra</value>
+  </data>
+  <data name="ui.state.guest" xml:space="preserve">
+    <value>invitado</value>
+  </data>
+  <data name="ui.state.mounted" xml:space="preserve">
+    <value>montado</value>
+  </data>
+  <data name="ui.select" xml:space="preserve">
+    <value>Elige un nodo del árbol.</value>
+  </data>
+  <data name="ui.equivalent" xml:space="preserve">
+    <value>Hace lo mismo:</value>
+  </data>
+  <data name="ui.tags" xml:space="preserve">
+    <value>Etiquetas</value>
+  </data>
+  <data name="ui.mount" xml:space="preserve">
+    <value>Montaje</value>
+  </data>
+  <data name="ui.mount.mandatory" xml:space="preserve">
+    <value>obligatorio</value>
+  </data>
+  <data name="ui.mount.manual" xml:space="preserve">
+    <value>manual</value>
+  </data>
+  <data name="ui.guest" xml:space="preserve">
+    <value>Invitado: este workspace lo usa, pero hereda de su propio padre.</value>
+  </data>
+  <data name="ui.superseded" xml:space="preserve">
+    <value>No se usa: la copia de {0} está más arriba.</value>
+  </data>
+  <data name="ui.column.repository" xml:space="preserve">
+    <value>Repositorio</value>
+  </data>
+  <data name="ui.column.state" xml:space="preserve">
+    <value>Estado</value>
+  </data>
+  <data name="ui.column.branch" xml:space="preserve">
+    <value>Rama</value>
+  </data>
+  <data name="ui.column.doctor" xml:space="preserve">
+    <value>Doctor</value>
+  </data>
+  <data name="ui.column.from" xml:space="preserve">
+    <value>De</value>
+  </data>
+  <data name="ui.column.repositories" xml:space="preserve">
+    <value>Repositorios</value>
+  </data>
+  <data name="ui.column.what" xml:space="preserve">
+    <value>Qué</value>
+  </data>
+  <data name="ui.column.name" xml:space="preserve">
+    <value>Nombre</value>
+  </data>
+  <data name="ui.column.reaches" xml:space="preserve">
+    <value>Llega</value>
+  </data>
+  <data name="ui.column.why" xml:space="preserve">
+    <value>Por qué</value>
+  </data>
+  <data name="ui.column.tag" xml:space="preserve">
+    <value>Etiqueta</value>
+  </data>
+  <data name="ui.column.description" xml:space="preserve">
+    <value>Descripción</value>
+  </data>
+  <data name="ui.column.used-by" xml:space="preserve">
+    <value>Quién la tiene</value>
+  </data>
+  <data name="ui.tab.repositories" xml:space="preserve">
+    <value>Repositorios</value>
+  </data>
+  <data name="ui.tab.problems" xml:space="preserve">
+    <value>Problemas</value>
+  </data>
+  <data name="ui.tab.versions" xml:space="preserve">
+    <value>Versiona y comparte</value>
+  </data>
+  <data name="ui.tab.worktrees" xml:space="preserve">
+    <value>Worktrees</value>
+  </data>
+  <data name="ui.tab.applies" xml:space="preserve">
+    <value>Qué le llega</value>
+  </data>
+  <data name="ui.tab.state" xml:space="preserve">
+    <value>Estado</value>
+  </data>
+  <data name="ui.paths" xml:space="preserve">
+    <value>Lo que versiona su git (paths)</value>
+  </data>
+  <data name="ui.no-worktree" xml:space="preserve">
+    <value>fuera de los worktrees</value>
+  </data>
+  <data name="ui.shares" xml:space="preserve">
+    <value>Lo que comparte (shares)</value>
+  </data>
+  <data name="ui.reaches" xml:space="preserve">
+    <value>llega a {0} repositorios</value>
+  </data>
+  <data name="ui.worktrees.none" xml:space="preserve">
+    <value>Sin worktrees.</value>
+  </data>
+  <data name="ui.detached" xml:space="preserve">
+    <value>(sin rama)</value>
+  </data>
+  <data name="ui.git" xml:space="preserve">
+    <value>por delante {0} · por detrás {1} · cambios {2}</value>
+  </data>
+  <data name="ui.commits" xml:space="preserve">
+    <value>Últimos commits</value>
+  </data>
+  <data name="ui.why.everyone" xml:space="preserve">
+    <value>para todos</value>
+  </data>
+  <data name="ui.why.tag" xml:space="preserve">
+    <value>por la etiqueta {0}</value>
+  </data>
+  <data name="ui.why.name" xml:space="preserve">
+    <value>por su nombre</value>
+  </data>
+  <data name="ui.why.conduit" xml:space="preserve">
+    <value>de paso (un workspace intermedio)</value>
+  </data>
+  <data name="ui.why.not" xml:space="preserve">
+    <value>es para: {0}</value>
+  </data>
+  <data name="ui.applies.none" xml:space="preserve">
+    <value>No le llega nada de arriba.</value>
+  </data>
+  <data name="ui.parked" xml:space="preserve">
+    <value>Aparcado en {0}: desmontado, con su clon guardado ahí.</value>
+  </data>
+  <data name="ui.not-cloned" xml:space="preserve">
+    <value>Montado y aún sin clonar: fx sync lo clona.</value>
+  </data>
+  <data name="ui.not-mounted" xml:space="preserve">
+    <value>Declarado y no montado.</value>
+  </data>
+  <data name="ui.unknown.repository" xml:space="preserve">
+    <value>Un repositorio en disco que el workspace no declara: añádelo, o sácalo de aquí.</value>
+  </data>
+  <data name="ui.unknown.folder" xml:space="preserve">
+    <value>Una carpeta con ficheros que el workspace no versiona: versiónala, o déjala local.</value>
+  </data>
+  <data name="ui.module.unused" xml:space="preserve">
+    <value>no se usa aquí</value>
+  </data>
+  <data name="ui.module.enable" xml:space="preserve">
+    <value>Encenderlo crea su carpeta en _fx/ (ruta fija).</value>
+  </data>
+  <data name="ui.module.on" xml:space="preserve">
+    <value>encendido</value>
+  </data>
+  <data name="ui.module.off" xml:space="preserve">
+    <value>apagado (enabled: false)</value>
+  </data>
+  <data name="ui.module.reaches" xml:space="preserve">
+    <value>A quién llega</value>
+  </data>
+  <data name="ui.file.generated" xml:space="preserve">
+    <value>Generado por fx: no se edita a mano; lo regenera</value>
+  </data>
+  <data name="ui.file.inherited" xml:space="preserve">
+    <value>Heredado, de {0}: lo escribe fx sync; se cambia allí.</value>
+  </data>
+  <data name="ui.file.share" xml:space="preserve">
+    <value>Un share, de {0}: lo escribe fx sync; se cambia allí.</value>
+  </data>
+  <data name="ui.file.local" xml:space="preserve">
+    <value>Local (~$): no se versiona.</value>
+  </data>
+  <data name="ui.file.hand" xml:space="preserve">
+    <value>Escrito a mano.</value>
+  </data>
+  <data name="ui.file.large" xml:space="preserve">
+    <value>(demasiado grande para enseñarlo)</value>
+  </data>
+  <data name="ui.file.binary" xml:space="preserve">
+    <value>(binario)</value>
+  </data>
+  <data name="ui.tags.catalog" xml:space="preserve">
+    <value>El catálogo de etiquetas</value>
+  </data>
+  <data name="ui.folder" xml:space="preserve">
+    <value>Una carpeta.</value>
+  </data>
+  <data name="ui.folder.local" xml:space="preserve">
+    <value>Una carpeta local (~$): no se versiona.</value>
+  </data>
+  <data name="ui.folder.inherited" xml:space="preserve">
+    <value>Lo que hereda de su workspace (_fx/.inherited/).</value>
+  </data>
+  <data name="ui.more" xml:space="preserve">
+    <value>El resto no le importa a fx: F3 lo enseña.</value>
+  </data>
 </root>

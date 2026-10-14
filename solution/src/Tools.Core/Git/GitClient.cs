@@ -309,6 +309,10 @@ public sealed class GitClient
 			: ProcessRunner.Run("git", Root, ["-C", Root, "checkout", "--quiet", "--detach", "FETCH_HEAD"], timeout, Environment, cancellationToken);
 	}
 
+	/// <summary>The last <paramref name="count"/> commits of HEAD: short hash, date and subject (for <c>fx ui</c>).</summary>
+	public IReadOnlyList<string> RecentCommits(int count)
+		=> Lines(Optional("log", $"-{count}", "--format=%h %ad %s", "--date=short") ?? "");
+
 	/// <summary>Creates a lightweight tag. Local only: nothing is pushed.</summary>
 	public void CreateTag(string name, string commit) => Required("tag", name, commit);
 

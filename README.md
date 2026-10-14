@@ -11,6 +11,7 @@ A native executable (`fx.exe`, about 12 MB, no .NET needed to run it) built with
 XenoAtom.Terminal.UI. It reads git with the `git` executable, so `git` must be on the `PATH`.
 
 ```text
+fx ui                         the workspace in full screen: its tree, a panel per node and the doctor (Ctrl+Q quits)
 fx sync [module] [--dry-run]  generate what fx owns here and in everything mounted below, from _fx
         [--only]              this root alone
         [--parent-ref <b>]    read the parent from its remote, on that branch
@@ -109,8 +110,8 @@ Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain
   wrong usage (an unknown command or option, a missing value, or something fx would ask with no one to ask); 130,
   cancelled.
 - **fx describes itself**: `fx describe --output json` (`fx-describe/1`) gives every command with its arguments and
-  options, the schema of its JSON, whether it changes something, whether it may use the network and whether it takes
-  `--dry-run`, the global options and the exit codes. `fx schema <id>` gives the JSON Schema (2020-12) of each output,
+  options, the schema of its JSON, whether it changes something, whether it may use the network, whether it takes
+  `--dry-run` and whether it needs a person at the terminal (`fx ui`), the global options and the exit codes. `fx schema <id>` gives the JSON Schema (2020-12) of each output,
   made from the types that write it. They are the source of the skill of fx and of the documentation of the CLI.
 - `--verbose` writes each step of the core on stderr as it finishes (clone, fetch, status… per repository), and the
   `info` diagnostics.
@@ -130,6 +131,18 @@ Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain
   steps (clone, fetch, pull) and the failed ones stay as lines above it. `fx doctor` shows a line per module (`[✓]`,
   `[!]`, `[✗]`), each problem under it with its fix, and a summary. Tables have borders in a terminal and are plain
   columns elsewhere.
+- **`fx ui`** shows the workspace in full screen, from the highest workspace on disk, with the node where it was
+  launched selected. On the left, one tree with what is on disk and what the manifests declare: the repositories not
+  mounted or not cloned, parked or superseded by a higher copy, what nobody declares (`?`), the modules (also the ones
+  not used, dimmed), and whose each file is (generated, inherited and from where, a share, local, by hand). Inside a
+  repository, only what matters to fx; F3 shows the rest and the local files. git (`↑` ahead, `↓` behind, `*`
+  changes) and the doctor (`!` warnings, `✗` errors, `✓`) put their marks on each node, and the problems go up to its
+  parents; both run in the background, without network, and F5 runs them again. F2 opens the list of problems (Enter
+  goes to its node). On the right, a panel per node: a workspace (its repositories, problems, `paths` and shares,
+  worktrees), a repository (its state and last commits, what reaches it from its workspaces and why, its problems), a
+  module (whom the .NET of a workspace reaches), a file (whose it is and its content; on `fx.yaml`, the catalog of
+  tags). It changes nothing yet: each panel shows the command that does the same. Only in a terminal with a person:
+  elsewhere (a pipe, CI, an agent, `--output json`) it says so and ends with exit code 2.
 
 ## `Fuxion.Tools.Sdk`
 
@@ -213,7 +226,8 @@ Publish from a clean commit: NuGet caches packages by version, so the same versi
 
 The tests build throwaway git repositories under the temp folder with the real `git`, isolated from the user's git
 configuration; the SDK tests pack the SDK and build sample repositories with it (`dotnet build` and, if Visual
-Studio is installed, its `MSBuild.exe`). Publishing needs the C++ build tools of Visual Studio (native AOT); from Git Bash, add
+Studio is installed, its `MSBuild.exe`). `fx ui` is tested on a terminal in memory: the tests push keys and read the
+screen back. Publishing needs the C++ build tools of Visual Studio (native AOT); from Git Bash, add
 `C:\Program Files (x86)\Microsoft Visual Studio\Installer` to the `PATH` so the linker finds `vswhere.exe`.
 
 Licensed under the [MIT license](LICENSE).

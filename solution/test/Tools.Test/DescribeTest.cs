@@ -61,6 +61,9 @@ public sealed class DescribeTest
 		foreach (var command in Describe().GetProperty("commands").EnumerateArray())
 		{
 			var name = command.GetProperty("name").GetString();
+			// an interactive command (fx ui) has no JSON: it says so
+			if (command.GetProperty("interactive").GetBoolean())
+				continue;
 			Assert.True(command.TryGetProperty("output", out var output), $"fx {name} says no schema: .Describe(...) where it is created");
 			Assert.NotNull(DescribeCommand.JsonSchema(output.GetString()!));
 		}

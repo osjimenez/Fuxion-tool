@@ -27,7 +27,7 @@ static class FxHelp
 	{
 		var groups = Groups
 			.Select(g => (Title: Texts.Get(g.Group), Commands: g.Commands.Select(n => root.Subcommands.FirstOrDefault(c => c.Name == n)).OfType<Command>().ToList()))
-			.Append((Title: Texts.Get("help.group.other"), Commands: root.Subcommands.Where(c => !c.Hidden && !Groups.Any(g => g.Commands.Contains(c.Name))).ToList()))
+			.Append((Title: Texts.Get("help.group.other"), Commands: root.Subcommands.Where(c => !c.Hidden && c.Name != "ui" && !Groups.Any(g => g.Commands.Contains(c.Name))).ToList()))
 			.Where(g => g.Commands.Count > 0)
 			.Select(g => (g.Title, Rows: g.Commands.SelectMany(c => Rows(c, "")).ToList()))
 			.ToList();
@@ -38,6 +38,8 @@ static class FxHelp
 
 		var version = typeof(FxHelp).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0];
 		console.Line($"[bold]fx[/] {FxConsole.Escape(version)} [gray]·[/] {FxConsole.Escape(Texts.Get("root"))}");
+		// the full screen, at the top (I-36: fx alone is the help, with fx ui first)
+		console.Line($"[bold]fx ui[/] [gray]·[/] {FxConsole.Escape(Texts.Get("help.ui"))}");
 		console.Line();
 		console.Line($"[bold]{FxConsole.Escape(Texts.Get("help.usage"))}[/] fx <{FxConsole.Escape(Texts.Get("help.command"))}> [[{FxConsole.Escape(Texts.Get("help.options"))}]]");
 		foreach (var (title, rows) in groups)

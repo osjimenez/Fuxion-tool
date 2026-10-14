@@ -117,7 +117,7 @@ public static class DescribeCommand
 				return new JsonCommand(c.Name, c.Command.Description ?? "",
 					c.Command.Arguments.Select(a => new JsonArgument(a.Name, a.Description ?? "", Arity(a.Arity))).ToList(),
 					c.Command.Options.Select(Option).ToList(),
-					info?.Schema, info?.Writes ?? false, info?.Network ?? false, c.Command.HasDryRun());
+					info?.Schema, info?.Writes ?? false, info?.Network ?? false, c.Command.HasDryRun(), info?.Interactive ?? false);
 			}).ToList(), global, ExitCodes.Select(code => new JsonExitCode(code, English(() => Texts.Get($"describe.exit-code.{code}")))).ToList(), []), c => c.DescribeDocument);
 			return 0;
 		}
