@@ -20,7 +20,7 @@ public static class VersionCommand
 		{
 			explain,
 			VersionTagCommand.Create(global, currentDirectory)
-		};
+		}.Describe(Schema);
 		command.SetAction(result =>
 		{
 			var settings = new VersionSettings(global.Bind(result, currentDirectory), result.GetValue(explain));

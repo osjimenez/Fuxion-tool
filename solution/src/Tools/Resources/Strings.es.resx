@@ -583,4 +583,58 @@
   <data name="action.removed" xml:space="preserve">
     <value>quitado</value>
   </data>
+  <data name="describe" xml:space="preserve">
+    <value>fx descrito por sí mismo: cada comando, qué da y qué hace (con --output json, para agentes).</value>
+  </data>
+  <data name="schema" xml:space="preserve">
+    <value>El esquema JSON de una salida de fx; sin id, la lista.</value>
+  </data>
+  <data name="schema.id" xml:space="preserve">
+    <value>El id del esquema (fx-sync/1…).</value>
+  </data>
+  <data name="describe.column.command" xml:space="preserve">
+    <value>Comando</value>
+  </data>
+  <data name="describe.column.output" xml:space="preserve">
+    <value>JSON</value>
+  </data>
+  <data name="describe.column.writes" xml:space="preserve">
+    <value>Cambia</value>
+  </data>
+  <data name="describe.column.network" xml:space="preserve">
+    <value>Red</value>
+  </data>
+  <data name="describe.exit-codes" xml:space="preserve">
+    <value>Códigos de salida</value>
+  </data>
+  <data name="describe.exit-code.0" xml:space="preserve">
+    <value>Hecho, sin errores (puede haber avisos).</value>
+  </data>
+  <data name="describe.exit-code.1" xml:space="preserve">
+    <value>Hecho, con errores: los diagnósticos dicen cuáles y cómo arreglarlos.</value>
+  </data>
+  <data name="describe.exit-code.2" xml:space="preserve">
+    <value>Uso incorrecto: un comando o una opción que no existen, un valor que falta, o algo que fx preguntaría sin nadie a quien preguntar.</value>
+  </data>
+  <data name="describe.exit-code.130" xml:space="preserve">
+    <value>Cancelado (Ctrl+C).</value>
+  </data>
+  <data name="describe.more" xml:space="preserve">
+    <value>fx describe --output json lo da todo, con los argumentos y las opciones de cada comando; fx schema, los esquemas del JSON.</value>
+  </data>
+  <data name="schema.column.id" xml:space="preserve">
+    <value>Esquema</value>
+  </data>
+  <data name="schema.column.commands" xml:space="preserve">
+    <value>Comandos</value>
+  </data>
+  <data name="schema.more" xml:space="preserve">
+    <value>fx schema &lt;id&gt;: el esquema JSON de uno.</value>
+  </data>
+  <data name="fx.unknown-schema" xml:space="preserve">
+    <value>fx no tiene el esquema '{0}': fx schema los lista.</value>
+  </data>
+  <data name="help.exit-codes" xml:space="preserve">
+    <value>Códigos de salida: 0 hecho, 1 errores, 2 uso incorrecto, 130 cancelado. fx describe: todos los comandos, para agentes.</value>
+  </data>
 </root>

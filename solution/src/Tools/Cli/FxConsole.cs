@@ -199,6 +199,13 @@ public sealed partial class FxConsole
 	};
 
 	/// <summary>Writes the document of the command on stdout: indented (JSON), or on one line (the last of NDJSON).</summary>
+	/// <summary>Text that is data (a JSON Schema), on stdout as it is: no markup.</summary>
+	public void Raw(string text)
+	{
+		lock (_stdout)
+			_stdout.WriteLine(text);
+	}
+
 	public void WriteJson<T>(T document, Func<FxJsonContext, JsonTypeInfo<T>> typeInfo)
 	{
 		lock (_stdout)

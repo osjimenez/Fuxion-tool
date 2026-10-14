@@ -45,6 +45,7 @@ static class FxHelp
 		Section(console, Texts.Get("help.group.options"), options, width);
 		console.Line();
 		console.Line($"[gray]{FxConsole.Escape(Texts.Get("help.more"))}[/]");
+		console.Line($"[gray]{FxConsole.Escape(Texts.Get("help.exit-codes"))}[/]");
 		return 0;
 	}
 

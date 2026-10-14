@@ -19,7 +19,7 @@ public static class VersionTagCommand
 		var command = new Command("tag", Texts.Get("version.tag"))
 		{
 			majorMinor
-		};
+		}.Describe(Schema, writes: true);
 		command.SetAction(result =>
 		{
 			var settings = new VersionTagSettings(global.Bind(result, currentDirectory), result.GetValue(majorMinor) ?? "");

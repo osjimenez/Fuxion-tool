@@ -31,7 +31,7 @@ public static class SyncCommand
 		var offline = new Option<bool>("--offline") { Description = Texts.Get("sync.offline") };
 		var adopt = new Option<bool>("--adopt") { Description = Texts.Get("sync.adopt") };
 		var (only, parentRef) = LevelOptions();
-		var command = new Command("sync", Texts.Get("sync")) { module, dryRun, offline, adopt, only, parentRef };
+		var command = new Command("sync", Texts.Get("sync")) { module, dryRun, offline, adopt, only, parentRef }.Describe(SyncSchema, writes: true, network: true);
 		command.SetAction((result, cancellationToken) =>
 		{
 			var settings = global.Bind(result, currentDirectory);
@@ -47,7 +47,7 @@ public static class SyncCommand
 		var module = ModuleArgument();
 		var offline = new Option<bool>("--offline") { Description = Texts.Get("doctor.offline") };
 		var (only, parentRef) = LevelOptions();
-		var command = new Command("doctor", Texts.Get("doctor")) { module, offline, only, parentRef };
+		var command = new Command("doctor", Texts.Get("doctor")) { module, offline, only, parentRef }.Describe(DoctorSchema, network: true);
 		command.SetAction((result, cancellationToken) =>
 		{
 			var settings = global.Bind(result, currentDirectory);
@@ -72,8 +72,8 @@ public static class SyncCommand
 	public static int Run(ModuleSettings settings, FxConsole console, bool doctor, CancellationToken cancellationToken = default)
 		=> console.Run(token => Execute(settings, console, doctor, token), cancellationToken);
 
-	/// <summary>The version of fx, for <c>requires</c> (plan P, decision 4).</summary>
-	static string? Version => typeof(SyncCommand).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0];
+	/// <summary>The version of fx, for <c>requires</c> (plan P, decision 4) and what <c>fx describe</c> says.</summary>
+	internal static string? Version => typeof(SyncCommand).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0];
 
 	static int Execute(ModuleSettings settings, FxConsole console, bool doctor, CancellationToken cancellationToken)
 	{

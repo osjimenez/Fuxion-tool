@@ -26,6 +26,8 @@ fx worktree add <branch>      a worktree of a branch in the nearest workspace (-
         [--in <ws>] [--mandatory]
 fx worktree mount|unmount     more (or less) of the tree in a worktree: repositories, or paths left out
 fx worktree list|remove       the worktrees around here; remove one (not with uncommitted changes)
+fx describe                   every command, what it outputs and what it does (--output json: for agents)
+fx schema [<id>]              the JSON Schema of an output (fx-sync/1…); without an id, the list
 fx module enable|disable      the modules of fx in this root (a folder of _fx each)
 fx                            the commands by topic and the global options (also fx --help)
 
@@ -102,8 +104,14 @@ Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain
   `fx-version/1`…): `schema`, `ok`, the command's data (for sync and doctor, `modules`: the files and repositories
   each module touched) and `diagnostics`. Each diagnostic has a stable code (`dotnet.outdated`, `version.no-tag`…), a
   severity (`error`, `warning`, `info`), its scope (`module`, `repository`), the message, where (`file`, `line`) and,
-  when there is one, the `fix` (a `command` to run or a `hint`). Codes, commands and JSON are always in English. Exit
-  code 1 only with errors.
+  when there is one, the `fix` (a `command` to run or a `hint`). Codes, commands and JSON are always in English.
+- **Exit codes**, the same for every command: 0, done without errors (there may be warnings); 1, done with errors; 2,
+  wrong usage (an unknown command or option, a missing value, or something fx would ask with no one to ask); 130,
+  cancelled.
+- **fx describes itself**: `fx describe --output json` (`fx-describe/1`) gives every command with its arguments and
+  options, the schema of its JSON, whether it changes something, whether it may use the network and whether it takes
+  `--dry-run`, the global options and the exit codes. `fx schema <id>` gives the JSON Schema (2020-12) of each output,
+  made from the types that write it. They are the source of the skill of fx and of the documentation of the CLI.
 - `--verbose` writes each step of the core on stderr as it finishes (clone, fetch, status… per repository), and the
   `info` diagnostics.
 - `--output ndjson` writes one JSON event per line as the work goes on (`fx-events/1`: `start`, `step-started`,

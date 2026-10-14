@@ -19,12 +19,12 @@ public static class RepoCommand
 	{
 		var command = new Command("repo", Texts.Get("repo"));
 
-		var list = new Command("list", Texts.Get("repo.list"));
+		var list = new Command("list", Texts.Get("repo.list")).Describe("fx-repo-list/1");
 		list.SetAction((result, cancellationToken) => Run(result, global, currentDirectory, (console, token) => List(console, withStatus: false, all: true, token), cancellationToken));
 		command.Add(list);
 
 		var all = new Option<bool>("--all") { Description = Texts.Get("repo.status.all") };
-		var status = new Command("status", Texts.Get("repo.status")) { all };
+		var status = new Command("status", Texts.Get("repo.status")) { all }.Describe("fx-repo-status/1");
 		status.SetAction((result, cancellationToken) => Run(result, global, currentDirectory, (console, token) => List(console, withStatus: true, result.GetValue(all), token), cancellationToken));
 		command.Add(status);
 
@@ -35,7 +35,7 @@ public static class RepoCommand
 			var mount = new Command(mounted ? "mount" : "unmount", Texts.Get(mounted ? "repo.mount" : "repo.unmount"))
 			{
 				names
-			};
+			}.Describe("fx-repo-mount/1", writes: true);
 			mount.SetAction(result =>
 			{
 				var console = Console(result, global, currentDirectory);
@@ -45,7 +45,7 @@ public static class RepoCommand
 		}
 
 		var only = new Option<string[]>("--repo") { Description = Texts.Get("repo.only"), AllowMultipleArgumentsPerToken = true };
-		var pull = new Command("pull", Texts.Get("repo.pull")) { only };
+		var pull = new Command("pull", Texts.Get("repo.pull")) { only }.Describe("fx-repo-pull/1", writes: true, network: true);
 		pull.SetAction((result, cancellationToken) => Run(result, global, currentDirectory, (console, token) => Pull(console, result.GetValue(only) ?? [], token), cancellationToken));
 		command.Add(pull);
 		// the ones that edit the manifest (plan O, O3.4)

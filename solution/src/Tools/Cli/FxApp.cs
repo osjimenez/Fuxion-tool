@@ -25,6 +25,8 @@ public static class FxApp
 			Worktree.WorktreeCommand.Create(global, currentDirectory),
 			VersionCommand.Create(global, currentDirectory)
 		};
+		foreach (var command in Describe.DescribeCommand.Create(global, currentDirectory))
+			root.Add(command);
 		global.AddTo(root);
 		// fx alone, and fx --help: fx's own help (plan O, O3.3); fx alone is not an error
 		int Help(ParseResult result)

@@ -1,0 +1,152 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
+using Fuxion.Tools.Cli;
+using Fuxion.Tools.Cli.Describe;
+using Xunit;
+
+namespace Fuxion.Tools.Test;
+
+/// <summary><c>fx describe</c>, <c>fx schema</c> and the exit codes (plan O, O3.6): fx described by itself.</summary>
+public sealed class DescribeTest
+{
+	static (int ExitCode, string Stdout, string Stderr) Run(string directory, params string[] args)
+	{
+		var stdout = new StringWriter();
+		var stderr = new StringWriter();
+		var exitCode = FxApp.Run(args, stdout, stderr, directory);
+		return (exitCode, stdout.ToString(), stderr.ToString());
+	}
+
+	static JsonElement Describe()
+	{
+		var (exitCode, stdout, _) = Run(Path.GetTempPath(), "describe", "--output", "json", "--lang", "es");
+		Assert.Equal(0, exitCode);
+		return JsonDocument.Parse(stdout).RootElement;
+	}
+
+	static JsonElement Command(JsonElement describe, string name)
+		=> describe.GetProperty("commands").EnumerateArray().Single(c => c.GetProperty("name").GetString() == name);
+
+	[Fact(DisplayName = "fx describe --output json: every command with its arguments, options, schema and what it does; always in English")]
+	public void Describe_Json()
+	{
+		var describe = Describe();
+		Assert.Equal("fx-describe/1", describe.GetProperty("schema").GetString());
+		var sync = Command(describe, "sync");
+		Assert.Equal("fx-sync/1", sync.GetProperty("output").GetString());
+		Assert.True(sync.GetProperty("writes").GetBoolean() && sync.GetProperty("network").GetBoolean() && sync.GetProperty("dryRun").GetBoolean());
+		// English, though the language asked for is Spanish
+		Assert.StartsWith("Generate and update", sync.GetProperty("description").GetString());
+		Assert.Contains(sync.GetProperty("options").EnumerateArray(), o => o.GetProperty("name").GetString() == "--offline" && o.GetProperty("type").GetString() == "bool");
+		var doctor = Command(describe, "doctor");
+		Assert.False(doctor.GetProperty("writes").GetBoolean());
+		Assert.True(doctor.GetProperty("network").GetBoolean());
+		var add = Command(describe, "repo add");
+		Assert.Equal(("fx-manifest-edit/1", true, true), (add.GetProperty("output").GetString(), add.GetProperty("writes").GetBoolean(), add.GetProperty("dryRun").GetBoolean()));
+		Assert.Equal("0..1", add.GetProperty("arguments")[0].GetProperty("arity").GetString());
+		Assert.False(Command(describe, "repo list").GetProperty("writes").GetBoolean());
+		Assert.True(Command(describe, "worktree add").GetProperty("writes").GetBoolean());
+		Assert.Contains(describe.GetProperty("globalOptions").EnumerateArray(), o => o.GetProperty("name").GetString() == "--output"
+			&& o.GetProperty("values").EnumerateArray().Select(v => v.GetString()).SequenceEqual(["human", "json", "ndjson"]));
+		Assert.Equal([0, 1, 2, 130], describe.GetProperty("exitCodes").EnumerateArray().Select(e => e.GetProperty("code").GetInt32()));
+		Assert.Equal("Cancelled (Ctrl+C).", describe.GetProperty("exitCodes")[3].GetProperty("meaning").GetString());
+	}
+
+	[Fact(DisplayName = "fx describe: every command says what it outputs, and fx has the schema of each")]
+	public void Describe_EveryCommandHasItsSchema()
+	{
+		foreach (var command in Describe().GetProperty("commands").EnumerateArray())
+		{
+			var name = command.GetProperty("name").GetString();
+			Assert.True(command.TryGetProperty("output", out var output), $"fx {name} says no schema: .Describe(...) where it is created");
+			Assert.NotNull(DescribeCommand.JsonSchema(output.GetString()!));
+		}
+	}
+
+	[Fact(DisplayName = "fx describe for people: what each command outputs and does, and the exit codes, in their language")]
+	public void Describe_Human()
+	{
+		var (exitCode, stdout, _) = Run(Path.GetTempPath(), "describe", "--plain", "--lang", "es");
+		Assert.Equal(0, exitCode);
+		Assert.Contains("fx worktree remove", stdout);
+		Assert.Contains("Códigos de salida", stdout);
+		Assert.Contains("130  Cancelado (Ctrl+C).", stdout);
+	}
+
+	[Fact(DisplayName = "fx schema: the list; fx schema <id>: its JSON Schema, from the types; an unknown one, wrong usage")]
+	public void Schema()
+	{
+		var (exitCode, stdout, _) = Run(Path.GetTempPath(), "schema", "--output", "json");
+		Assert.Equal(0, exitCode);
+		var schemas = JsonDocument.Parse(stdout).RootElement.GetProperty("schemas").EnumerateArray().ToList();
+		Assert.Contains(schemas, s => s.GetProperty("id").GetString() == "fx-events/1");
+		Assert.Contains(schemas, s => s.GetProperty("id").GetString() == "fx-repo-mount/1"
+		                             && s.GetProperty("commands").EnumerateArray().Select(c => c.GetString()).SequenceEqual(["fx repo mount", "fx repo unmount"]));
+		foreach (var id in schemas.Select(s => s.GetProperty("id").GetString()!))
+		{
+			var (code, text, _) = Run(Path.GetTempPath(), "schema", id);
+			Assert.Equal(0, code);
+			var schema = JsonDocument.Parse(text).RootElement;
+			Assert.Equal(id, schema.GetProperty("$id").GetString());
+			Assert.Equal("https://json-schema.org/draft/2020-12/schema", schema.GetProperty("$schema").GetString());
+		}
+		var sync = JsonDocument.Parse(Run(Path.GetTempPath(), "schema", "fx-sync/1").Stdout).RootElement;
+		Assert.Equal("fx-sync/1", sync.GetProperty("properties").GetProperty("schema").GetProperty("const").GetString());
+		var (unknown, _, stderr) = Run(Path.GetTempPath(), "schema", "nope");
+		Assert.Equal(FxConsole.UsageError, unknown);
+		Assert.Contains("fx has no schema 'nope'", stderr);
+	}
+
+	/// <summary>
+	/// Whether <paramref name="document"/> fits <paramref name="schema"/>, a little: its required properties are there, it
+	/// has no others, and what can be left out (null) is not required. Recursive over objects and arrays.
+	/// </summary>
+	static void Fits(JsonElement schema, JsonElement document, string where)
+	{
+		if (schema.TryGetProperty("properties", out var properties) && document.ValueKind == JsonValueKind.Object)
+		{
+			var names = properties.EnumerateObject().Select(p => p.Name).ToHashSet();
+			foreach (var property in document.EnumerateObject())
+			{
+				Assert.True(names.Contains(property.Name), $"{where}.{property.Name} is not in the schema");
+				Fits(properties.GetProperty(property.Name), property.Value, $"{where}.{property.Name}");
+			}
+			if (schema.TryGetProperty("required", out var required))
+				foreach (var name in required.EnumerateArray().Select(r => r.GetString()!))
+					Assert.True(document.TryGetProperty(name, out _), $"{where}.{name} is required and missing");
+		}
+		if (schema.TryGetProperty("items", out var items) && document.ValueKind == JsonValueKind.Array)
+			foreach (var item in document.EnumerateArray())
+				Fits(items, item, $"{where}[]");
+	}
+
+	[Theory(DisplayName = "what a command writes fits its schema")]
+	[InlineData("fx-describe/1", "describe")]
+	[InlineData("fx-schemas/1", "schema")]
+	[InlineData("fx-sync/1", "sync")]
+	[InlineData("fx-doctor/1", "doctor")]
+	public void Output_FitsItsSchema(string id, string command)
+	{
+		var empty = Directory.CreateTempSubdirectory("fx-test-").FullName;
+		try
+		{
+			var (_, stdout, _) = Run(empty, command, "--output", "json");
+			var schema = JsonDocument.Parse(Run(empty, "schema", id).Stdout).RootElement;
+			Fits(schema, JsonDocument.Parse(stdout).RootElement, id);
+		}
+		finally
+		{
+			Directory.Delete(empty, recursive: true);
+		}
+	}
+
+	[Fact(DisplayName = "fx --help ends with the exit codes and fx describe")]
+	public void Help_ExitCodes()
+	{
+		var (_, stdout, _) = Run(Path.GetTempPath(), "--help", "--lang", "en");
+		Assert.Contains("Exit codes: 0 done, 1 errors, 2 wrong usage, 130 cancelled. fx describe: every command, for agents.", stdout);
+	}
+}

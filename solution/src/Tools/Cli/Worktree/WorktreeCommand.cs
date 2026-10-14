@@ -27,7 +27,7 @@ public static class WorktreeCommand
 		var addBranch = Branch();
 		var @in = new Option<string?>("--in") { Description = Texts.Get("worktree.in") };
 		var addMandatory = Mandatory();
-		var add = new Command("add", Texts.Get("worktree.add")) { addBranch, @in, addMandatory };
+		var add = new Command("add", Texts.Get("worktree.add")) { addBranch, @in, addMandatory }.Describe("fx-worktree-add/1", writes: true, network: true);
 		add.SetAction((result, cancellationToken) => Run(result, global, currentDirectory, "fx-worktree-add/1", (console, progress, token) =>
 			WorktreeModule.Add(console.Settings.Directory, result.GetValue(addBranch)!, result.GetValue(@in), result.GetValue(addMandatory), progress, token), cancellationToken));
 		command.Add(add);
@@ -35,7 +35,7 @@ public static class WorktreeCommand
 		var mountBranch = Branch();
 		var targets = new Argument<string[]>("targets") { Description = Texts.Get("worktree.mount.targets"), Arity = ArgumentArity.OneOrMore };
 		var mountMandatory = Mandatory();
-		var mount = new Command("mount", Texts.Get("worktree.mount")) { mountBranch, targets, mountMandatory };
+		var mount = new Command("mount", Texts.Get("worktree.mount")) { mountBranch, targets, mountMandatory }.Describe("fx-worktree-mount/1", writes: true, network: true);
 		mount.SetAction((result, cancellationToken) => Run(result, global, currentDirectory, "fx-worktree-mount/1", (console, progress, token) =>
 			WorktreeModule.Mount(console.Settings.Directory, result.GetValue(mountBranch)!, result.GetValue(targets) ?? [], result.GetValue(mountMandatory), progress, token),
 			cancellationToken));
@@ -43,12 +43,12 @@ public static class WorktreeCommand
 
 		var unmountBranch = Branch();
 		var repositories = new Argument<string[]>("repositories") { Description = Texts.Get("worktree.unmount.repositories"), Arity = ArgumentArity.OneOrMore };
-		var unmount = new Command("unmount", Texts.Get("worktree.unmount")) { unmountBranch, repositories };
+		var unmount = new Command("unmount", Texts.Get("worktree.unmount")) { unmountBranch, repositories }.Describe("fx-worktree-unmount/1", writes: true);
 		unmount.SetAction((result, cancellationToken) => Run(result, global, currentDirectory, "fx-worktree-unmount/1", (console, progress, token) =>
 			WorktreeModule.Unmount(console.Settings.Directory, result.GetValue(unmountBranch)!, result.GetValue(repositories) ?? [], progress, token), cancellationToken));
 		command.Add(unmount);
 
-		var list = new Command("list", Texts.Get("worktree.list"));
+		var list = new Command("list", Texts.Get("worktree.list")).Describe("fx-worktree-list/1");
 		list.SetAction((result, cancellationToken) =>
 		{
 			var console = RepoCommand.Console(result, global, currentDirectory);
@@ -57,7 +57,7 @@ public static class WorktreeCommand
 		command.Add(list);
 
 		var removeBranch = Branch();
-		var remove = new Command("remove", Texts.Get("worktree.remove")) { removeBranch };
+		var remove = new Command("remove", Texts.Get("worktree.remove")) { removeBranch }.Describe("fx-worktree-remove/1", writes: true);
 		remove.SetAction((result, cancellationToken) => Run(result, global, currentDirectory, "fx-worktree-remove/1", (console, progress, token) =>
 			WorktreeModule.Remove(console.Settings.Directory, result.GetValue(removeBranch)!, progress, token), cancellationToken));
 		command.Add(remove);

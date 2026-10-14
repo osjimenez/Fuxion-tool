@@ -78,6 +78,29 @@ public sealed record RepositoriesDocument(string Schema, bool Ok, IReadOnlyList<
 /// <summary><c>fx-repo-mount/1</c> (also for unmount): what happened to each repository.</summary>
 public sealed record MountDocument(string Schema, bool Ok, IReadOnlyList<JsonRepositoryAction> Repositories, IReadOnlyList<JsonDiagnostic> Diagnostics);
 
+public sealed record JsonArgument(string Name, string Description, string Arity);
+
+/// <param name="Values">The values it takes, if only some.</param>
+public sealed record JsonOption(string Name, IReadOnlyList<string> Aliases, string Description, string Type, IReadOnlyList<string>? Values, bool Required);
+
+/// <param name="Output">The schema of its JSON (<c>--output json</c>).</param>
+/// <param name="Writes">Whether it changes something: files, clones, branches, tags.</param>
+/// <param name="Network">Whether it may use the network.</param>
+/// <param name="DryRun">Whether it takes <c>--dry-run</c>.</param>
+public sealed record JsonCommand(string Name, string Description, IReadOnlyList<JsonArgument> Arguments, IReadOnlyList<JsonOption> Options, string? Output, bool Writes,
+	bool Network, bool DryRun);
+
+public sealed record JsonExitCode(int Code, string Meaning);
+
+/// <summary><c>fx-describe/1</c>: fx described by itself (plan O, decision 12).</summary>
+public sealed record DescribeDocument(string Schema, bool Ok, string Version, IReadOnlyList<JsonCommand> Commands, IReadOnlyList<JsonOption> GlobalOptions,
+	IReadOnlyList<JsonExitCode> ExitCodes, IReadOnlyList<JsonDiagnostic> Diagnostics);
+
+public sealed record JsonSchemaInfo(string Id, IReadOnlyList<string> Commands);
+
+/// <summary><c>fx-schemas/1</c>: the schemas of fx and the commands that write each one.</summary>
+public sealed record SchemasDocument(string Schema, bool Ok, IReadOnlyList<JsonSchemaInfo> Schemas, IReadOnlyList<JsonDiagnostic> Diagnostics);
+
 /// <summary><c>fx-worktree-add/1</c>, <c>-mount/1</c>, <c>-unmount/1</c> and <c>-remove/1</c>: the worktree, what happened to each repository and the sync that followed.</summary>
 public sealed record WorktreeDocument(string Schema, bool Ok, string? Path, string Branch, IReadOnlyList<JsonRepositoryAction> Repositories, IReadOnlyList<JsonModule> Modules,
 	IReadOnlyList<JsonDiagnostic> Diagnostics);
@@ -151,6 +174,8 @@ public sealed record JsonDiagnosticEvent(string Type, JsonDiagnostic Diagnostic)
 [JsonSerializable(typeof(ManifestEditDocument))]
 [JsonSerializable(typeof(WorktreeDocument))]
 [JsonSerializable(typeof(WorktreeListDocument))]
+[JsonSerializable(typeof(DescribeDocument))]
+[JsonSerializable(typeof(SchemasDocument))]
 [JsonSerializable(typeof(JsonStartEvent))]
 [JsonSerializable(typeof(JsonStepEvent))]
 [JsonSerializable(typeof(JsonDiagnosticEvent))]

@@ -297,6 +297,7 @@ public static class ManifestCommands
 	/// <summary>The action of an editing command that may change several files.</summary>
 	static void WireMany(Command command, GlobalOptions global, string currentDirectory, EditMany edit, Func<ParseResult, string>? next = null)
 	{
+		command.Describe(Schema, writes: true);
 		var dryRun = new Option<bool>("--dry-run") { Description = Texts.Get("manifest.dry-run-option") };
 		command.Add(dryRun);
 		command.SetAction((result, cancellationToken) =>
@@ -318,6 +319,7 @@ public static class ManifestCommands
 	/// <summary>The action of a command that edits any root of fx: the root around the directory (its <c>_fx/</c>, or its git).</summary>
 	static void WireRoot(Command command, GlobalOptions global, string currentDirectory, RootEdit edit)
 	{
+		command.Describe(Schema, writes: true);
 		var dryRun = new Option<bool>("--dry-run") { Description = Texts.Get("manifest.dry-run-option") };
 		command.Add(dryRun);
 		command.SetAction((result, cancellationToken) =>
