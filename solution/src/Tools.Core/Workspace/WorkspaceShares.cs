@@ -80,6 +80,14 @@ public static class WorkspaceShares
 		return new(files, kept);
 	}
 
+	/// <summary>The source of the file a repository receives at <paramref name="destination"/> from <paramref name="share"/>, relative to the workspace that declares it; null if the share does not give it.</summary>
+	public static string? Source(WorkspaceShare share, string destination)
+	{
+		if (!share.Path.EndsWith('/'))
+			return string.Equals(destination, share.Destination, StringComparison.OrdinalIgnoreCase) ? share.Path : null;
+		return destination.StartsWith(share.Destination, StringComparison.OrdinalIgnoreCase) ? share.Path + destination[share.Destination.Length..] : null;
+	}
+
 	/// <summary>Whether <paramref name="destination"/> is <paramref name="share"/> or inside it (a folder).</summary>
 	public static bool Under(string destination, string share)
 		=> share.EndsWith('/') ? destination.StartsWith(share, StringComparison.OrdinalIgnoreCase) : string.Equals(destination, share, StringComparison.OrdinalIgnoreCase);

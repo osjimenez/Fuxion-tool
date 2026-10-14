@@ -883,4 +883,43 @@
   <data name="ui.more" xml:space="preserve">
     <value>El resto no le importa a fx: F3 lo enseña.</value>
   </data>
+  <data name="ui.key.origin" xml:space="preserve">
+    <value>Origen</value>
+  </data>
+  <data name="ui.key.origin.description" xml:space="preserve">
+    <value>Ir a de dónde sale este fichero</value>
+  </data>
+  <data name="ui.key.back" xml:space="preserve">
+    <value>Atrás</value>
+  </data>
+  <data name="ui.key.back.description" xml:space="preserve">
+    <value>Volver a donde estabas</value>
+  </data>
+  <data name="ui.key.main" xml:space="preserve">
+    <value>Árbol principal</value>
+  </data>
+  <data name="ui.key.main.description" xml:space="preserve">
+    <value>Salir del worktree al árbol principal</value>
+  </data>
+  <data name="ui.origins" xml:space="preserve">
+    <value>Sale de (F4 va ahí):</value>
+  </data>
+  <data name="ui.worktree" xml:space="preserve">
+    <value>worktree {0}</value>
+  </data>
+  <data name="ui.worktree.open" xml:space="preserve">
+    <value>Enter lo abre: el árbol pasa a ser el del worktree (Alt+← vuelve).</value>
+  </data>
+  <data name="ui.worktree.clean" xml:space="preserve">
+    <value>sin cambios</value>
+  </data>
+  <data name="ui.worktree.changes" xml:space="preserve">
+    <value>cambios: {0}</value>
+  </data>
+  <data name="ui.state.not-in-worktree" xml:space="preserve">
+    <value>fuera del worktree</value>
+  </data>
+  <data name="ui.not-in-worktree" xml:space="preserve">
+    <value>No está en este worktree: lo tiene su árbol principal.</value>
+  </data>
 </root>

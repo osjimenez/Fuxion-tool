@@ -12,6 +12,7 @@ using Fuxion.Tools.Core.Layout;
 using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Sync;
 using Fuxion.Tools.Core.Workspace;
+using Fuxion.Tools.Core.Worktree;
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Commands;
@@ -27,28 +28,45 @@ public sealed record UiProblem(FxTreeNode Node, FxDiagnostic Diagnostic)
 	public override string ToString() => $"{(Diagnostic.Severity == FxSeverity.Error ? "✗" : "!")} {Node.Name} · {Diagnostic.Code} · {Diagnostic.Message}";
 }
 
+/// <summary>A line of the worktrees of a workspace (decision 14.12): the worktree and its changes, once git says them.</summary>
+public sealed record UiWorktree(WorktreeInfo Info, int? Changes)
+{
+	public override string ToString()
+		=> $"{Info.Card.Branch} · {Info.Card.From} · {string.Join(", ", Info.Card.Worktrees.Select(w => w.Repository))} · "
+		   + (Changes switch { null => "…", 0 => Texts.Get("ui.worktree.clean"), var n => Texts.Get("ui.worktree.changes", n) });
+}
+
 /// <summary>
 /// <c>fx ui</c>, the layer to see (plan O, O4.1, decision 14): the tree of the workspace on the left (<see cref="FxTree"/>),
 /// a panel per kind of node on the right, the marks of the doctor in the tree and its list of problems, and a bar with
 /// the keys. The doctor and git run in the background; what they find reaches the screen on its thread
-/// (<see cref="OnUpdate"/>). It changes nothing: acting and editing are the next layers. Each panel shows the command
+/// (<see cref="OnUpdate"/>). From a file it goes to where it comes from (14.3), and a worktree opens as its own tree
+/// (14.12); Alt+← goes back. It changes nothing: acting and editing are the next layers. Each panel shows the command
 /// that does the same (14.10).
 /// </summary>
 public sealed class UiApp
 {
-	readonly string _start;
 	readonly ConcurrentQueue<Action> _toUi = new();
 	readonly State<int> _version = new(0);
 	readonly State<bool> _all = new(false);
 	readonly State<bool> _problemsVisible = new(false);
 	readonly State<string> _doctor = new("");
+	readonly State<int> _workspaceTab = new(0);
+	readonly State<int> _repositoryTab = new(0);
 	readonly Dictionary<string, GitStatus> _status = new(StringComparer.OrdinalIgnoreCase);
 	readonly Dictionary<string, IReadOnlyList<string>> _commits = new(StringComparer.OrdinalIgnoreCase);
+	readonly Dictionary<string, int> _worktreeChanges = new(StringComparer.OrdinalIgnoreCase);
 	readonly Dictionary<FxTreeNode, TreeNode> _nodes = [];
+	readonly Dictionary<FxTreeNode, IReadOnlyList<string>> _origins = [];
 	readonly List<(TreeNode Tree, FxTreeNode Node)> _lazy = [];
+	// where Alt+← goes: the tree and the node, the last first
+	readonly Stack<(string Tree, string Node)> _back = new();
+	// the trees opened, with their doctor, to come back to them without running it again
+	readonly Dictionary<string, (FxTreeNode Model, bool Done)> _trees = new(StringComparer.OrdinalIgnoreCase);
 	readonly ToastHost _host = new();
 	readonly Group _problems;
 	CancellationTokenSource _work = new();
+	WorktreeCard? _card;
 
 	public TreeView Tree { get; } = new();
 
@@ -63,10 +81,13 @@ public sealed class UiApp
 
 	public FxTreeNode? Selected => Tree.SelectedNode?.Data as FxTreeNode;
 
+	/// <summary>Of the tree shown, if it is a worktree: its card.</summary>
+	public WorktreeCard? Worktree => _card;
+
 	public UiApp(FxTreeNode model, string start)
 	{
 		Model = model;
-		_start = start;
+		_card = WorktreeCard.Load(model.Path);
 		Fill(model.Find(start) ?? model);
 
 		var panel = new ComputedVisual(() =>
@@ -79,7 +100,8 @@ public sealed class UiApp
 			Left = new Markup(() =>
 			{
 				_ = _version.Value;
-				return $"[bold]fx ui[/] · {Esc(Model.Identity?.FullName ?? Model.Name)} [muted]{Esc(Model.Path)}[/]";
+				var worktree = _card is null ? "" : $" [accent]{Esc(Texts.Get("ui.worktree", _card.Branch))}[/]";
+				return $"[bold]fx ui[/] · {Esc(Model.Identity?.FullName ?? Model.Name)}{worktree} [muted]{Esc(Model.Path)}[/]";
 			}) { Wrap = false },
 			Right = new Markup(() => _doctor.Value) { Wrap = false }
 		};
@@ -106,20 +128,25 @@ public sealed class UiApp
 
 	void AddCommands()
 	{
-		Command Make(string id, string label, string description, KeyGesture gesture, Action execute)
+		Command Make(string id, string key, KeyGesture gesture, Action execute, Func<bool>? can = null)
 			=> new()
 			{
 				Id = id,
-				LabelMarkup = Esc(label),
-				DescriptionMarkup = Esc(description),
+				LabelMarkup = Esc(Texts.Get(key)),
+				DescriptionMarkup = Esc(Texts.Get($"{key}.description")),
 				Gesture = gesture,
 				Importance = CommandImportance.Primary,
 				Presentation = CommandPresentation.CommandBar,
-				Execute = _ => execute()
+				Execute = _ => execute(),
+				// a key that does nothing here is not on the bar
+				IsVisible = can is null ? null : _ => can()
 			};
-		_host.AddCommand(Make("fx.problems", Texts.Get("ui.key.problems"), Texts.Get("ui.key.problems.description"), new(TerminalKey.F2), ToggleProblems));
-		_host.AddCommand(Make("fx.all", Texts.Get("ui.key.all"), Texts.Get("ui.key.all.description"), new(TerminalKey.F3), ToggleAll));
-		_host.AddCommand(Make("fx.refresh", Texts.Get("ui.key.refresh"), Texts.Get("ui.key.refresh.description"), new(TerminalKey.F5), Refresh));
+		_host.AddCommand(Make("fx.problems", "ui.key.problems", new(TerminalKey.F2), ToggleProblems));
+		_host.AddCommand(Make("fx.all", "ui.key.all", new(TerminalKey.F3), ToggleAll));
+		_host.AddCommand(Make("fx.origin", "ui.key.origin", new(TerminalKey.F4), () => GoToOrigin(), () => Selected is { } node && Origins(node).Count > 0));
+		_host.AddCommand(Make("fx.refresh", "ui.key.refresh", new(TerminalKey.F5), Refresh));
+		_host.AddCommand(Make("fx.main", "ui.key.main", new(TerminalKey.F6), () => MainTree(), () => _card is not null));
+		_host.AddCommand(Make("fx.back", "ui.key.back", new(TerminalKey.Left, TerminalModifiers.Alt), () => Back(), () => _back.Count > 0));
 	}
 
 	// the tree
@@ -186,13 +213,109 @@ public sealed class UiApp
 	{
 		var path = Selected?.Path ?? Model.Path;
 		Stop();
-		Model = FxTree.Build(_start) ?? Model;
+		_trees.Remove(Model.Path);
+		Model = FxTree.Build(Model.Path) ?? Model;
+		_origins.Clear();
 		_status.Clear();
 		_commits.Clear();
+		_worktreeChanges.Clear();
 		Problems.Items.Clear();
 		DoctorDone = false;
 		Fill(Model.Find(path) ?? Model);
 		Start();
+	}
+
+	// going around: to the origin of a file, into a worktree and back
+
+	/// <summary>Where <paramref name="node"/> comes from (14.3), the nearest first.</summary>
+	public IReadOnlyList<string> Origins(FxTreeNode node)
+	{
+		if (node.Kind != FxTreeKind.File || node.Origin is FxOrigin.Hand or FxOrigin.Local)
+			return [];
+		if (!_origins.TryGetValue(node, out var origins))
+			_origins[node] = origins = FxTree.Origins(Model, node);
+		return origins;
+	}
+
+	/// <summary>The node of <paramref name="path"/>, loading the folders on the way if they are not loaded yet.</summary>
+	FxTreeNode? Reveal(string path, out bool loaded)
+	{
+		loaded = false;
+		while (Model.Find(path) is { } node)
+		{
+			if (string.Equals(node.Path, path, StringComparison.OrdinalIgnoreCase))
+				return node;
+			if (!node.HasMore)
+				return null;
+			FxTree.LoadMore(node);
+			loaded = true;
+		}
+		return null;
+	}
+
+	/// <summary>Goes where the file selected comes from (its nearest origin); Alt+← comes back.</summary>
+	public bool GoToOrigin()
+	{
+		if (Selected is not { } node || Origins(node) is not { Count: > 0 } origins || Reveal(origins[0], out var loaded) is not { } origin)
+			return false;
+		_back.Push((Model.Path, node.Path));
+		Go(origin, loaded);
+		return true;
+	}
+
+	/// <summary>Back to where it was before going to an origin or into another tree.</summary>
+	public bool Back()
+	{
+		if (!_back.TryPop(out var at))
+			return false;
+		if (!string.Equals(at.Tree, Model.Path, StringComparison.OrdinalIgnoreCase))
+			Switch(at.Tree);
+		Go(Reveal(at.Node, out var loaded) ?? Model, loaded);
+		return true;
+	}
+
+	/// <summary>Opens the tree of <paramref name="directory"/> (a worktree, 14.12, or the main tree of one).</summary>
+	public bool OpenTree(string directory)
+	{
+		_back.Push((Model.Path, Selected?.Path ?? Model.Path));
+		Switch(directory);
+		return true;
+	}
+
+	/// <summary>From a worktree, its main tree: the main clone of its root.</summary>
+	public bool MainTree() => _card is not null && GitClient.Discover(Model.Path)?.MainRoot() is { } main && OpenTree(main);
+
+	void Go(FxTreeNode node, bool loaded)
+	{
+		if (loaded || !Select(node))
+			Fill(node);
+		_version.Value++;
+	}
+
+	/// <summary>Shows another tree: the one already opened, as it was, or a new one, with its doctor and git.</summary>
+	void Switch(string directory)
+	{
+		Stop();
+		_trees[Model.Path] = (Model, DoctorDone);
+		var top = WorkspaceCopies.Top(directory) ?? directory;
+		if (_trees.TryGetValue(top, out var opened))
+			(Model, DoctorDone) = opened;
+		else
+		{
+			Model = FxTree.Build(directory) ?? Model;
+			DoctorDone = false;
+		}
+		_card = WorktreeCard.Load(Model.Path);
+		_origins.Clear();
+		Fill(Model);
+		if (DoctorDone)
+			ShowDoctor(Model);
+		else
+		{
+			Problems.Items.Clear();
+			Start();
+		}
+		_version.Value++;
 	}
 
 	// the work in the background: the doctor (offline) and git
@@ -224,20 +347,14 @@ public sealed class UiApp
 				if (model != Model)
 					return;
 				FxTree.Attach(model, results);
-				Problems.Items.Clear();
-				foreach (var node in model.Descendants().Prepend(model))
-					foreach (var diagnostic in node.Diagnostics.Where(d => d.Severity != FxSeverity.Info).OrderBy(d => d.Severity))
-						Problems.Items.Add(new(node, diagnostic));
-				var problems = model.Problems;
-				_doctor.Value = problems == 0
-					? $"[success]✓ {Esc(Texts.Get("ui.doctor.clean"))}[/]"
-					: $"[{(model.Worst == FxSeverity.Error ? "error" : "warning")}]! {Esc(Texts.Get("ui.doctor.problems", problems))}[/]";
+				ShowDoctor(model);
 				DoctorDone = true;
 			});
 		}, token);
 		Task.Run(() =>
 		{
-			var repositories = model.Descendants().Prepend(model).Where(n => n.Kind is FxTreeKind.Repository or FxTreeKind.Workspace).ToList();
+			var all = model.Descendants().Prepend(model).ToList();
+			var repositories = all.Where(n => n.Kind is FxTreeKind.Repository or FxTreeKind.Workspace).ToList();
 			Parallel.ForEach(repositories, new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = token }, repository =>
 			{
 				if (GitClient.Discover(repository.Path) is not { } git)
@@ -250,7 +367,28 @@ public sealed class UiApp
 					_commits[repository.Path] = commits;
 				});
 			});
+			// the changes of each worktree (14.12)
+			foreach (var workspace in all.Where(n => n.Worktrees.Count > 0))
+				foreach (var worktree in WorktreeModule.Of(workspace.Path, withStatus: true))
+				{
+					token.ThrowIfCancellationRequested();
+					var changes = worktree.Changes?.Values.Sum() ?? 0;
+					_toUi.Enqueue(() => _worktreeChanges[worktree.Root] = changes);
+				}
 		}, token);
+	}
+
+	/// <summary>The diagnostics of the doctor, already on the tree: its list and its summary.</summary>
+	void ShowDoctor(FxTreeNode model)
+	{
+		Problems.Items.Clear();
+		foreach (var node in model.Descendants().Prepend(model))
+			foreach (var diagnostic in node.Diagnostics.Where(d => d.Severity != FxSeverity.Info).OrderBy(d => d.Severity))
+				Problems.Items.Add(new(node, diagnostic));
+		var problems = model.Problems;
+		_doctor.Value = problems == 0
+			? $"[success]✓ {Esc(Texts.Get("ui.doctor.clean"))}[/]"
+			: $"[{(model.Worst == FxSeverity.Error ? "error" : "warning")}]! {Esc(Texts.Get("ui.doctor.problems", problems))}[/]";
 	}
 
 	public void Stop() => _work.Cancel();
@@ -322,7 +460,7 @@ public sealed class UiApp
 		var parts = new List<string>();
 		// a copy that is not used is not cloned, nor is it going to be: what it is says enough
 		if (node.Kind == FxTreeKind.Declared && node.SupersededBy is null)
-			parts.Add($"[muted]{Esc(Texts.Get(node.Mounted ? "ui.state.not-cloned" : "ui.state.not-mounted"))}[/]");
+			parts.Add($"[muted]{Esc(Texts.Get(Absent(node)))}[/]");
 		else if (node.Kind == FxTreeKind.Parked)
 			parts.Add($"[muted]{Esc(Texts.Get("ui.state.parked"))}[/]");
 		if (node.SupersededBy is not null)
@@ -402,21 +540,18 @@ public sealed class UiApp
 			repos.AddRow(new Markup(Label(repo)) { Wrap = false }, new TextBlock(State(repo)),
 				new TextBlock(_status.TryGetValue(repo.Path, out var s) ? s.Branch ?? "—" : ""), new Markup(Badge(repo)) { Wrap = false });
 
-		var tabs = new List<TabPage>
-		{
-			new(Texts.Get("ui.tab.repositories"), repos),
-			new(Texts.Get("ui.tab.problems"), ProblemsOf(node)),
-			new(Texts.Get("ui.tab.versions"), Versions(node)),
-			new(Texts.Get("ui.tab.worktrees"), Worktrees(node))
-		};
-		if (node.Parent is not null)
-			tabs.Add(new(Texts.Get("ui.tab.applies"), Applies(node)));
-		return new VStack(Title(node), new TabControl(tabs.ToArray())).Spacing(1);
+		// the tab chosen stays when the panel is drawn again (the background brings news) or another workspace is selected
+		return new VStack(Title(node), new TabControl(
+			new TabPage(Texts.Get("ui.tab.repositories"), repos),
+			new TabPage(Texts.Get("ui.tab.problems"), ProblemsOf(node)),
+			new TabPage(Texts.Get("ui.tab.versions"), Versions(node)),
+			new TabPage(Texts.Get("ui.tab.worktrees"), Worktrees(node)),
+			new TabPage(Texts.Get("ui.tab.applies"), Applies(node))).SelectedIndex(_workspaceTab)).Spacing(1);
 	}
 
 	string State(FxTreeNode repo) => Texts.Get(repo.Kind switch
 	{
-		FxTreeKind.Declared => repo.Mounted ? "ui.state.not-cloned" : "ui.state.not-mounted",
+		FxTreeKind.Declared => Absent(repo),
 		FxTreeKind.Parked => "ui.state.parked",
 		_ when repo.SupersededBy is not null => "ui.state.superseded",
 		_ => "ui.state.mounted"
@@ -443,14 +578,22 @@ public sealed class UiApp
 		return new ScrollViewer(new Markup(text.ToString().TrimEnd()) { Wrap = false });
 	}
 
-	static Visual Worktrees(FxTreeNode node)
+	/// <summary>The worktrees of a workspace, with their changes; Enter opens one (14.12).</summary>
+	Visual Worktrees(FxTreeNode node)
 	{
 		if (node.Worktrees.Count == 0)
 			return new VStack(Line($"[muted]{Esc(Texts.Get("ui.worktrees.none"))}[/]"), Equivalent("fx worktree add <branch>")).Spacing(1);
-		var table = new Table().Headers(new TextBlock(Texts.Get("ui.column.branch")), new TextBlock(Texts.Get("ui.column.from")), new TextBlock(Texts.Get("ui.column.repositories")));
+		var list = new ListBox<UiWorktree>();
 		foreach (var worktree in node.Worktrees)
-			table.AddRow(new TextBlock(worktree.Card.Branch), new TextBlock(worktree.Card.From), new TextBlock(string.Join(", ", worktree.Card.Worktrees.Select(w => w.Repository))));
-		return table;
+			list.Items.Add(new(worktree, _worktreeChanges.TryGetValue(worktree.Root, out var changes) ? changes : null));
+		list.KeyDown((_, e) =>
+		{
+			if (e.Key != TerminalKey.Enter || list.SelectedIndex is not (>= 0 and var index) || index >= list.Items.Count)
+				return;
+			OpenTree(list.Items[index].Info.Root);
+			e.Handled = true;
+		});
+		return new VStack(list, Line($"[muted]{Esc(Texts.Get("ui.worktree.open"))}[/]"), Equivalent("fx worktree list")).Spacing(1);
 	}
 
 	Visual RepositoryPanel(FxTreeNode node)
@@ -473,7 +616,7 @@ public sealed class UiApp
 		return new VStack(Title(node), new TabControl(
 			new TabPage(Texts.Get("ui.tab.state"), new VStack(state.ToArray()).Spacing(0)),
 			new TabPage(Texts.Get("ui.tab.applies"), Applies(node)),
-			new TabPage(Texts.Get("ui.tab.problems"), ProblemsOf(node)))).Spacing(1);
+			new TabPage(Texts.Get("ui.tab.problems"), ProblemsOf(node))).SelectedIndex(_repositoryTab)).Spacing(1);
 	}
 
 	static string Why(FxReason reason) => reason.Kind switch
@@ -520,12 +663,22 @@ public sealed class UiApp
 		var lines = new List<Visual> { Title(node) };
 		if (node.Kind == FxTreeKind.Parked)
 			lines.Add(Line(Esc(Texts.Get("ui.parked", $"{FxLayout.Parking}/{Relative(WorkspaceOf(node), node)}"))));
+		// in a worktree, fx sync neither clones nor parks: what is not in it is mounted with fx worktree mount
+		else if (node.SupersededBy is null && _card is not null)
+		{
+			lines.Add(Line(Esc(Texts.Get("ui.not-in-worktree"))));
+			lines.Add(Equivalent($"fx worktree mount {_card.Branch} {node.Name}"));
+		}
 		else if (node.SupersededBy is null)
+		{
 			lines.Add(Line(Esc(Texts.Get(node.Mounted ? "ui.not-cloned" : "ui.not-mounted"))));
-		if (node.SupersededBy is null)
 			lines.Add(Equivalent(node.Mounted ? "fx sync" : $"fx repo mount {node.Name}"));
+		}
 		return new VStack(lines.ToArray()).Spacing(1);
 	}
+
+	/// <summary>The state of a repository declared and not on disk: in a worktree, not in it; else not cloned or not mounted.</summary>
+	string Absent(FxTreeNode node) => _card is not null ? "ui.state.not-in-worktree" : node.Mounted ? "ui.state.not-cloned" : "ui.state.not-mounted";
 
 	static Visual UnknownPanel(FxTreeNode node)
 	{
@@ -565,7 +718,7 @@ public sealed class UiApp
 		return new VStack(lines.ToArray()).Spacing(1);
 	}
 
-	static Visual FilePanel(FxTreeNode node)
+	Visual FilePanel(FxTreeNode node)
 	{
 		var lines = new List<Visual> { Line($"[bold]{Icon(node)} {Esc(node.Name)}[/]  [muted]{Esc(node.Path)}[/]") };
 		lines.Add(Line(node.Origin switch
@@ -576,6 +729,10 @@ public sealed class UiApp
 			FxOrigin.Local => $"[muted]{Esc(Texts.Get("ui.file.local"))}[/]",
 			_ => $"[muted]{Esc(Texts.Get("ui.file.hand"))}[/]"
 		}));
+		// where it comes from (14.3), from the top of the tree
+		if (Origins(node) is { Count: > 0 } origins)
+			lines.Add(new VStack(origins.Select(o => (Visual)Line($"  [accent]{Esc(FxLayout.Relative(Model.Path, o))}[/]"))
+				.Prepend(Line($"[muted]{Esc(Texts.Get("ui.origins"))}[/]")).ToArray()).Spacing(0));
 		// the catalog of tags of a root (14.13)
 		if (node.Name == "fx.yaml" && node.Parent is { Name: "_fx", Parent: { } root })
 		{

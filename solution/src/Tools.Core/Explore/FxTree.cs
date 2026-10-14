@@ -243,6 +243,77 @@ public static class FxTree
 	/// <summary>The root of fx a file is in: the nearest folder above it with <c>_fx/</c> or a git repository.</summary>
 	static string? FindRootOf(string file) => FxLayout.FindRoot(Path.GetDirectoryName(file)!);
 
+	/// <summary>
+	/// Where a file of fx comes from (decision 14.3), the nearest first, and only what is on disk: an inherited file, from
+	/// the <c>_fx/</c> of the workspaces it comes from (a share kept on its way down, from its source); a share, from its
+	/// source in the workspace that gives it; a generated file, from the yaml it is made of; <c>inherited.yaml</c>, from
+	/// the manifest that declares the root. Nothing for a file by hand or local.
+	/// </summary>
+	public static IReadOnlyList<string> Origins(FxTreeNode tree, FxTreeNode file)
+	{
+		var result = new List<string>();
+		if (FindRootOf(file.Path) is not { } root)
+			return result;
+		var relative = FxLayout.Relative(root, file.Path);
+		void Add(string? path)
+		{
+			if (path is not null && File.Exists(path) && !result.Contains(Clean(path), StringComparer.OrdinalIgnoreCase))
+				result.Add(Clean(path));
+		}
+		FxTreeNode? Named(string fullName)
+			=> tree.Descendants().Prepend(tree).FirstOrDefault(n => n.Kind == FxTreeKind.Workspace && n.Identity?.FullName == fullName);
+		void Shared(FxTreeNode workspace, string destination)
+		{
+			var manifest = FxLayout.Full(workspace.Path, WorkspaceManifest.RelativePath);
+			if (File.Exists(manifest))
+				foreach (var share in WorkspaceManifest.Read(workspace.Path, File.ReadAllText(manifest)).Shares ?? [])
+					if (WorkspaceShares.Source(share, destination) is { } source)
+						Add(FxLayout.Full(workspace.Path, source));
+		}
+		switch (file.Origin)
+		{
+			case FxOrigin.Inherited:
+				var inside = relative[(FxLayout.Inherited.Length + 1)..];
+				// inherited.yaml: the root as its workspace declares it
+				if (relative == FxLayout.InheritedFile)
+				{
+					for (var at = tree.Find(root)?.Parent; at is not null; at = at.Parent)
+						if (at.Kind == FxTreeKind.Workspace)
+						{
+							Add(FxLayout.Full(at.Path, WorkspaceManifest.RelativePath));
+							break;
+						}
+					break;
+				}
+				foreach (var name in file.From.Reverse())
+					if (Named(name) is { } workspace)
+					{
+						Add(FxLayout.Full(workspace.Path, $"{FxLayout.Folder}/{inside}"));
+						if (inside.StartsWith($"{WorkspaceShares.Folder}/", StringComparison.Ordinal))
+							Shared(workspace, inside[(WorkspaceShares.Folder.Length + 1)..]);
+					}
+				break;
+			case FxOrigin.Share:
+				foreach (var name in file.From)
+					if (Named(name) is { } workspace)
+						Shared(workspace, relative);
+				break;
+			case FxOrigin.Generated:
+				var parts = relative.Split('/');
+				if (parts.Length > 2 && parts[0] == FxLayout.Folder)
+				{
+					Add(FxLayout.Full(root, FxLayout.ModuleFile(parts[1])));
+					Add(FxLayout.Full(root, $"{FxLayout.InheritedModuleFolder(parts[1])}/{parts[1]}.yaml"));
+				}
+				else if (relative == ".gitignore")
+					Add(FxLayout.Full(root, WorkspaceManifest.RelativePath));
+				else if (relative.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase))
+					Add(FxLayout.Full(root, FxLayout.ModuleFile(DotnetModule.Name)));
+				break;
+		}
+		return result;
+	}
+
 	static bool Generated(string path)
 	{
 		if (Path.GetFileName(path).Contains(".g.", StringComparison.OrdinalIgnoreCase))

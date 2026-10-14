@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using Fuxion.Tools.Core.Explore;
+using Fuxion.Tools.Core.Layout;
 using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Sync;
 using Fuxion.Tools.Core.Workspace;
@@ -63,6 +64,34 @@ public sealed class ExploreTest : SampleTree
 		Assert.Equal(FxTreeKind.Module, At(tree, "_fx/workspace").Kind);
 		Assert.Equal(FxOrigin.Local, At(tree, "_fx/workspace/~$state.yaml").Origin);
 		Assert.Equal(FxOrigin.Local, At(tree, "_fx/dotnet/~$workspace.props").Origin);
+	}
+
+	[Fact(DisplayName = "where a file comes from: the workspaces it inherits from, the nearest first; the source of a share; the yaml of a generated file")]
+	public void Origins_WhereFrom()
+	{
+		var acme = Acme();
+		// acme shares a folder with the apps (repo-c1 among them)
+		Directory.CreateDirectory(Path.Combine(acme.Path, "cfg", "sub"));
+		File.WriteAllText(Path.Combine(acme.Path, "cfg", "sub", "b.txt"), "b\n");
+		var manifest = Path.Combine(acme.Path, "_fx", "workspace", "workspace.yaml");
+		Append(manifest, "paths:\n", "paths:\n  - path: cfg/\n");
+		File.AppendAllText(manifest, "\nshares:\n  - path: cfg/\n    destination: build\n    applies-to:\n      tags: [app]\n");
+		Assert.Empty(Errors(Sync(acme.Path)));
+		var tree = FxTree.Build(acme.Path)!;
+		string[] Origins(string relative) => FxTree.Origins(tree, At(tree, relative)).Select(o => FxLayout.Relative(acme.Path, o)).ToArray();
+
+		Assert.Equal(["repo-w1/_fx/dotnet/dotnet.yaml", "_fx/dotnet/dotnet.yaml"], Origins("repo-w1/repo-c1/_fx/.inherited/dotnet/dotnet.yaml"));
+		Assert.Equal(["_fx/dotnet/default.props"], Origins("repo-w1/repo-c1/_fx/.inherited/dotnet/default.props"));
+		Assert.Equal(["repo-w1/_fx/workspace/workspace.yaml"], Origins("repo-w1/repo-c1/_fx/.inherited/inherited.yaml"));
+		// a share: its source; on its way down, too
+		Assert.Equal(["cfg/sub/b.txt"], Origins("repo-w1/repo-c1/build/sub/b.txt"));
+		Assert.Equal(["cfg/sub/b.txt"], Origins("repo-w1/_fx/.inherited/workspace/build/sub/b.txt"));
+		Assert.Equal(["_fx/workspace/workspace.yaml"], Origins("repo-w1/_fx/.inherited/workspace/workspace.yaml"));
+		// generated: the yaml it is made of
+		Assert.Equal(["repo-w1/repo-c1/_fx/dotnet/dotnet.yaml", "repo-w1/repo-c1/_fx/.inherited/dotnet/dotnet.yaml"], Origins("repo-w1/repo-c1/_fx/dotnet/dotnet.g.props"));
+		Assert.Equal(["_fx/dotnet/dotnet.yaml"], Origins("Acme.slnx"));
+		Assert.Equal(["_fx/workspace/workspace.yaml"], Origins(".gitignore"));
+		Assert.Empty(Origins("README.md"));
 	}
 
 	[Fact(DisplayName = "what nobody declares (?), what is parked, what is declared and not on disk")]

@@ -140,8 +140,11 @@ Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain
   parents; both run in the background, without network, and F5 runs them again. F2 opens the list of problems (Enter
   goes to its node). On the right, a panel per node: a workspace (its repositories, problems, `paths` and shares,
   worktrees), a repository (its state and last commits, what reaches it from its workspaces and why, its problems), a
-  module (whom the .NET of a workspace reaches), a file (whose it is and its content; on `fx.yaml`, the catalog of
-  tags). It changes nothing yet: each panel shows the command that does the same. Only in a terminal with a person:
+  module (whom the .NET of a workspace reaches), a file (whose it is, where it comes from and its content; on
+  `fx.yaml`, the catalog of tags). F4 goes where a file comes from: an inherited one, to the `_fx/` of the nearest
+  workspace it comes from; a share, to its source; a generated one, to the yaml it is made of. Enter on a worktree of
+  the panel of its workspace opens it as its own tree, with its branch on top (F6 goes to the main tree). Alt+← goes
+  back. It changes nothing yet: each panel shows the command that does the same. Only in a terminal with a person:
   elsewhere (a pipe, CI, an agent, `--output json`) it says so and ends with exit code 2.
 
 ## `Fuxion.Tools.Sdk`

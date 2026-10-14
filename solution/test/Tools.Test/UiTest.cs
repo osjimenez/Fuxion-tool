@@ -6,7 +6,9 @@ using System.Threading.Tasks;
 using Fuxion.Tools.Cli;
 using Fuxion.Tools.Cli.Ui;
 using Fuxion.Tools.Core.Explore;
+using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Workspace;
+using Fuxion.Tools.Core.Worktree;
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.Backends;
 using XenoAtom.Terminal.UI;
@@ -96,7 +98,7 @@ public sealed class UiTest : SampleTree
 		/// <summary>The line of the screen where <paramref name="text"/> is last.</summary>
 		public string LineOf(string text) => Screen().Split('\n').Last(l => l.Contains(text, StringComparison.Ordinal));
 
-		public void Key(TerminalKey key) => _backend.PushEvent(new TerminalKeyEvent { Key = key });
+		public void Key(TerminalKey key, TerminalModifiers modifiers = TerminalModifiers.None) => _backend.PushEvent(new TerminalKeyEvent { Key = key, Modifiers = modifiers });
 
 		public void Dispose()
 		{
@@ -231,6 +233,80 @@ public sealed class UiTest : SampleTree
 		h.Settle();
 		Assert.Contains(c1.Children, c => c.Name == "src");
 		Assert.True(h.OnUi(() => h.Ui.Select(c1.Children.Single(c => c.Name == "src"))));
+	}
+
+	[Fact(DisplayName = "F4 goes where a file comes from, loading the folders on the way; Alt+← comes back")]
+	public void GoToOrigin()
+	{
+		var acme = Acme();
+		// acme shares a note of its docs (a folder loaded only when opened) with repo-c1
+		Directory.CreateDirectory(Path.Combine(acme.Path, "_docs", "guide"));
+		File.WriteAllText(Path.Combine(acme.Path, "_docs", "guide", "notes.txt"), "notes\n");
+		File.AppendAllText(Path.Combine(acme.Path, "_fx", "workspace", "workspace.yaml"),
+			"\nshares:\n  - path: _docs/guide/notes.txt\n    destination: notes.txt\n    applies-to:\n      repositories: [repo-w1/repo-c1]\n");
+		Assert.Empty(Errors(Sync(acme.Path)));
+		using var h = Open(acme.Path);
+		string? Selected() => h.OnUi(() => h.Ui.Selected?.Path);
+
+		// an inherited file: its panel says where it comes from, the nearest first, and F4 goes there
+		var inherited = Node(h.Ui, acme.Path, "repo-w1/repo-c1/_fx/.inherited/dotnet/dotnet.yaml");
+		Assert.True(h.OnUi(() => h.Ui.Select(inherited)));
+		h.Settle();
+		Assert.Contains("repo-w1/_fx/dotnet/dotnet.yaml", h.Screen());
+		Assert.Contains("[F4]", h.Screen());
+		h.Key(TerminalKey.F4);
+		h.Settle();
+		Assert.Equal(Path.Combine(acme.Path, "repo-w1", "_fx", "dotnet", "dotnet.yaml"), Selected(), ignoreCase: true);
+		// a file by hand comes from nowhere: no F4
+		Assert.DoesNotContain("[F4]", h.Screen());
+		Assert.Contains("[Alt+", h.Screen());
+		h.Key(TerminalKey.Left, TerminalModifiers.Alt);
+		h.Settle();
+		Assert.Equal(inherited.Path, Selected());
+
+		// a share: its source, in a folder of the workspace not loaded yet
+		Assert.True(h.OnUi(() => h.Ui.Select(Node(h.Ui, acme.Path, "repo-w1/repo-c1/notes.txt"))));
+		h.Key(TerminalKey.F4);
+		h.Settle();
+		Assert.Equal(Path.Combine(acme.Path, "_docs", "guide", "notes.txt"), Selected(), ignoreCase: true);
+		// shown in the tree, inside its folder now loaded
+		Assert.Contains("notes.txt", h.Screen().Split('\n').Single(l => l.StartsWith('→')));
+	}
+
+	[Fact(DisplayName = "a worktree opens as its own tree, with its mark on top; Alt+← or F6 go back to the main one")]
+	public void OpenWorktree()
+	{
+		var acme = AcmeCommitted();
+		Assert.DoesNotContain(WorktreeModule.Add(Path.Combine(acme.Path, "libs", "shared"), "fix/t", null, false, cancellationToken: TestContext.Current.CancellationToken)
+			.AllDiagnostics, d => d.Severity == FxSeverity.Error);
+		using var h = Open(acme.Path);
+		var root = Path.TrimEndingDirectorySeparator(Assert.Single(h.Ui.Model.Worktrees).Root);
+		string Tree() => h.OnUi(() => h.Ui.Model.Path);
+		Assert.DoesNotContain("worktree fix/t", h.Screen());
+		Assert.DoesNotContain("[F6]", h.Screen());
+
+		h.OnUi(() => h.Ui.OpenTree(root));
+		h.Settle();
+		Assert.Equal(root, Tree());
+		Assert.Equal("fix/t", h.OnUi(() => h.Ui.Worktree?.Branch));
+		Assert.Contains("worktree fix/t", h.Screen());
+		Assert.Contains("[F6]", h.Screen());
+		// what the worktree does not have comes with fx worktree mount, not with fx sync
+		Assert.True(h.OnUi(() => h.Ui.Select(Node(h.Ui, root, "repo-w1"))));
+		h.Settle();
+		Assert.Contains("fx worktree mount fix/t repo-w1", h.Screen());
+		h.Key(TerminalKey.Left, TerminalModifiers.Alt);
+		h.Settle();
+		Assert.Equal(acme.Path, Tree(), ignoreCase: true);
+		Assert.DoesNotContain("worktree fix/t", h.Screen());
+
+		// F6: from the worktree to its main tree, as it was (its doctor is not run again)
+		h.OnUi(() => h.Ui.OpenTree(root));
+		h.Settle();
+		h.Key(TerminalKey.F6);
+		h.Settle();
+		Assert.Equal(acme.Path, Tree(), ignoreCase: true);
+		Assert.Null(h.OnUi(() => h.Ui.Worktree));
 	}
 
 	[Fact(DisplayName = "fx ui without a terminal (a pipe, an agent, --output json): wrong usage")]
