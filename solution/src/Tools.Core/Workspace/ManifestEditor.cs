@@ -18,6 +18,9 @@ namespace Fuxion.Tools.Core.Workspace;
 /// </summary>
 public sealed record ManifestChange(string File, string Before, YamlEditor After, IReadOnlyList<string> Edits, IReadOnlyList<FxDiagnostic> Diagnostics)
 {
+	/// <summary>The root the file is in (its <see cref="File"/> is relative to it).</summary>
+	public string Root { get; init; } = "";
+
 	public bool Changed => Before != After.Text;
 
 	public bool Ok => !Diagnostics.Any(d => d.Severity == FxSeverity.Error);
@@ -113,7 +116,7 @@ public static partial class ManifestEditor
 		if (dependents.Count > 0)
 			return s.Error(RepositoryNeeded, new FxText(RepositoryNeeded, name, string.Join(", ", dependents)), name);
 		s.Apply(s.Current.Remove($"repositories[name={name}]"));
-		if (Directory.Exists(s.Manifest.FullPath(repository)))
+		if (FxFiles.DirectoryExists(s.Manifest.FullPath(repository)))
 			s.Diagnostics.Add(FxDiagnostic.Warning(CloneKept, new FxText(CloneKept, name, repository.Path), repository: name));
 		return s.Done();
 	}
@@ -189,7 +192,7 @@ public static partial class ManifestEditor
 			s.Set(at, key, value);
 		}
 		var full = s.Manifest.FullPath(repository);
-		if (key == "path" && values[0] != repository.Path && Directory.Exists(full))
+		if (key == "path" && values[0] != repository.Path && FxFiles.DirectoryExists(full))
 			s.Diagnostics.Add(FxDiagnostic.Warning(CloneNotMoved, new FxText(CloneNotMoved, name, repository.Path, values[0]), repository: name));
 		return s.Done();
 	}
@@ -238,7 +241,7 @@ public static partial class ManifestEditor
 		var changes = new List<ManifestChange> { s.Done() };
 
 		// the references of the modules of this workspace
-		foreach (var module in KnownModules.Where(m => m != WorkspaceModule.Name && File.Exists(FxLayout.Full(root, FxLayout.ModuleFile(m)))))
+		foreach (var module in KnownModules.Where(m => m != WorkspaceModule.Name && FxFiles.Exists(FxLayout.Full(root, FxLayout.ModuleFile(m)))))
 		{
 			var m = new ModuleSession(root, module);
 			m.RewriteList("applies-to.repositories", Rewrite);
@@ -321,7 +324,7 @@ public static partial class ManifestEditor
 	{
 		if (!KnownModules.Contains(module))
 			return ModuleSession.Unknown(root, module);
-		if (!Directory.Exists(FxLayout.Full(root, FxLayout.ModuleFolder(module))))
+		if (!FxFiles.DirectoryExists(FxLayout.Full(root, FxLayout.ModuleFolder(module))))
 			return ModuleSession.Info(root, module, new FxText($"{Unchanged}.module-disabled", module));
 		var s = new ModuleSession(root, module);
 		if (s.Current.Resolve("enabled") is YamlScalar { Value: "false" })
@@ -333,12 +336,59 @@ public static partial class ManifestEditor
 		return s.Done();
 	}
 
+	public const string InvalidYaml = "fx.invalid-yaml";
+
+	/// <summary>
+	/// The text of a configuration file of fx, replaced by hand (<c>fx ui</c>, its raw YAML; plan O, O4.3c), validated
+	/// as fx reads it: the manifest strict, the yaml of the .NET module, <c>fx.yaml</c>; any other file, as YAML. The
+	/// byte order mark of the file, if it had one, stays.
+	/// </summary>
+	public static ManifestChange Replace(string root, string file, string text)
+	{
+		var full = FxLayout.Full(root, file);
+		var exists = FxFiles.Exists(full);
+		var before = exists ? FxFiles.ReadAllText(full) : "";
+		var hasBom = exists && FxFiles.ReadAllBytes(full) is [0xEF, 0xBB, 0xBF, ..];
+		// the line endings of the file (an editor may give '\n')
+		text = text.Replace("\r\n", "\n");
+		if (before.Contains("\r\n", StringComparison.Ordinal))
+			text = text.Replace("\n", "\r\n");
+		var diagnostics = new List<FxDiagnostic>();
+		YamlEditor after;
+		try
+		{
+			after = YamlEditor.Parse(text, hasBom);
+		}
+		catch (YamlSyntaxException ex)
+		{
+			diagnostics.Add(FxDiagnostic.Error(InvalidYaml, new FxText(InvalidYaml, ex.Message), file, ex.Line));
+			return new(file, before, YamlEditor.Parse(""), [], diagnostics) { Root = root };
+		}
+		if (text != before)
+			try
+			{
+				if (file == WorkspaceManifest.RelativePath)
+					WorkspaceManifest.Read(root, text, strict: true);
+				else if (file == FxLayout.ModuleFile(DotnetModule.Name))
+					DotnetYamlReader.Read(text, file);
+				else if (file == FxLayout.ConfigFile)
+					FxConfig.Read(text, file, diagnostics);
+			}
+			catch (Exception ex) when (ex is DotnetConfigException or WorkspaceManifestException)
+			{
+				diagnostics.AddRange(ex is DotnetConfigException d ? d.Diagnostics : ((WorkspaceManifestException)ex).Diagnostics);
+			}
+		return new(file, before, after, text == before ? [] : ["by hand"], diagnostics) { Root = root };
+	}
+
 	static YamlValue.Flow Flow(IEnumerable<string> items) => new(items.Select(i => (YamlValue)i).ToArray());
 
 	/// <summary>One edit of a file: the text as it is, the editor as it goes, what was done and found.</summary>
-	abstract class Edit(string file, string before, YamlEditor current)
+	abstract class Edit(string root, string file, string before, YamlEditor current)
 	{
 		public string File => file;
+
+		public string Root => root;
 
 		public YamlEditor Current { get; private set; } = current;
 
@@ -408,16 +458,16 @@ public static partial class ManifestEditor
 		{
 			if (Current.Text != before && Diagnostics.All(d => d.Severity != FxSeverity.Error))
 				Validate(Current.Text);
-			return new(File, before, Current, Edits, Diagnostics);
+			return new(File, before, Current, Edits, Diagnostics) { Root = root };
 		}
 	}
 
 	/// <summary>An edit of <c>_fx/workspace/workspace.yaml</c>.</summary>
-	sealed class Session(string root) : Edit(WorkspaceManifest.RelativePath, Text(root), YamlEditor.ReadFile(ManifestPath(root)))
+	sealed class Session(string root) : Edit(root, WorkspaceManifest.RelativePath, Text(root), YamlEditor.ReadFile(ManifestPath(root)))
 	{
-		public WorkspaceManifest Manifest { get; } = WorkspaceManifest.Read(root, System.IO.File.ReadAllText(ManifestPath(root)));
+		public WorkspaceManifest Manifest { get; } = WorkspaceManifest.Read(root, FxFiles.ReadAllText(ManifestPath(root)));
 
-		static string Text(string root) => System.IO.File.ReadAllText(ManifestPath(root));
+		static string Text(string root) => FxFiles.ReadAllText(ManifestPath(root));
 
 		public WorkspaceRepository? Repository(string name) => Manifest.Repositories.FirstOrDefault(r => r.Name == name);
 
@@ -433,7 +483,7 @@ public static partial class ManifestEditor
 		{
 			try
 			{
-				WorkspaceManifest.Read(root, text, strict: true);
+				WorkspaceManifest.Read(Root, text, strict: true);
 			}
 			catch (WorkspaceManifestException ex)
 			{
@@ -450,7 +500,7 @@ public static partial class ManifestEditor
 		public ModuleSession(string root, string module) : this(root, module, FxLayout.ModuleFile(module)) { }
 
 		ModuleSession(string root, string module, string file)
-			: base(file, Existing(root, file) ?? "", YamlEditor.Parse(Existing(root, file) ?? $"schema: {FxYamlReader.Schema}\n"))
+			: base(root, file, Existing(root, file) ?? "", YamlEditor.Parse(Existing(root, file) ?? $"schema: {FxYamlReader.Schema}\n"))
 		{
 			_root = root;
 			Module = module;
@@ -462,7 +512,7 @@ public static partial class ManifestEditor
 		/// <summary>The yaml did not exist: enabling the module creates it.</summary>
 		public bool Created { get; }
 
-		static string? Existing(string root, string file) => System.IO.File.Exists(FxLayout.Full(root, file)) ? System.IO.File.ReadAllText(FxLayout.Full(root, file)) : null;
+		static string? Existing(string root, string file) => FxFiles.Exists(FxLayout.Full(root, file)) ? FxFiles.ReadAllText(FxLayout.Full(root, file)) : null;
 
 		public static ManifestChange Unknown(string root, string module)
 		{
@@ -472,7 +522,7 @@ public static partial class ManifestEditor
 
 		/// <summary>Nothing to change in a module that does not exist (and nothing is created).</summary>
 		public static ManifestChange Info(string root, string module, FxText text)
-			=> new(FxLayout.ModuleFile(module), "", YamlEditor.Parse(""), [], [FxDiagnostic.Info(Unchanged, text)]);
+			=> new(FxLayout.ModuleFile(module), "", YamlEditor.Parse(""), [], [FxDiagnostic.Info(Unchanged, text)]) { Root = root };
 
 		protected override void Validate(string text)
 		{

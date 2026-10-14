@@ -129,6 +129,8 @@ public static class WorkspaceModule
 
 		var mounted = new List<WorkspaceRepository>();
 		var toFetch = new List<(RepositoryState Info, GitClient Git)>();
+		// sync --dry-run says what sync would do with the repositories; the doctor, what is not as it should be
+		var preview = !context.Write && !context.Doctor;
 		foreach (var repo in repositories)
 		{
 			cancellationToken.ThrowIfCancellationRequested();
@@ -136,7 +138,11 @@ public static class WorkspaceModule
 			var parking = ParkingPath(manifest, repo.Repository);
 			if (repo.Present && (!repo.Mounted || repo.SupersededBy is not null))
 			{
-				if (!context.Write)
+				if (preview)
+					actions.Add(new(name, "would-park", repo.SupersededBy is { } higherCopy
+						? new("workspace.action.superseded", higherCopy.FullName)
+						: new("workspace.action.parked-in", FxLayout.Relative(root, parking).TrimEnd('/'))));
+				else if (!context.Write)
 					diagnostics.Add(FxDiagnostic.Warning(NotParked, repo.SupersededBy is { } higher
 						? new($"{NotParked}.superseded", name, repo.Repository.Path, higher.FullName)
 						: new(NotParked, name, repo.Repository.Path), manifestFile, repo.Repository.Line, name, FxFix.Run(FxHeader.Sync)));
@@ -156,6 +162,11 @@ public static class WorkspaceModule
 			var present = repo.Present;
 			if (!present && repo.Parked)
 			{
+				if (preview)
+				{
+					actions.Add(new(name, "would-unpark"));
+					continue;
+				}
 				if (!context.Write)
 				{
 					diagnostics.Add(FxDiagnostic.Error(Missing, new($"{Missing}.parked", name, repo.Repository.Path, FxLayout.Relative(root, parking).TrimEnd('/')),
@@ -170,13 +181,18 @@ public static class WorkspaceModule
 			}
 			if (!present)
 			{
+				if (preview && !context.Offline)
+				{
+					actions.Add(new(name, "would-clone"));
+					continue;
+				}
 				if (!context.Write || context.Offline)
 				{
 					diagnostics.Add(FxDiagnostic.Error(Missing, new(Missing, name, repo.Repository.Path), manifestFile, repo.Repository.Line, name, FxFix.Run(FxHeader.Sync)));
 					actions.Add(new(name, "missing"));
 					continue;
 				}
-				var existed = Directory.Exists(repo.FullPath);
+				var existed = FxFiles.DirectoryExists(repo.FullPath);
 				ProcessResult clone;
 				try
 				{
@@ -284,7 +300,7 @@ public static class WorkspaceModule
 			foreach (var reference in share.AppliesTo.Repositories)
 				Check(reference, manifestFile, share.Line);
 		var dotnetFile = node.Full(FxLayout.ModuleFile(Dotnet.DotnetModule.Name));
-		if (!File.Exists(dotnetFile))
+		if (!FxFiles.Exists(dotnetFile))
 			return;
 		Dotnet.DotnetConfig dotnet;
 		try
@@ -329,7 +345,7 @@ public static class WorkspaceModule
 		var found = new List<(string, bool)>();
 		void Visit(string directory)
 		{
-			foreach (var sub in Directory.EnumerateDirectories(directory))
+			foreach (var sub in FxFiles.EnumerateDirectories(directory))
 			{
 				var name = Path.GetFileName(sub);
 				var relative = FxLayout.Relative(root, sub) + "/";
@@ -343,7 +359,7 @@ public static class WorkspaceModule
 					continue;
 				}
 				// a folder that leads to a repository (or to versioned paths) is walked; one with files of its own is reported
-				var hasFiles = Directory.EnumerateFiles(sub).Any(f => !FxLayout.IsLocal(Path.GetFileName(f)));
+				var hasFiles = FxFiles.EnumerateFiles(sub).Any(f => !FxLayout.IsLocal(Path.GetFileName(f)));
 				var leads = repositories.Any(r => r.StartsWith(FxLayout.Normalize(sub), StringComparison.OrdinalIgnoreCase))
 				            || (manifest.Paths ?? []).Any(p => !p.Exclude && p.Path.StartsWith(relative, StringComparison.OrdinalIgnoreCase));
 				if (hasFiles && !leads)
@@ -421,7 +437,7 @@ public static class WorkspaceModule
 	{
 		try
 		{
-			foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+			foreach (var file in FxFiles.EnumerateFiles(path, "*", SearchOption.AllDirectories))
 				File.SetAttributes(file, FileAttributes.Normal);
 			Directory.Delete(path, recursive: true);
 		}
@@ -453,14 +469,14 @@ public static class WorkspaceModule
 		var source = Path.TrimEndingDirectorySeparator(from);
 		var target = Path.TrimEndingDirectorySeparator(to);
 		var (shownSource, shownTarget) = (FxLayout.Relative(root, source), FxLayout.Relative(root, target));
-		if (Directory.Exists(target) && Directory.EnumerateFileSystemEntries(target).Any())
+		if (FxFiles.DirectoryExists(target) && Directory.EnumerateFileSystemEntries(target).Any())
 		{
 			report(FxDiagnostic.Error(MoveFailed, new($"{MoveFailed}.occupied", name, shownSource, shownTarget), repository: name));
 			return false;
 		}
 		try
 		{
-			if (Directory.Exists(target))
+			if (FxFiles.DirectoryExists(target))
 				Directory.Delete(target);
 			Directory.CreateDirectory(Path.GetDirectoryName(target)!);
 			Directory.Move(source, target);
@@ -472,7 +488,7 @@ public static class WorkspaceModule
 			return false;
 		}
 		// git keeps absolute paths between a repository and its worktrees: a main clone with worktrees, or a worktree
-		if (Directory.Exists(Path.Combine(target, ".git", "worktrees")) || File.Exists(Path.Combine(target, ".git")))
+		if (FxFiles.DirectoryExists(Path.Combine(target, ".git", "worktrees")) || FxFiles.Exists(Path.Combine(target, ".git")))
 			GitClient.Discover(target)?.RepairWorktrees();
 		RemoveEmpty(Path.GetDirectoryName(source)!, root);
 		return true;
@@ -485,7 +501,7 @@ public static class WorkspaceModule
 		for (var dir = folder; dir is not null && FxLayout.Normalize(dir).StartsWith(FxLayout.Normalize(root), StringComparison.OrdinalIgnoreCase)
 		                       && !FxLayout.SameFolder(dir, root) && !FxLayout.SameFolder(dir, fx); dir = Path.GetDirectoryName(dir))
 		{
-			if (!Directory.Exists(dir))
+			if (!FxFiles.DirectoryExists(dir))
 				continue;
 			if (Directory.EnumerateFileSystemEntries(dir).Any())
 				return;

@@ -28,7 +28,7 @@ public static class SolutionComposer
 		foreach (var solution in solutions)
 		{
 			var path = node.Full(solution.Path);
-			var previous = File.Exists(path) ? File.ReadAllText(path) : null;
+			var previous = FxFiles.Exists(path) ? FxFiles.ReadAllText(path) : null;
 			outputs.Generated(path, Compose(node.Root, solution, previous, diagnostics, outputs.Display));
 		}
 	}
@@ -94,7 +94,7 @@ public static class SolutionComposer
 					: Relative(outFolder, $"{subFolder}/{itemPath}");
 				// what it is made of, on disk or not: the solution does not change with what is mounted (decision 13)
 				sources.Add(sub);
-				if (File.Exists(subFile) && Parse(File.ReadAllText(subFile)) is { } document)
+				if (FxFiles.Exists(subFile) && Parse(FxFiles.ReadAllText(subFile)) is { } document)
 				{
 					Configurations(document);
 					foreach (var item in Items(document))

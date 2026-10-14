@@ -39,14 +39,14 @@ public static class FxLayout
 	public static string? FindRoot(string directory)
 	{
 		for (var dir = new DirectoryInfo(Path.GetFullPath(directory)); dir is not null; dir = dir.Parent)
-			if (Directory.Exists(Path.Combine(dir.FullName, Folder)) || IsGitRoot(dir.FullName))
+			if (FxFiles.DirectoryExists(Path.Combine(dir.FullName, Folder)) || IsGitRoot(dir.FullName))
 				return Normalize(dir.FullName);
 		return null;
 	}
 
 	/// <summary>Whether <paramref name="directory"/> is the top of a git working tree (a <c>.git</c> folder, or file in a worktree).</summary>
 	public static bool IsGitRoot(string directory)
-		=> Directory.Exists(Path.Combine(directory, ".git")) || File.Exists(Path.Combine(directory, ".git"));
+		=> FxFiles.DirectoryExists(Path.Combine(directory, ".git")) || FxFiles.Exists(Path.Combine(directory, ".git"));
 
 	/// <summary>A full path with a trailing separator.</summary>
 	public static string Normalize(string directory)

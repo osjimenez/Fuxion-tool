@@ -21,7 +21,7 @@ public sealed class FxNode(string root)
 	/// <summary>The root of fx that contains <paramref name="directory"/>, if any (<see cref="FxLayout.FindRoot"/>).</summary>
 	public static FxNode? Find(string directory) => FxLayout.FindRoot(directory) is { } root ? new(root) : null;
 
-	public bool Exists => FxLayout.IsGitRoot(Root) || Directory.Exists(FxLayout.Full(Root, FxLayout.Folder));
+	public bool Exists => FxLayout.IsGitRoot(Root) || FxFiles.DirectoryExists(FxLayout.Full(Root, FxLayout.Folder));
 
 	public bool IsWorkspace => WorkspaceManifest.IsWorkspace(Root);
 
@@ -29,7 +29,7 @@ public sealed class FxNode(string root)
 	public string FolderName => Path.GetFileName(Path.TrimEndingDirectorySeparator(Root));
 
 	/// <summary>Whether it has the folder of <paramref name="module"/> in its <c>_fx/</c>.</summary>
-	public bool HasModule(string module) => Directory.Exists(FxLayout.Full(Root, FxLayout.ModuleFolder(module)));
+	public bool HasModule(string module) => FxFiles.DirectoryExists(FxLayout.Full(Root, FxLayout.ModuleFolder(module)));
 
 	public string Full(string relative) => FxLayout.Full(Root, relative);
 
@@ -53,7 +53,7 @@ public sealed class FxNode(string root)
 		if (OwnConfig().Name is { } name)
 			return FxIdentity.Root(name);
 		// a repository without _fx/ is not a root of fx: nothing to ask of it
-		if (Directory.Exists(Full(FxLayout.Folder)))
+		if (FxFiles.DirectoryExists(Full(FxLayout.Folder)))
 			diagnostics?.Add(FxDiagnostic.Error(NameMissing, new(NameMissing, FolderName), FxLayout.ConfigFile, fix: FxFix.Do($"{NameMissing}.fix")));
 		return FxIdentity.Root(FxConfig.NamePattern().IsMatch(FolderName) ? FolderName : "root");
 	}
@@ -65,14 +65,14 @@ public sealed class FxNode(string root)
 	/// </summary>
 	public (FxNode Workspace, WorkspaceManifest Manifest, WorkspaceRepository Declaration)? FindParent()
 	{
-		if (File.Exists(Full(FxLayout.WorktreeFile)) && Git.GitClient.Discover(Root)?.MainRoot() is { } main && !FxLayout.SameFolder(main, Root))
+		if (FxFiles.Exists(Full(FxLayout.WorktreeFile)) && Git.GitClient.Discover(Root)?.MainRoot() is { } main && !FxLayout.SameFolder(main, Root))
 			return new FxNode(main).FindParent();
 		for (var dir = Directory.GetParent(Path.TrimEndingDirectorySeparator(Root)); dir is not null; dir = dir.Parent)
 		{
 			if (!WorkspaceManifest.IsWorkspace(dir.FullName))
 				continue;
 			var file = FxLayout.Full(dir.FullName, WorkspaceManifest.RelativePath);
-			var manifest = WorkspaceManifest.Read(FxLayout.Normalize(dir.FullName), File.Exists(file) ? File.ReadAllText(file) : "");
+			var manifest = WorkspaceManifest.Read(FxLayout.Normalize(dir.FullName), FxFiles.Exists(file) ? FxFiles.ReadAllText(file) : "");
 			if (manifest.RepositoryAt(Root) is { Inherits: true } declaration)
 				return (new FxNode(dir.FullName), manifest, declaration);
 		}

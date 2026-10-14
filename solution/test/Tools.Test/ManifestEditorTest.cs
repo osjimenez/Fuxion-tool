@@ -234,6 +234,22 @@ public sealed class ManifestEditorTest
 		Assert.Equal(ManifestEditor.UnknownModule, Assert.Single(ManifestEditor.EnableModule(ws.Root, "python", []).Diagnostics).Code);
 	}
 
+	[Fact(DisplayName = "by hand (fx ui, O4.3c): validated as fx reads the file; not YAML, its code and line; the line endings of the file stay")]
+	public void Replace()
+	{
+		using var ws = new Workspace();
+		var ok = ManifestEditor.Replace(ws.Root, WorkspaceManifest.RelativePath, ws.Text.Replace("tags: [dotnet, public]", "tags: [dotnet]"));
+		Assert.Equal("tags: [dotnet]", After(ok).Split('\n').Select(l => l.Trim()).Single(l => l.StartsWith("tags:")));
+		// the manifest, strict: a repository without its path
+		Assert.False(ManifestEditor.Replace(ws.Root, WorkspaceManifest.RelativePath, "schema: 1.0.0\nrepositories:\n  - name: x\n").Ok);
+		var notYaml = ManifestEditor.Replace(ws.Root, "_fx/dotnet/dotnet.yaml", "schema: 1.0.0\nvariables: [\n");
+		Assert.Equal((ManifestEditor.InvalidYaml, false), (notYaml.Diagnostics.Single().Code, notYaml.Ok));
+		Assert.NotNull(notYaml.Diagnostics.Single().Line);
+		// a file with CRLF: an editor gives '\n', and the CRLF stay
+		File.WriteAllText(Path.Combine(ws.Root, "_fx", "dotnet", "dotnet.yaml"), "schema: 1.0.0\r\n# crlf\r\n");
+		Assert.Equal("schema: 1.0.0\r\n# crlf\r\n# more\r\n", After(ManifestEditor.Replace(ws.Root, "_fx/dotnet/dotnet.yaml", "schema: 1.0.0\n# crlf\n# more\n")));
+	}
+
 	[Fact(DisplayName = "module disable: enabled: false, its configuration kept; enable takes it out")]
 	public void DisableModule()
 	{

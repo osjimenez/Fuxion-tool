@@ -49,13 +49,13 @@ public static class WorkspaceShares
 		var flows = new List<ShareFlow>();
 		var stored = parent.Full($"{FxLayout.Inherited}/{Folder}");
 		var storedYaml = Path.Combine(stored, $"{Folder}.yaml");
-		if (File.Exists(storedYaml))
-			foreach (var share in WorkspaceManifest.Read(parent.Root, File.ReadAllText(storedYaml)).Shares ?? [])
+		if (FxFiles.Exists(storedYaml))
+			foreach (var share in WorkspaceManifest.Read(parent.Root, FxFiles.ReadAllText(storedYaml)).Shares ?? [])
 				if (SafeDestination(share.Destination) && share with { Path = share.Destination } is var rebased)
 					flows.Add(new(rebased, Expand(rebased, Path.Combine(stored, rebased.Path), relative => fromOf($"{Folder}/{relative}").LastOrDefault() ?? parentIdentity.FullName)));
 		var ownYaml = parent.Full(WorkspaceManifest.RelativePath);
-		if (parent.IsWorkspace && File.Exists(ownYaml))
-			foreach (var share in WorkspaceManifest.Read(parent.Root, File.ReadAllText(ownYaml)).Shares ?? [])
+		if (parent.IsWorkspace && FxFiles.Exists(ownYaml))
+			foreach (var share in WorkspaceManifest.Read(parent.Root, FxFiles.ReadAllText(ownYaml)).Shares ?? [])
 			{
 				if (!SafeSource(share.Path) || !SafeDestination(share.Destination))
 					continue; // the manifest of the parent reports it
@@ -117,7 +117,7 @@ public static class WorkspaceShares
 		foreach (var (destination, file) in received.Files)
 		{
 			var path = child.Full(destination);
-			if (!owned.ContainsKey(destination) && File.Exists(path) && !FxOutputs.Same(path, file.Content) && !outputs.Adopt)
+			if (!owned.ContainsKey(destination) && FxFiles.Exists(path) && !FxOutputs.Same(path, file.Content) && !outputs.Adopt)
 			{
 				outputs.Refused(path);
 				diagnostics.Add(FxDiagnostic.Error(Refused, new(Refused, outputs.Display(path), file.From), outputs.Display(path),
@@ -136,7 +136,7 @@ public static class WorkspaceShares
 			var path = child.Full(share.Destination);
 			outputs.Delete(path);
 			if (outputs.Write)
-				for (var dir = Path.GetDirectoryName(path); dir is not null && !FxLayout.SameFolder(dir, child.Root) && Directory.Exists(dir)
+				for (var dir = Path.GetDirectoryName(path); dir is not null && !FxLayout.SameFolder(dir, child.Root) && FxFiles.DirectoryExists(dir)
 				                                            && !Directory.EnumerateFileSystemEntries(dir).Any(); dir = Path.GetDirectoryName(dir))
 					Directory.Delete(dir);
 		}
@@ -152,7 +152,7 @@ public static class WorkspaceShares
 		foreach (var share in manifest.Shares ?? [])
 		{
 			var source = node.Full(share.Path);
-			if (share.Path.EndsWith('/') ? !Directory.Exists(source) : !File.Exists(source))
+			if (share.Path.EndsWith('/') ? !FxFiles.DirectoryExists(source) : !FxFiles.Exists(source))
 				diagnostics.Add(FxDiagnostic.Warning(Missing, new(Missing, share.Path), manifestFile, share.Line));
 			else if (doctor && !Versioned(manifest, share.Path))
 				diagnostics.Add(FxDiagnostic.Error(NotVersioned, new(NotVersioned, share.Path), manifestFile, share.Line, fix: FxFix.Run($"fx path add {share.Path}")));
@@ -187,14 +187,14 @@ public static class WorkspaceShares
 	static IReadOnlyList<SharedFile>? Expand(WorkspaceShare share, string source, Func<string, string> from)
 	{
 		if (!share.Path.EndsWith('/'))
-			return File.Exists(source) ? [new(share.Destination, File.ReadAllBytes(source), from(share.Destination))] : null;
-		if (!Directory.Exists(source))
+			return FxFiles.Exists(source) ? [new(share.Destination, FxFiles.ReadAllBytes(source), from(share.Destination))] : null;
+		if (!FxFiles.DirectoryExists(source))
 			return null;
-		return Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories)
+		return FxFiles.EnumerateFiles(source, "*", SearchOption.AllDirectories)
 			.Select(f => FxLayout.Relative(source, f))
 			.Where(r => !r.Split('/').Any(s => FxLayout.IsLocal(s) || s == ".git"))
 			.Order(StringComparer.Ordinal)
-			.Select(r => new SharedFile(share.Destination + r, File.ReadAllBytes(Path.Combine(source, r)), from(share.Destination + r)))
+			.Select(r => new SharedFile(share.Destination + r, FxFiles.ReadAllBytes(Path.Combine(source, r)), from(share.Destination + r)))
 			.ToList();
 	}
 }

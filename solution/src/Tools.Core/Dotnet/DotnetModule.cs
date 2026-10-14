@@ -75,8 +75,8 @@ public static partial class DotnetModule
 	{
 		var inheritedFile = node.Full(InheritedConfigFile);
 		var ownFile = node.Full(ConfigFile);
-		var inherited = File.Exists(inheritedFile) ? DotnetYamlReader.ReadFile(inheritedFile, warnings) : null;
-		var own = File.Exists(ownFile) ? DotnetYamlReader.ReadFile(ownFile, warnings).Absolute(identity.FullName) : HasOwnFiles(node) ? DotnetConfig.Empty : null;
+		var inherited = FxFiles.Exists(inheritedFile) ? DotnetYamlReader.ReadFile(inheritedFile, warnings) : null;
+		var own = FxFiles.Exists(ownFile) ? DotnetYamlReader.ReadFile(ownFile, warnings).Absolute(identity.FullName) : HasOwnFiles(node) ? DotnetConfig.Empty : null;
 		if (own is { Enabled: false })
 			own = null;
 		// a workspace receives what comes from above to pass it on; it only uses it if it is for it
@@ -84,7 +84,7 @@ public static partial class DotnetModule
 			inherited = null;
 		if (inherited is null && own is null)
 			return null;
-		var sources = string.Join(", ", new[] { inherited is null ? null : InheritedConfigFile, own is null || !File.Exists(ownFile) ? null : ConfigFile }.OfType<string>());
+		var sources = string.Join(", ", new[] { inherited is null ? null : InheritedConfigFile, own is null || !FxFiles.Exists(ownFile) ? null : ConfigFile }.OfType<string>());
 		var config = DotnetConfig.Combine(inherited?.WithBase($"../.inherited/{Name}") ?? DotnetConfig.Empty, own ?? DotnetConfig.Empty).ForTarget(identity);
 		return (config, sources.Length == 0 ? Folder : sources, own ?? DotnetConfig.Empty);
 	}
@@ -96,7 +96,7 @@ public static partial class DotnetModule
 	static bool HasOwnFiles(FxNode node)
 	{
 		var folder = node.Full(Folder);
-		return Directory.Exists(folder) && Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories)
+		return FxFiles.DirectoryExists(folder) && FxFiles.EnumerateFiles(folder, "*", SearchOption.AllDirectories)
 			.Select(Path.GetFileName)
 			.Any(f => !FxLayout.IsLocal(f!) && !f!.Contains(".g.", StringComparison.OrdinalIgnoreCase));
 	}
@@ -121,9 +121,9 @@ public static partial class DotnetModule
 		{
 			// the module no longer applies: what fx generated for it goes
 			var folder = node.Full(Folder);
-			if (!Directory.Exists(folder))
+			if (!FxFiles.DirectoryExists(folder))
 				return null;
-			foreach (var file in Directory.EnumerateFiles(folder, "*.g.*").Where(f => FxHeader.IsGenerated(File.ReadAllText(f))))
+			foreach (var file in FxFiles.EnumerateFiles(folder, "*.g.*").Where(f => FxHeader.IsGenerated(FxFiles.ReadAllText(f))))
 				outputs.Delete(file);
 			outputs.Prune(folder);
 			if (context.Doctor)
@@ -186,7 +186,7 @@ public static partial class DotnetModule
 			.SelectMany(m => m.Groups["id"].Value.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
 			.ToHashSet(StringComparer.OrdinalIgnoreCase);
 		foreach (var import in propsImports.Concat(targetsImports).Select(i => Path.Combine(root, Folder, i.Path)).Where(File.Exists))
-			foreach (Match m in PackageReference().Matches(File.ReadAllText(import)))
+			foreach (Match m in PackageReference().Matches(FxFiles.ReadAllText(import)))
 				used.Add(m.Groups["id"].Value);
 		var packages = governed.Where(p => used.Contains(p.Id)).OrderBy(p => p.Id, StringComparer.OrdinalIgnoreCase).ToList();
 
@@ -212,7 +212,7 @@ public static partial class DotnetModule
 		if (context.Doctor)
 		{
 			foreach (var path in propsImports.Concat(targetsImports).Select(i => i.Path).Distinct(StringComparer.OrdinalIgnoreCase))
-				if (!File.Exists(Path.Combine(root, Folder, path)))
+				if (!FxFiles.Exists(Path.Combine(root, Folder, path)))
 					diagnostics.Add(FxDiagnostic.Error(MissingImport, new(MissingImport, path), outputs.Display(Path.Combine(root, Folder, "dotnet.g.props")), fix: FxFix.Run(FxHeader.Sync)));
 			if (centralManagement)
 			{
@@ -231,8 +231,8 @@ public static partial class DotnetModule
 		JsonObject json;
 		try
 		{
-			json = File.Exists(path)
-				? JsonNode.Parse(File.ReadAllText(path), documentOptions: new() { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true }) as JsonObject ?? new JsonObject()
+			json = FxFiles.Exists(path)
+				? JsonNode.Parse(FxFiles.ReadAllText(path), documentOptions: new() { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true }) as JsonObject ?? new JsonObject()
 				: new JsonObject();
 		}
 		catch (JsonException ex)
@@ -265,7 +265,7 @@ public static partial class DotnetModule
 	static void ImportPackages(string root, string relative, FxOutputs outputs)
 	{
 		var path = Path.Combine(root, relative);
-		var text = File.ReadAllText(path);
+		var text = FxFiles.ReadAllText(path);
 		var newline = text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
 		// with '/': MSBuild takes it on Windows and on Linux
 		var toRoot = Path.GetRelativePath(Path.GetDirectoryName(path)!, root).Replace('\\', '/');
@@ -313,11 +313,11 @@ public static partial class DotnetModule
 		foreach (var project in git.ListFiles(":(glob)**/*.csproj"))
 		{
 			var assets = Path.Combine(root, Path.GetDirectoryName(project) ?? "", "obj", "project.assets.json");
-			if (!File.Exists(assets))
+			if (!FxFiles.Exists(assets))
 				continue;
 			try
 			{
-				using var json = JsonDocument.Parse(File.ReadAllText(assets));
+				using var json = JsonDocument.Parse(FxFiles.ReadAllText(assets));
 				if (json.RootElement.TryGetProperty("libraries", out var libraries))
 					foreach (var library in libraries.EnumerateObject())
 						if (library.Value.TryGetProperty("type", out var type) && type.GetString() == "package")
@@ -391,5 +391,5 @@ public static partial class DotnetModule
 		}
 	}
 
-	static string Read(string root, string relative) => File.ReadAllText(Path.Combine(root, relative));
+	static string Read(string root, string relative) => FxFiles.ReadAllText(Path.Combine(root, relative));
 }

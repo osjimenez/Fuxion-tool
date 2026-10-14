@@ -39,10 +39,17 @@ public static class DescribeCommand
 
 	public static IEnumerable<Command> Create(GlobalOptions global, string currentDirectory)
 	{
-		var describe = new Command("describe", Texts.Get("describe")).Describe(Schema);
+		var skill = new Option<bool>("--skill") { Description = Texts.Get("describe.skill") };
+		var describe = new Command("describe", Texts.Get("describe")) { skill }.Describe(Schema);
 		describe.SetAction(result =>
 		{
 			var console = RepoCommand.Console(result, global, currentDirectory);
+			// the skill of fx (O5): its SKILL.md, as it is, on stdout
+			if (result.GetValue(skill))
+			{
+				console.Raw(FxSkill.Render(Document(currentDirectory)).TrimEnd('\n'));
+				return 0;
+			}
 			return Describe(console, currentDirectory);
 		});
 		yield return describe;
@@ -91,6 +98,21 @@ public static class DescribeCommand
 		}
 	}
 
+	/// <summary><c>fx-describe/1</c>: the commands, the global options and the exit codes, in English; also the source of the skill.</summary>
+	public static DescribeDocument Document(string currentDirectory)
+	{
+		var commands = Commands(currentDirectory, out var root);
+		var global = root.Options.Where(o => o.Recursive || o.Name is "--help").Select(Option).ToList();
+		return new DescribeDocument(Schema, true, SyncCommand.Version ?? "", commands.Select(c =>
+		{
+			var info = c.Command.Info();
+			return new JsonCommand(c.Name, c.Command.Description ?? "",
+				c.Command.Arguments.Select(a => new JsonArgument(a.Name, a.Description ?? "", Arity(a.Arity))).ToList(),
+				c.Command.Options.Select(Option).ToList(),
+				info?.Schema, info?.Writes ?? false, info?.Network ?? false, c.Command.HasDryRun(), info?.Interactive ?? false);
+		}).ToList(), global, ExitCodes.Select(code => new JsonExitCode(code, English(() => Texts.Get($"describe.exit-code.{code}")))).ToList(), []);
+	}
+
 	static JsonOption Option(Option option)
 	{
 		var type = option.ValueType == typeof(bool) || option.ValueType == typeof(void) ? "bool"
@@ -107,18 +129,10 @@ public static class DescribeCommand
 
 	static int Describe(FxConsole console, string currentDirectory)
 	{
-		var commands = Commands(currentDirectory, out var root);
+		var commands = Commands(currentDirectory, out _);
 		if (console.Settings.IsMachine)
 		{
-			var global = root.Options.Where(o => o.Recursive || o.Name is "--help").Select(Option).ToList();
-			console.WriteJson(new DescribeDocument(Schema, true, SyncCommand.Version ?? "", commands.Select(c =>
-			{
-				var info = c.Command.Info();
-				return new JsonCommand(c.Name, c.Command.Description ?? "",
-					c.Command.Arguments.Select(a => new JsonArgument(a.Name, a.Description ?? "", Arity(a.Arity))).ToList(),
-					c.Command.Options.Select(Option).ToList(),
-					info?.Schema, info?.Writes ?? false, info?.Network ?? false, c.Command.HasDryRun(), info?.Interactive ?? false);
-			}).ToList(), global, ExitCodes.Select(code => new JsonExitCode(code, English(() => Texts.Get($"describe.exit-code.{code}")))).ToList(), []), c => c.DescribeDocument);
+			console.WriteJson(Document(currentDirectory), c => c.DescribeDocument);
 			return 0;
 		}
 		// for people, what an agent needs at a glance: what each one outputs and does (fx --help has the rest)

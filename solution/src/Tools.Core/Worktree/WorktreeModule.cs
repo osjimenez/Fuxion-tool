@@ -90,15 +90,15 @@ public static class WorktreeModule
 	static List<string> LeftOut(string workspace)
 	{
 		var file = FxLayout.Full(workspace, WorkspaceManifest.RelativePath);
-		return File.Exists(file)
-			? (WorkspaceManifest.Read(workspace, File.ReadAllText(file)).Paths ?? []).Where(p => !p.Worktree && !p.Exclude).Select(p => p.Path).ToList()
+		return FxFiles.Exists(file)
+			? (WorkspaceManifest.Read(workspace, FxFiles.ReadAllText(file)).Paths ?? []).Where(p => !p.Worktree && !p.Exclude).Select(p => p.Path).ToList()
 			: [];
 	}
 
 	static WorkspaceManifest? Manifest(string root)
 	{
 		var file = FxLayout.Full(root, WorkspaceManifest.RelativePath);
-		return WorkspaceManifest.IsWorkspace(root) && File.Exists(file) ? WorkspaceManifest.Read(root, File.ReadAllText(file)) : null;
+		return WorkspaceManifest.IsWorkspace(root) && FxFiles.Exists(file) ? WorkspaceManifest.Read(root, FxFiles.ReadAllText(file)) : null;
 	}
 
 	static string Join(string a, string b) => a is "" or "." ? b : $"{a}/{b}";
@@ -130,7 +130,7 @@ public static class WorktreeModule
 		var root = FxLayout.Normalize(workspace is null
 			? Path.Combine(UserFolderOf(main, mainIdentity.Name), WorktreeCard.Folder(branch))
 			: FxLayout.Full(workspace, $"{FxLayout.Worktrees}/{WorktreeCard.Folder(branch)}"));
-		if (Directory.Exists(root))
+		if (FxFiles.DirectoryExists(root))
 			return Fail(FxDiagnostic.Error(Exists, new(Exists, branch, root)));
 
 		// the way down to where you are, before anything is created
@@ -164,7 +164,7 @@ public static class WorktreeModule
 	static bool Is(string workspace, string name)
 	{
 		var identity = new FxNode(workspace).SelfIdentity();
-		return identity.Name == name || identity.Is(name) || (Directory.Exists(name) && FxLayout.SameFolder(name, workspace));
+		return identity.Name == name || identity.Is(name) || (FxFiles.DirectoryExists(name) && FxLayout.SameFolder(name, workspace));
 	}
 
 	/// <summary>A repository declared below a workspace: its path from there, its full name and its declaration.</summary>
@@ -396,9 +396,9 @@ public static class WorktreeModule
 	static IReadOnlyList<WorktreeInfo> In(string folder, bool withStatus)
 	{
 		var result = new List<WorktreeInfo>();
-		if (!Directory.Exists(folder))
+		if (!FxFiles.DirectoryExists(folder))
 			return result;
-		foreach (var root in Directory.EnumerateDirectories(folder).Select(FxLayout.Normalize))
+		foreach (var root in FxFiles.EnumerateDirectories(folder).Select(FxLayout.Normalize))
 			if (WorktreeCard.Load(root) is { } card)
 				result.Add(new(root, card, withStatus
 					? card.Worktrees.ToDictionary(w => w.Path, w => GitClient.Discover(w.Path == "." ? root : FxLayout.Full(root, w.Path))?.Status().Changes ?? 0)
@@ -501,13 +501,13 @@ public static class WorktreeModule
 		if (session.Remove(worktree.Card.Worktrees))
 		{
 			// what git leaves of it (fx's local files): the folder goes, and the folder of the worktrees if it is left empty
-			if (Directory.Exists(worktree.Root))
+			if (FxFiles.DirectoryExists(worktree.Root))
 				Directory.Delete(worktree.Root, recursive: true);
 			var parent = Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(worktree.Root));
-			if (parent is not null && Directory.Exists(parent) && !Directory.EnumerateFileSystemEntries(parent).Any())
+			if (parent is not null && FxFiles.DirectoryExists(parent) && !Directory.EnumerateFileSystemEntries(parent).Any())
 				Directory.Delete(parent);
 		}
-		else if (Directory.Exists(worktree.Root))
+		else if (FxFiles.DirectoryExists(worktree.Root))
 			session.Save();
 		return new(worktree.Root, branch, actions, diagnostics, []);
 	}

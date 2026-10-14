@@ -586,4 +586,7 @@
   <data name="workspace.worktree-prunable" xml:space="preserve">
     <value>'{0}' tiene un worktree en {1} cuya carpeta ya no existe.</value>
   </data>
+  <data name="fx.invalid-yaml" xml:space="preserve">
+    <value>No es YAML válido: {0}</value>
+  </data>
 </root>

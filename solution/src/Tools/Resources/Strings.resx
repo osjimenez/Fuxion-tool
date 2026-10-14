@@ -638,7 +638,7 @@
     <value>Exit codes: 0 done, 1 errors, 2 wrong usage, 130 cancelled. fx describe: every command, for agents.</value>
   </data>
   <data name="ui" xml:space="preserve">
-    <value>The workspace in full screen: its tree, what each node is and what reaches it, and the doctor (in a terminal).</value>
+    <value>The workspace in full screen: its tree, what each node is and what reaches it, the doctor, and acting and editing with the command of each (in a terminal).</value>
   </data>
   <data name="ui.no-terminal" xml:space="preserve">
     <value>fx ui needs a terminal with a person in front: here there is none (CI, a pipe, an agent or --output json).</value>
@@ -1017,5 +1017,146 @@
   </data>
   <data name="ui.key.cancel.description" xml:space="preserve">
     <value>Cancel the action running</value>
+  </data>
+  <data name="action.would-clone" xml:space="preserve">
+    <value>would-clone</value>
+  </data>
+  <data name="action.would-park" xml:space="preserve">
+    <value>would-park</value>
+  </data>
+  <data name="action.would-unpark" xml:space="preserve">
+    <value>would-unpark</value>
+  </data>
+  <data name="manifest.sync-would" xml:space="preserve">
+    <value>What fx sync would do with it:</value>
+  </data>
+  <data name="ui.edit.repository" xml:space="preserve">
+    <value>Edit…</value>
+  </data>
+  <data name="ui.edit.remove" xml:space="preserve">
+    <value>Remove from the manifest</value>
+  </data>
+  <data name="ui.edit.add" xml:space="preserve">
+    <value>Add to the workspace…</value>
+  </data>
+  <data name="ui.edit.version" xml:space="preserve">
+    <value>Version it in the workspace</value>
+  </data>
+  <data name="ui.edit.enable" xml:space="preserve">
+    <value>Turn on</value>
+  </data>
+  <data name="ui.edit.disable" xml:space="preserve">
+    <value>Turn off</value>
+  </data>
+  <data name="ui.edit.path-add" xml:space="preserve">
+    <value>Version a path…</value>
+  </data>
+  <data name="ui.edit.path-remove" xml:space="preserve">
+    <value>Stop versioning a path…</value>
+  </data>
+  <data name="ui.form.repository" xml:space="preserve">
+    <value>Repository {0}</value>
+  </data>
+  <data name="ui.form.add" xml:space="preserve">
+    <value>Add {0}</value>
+  </data>
+  <data name="ui.field.name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="ui.field.url" xml:space="preserve">
+    <value>URL</value>
+  </data>
+  <data name="ui.field.path" xml:space="preserve">
+    <value>Path</value>
+  </data>
+  <data name="ui.field.tags" xml:space="preserve">
+    <value>Tags</value>
+  </data>
+  <data name="ui.field.depends-on" xml:space="preserve">
+    <value>Depends on</value>
+  </data>
+  <data name="ui.field.mandatory" xml:space="preserve">
+    <value>Mandatory: always mounted</value>
+  </data>
+  <data name="ui.field.inherits" xml:space="preserve">
+    <value>Inherits from this workspace (not a guest)</value>
+  </data>
+  <data name="ui.field.exclude" xml:space="preserve">
+    <value>An exception inside something versioned (exclude)</value>
+  </data>
+  <data name="ui.field.worktree" xml:space="preserve">
+    <value>Also in the worktrees</value>
+  </data>
+  <data name="ui.form.keys" xml:space="preserve">
+    <value>Ctrl+S (or the button) adds it to the pending changes · F4 its YAML · Esc cancels</value>
+  </data>
+  <data name="ui.form.nothing" xml:space="preserve">
+    <value>Nothing changes.</value>
+  </data>
+  <data name="ui.pending.added" xml:space="preserve">
+    <value>Added to the pending changes ({0}): F10 shows them.</value>
+  </data>
+  <data name="ui.pending.edits" xml:space="preserve">
+    <value>Edits, each with its command:</value>
+  </data>
+  <data name="ui.pending.sync" xml:space="preserve">
+    <value>What fx sync would do with them:</value>
+  </data>
+  <data name="ui.pending.keys" xml:space="preserve">
+    <value>Enter writes them · Ctrl+Z takes back the last · Delete throws them away · Esc keeps them pending</value>
+  </data>
+  <data name="ui.pending.title" xml:space="preserve">
+    <value>Pending changes ({0})</value>
+  </data>
+  <data name="ui.pending.discarded" xml:space="preserve">
+    <value>Pending changes thrown away.</value>
+  </data>
+  <data name="ui.pending.applied" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="ui.pending.written" xml:space="preserve">
+    <value>Written: {0} file(s).</value>
+  </data>
+  <data name="ui.pending.header" xml:space="preserve">
+    <value>{0} pending (F10)</value>
+  </data>
+  <data name="ui.key.pending" xml:space="preserve">
+    <value>Changes</value>
+  </data>
+  <data name="ui.key.pending.description" xml:space="preserve">
+    <value>The changes not written yet</value>
+  </data>
+  <data name="ui.quit.busy" xml:space="preserve">
+    <value>An action is running: Esc cancels it first.</value>
+  </data>
+  <data name="ui.quit.title" xml:space="preserve">
+    <value>Quit</value>
+  </data>
+  <data name="ui.quit.pending" xml:space="preserve">
+    <value>There are {0} changes not written: quitting throws them away.</value>
+  </data>
+  <data name="ui.quit.keys" xml:space="preserve">
+    <value>Enter quits · Esc goes back</value>
+  </data>
+  <data name="ui.changed-on-disk" xml:space="preserve">
+    <value>{0} changed on disk since it was edited here: nothing was written. Throw the changes away (Delete, in F10) and make them again.</value>
+  </data>
+  <data name="ui.edit.yaml" xml:space="preserve">
+    <value>Edit its YAML…</value>
+  </data>
+  <data name="ui.edit.by-hand" xml:space="preserve">
+    <value>by hand: {0}</value>
+  </data>
+  <data name="ui.yaml.title" xml:space="preserve">
+    <value>{0} (YAML)</value>
+  </data>
+  <data name="ui.yaml.keys" xml:space="preserve">
+    <value>Ctrl+S adds it to the pending changes · Esc cancels</value>
+  </data>
+  <data name="ui.form.add-button" xml:space="preserve">
+    <value>Add to the pending changes</value>
+  </data>
+  <data name="describe.skill" xml:space="preserve">
+    <value>The skill of fx for coding agents (its SKILL.md), made from these same descriptions</value>
   </data>
 </root>

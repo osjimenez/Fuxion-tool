@@ -76,13 +76,13 @@ public sealed record WorkspaceManifest(
 	public static bool IsWorkspace(string root)
 	{
 		var file = FxLayout.Full(root, RelativePath);
-		if (!Directory.Exists(FxLayout.Full(root, FxLayout.ModuleFolder(ModuleName))))
+		if (!FxFiles.DirectoryExists(FxLayout.Full(root, FxLayout.ModuleFolder(ModuleName))))
 			return false;
-		if (!File.Exists(file))
+		if (!FxFiles.Exists(file))
 			return true;
 		try
 		{
-			return YamlDocument.Load(File.ReadAllText(file)) is not YamlMapping map || map["enabled"] is not YamlScalar { Value: "false" };
+			return YamlDocument.Load(FxFiles.ReadAllText(file)) is not YamlMapping map || map["enabled"] is not YamlScalar { Value: "false" };
 		}
 		catch (YamlSyntaxException)
 		{
@@ -103,7 +103,7 @@ public sealed record WorkspaceManifest(
 	public static WorkspaceManifest Load(string root)
 	{
 		var file = FxLayout.Full(root, RelativePath);
-		return Read(root, File.Exists(file) ? File.ReadAllText(file) : "", strict: true);
+		return Read(root, FxFiles.Exists(file) ? FxFiles.ReadAllText(file) : "", strict: true);
 	}
 
 	/// <summary>

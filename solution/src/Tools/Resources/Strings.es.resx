@@ -638,7 +638,7 @@
     <value>Códigos de salida: 0 hecho, 1 errores, 2 uso incorrecto, 130 cancelado. fx describe: todos los comandos, para agentes.</value>
   </data>
   <data name="ui" xml:space="preserve">
-    <value>El workspace a pantalla completa: su árbol, qué es cada nodo y qué le llega, y el doctor (en una terminal).</value>
+    <value>El workspace a pantalla completa: su árbol, qué es cada nodo y qué le llega, el doctor, y actuar y editar con el comando de cada cosa (en una terminal).</value>
   </data>
   <data name="ui.no-terminal" xml:space="preserve">
     <value>fx ui necesita una terminal con una persona delante: aquí no la hay (CI, una tubería, un agente o --output json).</value>
@@ -1017,5 +1017,146 @@
   </data>
   <data name="ui.key.cancel.description" xml:space="preserve">
     <value>Cancelar la acción en marcha</value>
+  </data>
+  <data name="action.would-clone" xml:space="preserve">
+    <value>se-clonaría</value>
+  </data>
+  <data name="action.would-park" xml:space="preserve">
+    <value>se-aparcaría</value>
+  </data>
+  <data name="action.would-unpark" xml:space="preserve">
+    <value>se-devolvería</value>
+  </data>
+  <data name="manifest.sync-would" xml:space="preserve">
+    <value>Lo que haría fx sync con el cambio:</value>
+  </data>
+  <data name="ui.edit.repository" xml:space="preserve">
+    <value>Editar…</value>
+  </data>
+  <data name="ui.edit.remove" xml:space="preserve">
+    <value>Quitar del manifiesto</value>
+  </data>
+  <data name="ui.edit.add" xml:space="preserve">
+    <value>Añadir al workspace…</value>
+  </data>
+  <data name="ui.edit.version" xml:space="preserve">
+    <value>Versionarlo en el workspace</value>
+  </data>
+  <data name="ui.edit.enable" xml:space="preserve">
+    <value>Activar</value>
+  </data>
+  <data name="ui.edit.disable" xml:space="preserve">
+    <value>Desactivar</value>
+  </data>
+  <data name="ui.edit.path-add" xml:space="preserve">
+    <value>Versionar una ruta…</value>
+  </data>
+  <data name="ui.edit.path-remove" xml:space="preserve">
+    <value>Dejar de versionar una ruta…</value>
+  </data>
+  <data name="ui.form.repository" xml:space="preserve">
+    <value>Repo {0}</value>
+  </data>
+  <data name="ui.form.add" xml:space="preserve">
+    <value>Añadir {0}</value>
+  </data>
+  <data name="ui.field.name" xml:space="preserve">
+    <value>Nombre</value>
+  </data>
+  <data name="ui.field.url" xml:space="preserve">
+    <value>URL</value>
+  </data>
+  <data name="ui.field.path" xml:space="preserve">
+    <value>Ruta</value>
+  </data>
+  <data name="ui.field.tags" xml:space="preserve">
+    <value>Etiquetas</value>
+  </data>
+  <data name="ui.field.depends-on" xml:space="preserve">
+    <value>Depende de</value>
+  </data>
+  <data name="ui.field.mandatory" xml:space="preserve">
+    <value>Obligatorio: siempre montado</value>
+  </data>
+  <data name="ui.field.inherits" xml:space="preserve">
+    <value>Hereda de este workspace (no es invitado)</value>
+  </data>
+  <data name="ui.field.exclude" xml:space="preserve">
+    <value>Una excepción dentro de algo versionado (exclude)</value>
+  </data>
+  <data name="ui.field.worktree" xml:space="preserve">
+    <value>También en los worktrees</value>
+  </data>
+  <data name="ui.form.keys" xml:space="preserve">
+    <value>Ctrl+S (o el botón) lo añade a los cambios pendientes · F4 su YAML · Esc cancela</value>
+  </data>
+  <data name="ui.form.nothing" xml:space="preserve">
+    <value>No cambia nada.</value>
+  </data>
+  <data name="ui.pending.added" xml:space="preserve">
+    <value>Añadido a los cambios pendientes ({0}): F10 los enseña.</value>
+  </data>
+  <data name="ui.pending.edits" xml:space="preserve">
+    <value>Ediciones, cada una con su comando:</value>
+  </data>
+  <data name="ui.pending.sync" xml:space="preserve">
+    <value>Lo que haría fx sync con ellas:</value>
+  </data>
+  <data name="ui.pending.keys" xml:space="preserve">
+    <value>Enter las escribe · Ctrl+Z deshace la última · Supr las descarta · Esc las deja pendientes</value>
+  </data>
+  <data name="ui.pending.title" xml:space="preserve">
+    <value>Cambios pendientes ({0})</value>
+  </data>
+  <data name="ui.pending.discarded" xml:space="preserve">
+    <value>Cambios pendientes descartados.</value>
+  </data>
+  <data name="ui.pending.applied" xml:space="preserve">
+    <value>Edición</value>
+  </data>
+  <data name="ui.pending.written" xml:space="preserve">
+    <value>Escrito: {0} fichero(s).</value>
+  </data>
+  <data name="ui.pending.header" xml:space="preserve">
+    <value>{0} pendientes (F10)</value>
+  </data>
+  <data name="ui.key.pending" xml:space="preserve">
+    <value>Cambios</value>
+  </data>
+  <data name="ui.key.pending.description" xml:space="preserve">
+    <value>Los cambios sin escribir</value>
+  </data>
+  <data name="ui.quit.busy" xml:space="preserve">
+    <value>Hay una acción en marcha: Esc la cancela antes.</value>
+  </data>
+  <data name="ui.quit.title" xml:space="preserve">
+    <value>Salir</value>
+  </data>
+  <data name="ui.quit.pending" xml:space="preserve">
+    <value>Hay {0} cambios sin escribir: salir los descarta.</value>
+  </data>
+  <data name="ui.quit.keys" xml:space="preserve">
+    <value>Enter sale · Esc vuelve</value>
+  </data>
+  <data name="ui.changed-on-disk" xml:space="preserve">
+    <value>{0} ha cambiado en disco desde que se editó aquí: no se ha escrito nada. Descarta los cambios (Supr, en F10) y vuelve a hacerlos.</value>
+  </data>
+  <data name="ui.edit.yaml" xml:space="preserve">
+    <value>Editar su YAML…</value>
+  </data>
+  <data name="ui.edit.by-hand" xml:space="preserve">
+    <value>a mano: {0}</value>
+  </data>
+  <data name="ui.yaml.title" xml:space="preserve">
+    <value>{0} (YAML)</value>
+  </data>
+  <data name="ui.yaml.keys" xml:space="preserve">
+    <value>Ctrl+S lo añade a los cambios pendientes · Esc cancela</value>
+  </data>
+  <data name="ui.form.add-button" xml:space="preserve">
+    <value>Añadir a los cambios</value>
+  </data>
+  <data name="describe.skill" xml:space="preserve">
+    <value>La skill de fx para agentes de código (su SKILL.md), hecha de estas mismas descripciones</value>
   </data>
 </root>

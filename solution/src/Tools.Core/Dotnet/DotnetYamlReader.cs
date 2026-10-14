@@ -32,7 +32,7 @@ public static partial class DotnetYamlReader
 	[GeneratedRegex(@"^[A-Za-z_][A-Za-z0-9_]*$")]
 	private static partial Regex ConstantName();
 
-	public static DotnetConfig ReadFile(string path, ICollection<FxDiagnostic>? warnings = null) => Read(File.ReadAllText(path), path, warnings);
+	public static DotnetConfig ReadFile(string path, ICollection<FxDiagnostic>? warnings = null) => Read(FxFiles.ReadAllText(path), path, warnings);
 
 	public static DotnetConfig Read(string yaml, string source, ICollection<FxDiagnostic>? warnings = null)
 	{

@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Fuxion.Tools.Core.Layout;
 using Fuxion.Tools.Core.Results;
+using Fuxion.Tools.Core.Sync;
 using Fuxion.Tools.Core.Text;
 using Fuxion.Tools.Core.Workspace;
 
@@ -343,7 +344,8 @@ public static class ManifestCommands
 
 	/// <summary>
 	/// Writes the changes (unless <c>--dry-run</c> or with errors in any of them: all or nothing) and shows them: the
-	/// diff of each file, or why nothing changes.
+	/// diff of each file, or why nothing changes. With <c>--dry-run</c>, also what <c>fx sync</c> would do with them,
+	/// worked out with the changes in place of the files, without writing them (<see cref="FxFiles"/>).
 	/// </summary>
 	static int Apply(FxConsole console, string root, IReadOnlyList<ManifestChange> changes, bool dryRun, string next)
 	{
@@ -354,12 +356,16 @@ public static class ManifestCommands
 		if (written)
 			foreach (var change in changed)
 				ManifestEditor.Write(root, change);
+		IReadOnlyList<FxModuleResult>? sync = null;
+		if (dryRun && ok && changed.Count > 0)
+			using (FxFiles.Overlay(changed.Select(c => KeyValuePair.Create(FxLayout.Full(root, c.File), c.After.Text))))
+				sync = SyncEngine.Sync(root, new(DryRun: true));
 		var problems = diagnostics.Where(d => d.Severity != FxSeverity.Info).ToList();
 		if (console.Settings.IsMachine)
 		{
 			console.WriteJson(new ManifestEditDocument(Schema, ok, ok && changed.Count > 0, written,
-				ok ? changed.Select(c => new JsonFileEdit(c.File, LineDiff.Unified(c.Diff))).ToList() : [], JsonDiagnostic.From(diagnostics)),
-				c => c.ManifestEditDocument);
+				ok ? changed.Select(c => new JsonFileEdit(c.File, LineDiff.Unified(c.Diff))).ToList() : [], JsonDiagnostic.From(diagnostics),
+				sync?.Select(JsonModule.From).ToList()), c => c.ManifestEditDocument);
 			return FxConsole.ExitCode(diagnostics);
 		}
 		if (ok && changed.Count == 0)
@@ -374,8 +380,18 @@ public static class ManifestCommands
 			console.Line(dryRun
 				? $"[yellow]{FxConsole.Escape(Texts.Get("manifest.dry-run"))}[/]"
 				: $"[green]✓[/] {FxConsole.Escape(Texts.Get("manifest.written", string.Join(", ", changed.Select(c => c.File))))} [gray]{FxConsole.Escape(Texts.Get("manifest.next", next))}[/]");
+			if (sync is not null)
+			{
+				console.Line($"[bold]{FxConsole.Escape(Texts.Get("manifest.sync-would"))}[/]");
+				foreach (var module in sync)
+					global::Fuxion.Tools.Cli.Sync.SyncCommand.WriteHuman(console, module, dryRun: true);
+			}
 		}
-		return console.Report(problems);
+		var code = console.Report(problems);
+		// what sync would find is shown, but the exit code is the edit's: the change itself is valid
+		if (sync is not null)
+			console.Report(sync.SelectMany(m => m.Diagnostics).Where(d => d.Severity != FxSeverity.Info).ToList());
+		return code;
 	}
 
 	static void WriteDiff(FxConsole console, string file, IReadOnlyList<DiffHunk> hunks)

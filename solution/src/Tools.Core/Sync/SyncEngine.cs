@@ -52,6 +52,9 @@ public static class SyncEngine
 			return [];
 		cancellationToken.ThrowIfCancellationRequested();
 		var write = !options.DryRun;
+		// a run that does not write leaves what it would write in a layer of its own (over the one in place, if any):
+		// each level reads what the one above would leave, as it would read it once written (FxFiles.Stage)
+		using var staged = write ? null : FxFiles.Overlay([]);
 		var first = new FxDiagnostics(progress);
 
 		// a fx older than the one this tree requires reads, but writes nothing (decision 4)
@@ -104,7 +107,7 @@ public static class SyncEngine
 		if (RemoteParent.Read(url, options.ParentRef, options.Offline, progress, diagnostics, cancellationToken) is not { } remote)
 			return onDisk;
 		var file = remote.Node.Full(WorkspaceManifest.RelativePath);
-		var manifest = WorkspaceManifest.Read(remote.Node.Root, File.Exists(file) ? File.ReadAllText(file) : "");
+		var manifest = WorkspaceManifest.Read(remote.Node.Root, FxFiles.Exists(file) ? FxFiles.ReadAllText(file) : "");
 		var origin = GitClient.Discover(start.Root)?.RemoteUrl("origin");
 		var declaration = manifest.Repositories.FirstOrDefault(r => origin is not null && WorkspaceModule.SameUrl(r.Url, origin))
 		                  ?? manifest.Repositories.FirstOrDefault(r => r.Name == inherited.Repository.Name || (r.Aliases ?? []).Contains(inherited.Repository.Name));

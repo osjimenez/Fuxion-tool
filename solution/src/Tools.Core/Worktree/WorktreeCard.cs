@@ -24,7 +24,7 @@ public sealed record WorktreeCard(string Branch, string From, IReadOnlyList<stri
 	public static string? FindRoot(string directory)
 	{
 		for (var dir = new DirectoryInfo(Path.GetFullPath(directory)); dir is not null; dir = dir.Parent)
-			if (File.Exists(Path.Combine(dir.FullName, FileName)))
+			if (FxFiles.Exists(Path.Combine(dir.FullName, FileName)))
 				return FxLayout.Normalize(dir.FullName);
 		return null;
 	}
@@ -33,11 +33,11 @@ public sealed record WorktreeCard(string Branch, string From, IReadOnlyList<stri
 	public static WorktreeCard? Load(string root, ICollection<FxDiagnostic>? diagnostics = null)
 	{
 		var file = Path.Combine(root, FileName);
-		if (!File.Exists(file))
+		if (!FxFiles.Exists(file))
 			return null;
 		var reader = new FxYamlReader(Invalid, FileName);
 		WorktreeCard? card = null;
-		if (reader.Load(File.ReadAllText(file)) is { } map && FxYamlReader.Scalar(map["branch"]) is { Length: > 0 } branch)
+		if (reader.Load(FxFiles.ReadAllText(file)) is { } map && FxYamlReader.Scalar(map["branch"]) is { Length: > 0 } branch)
 			card = new(branch, FxYamlReader.Scalar(map["from"]) ?? "", FxYamlReader.List(map["left-out"]),
 				(map["worktrees"] as YamlSequence)?.Items.OfType<YamlMapping>()
 				.Select(w => new WorktreeMount(FxYamlReader.Scalar(w["path"]) ?? "", FxYamlReader.Scalar(w["repository"]) ?? "", w["created-branch"] is YamlScalar { Value: "true" }))

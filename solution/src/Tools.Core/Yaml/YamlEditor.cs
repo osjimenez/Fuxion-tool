@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using Fuxion.Tools.Core.Layout;
 using SharpYaml.Syntax;
 
 namespace Fuxion.Tools.Core.Yaml;
@@ -91,7 +92,7 @@ public sealed class YamlEditor
 	/// <summary>Reads a file as it is: UTF-8, with or without a byte order mark (SharpYaml does not take one).</summary>
 	public static YamlEditor ReadFile(string path)
 	{
-		var bytes = File.ReadAllBytes(path);
+		var bytes = FxFiles.ReadAllBytes(path);
 		var bom = bytes is [0xEF, 0xBB, 0xBF, ..];
 		return Parse(new UTF8Encoding(false).GetString(bytes, bom ? 3 : 0, bytes.Length - (bom ? 3 : 0)), bom);
 	}

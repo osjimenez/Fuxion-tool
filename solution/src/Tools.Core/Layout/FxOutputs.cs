@@ -32,19 +32,19 @@ public sealed class FxOutputs(string displayRoot, bool write, bool adopt, FxDiag
 	/// <summary>Whether <paramref name="path"/> exists and holds <paramref name="content"/>: text without minding the line endings, binaries byte for byte.</summary>
 	public static bool Same(string path, byte[] content)
 	{
-		if (!File.Exists(path))
+		if (!FxFiles.Exists(path))
 			return false;
 		return IsText(content)
-			? Normalize(File.ReadAllText(path)) == Normalize(new UTF8Encoding(false).GetString(content).TrimStart('﻿'))
-			: File.ReadAllBytes(path).AsSpan().SequenceEqual(content);
+			? Normalize(FxFiles.ReadAllText(path)) == Normalize(new UTF8Encoding(false).GetString(content).TrimStart('﻿'))
+			: FxFiles.ReadAllBytes(path).AsSpan().SequenceEqual(content);
 	}
 
 	/// <summary>A file fx generates, with its header in <paramref name="content"/> ('\n').</summary>
 	public void Generated(string path, string content)
 	{
-		if (File.Exists(path))
+		if (FxFiles.Exists(path))
 		{
-			var current = File.ReadAllText(path);
+			var current = FxFiles.ReadAllText(path);
 			if (Normalize(current) == content)
 			{
 				Files.Add(new(Display(path), SyncFileStatus.Unchanged));
@@ -67,7 +67,7 @@ public sealed class FxOutputs(string displayRoot, bool write, bool adopt, FxDiag
 		if (IsText(content))
 		{
 			var text = Normalize(new UTF8Encoding(false).GetString(content).TrimStart('﻿'));
-			if (File.Exists(path) && Normalize(File.ReadAllText(path)) == text)
+			if (FxFiles.Exists(path) && Normalize(FxFiles.ReadAllText(path)) == text)
 			{
 				Files.Add(new(Display(path), SyncFileStatus.Unchanged));
 				return;
@@ -75,7 +75,7 @@ public sealed class FxOutputs(string displayRoot, bool write, bool adopt, FxDiag
 			SaveText(path, text);
 			return;
 		}
-		if (File.Exists(path) && File.ReadAllBytes(path).AsSpan().SequenceEqual(content))
+		if (FxFiles.Exists(path) && FxFiles.ReadAllBytes(path).AsSpan().SequenceEqual(content))
 		{
 			Files.Add(new(Display(path), SyncFileStatus.Unchanged));
 			return;
@@ -85,25 +85,29 @@ public sealed class FxOutputs(string displayRoot, bool write, bool adopt, FxDiag
 			Directory.CreateDirectory(Path.GetDirectoryName(path)!);
 			File.WriteAllBytes(path, content);
 		}
+		else
+			FxFiles.Stage(path, content);
 		Files.Add(new(Display(path), write ? SyncFileStatus.Written : SyncFileStatus.WouldWrite));
 	}
 
 	/// <summary>Removes a file that is fx's and is no longer wanted.</summary>
 	public void Delete(string path)
 	{
-		if (!File.Exists(path))
+		if (!FxFiles.Exists(path))
 			return;
 		if (write)
 			File.Delete(path);
+		else
+			FxFiles.Stage(path, null);
 		Files.Add(new(Display(path), write ? SyncFileStatus.Written : SyncFileStatus.WouldWrite));
 	}
 
 	/// <summary>Removes the empty folders under <paramref name="folder"/> (and it, if it ends up empty).</summary>
 	public void Prune(string folder)
 	{
-		if (!write || !Directory.Exists(folder))
+		if (!write || !FxFiles.DirectoryExists(folder))
 			return;
-		foreach (var sub in Directory.EnumerateDirectories(folder, "*", SearchOption.AllDirectories).OrderByDescending(d => d.Length))
+		foreach (var sub in FxFiles.EnumerateDirectories(folder, "*", SearchOption.AllDirectories).OrderByDescending(d => d.Length))
 			if (!Directory.EnumerateFileSystemEntries(sub).Any())
 				Directory.Delete(sub);
 		if (!Directory.EnumerateFileSystemEntries(folder).Any())
@@ -117,6 +121,9 @@ public sealed class FxOutputs(string displayRoot, bool write, bool adopt, FxDiag
 			Directory.CreateDirectory(Path.GetDirectoryName(path)!);
 			File.WriteAllText(path, content.Replace("\n", Environment.NewLine), new UTF8Encoding(false));
 		}
+		// not written: what is read from there next, in this run, is what it would be
+		else
+			FxFiles.Stage(path, Encoding.UTF8.GetBytes(content));
 		Files.Add(new(Display(path), write ? SyncFileStatus.Written : SyncFileStatus.WouldWrite));
 	}
 

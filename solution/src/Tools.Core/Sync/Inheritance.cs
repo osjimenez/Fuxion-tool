@@ -84,9 +84,9 @@ public static class Inheritance
 		}
 
 		// What the parent no longer gives: everything in .inherited/ is fx's
-		if (Directory.Exists(folder))
+		if (FxFiles.DirectoryExists(folder))
 		{
-			foreach (var path in Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories).ToList())
+			foreach (var path in FxFiles.EnumerateFiles(folder, "*", SearchOption.AllDirectories).ToList())
 			{
 				var relative = FxLayout.Relative(folder, path);
 				if (!applies || (!expected.ContainsKey(relative) && relative != "inherited.yaml"))
@@ -114,8 +114,8 @@ public static class Inheritance
 			else
 				foreach (var kept in (existing?.Files ?? []).Where(f => f.Path.StartsWith(folder + "/", StringComparison.Ordinal)
 				                                                     && WorkspaceShares.Under(f.Path[(folder.Length + 1)..], flow.Share.Destination)))
-					if (File.Exists(child.Full($"{FxLayout.Inherited}/{kept.Path}")))
-						expected[kept.Path] = (File.ReadAllBytes(child.Full($"{FxLayout.Inherited}/{kept.Path}")), kept.From);
+					if (FxFiles.Exists(child.Full($"{FxLayout.Inherited}/{kept.Path}")))
+						expected[kept.Path] = (FxFiles.ReadAllBytes(child.Full($"{FxLayout.Inherited}/{kept.Path}")), kept.From);
 	}
 
 	/// <summary>
@@ -133,43 +133,43 @@ public static class Inheritance
 		DotnetConfig inherited, own;
 		try
 		{
-			inherited = File.Exists(inheritedYaml) ? DotnetYamlReader.ReadFile(inheritedYaml) : DotnetConfig.Empty;
-			own = File.Exists(ownYaml) ? DotnetYamlReader.ReadFile(ownYaml).Absolute(parentIdentity.FullName) : DotnetConfig.Empty;
+			inherited = FxFiles.Exists(inheritedYaml) ? DotnetYamlReader.ReadFile(inheritedYaml) : DotnetConfig.Empty;
+			own = FxFiles.Exists(ownYaml) ? DotnetYamlReader.ReadFile(ownYaml).Absolute(parentIdentity.FullName) : DotnetConfig.Empty;
 		}
 		catch (DotnetConfigException ex)
 		{
 			diagnostics.AddRange(ex.Diagnostics.Select(d => d with { Code = InvalidParent, File = d.File is null ? null : FxLayout.Relative(parent.Root, d.File) }));
 			return false;
 		}
-		var ownOn = Directory.Exists(ownFolder) && own.Enabled;
-		if (!File.Exists(inheritedYaml) && !ownOn)
+		var ownOn = FxFiles.DirectoryExists(ownFolder) && own.Enabled;
+		if (!FxFiles.Exists(inheritedYaml) && !ownOn)
 			return false;
 		var merged = DotnetConfig.Combine(inherited, ownOn ? own : DotnetConfig.Empty) with { Solutions = [], Standalone = false };
 		if (!conduit && !(merged.AppliesTo ?? FxAppliesTo.All).Matches(identity))
 			return false;
 
 		var files = new SortedDictionary<string, (byte[] Content, IReadOnlyList<string> From)>(StringComparer.OrdinalIgnoreCase);
-		if (Directory.Exists(inheritedFolder))
-			foreach (var file in Directory.EnumerateFiles(inheritedFolder, "*", SearchOption.AllDirectories))
+		if (FxFiles.DirectoryExists(inheritedFolder))
+			foreach (var file in FxFiles.EnumerateFiles(inheritedFolder, "*", SearchOption.AllDirectories))
 			{
 				var relative = FxLayout.Relative(inheritedFolder, file);
 				if (relative != $"{module}.yaml")
-					files[relative] = (FxHeader.Strip(File.ReadAllBytes(file)), fromOf($"{module}/{relative}"));
+					files[relative] = (FxHeader.Strip(FxFiles.ReadAllBytes(file)), fromOf($"{module}/{relative}"));
 			}
 		if (ownOn)
-			foreach (var file in Directory.EnumerateFiles(ownFolder, "*", SearchOption.AllDirectories))
+			foreach (var file in FxFiles.EnumerateFiles(ownFolder, "*", SearchOption.AllDirectories))
 			{
 				var relative = FxLayout.Relative(ownFolder, file);
 				// not its yaml, not what fx generates there for the parent itself, not its local files
 				if (relative == $"{module}.yaml" || relative.Split('/').Any(FxLayout.IsLocal) || Path.GetFileName(relative).Contains(".g.", StringComparison.OrdinalIgnoreCase))
 					continue;
-				files[relative] = (File.ReadAllBytes(file), [parentIdentity.FullName]);
+				files[relative] = (FxFiles.ReadAllBytes(file), [parentIdentity.FullName]);
 			}
 
 		var yamlFrom = new List<string>();
-		if (File.Exists(inheritedYaml))
+		if (FxFiles.Exists(inheritedYaml))
 			yamlFrom.AddRange(fromOf($"{module}/{module}.yaml"));
-		if (ownOn && File.Exists(ownYaml))
+		if (ownOn && FxFiles.Exists(ownYaml))
 			yamlFrom.Add(parentIdentity.FullName);
 		yamlFrom = yamlFrom.Distinct().ToList();
 		expected[$"{module}/{module}.yaml"] = (Encoding.UTF8.GetBytes(DotnetYamlWriter.Inherited(merged, Workspaces(yamlFrom, $"_fx/{module}/{module}.yaml"))), yamlFrom);

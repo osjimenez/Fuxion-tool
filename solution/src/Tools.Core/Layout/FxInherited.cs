@@ -28,7 +28,7 @@ public sealed record FxInherited(FxIdentity Repository, FxInheritedParent Parent
 	public static FxInherited? Load(string root, ICollection<FxDiagnostic>? diagnostics = null)
 	{
 		var path = FxLayout.Full(root, FxLayout.InheritedFile);
-		return File.Exists(path) ? Read(File.ReadAllText(path), FxLayout.InheritedFile, diagnostics) : null;
+		return FxFiles.Exists(path) ? Read(FxFiles.ReadAllText(path), FxLayout.InheritedFile, diagnostics) : null;
 	}
 
 	public static FxInherited? Read(string text, string file, ICollection<FxDiagnostic>? diagnostics = null)

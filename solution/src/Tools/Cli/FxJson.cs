@@ -144,14 +144,16 @@ public sealed record VersionDocument(
 /// <summary><c>fx-version-tag/1</c>.</summary>
 public sealed record VersionTagDocument(string Schema, bool Ok, string? Tag, string? Commit, IReadOnlyList<JsonDiagnostic> Diagnostics);
 
-/// <summary>
-/// <c>fx-manifest-edit/1</c>, of the commands that edit the manifest: whether it changed and was written (not with
-/// <c>--dry-run</c> nor with errors) and the change as <c>diff -u</c> hunks.
-/// </summary>
 /// <summary>A file a command that edits changes, and its diff.</summary>
 public sealed record JsonFileEdit(string File, string Diff);
 
-public sealed record ManifestEditDocument(string Schema, bool Ok, bool Changed, bool Written, IReadOnlyList<JsonFileEdit> Files, IReadOnlyList<JsonDiagnostic> Diagnostics);
+/// <summary>
+/// <c>fx-manifest-edit/1</c>, of the commands that edit the manifest: whether it changed and was written (not with
+/// <c>--dry-run</c> nor with errors) and the change as <c>diff -u</c> hunks. With <c>--dry-run</c>, what
+/// <c>fx sync</c> would do with the change (<paramref name="Sync"/>: its modules, as in <c>fx-sync/1</c>).
+/// </summary>
+public sealed record ManifestEditDocument(string Schema, bool Ok, bool Changed, bool Written, IReadOnlyList<JsonFileEdit> Files, IReadOnlyList<JsonDiagnostic> Diagnostics,
+	IReadOnlyList<JsonModule>? Sync = null);
 
 // The events of --output ndjson (fx-events/1): one per line, "type" first; the last line is the command's document.
 

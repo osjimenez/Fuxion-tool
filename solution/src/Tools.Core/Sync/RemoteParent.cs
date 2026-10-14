@@ -50,7 +50,7 @@ public static class RemoteParent
 	public static (FxNode Node, string? Branch)? Read(string url, string? branch, bool offline, IFxProgress? progress, FxDiagnostics diagnostics, CancellationToken cancellationToken)
 	{
 		var folder = Folder(url);
-		var present = Directory.Exists(Path.Combine(folder, ".git"));
+		var present = FxFiles.DirectoryExists(Path.Combine(folder, ".git"));
 		if (offline)
 		{
 			if (present)
@@ -85,7 +85,7 @@ public static class RemoteParent
 	static IReadOnlyList<string> Shares(string folder)
 	{
 		var manifest = Path.Combine(folder, WorkspaceManifest.RelativePath);
-		var shares = File.Exists(manifest) ? WorkspaceManifest.Read(folder, File.ReadAllText(manifest)).Shares ?? [] : [];
+		var shares = FxFiles.Exists(manifest) ? WorkspaceManifest.Read(folder, FxFiles.ReadAllText(manifest)).Shares ?? [] : [];
 		return new[] { FxLayout.Folder }
 			.Concat(shares.Where(s => WorkspaceShares.SafeSource(s.Path))
 				.Select(s => s.Path.EndsWith('/') ? s.Path.TrimEnd('/') : Path.GetDirectoryName(s.Path)?.Replace('\\', '/') ?? ""))

@@ -27,7 +27,7 @@ fx worktree add <branch>      a worktree of a branch in the nearest workspace (-
         [--in <ws>] [--mandatory]
 fx worktree mount|unmount     more (or less) of the tree in a worktree: repositories, or paths left out
 fx worktree list|remove       the worktrees around here; remove one (not with uncommitted changes)
-fx describe                   every command, what it outputs and what it does (--output json: for agents)
+fx describe [--skill]         every command, what it outputs and what it does (--output json: for agents; --skill: its SKILL.md)
 fx schema [<id>]              the JSON Schema of an output (fx-sync/1…); without an id, the list
 fx module enable|disable      the modules of fx in this root (a folder of _fx each)
 fx                            the commands by topic and the global options (also fx --help)
@@ -112,7 +112,10 @@ Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain
 - **fx describes itself**: `fx describe --output json` (`fx-describe/1`) gives every command with its arguments and
   options, the schema of its JSON, whether it changes something, whether it may use the network, whether it takes
   `--dry-run` and whether it needs a person at the terminal (`fx ui`), the global options and the exit codes. `fx schema <id>` gives the JSON Schema (2020-12) of each output,
-  made from the types that write it. They are the source of the skill of fx and of the documentation of the CLI.
+  made from the types that write it. They are the source of the skill of fx and of the documentation of the CLI:
+  `fx describe --skill` writes the skill (a `SKILL.md` for coding agents, always in English: how an agent runs fx,
+  every command with its options and output, the exit codes). The Fuxion workspace versions it in `.claude/skills/fx/`
+  and `.agents/skills/fx/`; regenerate it when the commands change.
 - `--verbose` writes each step of the core on stderr as it finishes (clone, fetch, status… per repository), and the
   `info` diagnostics.
 - `--output ndjson` writes one JSON event per line as the work goes on (`fx-events/1`: `start`, `step-started`,
@@ -126,7 +129,14 @@ Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain
 - The commands that edit the configuration (`_fx/workspace/workspace.yaml`, the yaml of a module) change only what
   they must and keep the rest of the file: comments, order, quoting and line endings. They show the change as a diff,
   check it as the file is read (an invalid one is not written) and write it, unless `--dry-run` (`fx-manifest-edit/1`
-  with `--output json`). They never touch clones nor folders: `fx sync` does the rest, and they say so.
+  with `--output json`). They never touch clones nor folders: `fx sync` does the rest, and they say so. With
+  `--dry-run` they also say what `fx sync` would do with the change (`sync` in the JSON), worked out with the change
+  in place of the file and without writing it.
+- **`fx sync --dry-run` says what sync would do**: the files it would write, and the repositories it would clone, park
+  or bring back from the parking. Each level reads what the level above would leave, as it would once written, so a
+  change in a workspace shows down to the last repository it reaches. The doctor, instead, says what is not as it
+  should be. Both read fx's files through one layer of the core (`FxFiles`), which can put pending texts in place of
+  the disk: what `fx ui` uses to show what a change would do before writing it.
 - In a terminal, the work that takes a while (git on every repository) shows a spinner per step as it runs; the long
   steps (clone, fetch, pull) and the failed ones stay as lines above it. `fx doctor` shows a line per module (`[✓]`,
   `[!]`, `[✗]`), each problem under it with its fix, and a summary. Tables have borders in a terminal and are plain
@@ -148,8 +158,15 @@ Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain
   mount, unmount, and in a worktree `fx worktree mount|unmount`); F7 syncs; Enter on a repository not on disk mounts
   it or brings it back from the parking. Each one asks first, with the command that does the same and, for a sync,
   what it would change (its `--dry-run`), then runs in the background with its steps at the bottom (Esc cancels). F8
-  opens the log of what was run, with what it did. Each panel shows the command that does the same. Only in a terminal
-  with a person: elsewhere (a pipe, CI, an agent, `--output json`) it says so and ends with exit code 2.
+  opens the log of what was run, with what it did. **It edits**: the menu of a node also has its edits, each with the
+  command that does the same: a repository its workspace declares (a form with its keys, tags and name; or out of the
+  manifest), one nobody declares (added: Enter opens its form), a module (Enter turns one not used on), what a
+  workspace versions, and any yaml of fx by hand (a YAML editor; F4 opens it from a form). Edits are not written: they
+  are pending (the header counts them), each made over the ones before, and F10 shows them with their diff and what
+  `fx sync` would do with them; Enter writes them (not if a file changed on disk meanwhile) and offers the sync,
+  Ctrl+Z takes back the last, Delete throws them away. Ctrl+Q asks first with changes not written. Each panel shows the
+  command that does the same. Only in a terminal with a person: elsewhere (a pipe, CI, an agent, `--output json`) it
+  says so and ends with exit code 2.
 
 ## `Fuxion.Tools.Sdk`
 

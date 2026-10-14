@@ -31,7 +31,7 @@ public sealed partial record FxConfig(string? Name, string? Requires, IReadOnlyL
 	public static FxConfig Load(string root, string relative, ICollection<FxDiagnostic> diagnostics)
 	{
 		var path = FxLayout.Full(root, relative);
-		return File.Exists(path) ? Read(File.ReadAllText(path), relative, diagnostics) : Empty;
+		return FxFiles.Exists(path) ? Read(FxFiles.ReadAllText(path), relative, diagnostics) : Empty;
 	}
 
 	public static FxConfig Read(string text, string file, ICollection<FxDiagnostic> diagnostics)

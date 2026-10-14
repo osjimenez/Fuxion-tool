@@ -53,7 +53,13 @@ public sealed record UiOutcome(IReadOnlyList<string> Lines, IReadOnlyList<FxDiag
 public sealed record UiAction(string Label, string Command, string Description, Func<IFxProgress, CancellationToken, UiOutcome> Run,
 	Func<CancellationToken, UiOutcome>? Preview = null)
 {
+	/// <summary>An action that edits (O4.3b): it opens its form, or goes to the pending changes, instead of running.</summary>
+	public Action? Open { get; init; }
+
 	public override string ToString() => $"{Label} · {Command}";
+
+	/// <summary>The option <c>--root</c> of a command run from <paramref name="start"/> on the root at <paramref name="path"/>; none if it is the same.</summary>
+	public static string RootOption(string start, string path) => FxLayout.Relative(start, path) is var relative && relative == "." ? "" : $" --root {relative}";
 
 	/// <summary>
 	/// The actions of <paramref name="node"/>, the main one first: on what is not on disk, mounting it; on a root,
@@ -64,7 +70,7 @@ public sealed record UiAction(string Label, string Command, string Description, 
 	{
 		var actions = new List<UiAction>();
 		var workspace = WorkspaceOf(node);
-		string Root(string path) => FxLayout.Relative(start, path) is var relative && relative == "." ? "" : $" --root {relative}";
+		string Root(string path) => RootOption(start, path);
 		if (node.Kind is FxTreeKind.Declared or FxTreeKind.Parked)
 		{
 			if (node.SupersededBy is not null || workspace is null)

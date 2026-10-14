@@ -53,7 +53,7 @@ public sealed class WorkspaceCopies
 		{
 			if (WorkspaceManifest.IsWorkspace(dir.FullName))
 				top = FxLayout.Normalize(dir.FullName);
-			if (File.Exists(Path.Combine(dir.FullName, FxLayout.WorktreeFile)))
+			if (FxFiles.Exists(Path.Combine(dir.FullName, FxLayout.WorktreeFile)))
 				break;
 		}
 		return top;

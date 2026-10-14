@@ -18,6 +18,7 @@ using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Commands;
 using XenoAtom.Terminal.UI.Controls;
 using XenoAtom.Terminal.UI.Geometry;
+using XenoAtom.Terminal.UI.Hosting;
 using XenoAtom.Terminal.UI.Input;
 
 namespace Fuxion.Tools.Cli.Ui;
@@ -44,7 +45,7 @@ public sealed record UiWorktree(WorktreeInfo Info, int? Changes)
 /// (14.12); Alt+← goes back. It changes nothing: acting and editing are the next layers. Each panel shows the command
 /// that does the same (14.10).
 /// </summary>
-public sealed class UiApp
+public sealed partial class UiApp
 {
 	readonly ConcurrentQueue<Action> _toUi = new();
 	readonly State<int> _version = new(0);
@@ -75,6 +76,7 @@ public sealed class UiApp
 	CancellationTokenSource _work = new();
 	WorktreeCard? _card;
 	UiRunning? _running;
+	bool _quitReplaced;
 
 	public TreeView Tree { get; } = new();
 
@@ -116,7 +118,8 @@ public sealed class UiApp
 			{
 				_ = _version.Value;
 				var worktree = _card is null ? "" : $" [accent]{Esc(Texts.Get("ui.worktree", _card.Branch))}[/]";
-				return $"[bold]fx ui[/] · {Esc(Model.Identity?.FullName ?? Model.Name)}{worktree} [muted]{Esc(Model.Path)}[/]";
+				var pending = Pending.Any ? $" [warning]● {Esc(Texts.Get("ui.pending.header", Pending.Edits.Count))}[/]" : "";
+				return $"[bold]fx ui[/] · {Esc(Model.Identity?.FullName ?? Model.Name)}{worktree}{pending} [muted]{Esc(Model.Path)}[/]";
 			}) { Wrap = false },
 			Right = new Markup(() => _doctor.Value) { Wrap = false }
 		};
@@ -129,12 +132,13 @@ public sealed class UiApp
 			Select(Problems.Items[index].Node);
 			e.Handled = true;
 		});
-		// Enter on what is not on disk does its action: mounting it, bringing it back (14.1)
+		// Enter on what is not on disk does its action (14.1: mounting it, bringing it back, adding a `?`), and on a module
+		// not used, turns it on (14.8)
 		Tree.KeyDown((_, e) =>
 		{
-			if (e.Key != TerminalKey.Enter || Selected is not { Kind: FxTreeKind.Declared or FxTreeKind.Parked } node || Actions(node) is not { Count: > 0 } actions)
+			if (e.Key != TerminalKey.Enter || Busy || Selected is not { } node || Main(node) is not { } main)
 				return;
-			Confirm(actions[0]);
+			Do(main);
 			e.Handled = true;
 		});
 		_problems = new Group().TopLeftText(Texts.Get("ui.problems")).Content(Problems);
@@ -185,6 +189,7 @@ public sealed class UiApp
 		_host.AddCommand(Make("fx.sync", "ui.key.sync", new(TerminalKey.F7), Sync, () => !Busy && Selected is { } node && Actions(node).Any(a => a.Command.StartsWith("fx sync", StringComparison.Ordinal))));
 		_host.AddCommand(Make("fx.log", "ui.key.log", new(TerminalKey.F8), ToggleLog));
 		_host.AddCommand(Make("fx.actions", "ui.key.actions", new(TerminalKey.F9), ShowActions, () => !Busy && Selected is { } node && Actions(node).Count > 0));
+		_host.AddCommand(Make("fx.pending", "ui.key.pending", new(TerminalKey.F10), ShowPending, () => !Busy && Pending.Any));
 		_host.AddCommand(Make("fx.cancel", "ui.key.cancel", new(TerminalKey.Escape), CancelRun, () => Busy));
 		_host.AddCommand(Make("fx.back", "ui.key.back", new(TerminalKey.Left, TerminalModifiers.Alt), () => Back(), () => _back.Count > 0 && !Busy));
 	}
@@ -363,7 +368,24 @@ public sealed class UiApp
 	// acting (O4.2): the actions of a node, confirmed, run here with their progress, and their log
 
 	/// <summary>What can be done on <paramref name="node"/>, the main action first.</summary>
-	public IReadOnlyList<UiAction> Actions(FxTreeNode node) => UiAction.For(node, _start, _card);
+	public IReadOnlyList<UiAction> Actions(FxTreeNode node) => UiAction.For(node, _start, _card).Concat(EditActions(node)).ToList();
+
+	/// <summary>What Enter does on what is not on disk (14.1: mount it; a `?`, add it) and on a module not used (14.8: turn it on).</summary>
+	UiAction? Main(FxTreeNode node) => node.Kind switch
+	{
+		FxTreeKind.Declared or FxTreeKind.Parked => UiAction.For(node, _start, _card).FirstOrDefault(),
+		FxTreeKind.Unknown or FxTreeKind.ModuleOff => EditActions(node).FirstOrDefault(),
+		_ => null
+	};
+
+	/// <summary>An action chosen: one that edits opens its form (or goes to the pending changes); one that acts, asks to confirm it.</summary>
+	void Do(UiAction action)
+	{
+		if (action.Open is { } open)
+			open();
+		else
+			Confirm(action);
+	}
 
 	/// <summary>F7: syncing the root the node selected is in.</summary>
 	public void Sync()
@@ -393,7 +415,7 @@ public sealed class UiApp
 			if (e.Key != TerminalKey.Enter || list.SelectedIndex is not (>= 0 and var index) || index >= list.Items.Count)
 				return;
 			dialog!.Close();
-			Confirm(list.Items[index]);
+			Do(list.Items[index]);
 			e.Handled = true;
 		});
 		dialog = new Dialog().Title(Texts.Get("ui.actions", node.Name)).IsModal(true).Padding(1).Content(list);
@@ -647,6 +669,22 @@ public sealed class UiApp
 	/// <summary>On the thread of the screen: what the background found, and the folders opened that load the rest.</summary>
 	public TerminalLoopResult OnUpdate()
 	{
+		// the quit key of the app, with what it does here: it asks first with changes not written (O4.3b)
+		if (!_quitReplaced && Root.App is { } app)
+		{
+			var quit = app.GlobalCommands.FirstOrDefault(c => c.Id == TerminalApp.DefaultQuitCommandId);
+			app.AddGlobalCommand(new Command
+			{
+				Id = TerminalApp.DefaultQuitCommandId,
+				LabelMarkup = quit?.LabelMarkup ?? "Quit",
+				DescriptionMarkup = quit?.DescriptionMarkup,
+				Gesture = quit?.Gesture,
+				Importance = CommandImportance.Primary,
+				Presentation = CommandPresentation.CommandBar,
+				Execute = _ => Quit(app)
+			});
+			_quitReplaced = true;
+		}
 		// the progress of the action running
 		var changed = _running?.Drain() ?? false;
 		while (_toUi.TryDequeue(out var action))

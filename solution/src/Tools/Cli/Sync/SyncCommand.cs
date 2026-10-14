@@ -101,7 +101,8 @@ public static class SyncCommand
 		return console.Report(diagnostics);
 	}
 
-	static void WriteHuman(FxConsole console, FxModuleResult module, bool dryRun)
+	/// <summary>What a module did, or would do: its actions, its files that change, and a summary line (also for the commands that edit, with <c>--dry-run</c>).</summary>
+	internal static void WriteHuman(FxConsole console, FxModuleResult module, bool dryRun)
 	{
 		foreach (var action in console.NotShown(module.Actions))
 		{

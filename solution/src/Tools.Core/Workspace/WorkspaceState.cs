@@ -22,12 +22,12 @@ public sealed record WorkspaceState(IReadOnlyDictionary<string, bool> Mount)
 	public static WorkspaceState Load(string root)
 	{
 		var file = FxLayout.Full(root, RelativePath);
-		if (!File.Exists(file))
+		if (!FxFiles.Exists(file))
 			return Empty;
 		YamlNode? document;
 		try
 		{
-			document = YamlDocument.Load(File.ReadAllText(file));
+			document = YamlDocument.Load(FxFiles.ReadAllText(file));
 		}
 		catch (YamlSyntaxException)
 		{

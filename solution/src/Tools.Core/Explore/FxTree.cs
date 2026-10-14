@@ -79,13 +79,13 @@ public static class FxTree
 		var inherited = node.Inherited();
 		tree.Add(Fx(node, inherited));
 		var file = node.Full(WorkspaceManifest.RelativePath);
-		var manifest = WorkspaceManifest.Read(node.Root, File.Exists(file) ? File.ReadAllText(file) : "");
+		var manifest = WorkspaceManifest.Read(node.Root, FxFiles.Exists(file) ? FxFiles.ReadAllText(file) : "");
 
 		// what it versions (paths) and what it generates and versions (the .gitignore, its solutions)
 		foreach (var path in (manifest.Paths ?? []).Where(p => !p.Exclude))
 		{
 			var full = node.Full(path.Path);
-			if (path.IsFolder ? Directory.Exists(full) : File.Exists(full))
+			if (path.IsFolder ? FxFiles.DirectoryExists(full) : FxFiles.Exists(full))
 				Place(tree, path.Path.TrimEnd('/'), path.IsFolder
 					? new FxTreeNode { Kind = FxTreeKind.Folder, Name = Last(path.Path), Path = Clean(full), HasMore = true }
 					: FileNode(full, inherited));
@@ -142,12 +142,12 @@ public static class FxTree
 			HasMore = true
 		};
 		var inherited = node.Inherited();
-		if (Directory.Exists(node.Full(FxLayout.Folder)))
+		if (FxFiles.DirectoryExists(node.Full(FxLayout.Folder)))
 			tree.Add(Fx(node, inherited));
 		foreach (var share in inherited?.Shares ?? [])
-			if (File.Exists(node.Full(share.Destination)))
+			if (FxFiles.Exists(node.Full(share.Destination)))
 				Place(tree, share.Destination, FileNode(node.Full(share.Destination), inherited));
-		foreach (var solution in Directory.EnumerateFiles(node.Root, "*.slnx").Concat(Directory.EnumerateFiles(node.Root, "*.sln")))
+		foreach (var solution in FxFiles.EnumerateFiles(node.Root, "*.slnx").Concat(FxFiles.EnumerateFiles(node.Root, "*.sln")))
 			Place(tree, Path.GetFileName(solution), FileNode(solution, inherited));
 		SortAll(tree);
 		return tree;
@@ -158,15 +158,15 @@ public static class FxTree
 	{
 		var folder = node.Full(FxLayout.Folder);
 		var fx = new FxTreeNode { Kind = FxTreeKind.Folder, Name = FxLayout.Folder, Path = Clean(folder) };
-		if (!Directory.Exists(folder))
+		if (!FxFiles.DirectoryExists(folder))
 			return fx;
 		var modules = ManifestEditor.KnownModules
-			.Concat(Directory.EnumerateDirectories(folder).Select(Path.GetFileName).OfType<string>().Where(n => !n.StartsWith('.') && !FxLayout.IsLocal(n)))
+			.Concat(FxFiles.EnumerateDirectories(folder).Select(Path.GetFileName).OfType<string>().Where(n => !n.StartsWith('.') && !FxLayout.IsLocal(n)))
 			.Distinct(StringComparer.OrdinalIgnoreCase);
 		foreach (var name in modules)
 		{
 			var path = node.Full(FxLayout.ModuleFolder(name));
-			if (!Directory.Exists(path))
+			if (!FxFiles.DirectoryExists(path))
 			{
 				fx.Add(new FxTreeNode { Kind = FxTreeKind.ModuleOff, Name = name, Path = Clean(path) });
 				continue;
@@ -181,12 +181,12 @@ public static class FxTree
 			AddFolder(module, path, inherited, FxOrigin.Hand);
 		}
 		var inheritedFolder = node.Full(FxLayout.Inherited);
-		if (Directory.Exists(inheritedFolder))
+		if (FxFiles.DirectoryExists(inheritedFolder))
 			AddFolder(fx.Add(new FxTreeNode { Kind = FxTreeKind.Folder, Name = ".inherited", Path = Clean(inheritedFolder), Origin = FxOrigin.Inherited }), inheritedFolder, inherited,
 				FxOrigin.Inherited);
-		foreach (var file in Directory.EnumerateFiles(folder))
+		foreach (var file in FxFiles.EnumerateFiles(folder))
 			fx.Add(FileNode(file, inherited));
-		foreach (var local in Directory.EnumerateDirectories(folder).Where(d => FxLayout.IsLocal(Path.GetFileName(d))))
+		foreach (var local in FxFiles.EnumerateDirectories(folder).Where(d => FxLayout.IsLocal(Path.GetFileName(d))))
 			fx.Add(new FxTreeNode { Kind = FxTreeKind.Folder, Name = Path.GetFileName(local), Path = Clean(local), Origin = FxOrigin.Local, HasMore = true });
 		SortAll(fx);
 		return fx;
@@ -195,9 +195,9 @@ public static class FxTree
 	/// <summary>Everything in <paramref name="path"/>, under <paramref name="parent"/>: what is under <c>.inherited/</c> is inherited.</summary>
 	static void AddFolder(FxTreeNode parent, string path, FxInherited? inherited, FxOrigin folders)
 	{
-		foreach (var file in Directory.EnumerateFiles(path))
+		foreach (var file in FxFiles.EnumerateFiles(path))
 			parent.Add(FileNode(file, inherited));
-		foreach (var sub in Directory.EnumerateDirectories(path))
+		foreach (var sub in FxFiles.EnumerateDirectories(path))
 		{
 			var local = FxLayout.IsLocal(Path.GetFileName(sub));
 			var child = parent.Add(new FxTreeNode
@@ -257,7 +257,7 @@ public static class FxTree
 		var relative = FxLayout.Relative(root, file.Path);
 		void Add(string? path)
 		{
-			if (path is not null && File.Exists(path) && !result.Contains(Clean(path), StringComparer.OrdinalIgnoreCase))
+			if (path is not null && FxFiles.Exists(path) && !result.Contains(Clean(path), StringComparer.OrdinalIgnoreCase))
 				result.Add(Clean(path));
 		}
 		FxTreeNode? Named(string fullName)
@@ -265,8 +265,8 @@ public static class FxTree
 		void Shared(FxTreeNode workspace, string destination)
 		{
 			var manifest = FxLayout.Full(workspace.Path, WorkspaceManifest.RelativePath);
-			if (File.Exists(manifest))
-				foreach (var share in WorkspaceManifest.Read(workspace.Path, File.ReadAllText(manifest)).Shares ?? [])
+			if (FxFiles.Exists(manifest))
+				foreach (var share in WorkspaceManifest.Read(workspace.Path, FxFiles.ReadAllText(manifest)).Shares ?? [])
 					if (WorkspaceShares.Source(share, destination) is { } source)
 						Add(FxLayout.Full(workspace.Path, source));
 		}
@@ -333,11 +333,11 @@ public static class FxTree
 
 	static bool Enabled(string file)
 	{
-		if (!File.Exists(file))
+		if (!FxFiles.Exists(file))
 			return true;
 		try
 		{
-			return YamlDocument.Load(File.ReadAllText(file)) is not YamlMapping map || map["enabled"] is not YamlScalar { Value: "false" };
+			return YamlDocument.Load(FxFiles.ReadAllText(file)) is not YamlMapping map || map["enabled"] is not YamlScalar { Value: "false" };
 		}
 		catch (YamlSyntaxException)
 		{
@@ -351,7 +351,7 @@ public static class FxTree
 		var file = node.Full(FxLayout.ModuleFile(DotnetModule.Name));
 		try
 		{
-			return File.Exists(file) ? DotnetYamlReader.ReadFile(file).Solutions.Select(s => s.Path).ToList() : [];
+			return FxFiles.Exists(file) ? DotnetYamlReader.ReadFile(file).Solutions.Select(s => s.Path).ToList() : [];
 		}
 		catch (DotnetConfigException)
 		{
@@ -391,13 +391,13 @@ public static class FxTree
 	/// </summary>
 	public static void LoadMore(FxTreeNode node)
 	{
-		if (!node.HasMore || !Directory.Exists(node.Path))
+		if (!node.HasMore || !FxFiles.DirectoryExists(node.Path))
 			return;
 		node.HasMore = false;
 		var root = FxLayout.FindRoot(node.Path);
 		var inherited = root is null ? null : FxInherited.Load(root);
 		var known = node.Children.Select(c => c.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
-		foreach (var sub in Directory.EnumerateDirectories(node.Path).Where(d => Path.GetFileName(d) != ".git" && !known.Contains(Clean(d))))
+		foreach (var sub in FxFiles.EnumerateDirectories(node.Path).Where(d => Path.GetFileName(d) != ".git" && !known.Contains(Clean(d))))
 			node.Add(new FxTreeNode
 			{
 				Kind = FxTreeKind.Folder,
@@ -406,7 +406,7 @@ public static class FxTree
 				Origin = FxLayout.IsLocal(Path.GetFileName(sub)) ? FxOrigin.Local : FxOrigin.Hand,
 				HasMore = true
 			});
-		foreach (var file in Directory.EnumerateFiles(node.Path).Where(f => !known.Contains(Clean(f))))
+		foreach (var file in FxFiles.EnumerateFiles(node.Path).Where(f => !known.Contains(Clean(f))))
 			node.Add(FileNode(file, inherited));
 		node.Sort();
 	}
@@ -457,8 +457,8 @@ public static class FxTree
 		var ownYaml = node.Full(FxLayout.ModuleFile(DotnetModule.Name));
 		try
 		{
-			var inherited = File.Exists(inheritedYaml) ? DotnetYamlReader.ReadFile(inheritedYaml) : null;
-			var own = File.Exists(ownYaml) ? DotnetYamlReader.ReadFile(ownYaml).Absolute(identity.FullName) : null;
+			var inherited = FxFiles.Exists(inheritedYaml) ? DotnetYamlReader.ReadFile(inheritedYaml) : null;
+			var own = FxFiles.Exists(ownYaml) ? DotnetYamlReader.ReadFile(ownYaml).Absolute(identity.FullName) : null;
 			if (inherited is null && own is null)
 				return null;
 			return DotnetConfig.Combine(inherited ?? DotnetConfig.Empty, own is { Enabled: true } ? own : DotnetConfig.Empty);
