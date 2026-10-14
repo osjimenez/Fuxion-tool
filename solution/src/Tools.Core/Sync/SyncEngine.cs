@@ -82,7 +82,7 @@ public static class SyncEngine
 			outputs.Generated(start.Full(WorkspacePropsGenerator.FileName), WorkspacePropsGenerator.Generate(projects));
 			if (doctor)
 				CheckStandalone(run, projects, diagnostics);
-			run.Results.Add(new(DotnetModule.Name, start.Root, null, outputs.Files, [], diagnostics.ToList()));
+			run.Results.Add(new(DotnetModule.Name, start.Root, null, outputs.Files, [], diagnostics.ToList()) { Node = start.Root });
 		}
 		return run.Results;
 	}
@@ -211,7 +211,7 @@ public static class SyncEngine
 			foreach (var file in outputs.Files.Where(f => f.Status == SyncFileStatus.WouldWrite))
 				diagnostics.Add(FxDiagnostic.Error(WorkspaceModule.Outdated, new(WorkspaceModule.Outdated), file.Path, fix: FxFix.Run(FxHeader.Sync)));
 		if (parent is not null || node.IsWorkspace || diagnostics.Count > 0)
-			run.Results[at] = new(WorkspaceModule.Name, context.DisplayRoot, label, outputs.Files, actions, diagnostics.ToList());
+			run.Results[at] = new(WorkspaceModule.Name, context.DisplayRoot, label, outputs.Files, actions, diagnostics.ToList()) { Node = node.Root };
 		else
 			run.Results.RemoveAt(at);
 	}

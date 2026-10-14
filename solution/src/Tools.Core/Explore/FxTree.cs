@@ -1,0 +1,454 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using Fuxion.Tools.Core.Dotnet;
+using Fuxion.Tools.Core.Layout;
+using Fuxion.Tools.Core.Results;
+using Fuxion.Tools.Core.Workspace;
+using Fuxion.Tools.Core.Worktree;
+using Fuxion.Tools.Core.Yaml;
+
+namespace Fuxion.Tools.Core.Explore;
+
+/// <summary>Why something reaches a repository, or does not (decision 14.4).</summary>
+public enum FxReasonKind
+{
+	/// <summary>It is for everyone (no <c>applies-to</c>).</summary>
+	Everyone,
+
+	/// <summary>By one of its tags (<see cref="FxReason.Values"/>).</summary>
+	Tag,
+
+	/// <summary>By its name (<see cref="FxReason.Values"/>, full names).</summary>
+	Name,
+
+	/// <summary>A workspace in between: it always receives what comes from above, to pass it on.</summary>
+	Conduit,
+
+	/// <summary>Not for it: <see cref="FxReason.Values"/> say for whom (tags and names).</summary>
+	NotForIt
+}
+
+public sealed record FxReason(FxReasonKind Kind, IReadOnlyList<string> Values);
+
+/// <summary>Something that reaches a repository, or not, and why: a module, an import, a variable, a package or a share.</summary>
+/// <param name="What"><c>module</c>, <c>import</c>, <c>variable</c>, <c>package</c> or <c>share</c>.</param>
+public sealed record FxApplied(string What, string Name, bool Applies, FxReason Reason, IReadOnlyList<string> From);
+
+/// <summary>A tag of the catalog (plan P, decision 21): whether this root defines it or inherits it, and who has it.</summary>
+public sealed record FxTagInfo(FxTag Tag, bool Own, IReadOnlyList<string> From, IReadOnlyList<string> UsedBy);
+
+/// <summary>
+/// The tree of <c>fx ui</c> (plan O, decision 14), read from disk and from the manifests, never written: from the highest
+/// workspace on disk (in a worktree, its root; decision 14.11). A workspace has its <c>_fx/</c>, what it versions, what
+/// it generates, its repositories (mounted, declared and not on disk, parked) and what nobody declares; a repository,
+/// its <c>_fx/</c>, the shares it receives and its solutions, and the rest of it on demand (14.6). What reaches each one
+/// and why (14.4), the catalog of tags (14.13) and the diagnostics of the doctor on their nodes (14.2).
+/// </summary>
+public static class FxTree
+{
+	/// <summary>The tree that <paramref name="directory"/> is in; null outside any root of fx.</summary>
+	public static FxTreeNode? Build(string directory)
+	{
+		var top = WorkspaceCopies.Top(directory) ?? FxNode.Find(directory)?.Root;
+		if (top is null)
+			return null;
+		var node = new FxNode(top);
+		var identity = node.SelfIdentity();
+		return node.IsWorkspace
+			? Workspace(node, identity, null, WorkspaceCopies.Survey(top), null)
+			: Repository(node, identity, null, true, null);
+	}
+
+	static string Clean(string path) => Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+
+	static FxTreeNode Workspace(FxNode node, FxIdentity identity, WorkspaceRepository? declaration, WorkspaceCopies copies, RepositoryCopy? superseded)
+	{
+		var tree = new FxTreeNode
+		{
+			Kind = FxTreeKind.Workspace,
+			Name = declaration?.Name ?? identity.Name,
+			Path = Clean(node.Root),
+			Identity = identity,
+			Declaration = declaration,
+			Mounted = true,
+			SupersededBy = superseded,
+			Worktrees = WorktreeModule.Of(node.Root)
+		};
+		var inherited = node.Inherited();
+		tree.Add(Fx(node, inherited));
+		var file = node.Full(WorkspaceManifest.RelativePath);
+		var manifest = WorkspaceManifest.Read(node.Root, File.Exists(file) ? File.ReadAllText(file) : "");
+
+		// what it versions (paths) and what it generates and versions (the .gitignore, its solutions)
+		foreach (var path in (manifest.Paths ?? []).Where(p => !p.Exclude))
+		{
+			var full = node.Full(path.Path);
+			if (path.IsFolder ? Directory.Exists(full) : File.Exists(full))
+				Place(tree, path.Path.TrimEnd('/'), path.IsFolder
+					? new FxTreeNode { Kind = FxTreeKind.Folder, Name = Last(path.Path), Path = Clean(full), HasMore = true }
+					: FileNode(full, inherited));
+		}
+		var solutions = Solutions(node);
+		foreach (var generated in solutions.Prepend(GitignoreGenerator.FileName).Select(node.Full).Where(File.Exists))
+			Place(tree, FxLayout.Relative(node.Root, generated), FileNode(generated, inherited));
+
+		// its repositories, where they go
+		foreach (var state in WorkspaceModule.Repositories(manifest, withStatus: false, copies: copies))
+		{
+			var repo = state.Repository;
+			var childIdentity = new FxIdentity(repo.Name, $"{identity.FullName}/{repo.Name}", repo.Tags, repo.Aliases);
+			FxTreeNode child;
+			if (state.Present)
+			{
+				var sub = new FxNode(state.FullPath);
+				child = repo.Inherits && sub.IsWorkspace
+					? Workspace(sub, childIdentity, repo, copies, state.SupersededBy)
+					: Repository(sub, childIdentity, repo, state.Mounted, state.SupersededBy);
+			}
+			else
+				child = new FxTreeNode
+				{
+					Kind = state.Parked ? FxTreeKind.Parked : FxTreeKind.Declared,
+					Name = repo.Name,
+					Path = Clean(state.FullPath),
+					Identity = childIdentity,
+					Declaration = repo,
+					Mounted = state.Mounted,
+					SupersededBy = state.SupersededBy
+				};
+			Place(tree, repo.Path, child);
+		}
+
+		// what is on disk and nobody declares
+		foreach (var (relative, repository) in WorkspaceModule.Strangers(node.Root, manifest))
+			Place(tree, relative.TrimEnd('/'), new FxTreeNode { Kind = FxTreeKind.Unknown, Name = Last(relative), Path = Clean(node.Full(relative)), HasMore = !repository });
+		SortAll(tree);
+		return tree;
+	}
+
+	static FxTreeNode Repository(FxNode node, FxIdentity identity, WorkspaceRepository? declaration, bool mounted, RepositoryCopy? superseded)
+	{
+		var tree = new FxTreeNode
+		{
+			Kind = FxTreeKind.Repository,
+			Name = declaration?.Name ?? identity.Name,
+			Path = Clean(node.Root),
+			Identity = identity,
+			Declaration = declaration,
+			Mounted = mounted,
+			SupersededBy = superseded,
+			HasMore = true
+		};
+		var inherited = node.Inherited();
+		if (Directory.Exists(node.Full(FxLayout.Folder)))
+			tree.Add(Fx(node, inherited));
+		foreach (var share in inherited?.Shares ?? [])
+			if (File.Exists(node.Full(share.Destination)))
+				Place(tree, share.Destination, FileNode(node.Full(share.Destination), inherited));
+		foreach (var solution in Directory.EnumerateFiles(node.Root, "*.slnx").Concat(Directory.EnumerateFiles(node.Root, "*.sln")))
+			Place(tree, Path.GetFileName(solution), FileNode(solution, inherited));
+		SortAll(tree);
+		return tree;
+	}
+
+	/// <summary><c>_fx/</c>: its <c>fx.yaml</c>, its modules (on, off, and the ones fx knows it does not use), what it inherits and what is local.</summary>
+	static FxTreeNode Fx(FxNode node, FxInherited? inherited)
+	{
+		var folder = node.Full(FxLayout.Folder);
+		var fx = new FxTreeNode { Kind = FxTreeKind.Folder, Name = FxLayout.Folder, Path = Clean(folder) };
+		if (!Directory.Exists(folder))
+			return fx;
+		var modules = ManifestEditor.KnownModules
+			.Concat(Directory.EnumerateDirectories(folder).Select(Path.GetFileName).OfType<string>().Where(n => !n.StartsWith('.') && !FxLayout.IsLocal(n)))
+			.Distinct(StringComparer.OrdinalIgnoreCase);
+		foreach (var name in modules)
+		{
+			var path = node.Full(FxLayout.ModuleFolder(name));
+			if (!Directory.Exists(path))
+			{
+				fx.Add(new FxTreeNode { Kind = FxTreeKind.ModuleOff, Name = name, Path = Clean(path) });
+				continue;
+			}
+			var module = fx.Add(new FxTreeNode
+			{
+				Kind = FxTreeKind.Module,
+				Name = name,
+				Path = Clean(path),
+				Enabled = name == WorkspaceManifest.ModuleName ? WorkspaceManifest.IsWorkspace(node.Root) : Enabled(node.Full(FxLayout.ModuleFile(name)))
+			});
+			AddFolder(module, path, inherited, FxOrigin.Hand);
+		}
+		var inheritedFolder = node.Full(FxLayout.Inherited);
+		if (Directory.Exists(inheritedFolder))
+			AddFolder(fx.Add(new FxTreeNode { Kind = FxTreeKind.Folder, Name = ".inherited", Path = Clean(inheritedFolder), Origin = FxOrigin.Inherited }), inheritedFolder, inherited,
+				FxOrigin.Inherited);
+		foreach (var file in Directory.EnumerateFiles(folder))
+			fx.Add(FileNode(file, inherited));
+		foreach (var local in Directory.EnumerateDirectories(folder).Where(d => FxLayout.IsLocal(Path.GetFileName(d))))
+			fx.Add(new FxTreeNode { Kind = FxTreeKind.Folder, Name = Path.GetFileName(local), Path = Clean(local), Origin = FxOrigin.Local, HasMore = true });
+		SortAll(fx);
+		return fx;
+	}
+
+	/// <summary>Everything in <paramref name="path"/>, under <paramref name="parent"/>: what is under <c>.inherited/</c> is inherited.</summary>
+	static void AddFolder(FxTreeNode parent, string path, FxInherited? inherited, FxOrigin folders)
+	{
+		foreach (var file in Directory.EnumerateFiles(path))
+			parent.Add(FileNode(file, inherited));
+		foreach (var sub in Directory.EnumerateDirectories(path))
+		{
+			var local = FxLayout.IsLocal(Path.GetFileName(sub));
+			var child = parent.Add(new FxTreeNode
+			{
+				Kind = FxTreeKind.Folder,
+				Name = Path.GetFileName(sub),
+				Path = Clean(sub),
+				Origin = local ? FxOrigin.Local : folders,
+				HasMore = local
+			});
+			if (!local)
+				AddFolder(child, sub, inherited, folders);
+		}
+	}
+
+	/// <summary>A file, and whose it is: local, inherited (and from where), a share received, generated (its header), or by hand.</summary>
+	static FxTreeNode FileNode(string path, FxInherited? inherited)
+	{
+		var full = Clean(path);
+		var name = Path.GetFileName(full);
+		var origin = FxOrigin.Hand;
+		IReadOnlyList<string> from = [];
+		var root = FindRootOf(full);
+		var relative = root is null ? null : FxLayout.Relative(root, full);
+		if (full.Split(Path.DirectorySeparatorChar).Any(FxLayout.IsLocal))
+			origin = FxOrigin.Local;
+		else if (relative is not null && relative.StartsWith(FxLayout.Inherited + "/", StringComparison.Ordinal))
+		{
+			origin = FxOrigin.Inherited;
+			var inside = relative[(FxLayout.Inherited.Length + 1)..];
+			from = inherited?.Files.FirstOrDefault(f => string.Equals(f.Path, inside, StringComparison.OrdinalIgnoreCase))?.From ?? [];
+		}
+		else if (relative is not null && inherited?.Shares.FirstOrDefault(s => string.Equals(s.Destination, relative, StringComparison.OrdinalIgnoreCase)) is { } share)
+		{
+			origin = FxOrigin.Share;
+			from = [share.From];
+		}
+		else if (Generated(full))
+			origin = FxOrigin.Generated;
+		return new FxTreeNode { Kind = FxTreeKind.File, Name = name, Path = full, Origin = origin, From = from };
+	}
+
+	/// <summary>The root of fx a file is in: the nearest folder above it with <c>_fx/</c> or a git repository.</summary>
+	static string? FindRootOf(string file) => FxLayout.FindRoot(Path.GetDirectoryName(file)!);
+
+	static bool Generated(string path)
+	{
+		if (Path.GetFileName(path).Contains(".g.", StringComparison.OrdinalIgnoreCase))
+			return true;
+		try
+		{
+			using var reader = new StreamReader(path);
+			var buffer = new char[512];
+			var read = reader.Read(buffer, 0, buffer.Length);
+			return FxHeader.IsGenerated(new string(buffer, 0, read));
+		}
+		catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+		{
+			return false;
+		}
+	}
+
+	static bool Enabled(string file)
+	{
+		if (!File.Exists(file))
+			return true;
+		try
+		{
+			return YamlDocument.Load(File.ReadAllText(file)) is not YamlMapping map || map["enabled"] is not YamlScalar { Value: "false" };
+		}
+		catch (YamlSyntaxException)
+		{
+			return true;
+		}
+	}
+
+	/// <summary>The solutions a root composes (its <c>dotnet.yaml</c>), relative to it.</summary>
+	static IReadOnlyList<string> Solutions(FxNode node)
+	{
+		var file = node.Full(FxLayout.ModuleFile(DotnetModule.Name));
+		try
+		{
+			return File.Exists(file) ? DotnetYamlReader.ReadFile(file).Solutions.Select(s => s.Path).ToList() : [];
+		}
+		catch (DotnetConfigException)
+		{
+			return [];
+		}
+	}
+
+	static string Last(string relative) => relative.TrimEnd('/').Split('/').Last();
+
+	/// <summary>Puts <paramref name="child"/> at <paramref name="relative"/> under <paramref name="parent"/>, with the folders on the way.</summary>
+	static void Place(FxTreeNode parent, string relative, FxTreeNode child)
+	{
+		var segments = relative.Replace('\\', '/').Trim('/').Split('/');
+		var at = parent;
+		foreach (var segment in segments[..^1])
+			at = at.Children.FirstOrDefault(c => c.Kind is FxTreeKind.Folder && string.Equals(c.Name, segment, StringComparison.OrdinalIgnoreCase))
+			     ?? at.Add(new FxTreeNode { Kind = FxTreeKind.Folder, Name = segment, Path = Clean(Path.Combine(at.Path, segment)) });
+		// a folder of the paths that is also where repositories are: one node
+		if (child.Kind == FxTreeKind.Folder && at.Children.FirstOrDefault(c => c.Kind == FxTreeKind.Folder && string.Equals(c.Name, child.Name, StringComparison.OrdinalIgnoreCase)) is { } existing)
+		{
+			existing.HasMore |= child.HasMore;
+			return;
+		}
+		at.Add(child);
+	}
+
+	static void SortAll(FxTreeNode node)
+	{
+		node.Sort();
+		foreach (var child in node.Children.Where(c => c.Kind == FxTreeKind.Folder))
+			SortAll(child);
+	}
+
+	/// <summary>
+	/// The rest of a folder or a repository, what does not matter to fx (decision 14.6): its folders and files that the tree
+	/// does not have yet, each with whose it is, but <c>.git</c>.
+	/// </summary>
+	public static void LoadMore(FxTreeNode node)
+	{
+		if (!node.HasMore || !Directory.Exists(node.Path))
+			return;
+		node.HasMore = false;
+		var root = FxLayout.FindRoot(node.Path);
+		var inherited = root is null ? null : FxInherited.Load(root);
+		var known = node.Children.Select(c => c.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
+		foreach (var sub in Directory.EnumerateDirectories(node.Path).Where(d => Path.GetFileName(d) != ".git" && !known.Contains(Clean(d))))
+			node.Add(new FxTreeNode
+			{
+				Kind = FxTreeKind.Folder,
+				Name = Path.GetFileName(sub),
+				Path = Clean(sub),
+				Origin = FxLayout.IsLocal(Path.GetFileName(sub)) ? FxOrigin.Local : FxOrigin.Hand,
+				HasMore = true
+			});
+		foreach (var file in Directory.EnumerateFiles(node.Path).Where(f => !known.Contains(Clean(f))))
+			node.Add(FileNode(file, inherited));
+		node.Sort();
+	}
+
+	// what reaches each node, and why (decision 14.4)
+
+	/// <summary>Why <paramref name="appliesTo"/> reaches <paramref name="who"/>, or not.</summary>
+	public static FxReason Explain(FxAppliesTo appliesTo, FxIdentity who)
+		=> appliesTo.IsAll ? new(FxReasonKind.Everyone, [])
+			: appliesTo.Tags.Where(t => who.Tags.Contains(t, StringComparer.OrdinalIgnoreCase)).ToList() is { Count: > 0 } tags ? new(FxReasonKind.Tag, tags)
+			: appliesTo.Repositories.Where(who.Is).ToList() is { Count: > 0 } names ? new(FxReasonKind.Name, names)
+			: new(FxReasonKind.NotForIt, [.. appliesTo.Tags, .. appliesTo.Repositories]);
+
+	/// <summary>
+	/// What reaches a repository or a workspace from above and from its own <c>_fx/</c>: the .NET module and its imports,
+	/// variables and packages (each one, if it is for it, and why), and the shares it receives.
+	/// </summary>
+	public static IReadOnlyList<FxApplied> Applies(FxTreeNode repository)
+	{
+		var result = new List<FxApplied>();
+		if (repository.Identity is not { } identity || repository.Kind is not (FxTreeKind.Repository or FxTreeKind.Workspace))
+			return result;
+		var node = new FxNode(repository.Path);
+		var inherited = node.Inherited();
+		var conduit = repository.Kind == FxTreeKind.Workspace;
+		if (Dotnet(node, identity) is { } dotnet)
+		{
+			var from = inherited?.Files.FirstOrDefault(f => f.Path == $"{DotnetModule.Name}/{DotnetModule.Name}.yaml")?.From ?? [];
+			var module = dotnet.AppliesTo ?? FxAppliesTo.All;
+			var reason = conduit && !module.Matches(identity) ? new FxReason(FxReasonKind.Conduit, []) : Explain(module, identity);
+			result.Add(new("module", DotnetModule.Name, conduit || module.Matches(identity), reason, from));
+			foreach (var import in dotnet.Imports)
+				result.Add(new("import", string.Join(", ", import.Files), import.AppliesTo.Matches(identity), Explain(import.AppliesTo, identity), from));
+			foreach (var variable in dotnet.Variables)
+				result.Add(new("variable", variable.Name, variable.AppliesTo.Matches(identity), Explain(variable.AppliesTo, identity), from));
+			foreach (var package in dotnet.Packages)
+				result.Add(new("package", string.Join(", ", package.Ids), package.AppliesTo.Matches(identity), Explain(package.AppliesTo, identity), from));
+		}
+		foreach (var share in inherited?.Shares ?? [])
+			result.Add(new("share", share.Destination, true, new(FxReasonKind.Everyone, []), [share.From]));
+		return result;
+	}
+
+	/// <summary>The .NET of a root: what it inherits with its own on top (its own names made absolute from it); null without it.</summary>
+	static DotnetConfig? Dotnet(FxNode node, FxIdentity identity)
+	{
+		var inheritedYaml = node.Full($"{FxLayout.InheritedModuleFolder(DotnetModule.Name)}/{DotnetModule.Name}.yaml");
+		var ownYaml = node.Full(FxLayout.ModuleFile(DotnetModule.Name));
+		try
+		{
+			var inherited = File.Exists(inheritedYaml) ? DotnetYamlReader.ReadFile(inheritedYaml) : null;
+			var own = File.Exists(ownYaml) ? DotnetYamlReader.ReadFile(ownYaml).Absolute(identity.FullName) : null;
+			if (inherited is null && own is null)
+				return null;
+			return DotnetConfig.Combine(inherited ?? DotnetConfig.Empty, own is { Enabled: true } ? own : DotnetConfig.Empty);
+		}
+		catch (DotnetConfigException)
+		{
+			return null;
+		}
+	}
+
+	/// <summary>
+	/// Whom something of <paramref name="workspace"/> reaches (<paramref name="appliesTo"/>, absolute): every repository
+	/// declared below it, at any depth, and why; the workspaces in between always receive, to pass it on.
+	/// </summary>
+	public static IReadOnlyList<(FxTreeNode Repository, bool Applies, FxReason Reason)> Reach(FxTreeNode workspace, FxAppliesTo appliesTo)
+		=> workspace.Descendants().Where(n => n.Declaration is not null && n.Identity is not null && !n.Guest)
+			.Select(n => n.Kind == FxTreeKind.Workspace && !appliesTo.Matches(n.Identity!)
+				? (n, true, new FxReason(FxReasonKind.Conduit, []))
+				: (n, appliesTo.Matches(n.Identity!), Explain(appliesTo, n.Identity!)))
+			.ToList();
+
+	/// <summary>The <c>applies-to</c> of the .NET module of a workspace, as it reaches what is below it (absolute).</summary>
+	public static FxAppliesTo DotnetAppliesTo(FxTreeNode workspace)
+		=> workspace.Identity is { } identity && Dotnet(new FxNode(workspace.Path), identity) is { } dotnet ? dotnet.AppliesTo ?? FxAppliesTo.All : FxAppliesTo.All;
+
+	/// <summary>The catalog of tags of a root (decision 14.13): its own and what it inherits, and the repositories below that have each.</summary>
+	public static IReadOnlyList<FxTagInfo> Tags(FxTreeNode root)
+	{
+		var node = new FxNode(root.Path);
+		var own = node.OwnConfig();
+		var all = node.Config();
+		var from = node.Inherited()?.Files.FirstOrDefault(f => f.Path == "fx.yaml")?.From ?? [];
+		var repositories = root.Descendants().Where(n => n.Declaration is not null).ToList();
+		return all.Tags.Select(tag =>
+		{
+			var isOwn = own.Knows(tag.Name);
+			return new FxTagInfo(tag, isOwn, isOwn ? [root.Identity?.FullName ?? root.Name] : from,
+				repositories.Where(r => r.Declaration!.Tags.Contains(tag.Name, StringComparer.OrdinalIgnoreCase)).Select(r => r.Identity?.FullName ?? r.Name).ToList());
+		}).ToList();
+	}
+
+	// the doctor, on the tree (decision 14.2)
+
+	/// <summary>
+	/// Puts each diagnostic of <paramref name="results"/> on its node: the file it names, if any; else the repository it is
+	/// about, among those its workspace declares; else the root the module ran on.
+	/// </summary>
+	public static void Attach(FxTreeNode tree, IEnumerable<FxModuleResult> results)
+	{
+		foreach (var result in results)
+		{
+			var at = result.Node is { } node ? tree.Find(node) ?? tree : tree;
+			foreach (var diagnostic in result.Diagnostics)
+			{
+				var target = at;
+				if (diagnostic.File is { } file)
+					target = tree.Find(Path.Combine(result.Root, file)) ?? at;
+				else if (diagnostic.Repository is { } name && at.Kind == FxTreeKind.Workspace)
+					target = at.Descendants().FirstOrDefault(n => n.Declaration?.Name == name && n.Identity?.FullName == $"{at.Identity?.FullName}/{name}") ?? at;
+				target.Diagnostics.Add(diagnostic);
+			}
+		}
+	}
+}

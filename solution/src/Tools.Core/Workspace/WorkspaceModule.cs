@@ -312,7 +312,21 @@ public static class WorkspaceModule
 	/// </summary>
 	static void Walk(string root, WorkspaceManifest manifest, SyncContext context, FxDiagnostics diagnostics)
 	{
+		foreach (var (relative, repository) in Strangers(root, manifest))
+			if (repository)
+				diagnostics.Add(FxDiagnostic.Warning(Orphan, new(Orphan, relative.TrimEnd('/')), fix: FxFix.Do($"{Orphan}.fix")));
+			else
+				diagnostics.Add(FxDiagnostic.Info(NotVersioned, new(NotVersioned, relative), Display(context, root, relative.TrimEnd('/')), fix: FxFix.Do($"{NotVersioned}.fix")));
+	}
+
+	/// <summary>
+	/// What is on disk in the workspace at <paramref name="root"/> that nobody declared (plan P, P1, detail 6): repositories
+	/// (<c>repository</c>), and folders with files of their own that it does not version; relative, ending in '/'.
+	/// </summary>
+	public static IEnumerable<(string Relative, bool Repository)> Strangers(string root, WorkspaceManifest manifest)
+	{
 		var repositories = manifest.Repositories.Select(r => manifest.FullPath(r)).ToList();
+		var found = new List<(string, bool)>();
 		void Visit(string directory)
 		{
 			foreach (var sub in Directory.EnumerateDirectories(directory))
@@ -325,7 +339,7 @@ public static class WorkspaceModule
 					continue;
 				if (FxLayout.IsGitRoot(sub))
 				{
-					diagnostics.Add(FxDiagnostic.Warning(Orphan, new(Orphan, relative.TrimEnd('/')), fix: FxFix.Do($"{Orphan}.fix")));
+					found.Add((relative, true));
 					continue;
 				}
 				// a folder that leads to a repository (or to versioned paths) is walked; one with files of its own is reported
@@ -333,12 +347,13 @@ public static class WorkspaceModule
 				var leads = repositories.Any(r => r.StartsWith(FxLayout.Normalize(sub), StringComparison.OrdinalIgnoreCase))
 				            || (manifest.Paths ?? []).Any(p => !p.Exclude && p.Path.StartsWith(relative, StringComparison.OrdinalIgnoreCase));
 				if (hasFiles && !leads)
-					diagnostics.Add(FxDiagnostic.Info(NotVersioned, new(NotVersioned, relative), Display(context, root, relative.TrimEnd('/')), fix: FxFix.Do($"{NotVersioned}.fix")));
+					found.Add((relative, false));
 				else if (!hasFiles || leads)
 					Visit(sub);
 			}
 		}
 		Visit(root);
+		return found;
 	}
 
 	// The state of each mounted repository

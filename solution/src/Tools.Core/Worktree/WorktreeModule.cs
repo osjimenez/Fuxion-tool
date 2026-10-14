@@ -387,13 +387,22 @@ public static class WorktreeModule
 		var folders = Workspaces(directory).Select(w => FxLayout.Full(w, FxLayout.Worktrees)).ToList();
 		if (folders.Count == 0 && GitClient.Discover(directory) is { } git && (git.MainRoot() ?? git.Root) is { } main)
 			folders.Add(UserFolderOf(main, new FxNode(main).SelfIdentity().Name));
+		return folders.SelectMany(f => In(f, withStatus)).ToList();
+	}
+
+	/// <summary>The worktrees of the workspace at <paramref name="workspace"/> (its <c>_fx/~$worktrees/</c>); with <paramref name="withStatus"/>, their changes.</summary>
+	public static IReadOnlyList<WorktreeInfo> Of(string workspace, bool withStatus = false) => In(FxLayout.Full(workspace, FxLayout.Worktrees), withStatus);
+
+	static IReadOnlyList<WorktreeInfo> In(string folder, bool withStatus)
+	{
 		var result = new List<WorktreeInfo>();
-		foreach (var folder in folders.Where(Directory.Exists))
-			foreach (var root in Directory.EnumerateDirectories(folder).Select(FxLayout.Normalize))
-				if (WorktreeCard.Load(root) is { } card)
-					result.Add(new(root, card, withStatus
-						? card.Worktrees.ToDictionary(w => w.Path, w => GitClient.Discover(w.Path == "." ? root : FxLayout.Full(root, w.Path))?.Status().Changes ?? 0)
-						: null));
+		if (!Directory.Exists(folder))
+			return result;
+		foreach (var root in Directory.EnumerateDirectories(folder).Select(FxLayout.Normalize))
+			if (WorktreeCard.Load(root) is { } card)
+				result.Add(new(root, card, withStatus
+					? card.Worktrees.ToDictionary(w => w.Path, w => GitClient.Discover(w.Path == "." ? root : FxLayout.Full(root, w.Path))?.Status().Changes ?? 0)
+					: null));
 		return result;
 	}
 

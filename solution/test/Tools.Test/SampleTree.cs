@@ -228,6 +228,22 @@ public abstract class SampleTree : IDisposable
 		}
 	}
 
+	/// <summary>The repositories of the tree once acme is synced, relative to it ('.', acme itself).</summary>
+	protected static readonly string[] Repositories = [".", "repo-w1", "repo-w1/repo-c1", "repo-w1/repo-c2", "repo-w2", "repo-w2/apps/c3", "libs/shared"];
+
+	/// <summary>acme synced, and what sync wrote committed in every repository, as each team would have it.</summary>
+	protected TempGitRepository AcmeCommitted()
+	{
+		var acme = Acme();
+		foreach (var path in Repositories)
+		{
+			var full = Path.Combine(acme.Path, path);
+			acme.Git("-C", full, "add", "-A");
+			acme.Git("-C", full, "commit", "--quiet", "--allow-empty", "-m", "synced");
+		}
+		return acme;
+	}
+
 	/// <summary>A project as the map of FxReference has it: its full path.</summary>
 	protected static string Project(params string[] path) => $"Path=\"{Path.GetFullPath(Path.Combine(path))}\"";
 

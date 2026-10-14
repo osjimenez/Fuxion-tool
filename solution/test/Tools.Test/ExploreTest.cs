@@ -1,0 +1,157 @@
+using System;
+using System.IO;
+using System.Linq;
+using Fuxion.Tools.Core.Explore;
+using Fuxion.Tools.Core.Results;
+using Fuxion.Tools.Core.Sync;
+using Fuxion.Tools.Core.Workspace;
+using Fuxion.Tools.Core.Worktree;
+using Xunit;
+
+namespace Fuxion.Tools.Test;
+
+/// <summary>The tree of <c>fx ui</c> (plan O, O4.1, decision 14), read from the sample tree.</summary>
+public sealed class ExploreTest : SampleTree
+{
+	static FxTreeNode At(FxTreeNode tree, string relative)
+		=> tree.Find(Path.Combine(tree.Path, relative)) is { } found && string.Equals(found.Path, Path.GetFullPath(Path.Combine(tree.Path, relative)).TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase)
+			? found
+			: throw new InvalidOperationException($"{relative} is not in the tree");
+
+	[Fact(DisplayName = "the tree: disk and manifests in one, from the highest workspace; each repository as it is; _fx first")]
+	public void Tree()
+	{
+		var acme = Acme();
+		// from anywhere inside, the highest workspace
+		var tree = FxTree.Build(Path.Combine(acme.Path, "repo-w1", "repo-c1", "src"))!;
+		Assert.Equal((FxTreeKind.Workspace, "acme", "/acme"), (tree.Kind, tree.Name, tree.Identity!.FullName));
+		Assert.Equal("_fx", tree.Children[0].Name);
+		Assert.Equal(FxTreeKind.Workspace, At(tree, "repo-w1").Kind);
+		Assert.Equal("/acme/repo-w1/repo-c1", At(tree, "repo-w1/repo-c1").Identity!.FullName);
+		Assert.Equal(FxTreeKind.Repository, At(tree, "libs/shared").Kind);
+		Assert.True(At(tree, "libs").HasMore);
+		Assert.True(At(tree, "_docs").HasMore);
+		// repo-w2's guest shared: declared, not cloned, and the copy of acme is used
+		var guest = At(tree, "repo-w2/libs/shared");
+		Assert.Equal(FxTreeKind.Declared, guest.Kind);
+		Assert.True(guest.Guest);
+		Assert.Equal("/acme/shared", guest.SupersededBy!.FullName);
+		Assert.Equal(FxOrigin.Generated, At(tree, "Acme.slnx").Origin);
+		Assert.Equal(FxOrigin.Generated, At(tree, ".gitignore").Origin);
+		Assert.Equal(FxOrigin.Hand, At(tree, "README.md").Origin);
+		// a repository has what matters to fx, and the rest on demand
+		var c1 = At(tree, "repo-w1/repo-c1");
+		Assert.True(c1.HasMore);
+		Assert.DoesNotContain(c1.Children, c => c.Name == "src");
+		FxTree.LoadMore(c1);
+		Assert.Contains(c1.Children, c => c.Name == "src" && c.HasMore);
+		Assert.Single(c1.Children, c => c.Name == "C1.slnx");
+	}
+
+	[Fact(DisplayName = "each file says whose it is: by hand, generated, inherited (from where) or local; modules on and off")]
+	public void Origins()
+	{
+		var acme = Acme();
+		var tree = FxTree.Build(acme.Path)!;
+		var inherited = At(tree, "repo-w1/repo-c1/_fx/.inherited/dotnet/dotnet.yaml");
+		Assert.Equal(FxOrigin.Inherited, inherited.Origin);
+		Assert.Equal(["/acme", "/acme/repo-w1"], inherited.From);
+		Assert.Equal(FxOrigin.Generated, At(tree, "repo-w1/repo-c1/_fx/dotnet/dotnet.g.props").Origin);
+		Assert.Equal(FxOrigin.Hand, At(tree, "repo-w1/repo-c1/_fx/dotnet/dotnet.yaml").Origin);
+		Assert.Equal(FxTreeKind.Module, At(tree, "repo-w1/repo-c1/_fx/dotnet").Kind);
+		Assert.Equal(FxTreeKind.ModuleOff, At(tree, "repo-w1/repo-c1/_fx/workspace").Kind);
+		Assert.Equal(FxTreeKind.Module, At(tree, "_fx/workspace").Kind);
+		Assert.Equal(FxOrigin.Local, At(tree, "_fx/workspace/~$state.yaml").Origin);
+		Assert.Equal(FxOrigin.Local, At(tree, "_fx/dotnet/~$workspace.props").Origin);
+	}
+
+	[Fact(DisplayName = "what nobody declares (?), what is parked, what is declared and not on disk")]
+	public void Unknown_Parked_Declared()
+	{
+		var acme = Acme();
+		Directory.CreateDirectory(Path.Combine(acme.Path, "notes"));
+		File.WriteAllText(Path.Combine(acme.Path, "notes", "todo.md"), "todo\n");
+		new TempGitRepository(path: Path.Combine(acme.Path, "stray")).Dispose();
+		Directory.CreateDirectory(Path.Combine(acme.Path, "stray", ".git"));
+		// shared, manual and unmounted: parked; then repo-w2's guest is the only copy, mounted and not cloned
+		Append(Path.Combine(acme.Path, "_fx", "workspace", "workspace.yaml"), "    path: libs/shared\n    mount: mandatory\n", "    path: libs/shared\n    mount: manual\n");
+		Assert.Empty(WorkspaceModule.SetMount(WorkspaceManifest.Load(acme.Path), ["shared"], mounted: false).Diagnostics);
+
+		var tree = FxTree.Build(acme.Path)!;
+		Assert.Equal(FxTreeKind.Unknown, At(tree, "notes").Kind);
+		Assert.Equal(FxTreeKind.Unknown, At(tree, "stray").Kind);
+		var shared = At(tree, "libs/shared");
+		Assert.Equal((FxTreeKind.Parked, false), (shared.Kind, shared.Mounted));
+		var guest = At(tree, "repo-w2/libs/shared");
+		Assert.Equal((FxTreeKind.Declared, true), (guest.Kind, guest.Mounted));
+		Assert.Null(guest.SupersededBy);
+	}
+
+	[Fact(DisplayName = "what reaches a repository and why: by tag, by name, for everyone, or not for it")]
+	public void Applies()
+	{
+		var acme = Acme();
+		var tree = FxTree.Build(acme.Path)!;
+		var c1 = FxTree.Applies(At(tree, "repo-w1/repo-c1"));
+		var module = Assert.Single(c1, a => a.What == "module");
+		Assert.Equal((true, FxReasonKind.Tag), (module.Applies, module.Reason.Kind));
+		Assert.Equal(["dotnet"], module.Reason.Values);
+		var serilog = Assert.Single(c1, a => a.What == "package" && a.Name == "Serilog");
+		Assert.Equal((true, FxReasonKind.Name), (serilog.Applies, serilog.Reason.Kind));
+		Assert.Equal(["/acme/repo-w1/repo-c1"], serilog.Reason.Values);
+		Assert.Contains(c1, a => a is { What: "package", Name: "xunit.v3", Applies: true, Reason.Kind: FxReasonKind.Everyone });
+		Assert.Contains(c1, a => a is { What: "import", Name: "default.props", Applies: true });
+		var c2 = FxTree.Applies(At(tree, "repo-w1/repo-c2"));
+		Assert.Contains(c2, a => a is { What: "package", Name: "Serilog", Applies: false, Reason.Kind: FxReasonKind.NotForIt });
+
+		// and the other way: whom the .NET of acme reaches
+		var reach = FxTree.Reach(tree, FxTree.DotnetAppliesTo(tree));
+		Assert.Contains(reach, r => r.Repository.Name == "repo-c1" && r.Applies && r.Reason.Kind == FxReasonKind.Tag);
+		Assert.DoesNotContain(reach, r => r.Repository.Guest);
+	}
+
+	[Fact(DisplayName = "the catalog of tags: its own and what it inherits, and who has each")]
+	public void Tags()
+	{
+		var acme = Acme();
+		var tree = FxTree.Build(acme.Path)!;
+		var dotnet = Assert.Single(FxTree.Tags(tree), t => t.Tag.Name == "dotnet");
+		Assert.True(dotnet.Own);
+		Assert.Contains("/acme/repo-w1/repo-c1", dotnet.UsedBy);
+		var w1 = FxTree.Tags(At(tree, "repo-w1"));
+		Assert.True(Assert.Single(w1, t => t.Tag.Name == "mobile").Own);
+		var inherited = Assert.Single(w1, t => t.Tag.Name == "product");
+		Assert.Equal((false, "/acme"), (inherited.Own, inherited.From.Single()));
+	}
+
+	[Fact(DisplayName = "the doctor on the tree: each problem on its node, and the mark goes up to its parents")]
+	public void Doctor()
+	{
+		var acme = AcmeCommitted();
+		File.WriteAllText(Path.Combine(acme.Path, "repo-w1", "repo-c2", "work.txt"), "work\n");
+		var tree = FxTree.Build(acme.Path)!;
+		FxTree.Attach(tree, SyncEngine.Doctor(acme.Path, new(Offline: true), cancellationToken: TestContext.Current.CancellationToken));
+		var c2 = At(tree, "repo-w1/repo-c2");
+		Assert.Contains(c2.Diagnostics, d => d.Code == WorkspaceModule.Dirty);
+		Assert.DoesNotContain(At(tree, "repo-w1/repo-c1").Diagnostics, d => d.Code == WorkspaceModule.Dirty);
+		Assert.Equal(FxSeverity.Warning, At(tree, "repo-w1").Worst);
+		Assert.Contains(At(tree, "repo-w1/repo-c1").Diagnostics, d => d.Code == "dotnet.unverifiable");
+		Assert.True(At(tree, "repo-w1").Problems >= At(tree, "repo-w1/repo-c1").Problems + At(tree, "repo-w1/repo-c2").Problems);
+	}
+
+	[Fact(DisplayName = "a workspace knows its worktrees; their folder, local")]
+	public void Worktrees()
+	{
+		var acme = AcmeCommitted();
+		Assert.DoesNotContain(WorktreeModule.Add(Path.Combine(acme.Path, "libs", "shared"), "fix/t", null, false, cancellationToken: TestContext.Current.CancellationToken).AllDiagnostics,
+			d => d.Severity == FxSeverity.Error);
+		var tree = FxTree.Build(acme.Path)!;
+		Assert.Equal("fix/t", Assert.Single(tree.Worktrees).Card.Branch);
+		Assert.Equal(FxOrigin.Local, At(tree, "_fx/~$worktrees").Origin);
+		// inside the worktree, the tree is the worktree's
+		var inside = FxTree.Build(Path.Combine(acme.Path, "_fx", "~$worktrees", "fix-t", "libs", "shared"))!;
+		Assert.EndsWith("fix-t", inside.Path);
+		Assert.Equal(FxTreeKind.Repository, At(inside, "libs/shared").Kind);
+		Assert.Equal(FxTreeKind.Declared, At(inside, "repo-w1").Kind);
+	}
+}

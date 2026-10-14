@@ -115,7 +115,7 @@ public static partial class DotnetModule
 		catch (DotnetConfigException ex)
 		{
 			diagnostics.AddRange(ex.Diagnostics.Select(d => d with { File = d.File is null ? null : outputs.Display(d.File) }));
-			return new(Name, context.DisplayRoot, repository, [], [], diagnostics.ToList());
+			return new(Name, context.DisplayRoot, repository, [], [], diagnostics.ToList()) { Node = node.Root };
 		}
 		if (configuration is not { } found)
 		{
@@ -129,7 +129,7 @@ public static partial class DotnetModule
 			if (context.Doctor)
 				foreach (var file in outputs.Files)
 					diagnostics.Add(FxDiagnostic.Error(Outdated, new(Outdated), file.Path, fix: FxFix.Run(FxHeader.Sync)));
-			return outputs.Files.Count == 0 ? null : new(Name, context.DisplayRoot, repository, outputs.Files, [], diagnostics.ToList());
+			return outputs.Files.Count == 0 ? null : new(Name, context.DisplayRoot, repository, outputs.Files, [], diagnostics.ToList()) { Node = node.Root };
 		}
 		diagnostics.AddRange(warnings.Select(d => d with { File = d.File is null ? null : outputs.Display(d.File) }));
 		var (config, sources, own) = found;
@@ -145,7 +145,7 @@ public static partial class DotnetModule
 		if (context.Doctor)
 			foreach (var file in outputs.Files.Where(f => f.Status == SyncFileStatus.WouldWrite))
 				diagnostics.Add(FxDiagnostic.Error(Outdated, new(Outdated), file.Path, fix: FxFix.Run(FxHeader.Sync)));
-		return new(Name, context.DisplayRoot, repository, outputs.Files, [], diagnostics.ToList());
+		return new(Name, context.DisplayRoot, repository, outputs.Files, [], diagnostics.ToList()) { Node = node.Root };
 	}
 
 	static void Generate(FxNode node, GitClient git, FxIdentity identity, DotnetConfig config, string sources, SyncContext context, FxOutputs outputs, FxDiagnostics diagnostics)

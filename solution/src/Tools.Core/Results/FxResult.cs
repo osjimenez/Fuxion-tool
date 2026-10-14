@@ -144,6 +144,9 @@ public sealed record FxModuleResult(
 	IReadOnlyList<RepositoryAction> Actions,
 	IReadOnlyList<FxDiagnostic> Diagnostics)
 {
+	/// <summary>The root of fx it ran on (full path), if one: where its diagnostics without a file are (for <c>fx ui</c>).</summary>
+	public string? Node { get; init; }
+
 	public bool Failed => Diagnostics.Any(d => d.Severity == FxSeverity.Error);
 
 	/// <summary>A module that could not even start: just its diagnostics.</summary>

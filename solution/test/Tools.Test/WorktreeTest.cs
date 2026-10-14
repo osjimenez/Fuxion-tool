@@ -29,21 +29,6 @@ public sealed class WorktreeTest : SampleTree
 	/// <summary>A worktree: its <c>.git</c> is a file.</summary>
 	static bool IsWorktree(string path) => File.Exists(Path.Combine(path, ".git"));
 
-	static readonly string[] Repositories = [".", "repo-w1", "repo-w1/repo-c1", "repo-w1/repo-c2", "repo-w2", "repo-w2/apps/c3", "libs/shared"];
-
-	/// <summary>acme synced, and what sync wrote committed in every repository, as each team would have it.</summary>
-	TempGitRepository AcmeCommitted()
-	{
-		var acme = Acme();
-		foreach (var path in Repositories)
-		{
-			var full = Path.Combine(acme.Path, path);
-			acme.Git("-C", full, "add", "-A");
-			acme.Git("-C", full, "commit", "--quiet", "--allow-empty", "-m", "synced");
-		}
-		return acme;
-	}
-
 	static string[] Paths(string root) => WorktreeCard.Load(root)!.Worktrees.Select(w => w.Path).ToArray();
 
 	[Fact(DisplayName = "add --mandatory in the root: the workspace in worktree mode (sparse), its mandatory repositories at every level, the highest copy; the main tree untouched")]
