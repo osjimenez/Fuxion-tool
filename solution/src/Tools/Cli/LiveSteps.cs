@@ -25,7 +25,8 @@ namespace Fuxion.Tools.Cli;
 /// </summary>
 sealed class LiveSteps : IFxProgress
 {
-	static readonly HashSet<string> LongSteps = ["clone", "fetch", "pull", "remote"];
+	/// <summary>The steps that stay as a line when they finish: they take a while (also in fx ui).</summary>
+	internal static readonly HashSet<string> LongSteps = ["clone", "fetch", "pull", "remote"];
 
 	/// <summary>The actions of the core whose step stays as a line above the region: the result does not repeat them.</summary>
 	public static readonly HashSet<string> ShownActions = ["cloned", "clone-failed", "fetched", "fetch-failed", "pulled", "failed"];

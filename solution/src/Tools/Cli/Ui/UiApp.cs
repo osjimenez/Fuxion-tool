@@ -65,8 +65,16 @@ public sealed class UiApp
 	readonly Dictionary<string, (FxTreeNode Model, bool Done)> _trees = new(StringComparer.OrdinalIgnoreCase);
 	readonly ToastHost _host = new();
 	readonly Group _problems;
+	// where fx ui was launched: the commands it shows are written from there (--root)
+	readonly string _start;
+	readonly State<bool> _logVisible = new(false);
+	readonly List<UiLogEntry> _log = [];
+	// the work in the background (the doctor, git, the preview of a dialog): an action waits for it, cancelled, before it
+	// starts (a git running in a repository would not let it be parked)
+	readonly List<Task> _tasks = [];
 	CancellationTokenSource _work = new();
 	WorktreeCard? _card;
+	UiRunning? _running;
 
 	public TreeView Tree { get; } = new();
 
@@ -84,9 +92,16 @@ public sealed class UiApp
 	/// <summary>Of the tree shown, if it is a worktree: its card.</summary>
 	public WorktreeCard? Worktree => _card;
 
+	/// <summary>Whether an action is running.</summary>
+	public bool Busy => _running is not null;
+
+	/// <summary>What was run from fx ui, the last first.</summary>
+	public IReadOnlyList<UiLogEntry> Log => _log;
+
 	public UiApp(FxTreeNode model, string start)
 	{
 		Model = model;
+		_start = start;
 		_card = WorktreeCard.Load(model.Path);
 		Fill(model.Find(start) ?? model);
 
@@ -114,8 +129,29 @@ public sealed class UiApp
 			Select(Problems.Items[index].Node);
 			e.Handled = true;
 		});
+		// Enter on what is not on disk does its action: mounting it, bringing it back (14.1)
+		Tree.KeyDown((_, e) =>
+		{
+			if (e.Key != TerminalKey.Enter || Selected is not { Kind: FxTreeKind.Declared or FxTreeKind.Parked } node || Actions(node) is not { Count: > 0 } actions)
+				return;
+			Confirm(actions[0]);
+			e.Handled = true;
+		});
 		_problems = new Group().TopLeftText(Texts.Get("ui.problems")).Content(Problems);
-		var bottom = new ComputedVisual(() => _problemsVisible.Value ? new VStack(_problems, new CommandBar()).Spacing(0) : new CommandBar());
+		// at the bottom: the action running, the problems (F2), the log (F8) and the keys
+		var bottom = new ComputedVisual(() =>
+		{
+			_ = _version.Value;
+			var parts = new List<Visual>();
+			if (_running is { } running)
+				parts.Add(running.View());
+			if (_problemsVisible.Value)
+				parts.Add(_problems);
+			if (_logVisible.Value)
+				parts.Add(LogView());
+			parts.Add(new CommandBar());
+			return new VStack(parts.ToArray()).Spacing(0);
+		});
 		_host.Content(new DockLayout()
 			.HorizontalAlignment(Align.Stretch)
 			.VerticalAlignment(Align.Stretch)
@@ -144,9 +180,13 @@ public sealed class UiApp
 		_host.AddCommand(Make("fx.problems", "ui.key.problems", new(TerminalKey.F2), ToggleProblems));
 		_host.AddCommand(Make("fx.all", "ui.key.all", new(TerminalKey.F3), ToggleAll));
 		_host.AddCommand(Make("fx.origin", "ui.key.origin", new(TerminalKey.F4), () => GoToOrigin(), () => Selected is { } node && Origins(node).Count > 0));
-		_host.AddCommand(Make("fx.refresh", "ui.key.refresh", new(TerminalKey.F5), Refresh));
-		_host.AddCommand(Make("fx.main", "ui.key.main", new(TerminalKey.F6), () => MainTree(), () => _card is not null));
-		_host.AddCommand(Make("fx.back", "ui.key.back", new(TerminalKey.Left, TerminalModifiers.Alt), () => Back(), () => _back.Count > 0));
+		_host.AddCommand(Make("fx.refresh", "ui.key.refresh", new(TerminalKey.F5), Refresh, () => !Busy));
+		_host.AddCommand(Make("fx.main", "ui.key.main", new(TerminalKey.F6), () => MainTree(), () => _card is not null && !Busy));
+		_host.AddCommand(Make("fx.sync", "ui.key.sync", new(TerminalKey.F7), Sync, () => !Busy && Selected is { } node && Actions(node).Any(a => a.Command.StartsWith("fx sync", StringComparison.Ordinal))));
+		_host.AddCommand(Make("fx.log", "ui.key.log", new(TerminalKey.F8), ToggleLog));
+		_host.AddCommand(Make("fx.actions", "ui.key.actions", new(TerminalKey.F9), ShowActions, () => !Busy && Selected is { } node && Actions(node).Count > 0));
+		_host.AddCommand(Make("fx.cancel", "ui.key.cancel", new(TerminalKey.Escape), CancelRun, () => Busy));
+		_host.AddCommand(Make("fx.back", "ui.key.back", new(TerminalKey.Left, TerminalModifiers.Alt), () => Back(), () => _back.Count > 0 && !Busy));
 	}
 
 	// the tree
@@ -277,6 +317,8 @@ public sealed class UiApp
 	/// <summary>Opens the tree of <paramref name="directory"/> (a worktree, 14.12, or the main tree of one).</summary>
 	public bool OpenTree(string directory)
 	{
+		if (Busy)
+			return false;
 		_back.Push((Model.Path, Selected?.Path ?? Model.Path));
 		Switch(directory);
 		return true;
@@ -318,6 +360,214 @@ public sealed class UiApp
 		_version.Value++;
 	}
 
+	// acting (O4.2): the actions of a node, confirmed, run here with their progress, and their log
+
+	/// <summary>What can be done on <paramref name="node"/>, the main action first.</summary>
+	public IReadOnlyList<UiAction> Actions(FxTreeNode node) => UiAction.For(node, _start, _card);
+
+	/// <summary>F7: syncing the root the node selected is in.</summary>
+	public void Sync()
+	{
+		if (Selected is { } node && Actions(node).FirstOrDefault(a => a.Command.StartsWith("fx sync", StringComparison.Ordinal)) is { } sync)
+			Confirm(sync);
+	}
+
+	/// <summary>F9: the actions of the node selected, each with its command; Enter on one asks to confirm it.</summary>
+	public void ShowActions()
+	{
+		if (Busy || Selected is not { } node)
+			return;
+		var actions = Actions(node);
+		if (actions.Count == 0)
+		{
+			_host.Show(new TextBlock(Texts.Get("ui.actions.none")), ToastSeverity.Info);
+			return;
+		}
+		var list = new ListBox<UiAction>();
+		foreach (var action in actions)
+			list.Items.Add(action);
+		list.SelectedIndex = 0;
+		Dialog? dialog = null;
+		list.KeyDown((_, e) =>
+		{
+			if (e.Key != TerminalKey.Enter || list.SelectedIndex is not (>= 0 and var index) || index >= list.Items.Count)
+				return;
+			dialog!.Close();
+			Confirm(list.Items[index]);
+			e.Handled = true;
+		});
+		dialog = new Dialog().Title(Texts.Get("ui.actions", node.Name)).IsModal(true).Padding(1).Content(list);
+		Closable(dialog);
+		dialog.Show();
+		list.App?.Focus(list);
+	}
+
+	/// <summary>
+	/// Before doing it: what it is, the command that does the same and, if the command can tell (<c>--dry-run</c>), what
+	/// it would do, worked out in the background. Enter does it; Esc does not.
+	/// </summary>
+	public void Confirm(UiAction action)
+	{
+		if (Busy)
+		{
+			_host.Show(new TextBlock(Texts.Get("ui.busy")), ToastSeverity.Warning);
+			return;
+		}
+		var preview = new State<UiOutcome?>(null);
+		var cancel = new CancellationTokenSource();
+		var body = new ComputedVisual(() =>
+		{
+			var lines = new List<Visual> { Line(Esc(action.Description)), Equivalent(action.Command) };
+			if (action.Preview is not null)
+			{
+				lines.Add(Line($"[bold]{Esc(Texts.Get("ui.confirm.preview"))}[/]"));
+				if (preview.Value is not { } outcome)
+					lines.Add(new HStack(new Spinner(), new TextBlock(Texts.Get("ui.confirm.computing"))).Spacing(1));
+				else if (outcome.Lines.Count == 0 && outcome.Diagnostics.Count == 0)
+					lines.Add(Line($"[muted]{Esc(Texts.Get("ui.confirm.nothing"))}[/]"));
+				else
+					lines.Add(new ScrollViewer(new VStack(OutcomeLines(outcome).Select(l => (Visual)Line(l)).ToArray()).Spacing(0)).MaxHeight(16));
+			}
+			lines.Add(Line($"[muted]{Esc(Texts.Get("ui.confirm.keys"))}[/]"));
+			return new VStack(lines.ToArray()).Spacing(1);
+		});
+		var dialog = new Dialog().Title(action.Label).IsModal(true).Padding(1).Width(110).Content(body);
+		dialog.KeyDown((_, e) =>
+		{
+			if (e.Key == TerminalKey.Enter)
+			{
+				cancel.Cancel();
+				dialog.Close();
+				Run(action);
+				e.Handled = true;
+			}
+			else if (e.Key == TerminalKey.Escape)
+			{
+				cancel.Cancel();
+				dialog.Close();
+				e.Handled = true;
+			}
+		});
+		dialog.Show();
+		dialog.App?.Focus(dialog);
+		if (action.Preview is { } work)
+			_tasks.Add(Task.Run(() =>
+			{
+				UiOutcome outcome;
+				try
+				{
+					outcome = work(cancel.Token);
+				}
+				catch (OperationCanceledException)
+				{
+					return;
+				}
+				catch (Exception ex)
+				{
+					outcome = new([$"[error]{Esc(ex.Message)}[/]"], []);
+				}
+				_toUi.Enqueue(() => preview.Value = outcome);
+			}, cancel.Token));
+	}
+
+	static void Closable(Dialog dialog)
+		=> dialog.KeyDown((_, e) =>
+		{
+			if (e.Key != TerminalKey.Escape)
+				return;
+			dialog.Close();
+			e.Handled = true;
+		});
+
+	/// <summary>The lines of an outcome: what changed, and each diagnostic with its fix.</summary>
+	static IEnumerable<string> OutcomeLines(UiOutcome outcome)
+	{
+		foreach (var line in outcome.Lines)
+			yield return line;
+		foreach (var d in outcome.Diagnostics)
+		{
+			yield return $"{(d.Severity == FxSeverity.Error ? "[error]✗[/]" : "[warning]![/]")} {Esc(d.Message.ToString())} [muted]({Esc(d.Code)})[/]";
+			if (d.Fix is { } fix)
+				yield return $"    [muted]→ {Esc(fix.Command ?? fix.Hint?.ToString())}[/]";
+		}
+	}
+
+	/// <summary>Runs <paramref name="action"/> in the background, with its progress at the bottom; then the log, and the tree read again.</summary>
+	void Run(UiAction action)
+	{
+		// what the doctor and git look at is about to change
+		Stop();
+		var running = _running = new UiRunning(action);
+		_version.Value++;
+		var pending = _tasks.ToArray();
+		_tasks.Clear();
+		Task.Run(() =>
+		{
+			try
+			{
+				Task.WaitAll(pending);
+			}
+			catch (AggregateException)
+			{
+				// cancelled, or failed: what matters is that it is over
+			}
+			UiOutcome? outcome = null;
+			var cancelled = false;
+			try
+			{
+				outcome = action.Run(running, running.Cancel.Token);
+			}
+			catch (OperationCanceledException)
+			{
+				cancelled = true;
+			}
+			catch (Exception ex)
+			{
+				// what the core did not expect (a manifest that does not read): its message, as it is
+				outcome = new([], [FxDiagnostic.Error("ui.failed", FxText.Plain(ex.Message))]);
+			}
+			_toUi.Enqueue(() => Finish(running, outcome, cancelled || running.Cancel.IsCancellationRequested));
+		});
+	}
+
+	void Finish(UiRunning running, UiOutcome? outcome, bool cancelled)
+	{
+		running.Drain();
+		_log.Insert(0, new(DateTime.Now, running.Action, outcome, cancelled, running.Steps.ToList()));
+		_running = null;
+		var (key, severity) = cancelled ? ("ui.result.cancelled", ToastSeverity.Warning)
+			: outcome?.Ok == true ? ("ui.result.done", ToastSeverity.Success)
+			: ("ui.result.errors", ToastSeverity.Error);
+		_host.Show(new TextBlock(Texts.Get(key, running.Action.Command)), severity);
+		// the disk changed: every tree opened is read again
+		_trees.Clear();
+		Refresh();
+	}
+
+	public void CancelRun()
+	{
+		_running?.Cancel.Cancel();
+		_version.Value++;
+	}
+
+	public void ToggleLog() => _logVisible.Value = !_logVisible.Value;
+
+	/// <summary>The log (F8): each command run from fx ui, the last first, with what it did (the decision of the commands log, 14.10).</summary>
+	Visual LogView()
+	{
+		var lines = new List<string>();
+		foreach (var entry in _log)
+		{
+			var mark = entry.Cancelled ? "[warning]·[/]" : entry.Outcome?.Ok == true ? "[success]✓[/]" : "[error]✗[/]";
+			lines.Add($"{mark} [muted]{entry.When:HH:mm:ss}[/] [accent]{Esc(entry.Action.Command)}[/]");
+			lines.AddRange(entry.Steps.Concat(entry.Outcome is null ? [] : OutcomeLines(entry.Outcome)).Select(l => $"    {l}"));
+		}
+		if (lines.Count == 0)
+			lines.Add($"[muted]{Esc(Texts.Get("ui.log.empty"))}[/]");
+		return new Group().TopLeftText(Texts.Get("ui.log")).HorizontalAlignment(Align.Stretch)
+			.Content(new ScrollViewer(new VStack(lines.Select(l => (Visual)new Markup(l) { Wrap = false }).ToArray()).Spacing(0)).MaxHeight(12));
+	}
+
 	// the work in the background: the doctor (offline) and git
 
 	public void Start()
@@ -326,7 +576,8 @@ public sealed class UiApp
 		var token = _work.Token;
 		var model = Model;
 		_doctor.Value = $"[muted]{Esc(Texts.Get("ui.doctor.running"))}[/]";
-		Task.Run(() =>
+		_tasks.RemoveAll(t => t.IsCompleted);
+		_tasks.Add(Task.Run(() =>
 		{
 			IReadOnlyList<FxModuleResult> results;
 			try
@@ -350,8 +601,8 @@ public sealed class UiApp
 				ShowDoctor(model);
 				DoctorDone = true;
 			});
-		}, token);
-		Task.Run(() =>
+		}, token));
+		_tasks.Add(Task.Run(() =>
 		{
 			var all = model.Descendants().Prepend(model).ToList();
 			var repositories = all.Where(n => n.Kind is FxTreeKind.Repository or FxTreeKind.Workspace).ToList();
@@ -375,7 +626,7 @@ public sealed class UiApp
 					var changes = worktree.Changes?.Values.Sum() ?? 0;
 					_toUi.Enqueue(() => _worktreeChanges[worktree.Root] = changes);
 				}
-		}, token);
+		}, token));
 	}
 
 	/// <summary>The diagnostics of the doctor, already on the tree: its list and its summary.</summary>
@@ -396,7 +647,8 @@ public sealed class UiApp
 	/// <summary>On the thread of the screen: what the background found, and the folders opened that load the rest.</summary>
 	public TerminalLoopResult OnUpdate()
 	{
-		var changed = false;
+		// the progress of the action running
+		var changed = _running?.Drain() ?? false;
 		while (_toUi.TryDequeue(out var action))
 		{
 			action();
@@ -665,15 +917,12 @@ public sealed class UiApp
 			lines.Add(Line(Esc(Texts.Get("ui.parked", $"{FxLayout.Parking}/{Relative(WorkspaceOf(node), node)}"))));
 		// in a worktree, fx sync neither clones nor parks: what is not in it is mounted with fx worktree mount
 		else if (node.SupersededBy is null && _card is not null)
-		{
 			lines.Add(Line(Esc(Texts.Get("ui.not-in-worktree"))));
-			lines.Add(Equivalent($"fx worktree mount {_card.Branch} {node.Name}"));
-		}
 		else if (node.SupersededBy is null)
-		{
 			lines.Add(Line(Esc(Texts.Get(node.Mounted ? "ui.not-cloned" : "ui.not-mounted"))));
-			lines.Add(Equivalent(node.Mounted ? "fx sync" : $"fx repo mount {node.Name}"));
-		}
+		// what Enter does (14.1), and the command that does the same
+		if (Actions(node) is { Count: > 0 } actions)
+			lines.Add(new VStack(Line($"[muted]Enter:[/] {Esc(actions[0].Label)}"), Equivalent(actions[0].Command)).Spacing(0));
 		return new VStack(lines.ToArray()).Spacing(1);
 	}
 

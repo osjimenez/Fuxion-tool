@@ -922,4 +922,100 @@
   <data name="ui.not-in-worktree" xml:space="preserve">
     <value>Not in this worktree: its main tree has it.</value>
   </data>
+  <data name="ui.action.sync" xml:space="preserve">
+    <value>Sync</value>
+  </data>
+  <data name="ui.action.sync.description" xml:space="preserve">
+    <value>Generates what fx owns in {0} and in everything mounted below: it clones what is missing and parks what is no longer mounted.</value>
+  </data>
+  <data name="ui.action.pull" xml:space="preserve">
+    <value>Pull</value>
+  </data>
+  <data name="ui.action.pull.description" xml:space="preserve">
+    <value>Brings the changes of origin to the repositories mounted (it uses the network).</value>
+  </data>
+  <data name="ui.action.mount" xml:space="preserve">
+    <value>Mount</value>
+  </data>
+  <data name="ui.action.mount.description" xml:space="preserve">
+    <value>Marks it as mounted; fx sync clones it afterwards.</value>
+  </data>
+  <data name="ui.action.unpark.description" xml:space="preserve">
+    <value>Brings its clone back from the parking, with its work.</value>
+  </data>
+  <data name="ui.action.unmount" xml:space="preserve">
+    <value>Unmount</value>
+  </data>
+  <data name="ui.action.unmount.description" xml:space="preserve">
+    <value>Parks its clone in {0}, with its work: mounting it brings it back.</value>
+  </data>
+  <data name="ui.action.worktree-mount.description" xml:space="preserve">
+    <value>A git worktree of its main clone, in the branch {0}.</value>
+  </data>
+  <data name="ui.action.worktree-unmount.description" xml:space="preserve">
+    <value>Takes it out of the worktree; not with uncommitted changes.</value>
+  </data>
+  <data name="ui.actions" xml:space="preserve">
+    <value>Actions · {0}</value>
+  </data>
+  <data name="ui.actions.none" xml:space="preserve">
+    <value>Nothing to do here.</value>
+  </data>
+  <data name="ui.confirm.keys" xml:space="preserve">
+    <value>Enter does it · Esc cancels</value>
+  </data>
+  <data name="ui.confirm.preview" xml:space="preserve">
+    <value>What it would do:</value>
+  </data>
+  <data name="ui.confirm.computing" xml:space="preserve">
+    <value>Working out what it would do…</value>
+  </data>
+  <data name="ui.confirm.nothing" xml:space="preserve">
+    <value>Nothing would change.</value>
+  </data>
+  <data name="ui.running" xml:space="preserve">
+    <value>Running</value>
+  </data>
+  <data name="ui.busy" xml:space="preserve">
+    <value>An action is already running.</value>
+  </data>
+  <data name="ui.result.done" xml:space="preserve">
+    <value>{0}: done</value>
+  </data>
+  <data name="ui.result.errors" xml:space="preserve">
+    <value>{0}: with errors</value>
+  </data>
+  <data name="ui.result.cancelled" xml:space="preserve">
+    <value>{0}: cancelled</value>
+  </data>
+  <data name="ui.log" xml:space="preserve">
+    <value>Log</value>
+  </data>
+  <data name="ui.log.empty" xml:space="preserve">
+    <value>Nothing run yet: each action of fx ui leaves its command here.</value>
+  </data>
+  <data name="ui.key.sync" xml:space="preserve">
+    <value>Sync</value>
+  </data>
+  <data name="ui.key.sync.description" xml:space="preserve">
+    <value>Sync the root of the node</value>
+  </data>
+  <data name="ui.key.actions" xml:space="preserve">
+    <value>Actions</value>
+  </data>
+  <data name="ui.key.actions.description" xml:space="preserve">
+    <value>What can be done on the node</value>
+  </data>
+  <data name="ui.key.log" xml:space="preserve">
+    <value>Log</value>
+  </data>
+  <data name="ui.key.log.description" xml:space="preserve">
+    <value>The commands run from fx ui</value>
+  </data>
+  <data name="ui.key.cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="ui.key.cancel.description" xml:space="preserve">
+    <value>Cancel the action running</value>
+  </data>
 </root>

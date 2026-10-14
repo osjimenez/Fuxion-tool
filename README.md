@@ -144,8 +144,12 @@ Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain
   `fx.yaml`, the catalog of tags). F4 goes where a file comes from: an inherited one, to the `_fx/` of the nearest
   workspace it comes from; a share, to its source; a generated one, to the yaml it is made of. Enter on a worktree of
   the panel of its workspace opens it as its own tree, with its branch on top (F6 goes to the main tree). Alt+← goes
-  back. It changes nothing yet: each panel shows the command that does the same. Only in a terminal with a person:
-  elsewhere (a pipe, CI, an agent, `--output json`) it says so and ends with exit code 2.
+  back. **It acts too**: F9 opens the actions of the node, each with its command (sync the root it is in, pull,
+  mount, unmount, and in a worktree `fx worktree mount|unmount`); F7 syncs; Enter on a repository not on disk mounts
+  it or brings it back from the parking. Each one asks first, with the command that does the same and, for a sync,
+  what it would change (its `--dry-run`), then runs in the background with its steps at the bottom (Esc cancels). F8
+  opens the log of what was run, with what it did. Each panel shows the command that does the same. Only in a terminal
+  with a person: elsewhere (a pipe, CI, an agent, `--output json`) it says so and ends with exit code 2.
 
 ## `Fuxion.Tools.Sdk`
 

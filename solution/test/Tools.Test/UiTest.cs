@@ -88,6 +88,25 @@ public sealed class UiTest : SampleTree
 			throw new TimeoutException("the doctor did not finish");
 		}
 
+		/// <summary>Waits until <paramref name="condition"/> holds, with what the background found on the screen.</summary>
+		public void Until(Func<bool> condition, string what)
+		{
+			for (var i = 0; i < 240; i++)
+			{
+				if (OnUi(() =>
+				    {
+					    Ui.OnUpdate();
+					    return condition();
+				    }))
+				{
+					Settle();
+					return;
+				}
+				Thread.Sleep(250);
+			}
+			throw new TimeoutException(what);
+		}
+
 		public string Screen()
 		{
 			var screen = new TestScreen(Width, Height);
@@ -295,6 +314,13 @@ public sealed class UiTest : SampleTree
 		Assert.True(h.OnUi(() => h.Ui.Select(Node(h.Ui, root, "repo-w1"))));
 		h.Settle();
 		Assert.Contains("fx worktree mount fix/t repo-w1", h.Screen());
+		// Enter does it, once confirmed
+		h.Key(TerminalKey.Enter);
+		h.Settle();
+		h.Key(TerminalKey.Enter);
+		h.Until(() => h.Ui.Log.Count == 1, "worktree mount");
+		Assert.True(h.OnUi(() => h.Ui.Log[0].Outcome!.Ok));
+		Assert.Equal(FxTreeKind.Workspace, Node(h.Ui, root, "repo-w1").Kind);
 		h.Key(TerminalKey.Left, TerminalModifiers.Alt);
 		h.Settle();
 		Assert.Equal(acme.Path, Tree(), ignoreCase: true);
@@ -307,6 +333,91 @@ public sealed class UiTest : SampleTree
 		h.Settle();
 		Assert.Equal(acme.Path, Tree(), ignoreCase: true);
 		Assert.Null(h.OnUi(() => h.Ui.Worktree));
+	}
+
+	[Fact(DisplayName = "F7 syncs the root of the node: the dialog shows its command and what it would do; Enter does it, and the log keeps it")]
+	public void SyncAction()
+	{
+		var acme = AcmeCommitted();
+		var props = Path.Combine(acme.Path, "repo-w1", "repo-c1", "_fx", "dotnet", "dotnet.g.props");
+		File.Delete(props);
+		using var h = Open(acme.Path);
+		Assert.True(h.OnUi(() => h.Ui.Select(Node(h.Ui, acme.Path, "repo-w1/repo-c1/_fx/dotnet"))));
+		h.Settle();
+		Assert.Contains("[F7]", h.Screen());
+		h.Key(TerminalKey.F7);
+		h.Until(() => h.Screen().Contains("dotnet.g.props"), "the preview of sync");
+		Assert.Contains("fx sync --root repo-w1/repo-c1", h.Screen());
+		Assert.False(File.Exists(props));
+
+		h.Key(TerminalKey.Enter);
+		h.Until(() => h.Ui.Log.Count == 1, "sync");
+		Assert.True(File.Exists(props));
+		var entry = h.OnUi(() => h.Ui.Log[0]);
+		Assert.Equal("fx sync --root repo-w1/repo-c1", entry.Action.Command);
+		Assert.True(entry.Outcome!.Ok);
+		// the log, with its command; the tree, read again
+		h.Key(TerminalKey.F8);
+		h.Settle();
+		Assert.Contains("fx sync --root repo-w1/repo-c1", h.LineOf("✓"));
+		Assert.NotNull(Node(h.Ui, acme.Path, "repo-w1/repo-c1/_fx/dotnet/dotnet.g.props"));
+	}
+
+	[Fact(DisplayName = "F9, the actions of a node: unmounting parks it, Enter on it mounts it back; pull; Esc closes without doing")]
+	public void MountActions()
+	{
+		var acme = AcmeCommitted();
+		Append(Path.Combine(acme.Path, "repo-w1", "_fx", "workspace", "workspace.yaml"), "path: repo-c2\n    mount: mandatory", "path: repo-c2\n    mount: manual");
+		var c2 = Path.Combine(acme.Path, "repo-w1", "repo-c2");
+		using var h = Open(acme.Path);
+		void Choose(string relative, int index)
+		{
+			Assert.True(h.OnUi(() => h.Ui.Select(Node(h.Ui, acme.Path, relative))), relative);
+			h.Settle();
+			h.Key(TerminalKey.F9);
+			h.Settle();
+			for (var i = 0; i < index; i++)
+				h.Key(TerminalKey.Down);
+			h.Key(TerminalKey.Enter);
+			h.Settle();
+		}
+
+		// the actions of a repository: sync, pull and, as it is not mandatory, unmount
+		Assert.Equal(["fx sync --root repo-w1/repo-c2", "fx repo pull --repo repo-c2 --root repo-w1", "fx repo unmount repo-c2 --root repo-w1"],
+			h.OnUi(() => h.Ui.Actions(Node(h.Ui, acme.Path, "repo-w1/repo-c2")).Select(a => a.Command).ToArray()));
+		// Esc: nothing
+		Choose("repo-w1/repo-c2", 2);
+		Assert.Contains("fx repo unmount repo-c2 --root repo-w1", h.Screen());
+		h.Key(TerminalKey.Escape);
+		h.Settle();
+		Assert.True(Directory.Exists(c2));
+		Assert.Empty(h.OnUi(() => h.Ui.Log));
+
+		// unmounting parks it
+		Choose("repo-w1/repo-c2", 2);
+		h.Key(TerminalKey.Enter);
+		h.Until(() => h.Ui.Log.Count == 1, "unmount");
+		Assert.False(Directory.Exists(c2));
+		Assert.True(Directory.Exists(Path.Combine(acme.Path, "repo-w1", "_fx", "~$parking", "repo-c2")));
+		var parked = Node(h.Ui, acme.Path, "repo-w1/repo-c2");
+		Assert.Equal(FxTreeKind.Parked, parked.Kind);
+
+		// Enter on it: mounting it brings it back
+		Assert.True(h.OnUi(() => h.Ui.Select(parked)));
+		h.Settle();
+		Assert.Contains("fx repo mount repo-c2 --root repo-w1", h.Screen());
+		h.Key(TerminalKey.Enter);
+		h.Settle();
+		h.Key(TerminalKey.Enter);
+		h.Until(() => h.Ui.Log.Count == 2, "mount");
+		Assert.True(Directory.Exists(c2));
+		Assert.Equal(FxTreeKind.Repository, Node(h.Ui, acme.Path, "repo-w1/repo-c2").Kind);
+
+		// pull, from the menu
+		Choose("repo-w1/repo-c1", 1);
+		h.Key(TerminalKey.Enter);
+		h.Until(() => h.Ui.Log.Count == 3, "pull");
+		Assert.Equal("fx repo pull --repo repo-c1 --root repo-w1", h.OnUi(() => h.Ui.Log[0].Action.Command));
 	}
 
 	[Fact(DisplayName = "fx ui without a terminal (a pipe, an agent, --output json): wrong usage")]
