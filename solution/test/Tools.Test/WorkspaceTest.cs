@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using Fuxion.Tools.Cli;
+using Fuxion.Tools.Core.Dotnet;
 using Fuxion.Tools.Core.Layout;
 using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Sync;
@@ -429,6 +430,24 @@ public sealed class WorkspaceTest
 		Assert.Contains("<Project Path=\"lab/repo/solution/src/lab/lab.csproj\" />", solution);
 		Assert.Contains("<Folder Name=\"/lab/src/\">", solution);
 		Assert.DoesNotContain("lab.csproj", ws.Read("_fx/dotnet/~$workspace.props"));
+	}
+
+	[Fact(DisplayName = "solutions: the global.json of a workspace that composes them pins its sdks (MSBuild reads it from the folder of the solution)")]
+	public void Solution_GlobalJson()
+	{
+		using var ws = new Workspace(("plus", "mandatory"));
+		ws.Meta.WriteFile("global.json", "{\n  \"test\": {\n    \"runner\": \"Microsoft.Testing.Platform\"\n  }\n}\n");
+		ws.WriteDotnet("sdks:\n  Fuxion.Tools.Sdk: 1.2.3\n", "plus");
+		Assert.DoesNotContain(Errors(Sync(ws.Root)), _ => true);
+		var json = ws.Read("global.json");
+		Assert.Contains("\"Fuxion.Tools.Sdk\": \"1.2.3\"", json);
+		Assert.Contains("\"runner\": \"Microsoft.Testing.Platform\"", json);
+
+		// a new version: out of date until fx sync
+		ws.WriteDotnet("sdks:\n  Fuxion.Tools.Sdk: 1.2.4\n", "plus");
+		Assert.Contains(Diagnostics(Doctor(ws.Root)), d => d.Code == DotnetModule.Outdated && d.File == "global.json");
+		Sync(ws.Root);
+		Assert.Contains("\"Fuxion.Tools.Sdk\": \"1.2.4\"", ws.Read("global.json"));
 	}
 
 	[Fact(DisplayName = "solutions: two different projects with the same name in one folder are an error")]

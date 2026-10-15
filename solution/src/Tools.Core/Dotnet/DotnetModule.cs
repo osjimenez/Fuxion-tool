@@ -154,9 +154,15 @@ public static partial class DotnetModule
 		var buildFiles = git.ListFiles(":(glob)**/*.csproj", ":(glob)**/*.fsproj", ":(glob)**/*.vbproj", ":(glob)**/*.props", ":(glob)**/*.targets")
 			.Where(f => !(f.StartsWith("_fx/", StringComparison.OrdinalIgnoreCase) && Path.GetFileName(f).Contains(".g.", StringComparison.OrdinalIgnoreCase)))
 			.ToList();
-		// a workspace without projects of its own generates nothing for itself (only for its repositories, through them)
+		// a workspace without projects of its own generates nothing for itself (only for its repositories, through them),
+		// but the solutions it composes build their projects, and MSBuild reads msbuild-sdks from the folder of the
+		// solution: its global.json pins the same SDKs
 		if (node.IsWorkspace && !buildFiles.Any(f => Path.GetExtension(f) is ".csproj" or ".fsproj" or ".vbproj"))
+		{
+			if (config.Sdks.Count > 0 && config.Solutions.Count > 0)
+				GlobalJson(root, config.Sdks, outputs, diagnostics);
 			return;
+		}
 
 		// 1. The when variables and the conditions of packages and imports, expanded
 		var whenRaw = config.Variables.Where(v => v.IsWhen).ToDictionary(v => v.Name, v => v.When!, StringComparer.OrdinalIgnoreCase);
