@@ -39,7 +39,7 @@
 		<FxStaticMetadataNamespace Condition="'$(FxStaticMetadataNamespace)' == ''">Fuxion.Metadata</FxStaticMetadataNamespace>
 		<FxStaticMetadataFile>$(IntermediateOutputPath)Fuxion.StaticMetadata.g.cs</FxStaticMetadataFile>
 		<FxDocumentationDirectory Condition="'$(FxDocumentationDirectory)' == ''">$(MSBuildProjectDirectory)/~$docs/</FxDocumentationDirectory>
-		<_FxTasksAssembly>$(MSBuildThisFileDirectory)../tasks/net10.0/Fuxion.Tools.Sdk.dll</_FxTasksAssembly>
+		<_FxTasksAssembly>$(MSBuildThisFileDirectory)../tasks/net11.0/Fuxion.Tools.Sdk.dll</_FxTasksAssembly>
 	</PropertyGroup>
 
 	<!-- In process under dotnet build; on the .NET task host of MSBuild under Visual Studio -->
