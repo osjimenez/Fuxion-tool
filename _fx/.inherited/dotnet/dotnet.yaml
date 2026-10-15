@@ -5,7 +5,7 @@ schema: 1.0.0
 applies-to:
   tags: [fuxion-build]
 sdks:
-  Fuxion.Tools.Sdk: 0.2.14
+  Fuxion.Tools.Sdk: 0.3.0
 variables:
   - name: OldFrameworks
     value: net472
@@ -100,12 +100,12 @@ packages:
   - ids: [Microsoft.SqlServer.TransactSql.ScriptDom]
     versions:
       - version: 180.140.0
-  - ids: [Microsoft.VisualStudio.Azure.Containers.Tools.Targets]
-    versions:
-      - version: 1.23.0
   - ids: [Microsoft.Testing.Extensions.CodeCoverage]
     versions:
       - version: 18.12.0
+  - ids: [Microsoft.VisualStudio.Azure.Containers.Tools.Targets]
+    versions:
+      - version: 1.23.0
   - ids: [MQTTnet]
     versions:
       - version: 5.2.0.1603
@@ -115,12 +115,12 @@ packages:
   - ids: [Polly]
     versions:
       - version: 8.8.0
-  - ids: [RabbitMQ.Client]
-    versions:
-      - version: 7.2.2
   - ids: [PolySharp]
     versions:
       - version: 1.16.0
+  - ids: [RabbitMQ.Client]
+    versions:
+      - version: 7.2.2
   - ids: [ReactiveUI.WPF]
     versions:
       - version: 23.2.9
