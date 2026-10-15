@@ -245,6 +245,9 @@ public sealed class ManifestEditorTest
 		var notYaml = ManifestEditor.Replace(ws.Root, "_fx/dotnet/dotnet.yaml", "schema: 1.0.0\nvariables: [\n");
 		Assert.Equal((ManifestEditor.InvalidYaml, false), (notYaml.Diagnostics.Single().Code, notYaml.Ok));
 		Assert.NotNull(notYaml.Diagnostics.Single().Line);
+		// the harness (plan Q): the name of fx's own rule is not the user's
+		var harness = ManifestEditor.Replace(ws.Root, "_fx/harness/harness.yaml", "schema: 1.0.0\nrules:\n  - name: fx\n");
+		Assert.Equal((Core.Harness.HarnessYamlReader.InvalidYaml, 3, false), (harness.Diagnostics.Single().Code, harness.Diagnostics.Single().Line, harness.Ok));
 		// a file with CRLF: an editor gives '\n', and the CRLF stay
 		File.WriteAllText(Path.Combine(ws.Root, "_fx", "dotnet", "dotnet.yaml"), "schema: 1.0.0\r\n# crlf\r\n");
 		Assert.Equal("schema: 1.0.0\r\n# crlf\r\n# more\r\n", After(ManifestEditor.Replace(ws.Root, "_fx/dotnet/dotnet.yaml", "schema: 1.0.0\n# crlf\n# more\n")));

@@ -7,8 +7,10 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Fuxion.Tools.Cli.Describe;
+using Fuxion.Tools.Core.Dotnet;
 using Fuxion.Tools.Core.Explore;
 using Fuxion.Tools.Core.Git;
+using Fuxion.Tools.Core.Harness;
 using Fuxion.Tools.Core.Layout;
 using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Sync;
@@ -993,12 +995,12 @@ public sealed partial class UiApp
 		};
 		if (!node.Enabled)
 			lines.Add(Equivalent($"fx module enable {node.Name}"));
-		// the .NET of a workspace: whom it reaches (14.4, the other way)
+		// the .NET and the harness of a workspace: whom they reach (14.4, the other way)
 		var root = node.Parent?.Parent;
-		if (node.Name == "dotnet" && root is { Kind: FxTreeKind.Workspace })
+		if (node.Name is DotnetModule.Name or HarnessModule.Name && root is { Kind: FxTreeKind.Workspace })
 		{
 			var table = new Table().Headers(new TextBlock(Texts.Get("ui.column.repository")), new TextBlock(Texts.Get("ui.column.reaches")), new TextBlock(Texts.Get("ui.column.why")));
-			foreach (var (repository, applies, reason) in FxTree.Reach(root, FxTree.DotnetAppliesTo(root)))
+			foreach (var (repository, applies, reason) in FxTree.Reach(root, node.Name == HarnessModule.Name ? FxTree.HarnessAppliesTo(root) : FxTree.DotnetAppliesTo(root)))
 				table.AddRow(new TextBlock(repository.Identity?.FullName ?? repository.Name), new Markup(applies ? "[success]✓[/]" : "[muted]—[/]") { Wrap = false },
 					new TextBlock(Why(reason)));
 			lines.Add(new Group().TopLeftText(Texts.Get("ui.module.reaches")).Content(table));

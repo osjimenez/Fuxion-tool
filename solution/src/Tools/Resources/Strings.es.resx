@@ -56,7 +56,7 @@
     <value>Sin red: no pregunta a los remotos.</value>
   </data>
   <data name="module" xml:space="preserve">
-    <value>Solo este módulo: workspace o dotnet.</value>
+    <value>Solo este módulo: workspace, dotnet o harness.</value>
   </data>
   <data name="doctor.errors" xml:space="preserve">
     <value>{0} error(es)</value>
@@ -413,7 +413,7 @@
     <value>Apaga un módulo sin perder su configuración (enabled: false).</value>
   </data>
   <data name="module.name" xml:space="preserve">
-    <value>El módulo: workspace o dotnet.</value>
+    <value>El módulo: workspace, dotnet o harness.</value>
   </data>
   <data name="module.tag" xml:space="preserve">
     <value>Las etiquetas de los repositorios a los que baja (su applies-to).</value>

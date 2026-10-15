@@ -371,12 +371,14 @@ public static partial class ManifestEditor
 					WorkspaceManifest.Read(root, text, strict: true);
 				else if (file == FxLayout.ModuleFile(DotnetModule.Name))
 					DotnetYamlReader.Read(text, file);
+				else if (file == FxLayout.ModuleFile(Harness.HarnessModule.Name))
+					Harness.HarnessYamlReader.Read(text, file);
 				else if (file == FxLayout.ConfigFile)
 					FxConfig.Read(text, file, diagnostics);
 			}
-			catch (Exception ex) when (ex is DotnetConfigException or WorkspaceManifestException)
+			catch (Exception ex) when (ex is DotnetConfigException or WorkspaceManifestException or Harness.HarnessConfigException)
 			{
-				diagnostics.AddRange(ex is DotnetConfigException d ? d.Diagnostics : ((WorkspaceManifestException)ex).Diagnostics);
+				diagnostics.AddRange(ex switch { DotnetConfigException d => d.Diagnostics, Harness.HarnessConfigException h => h.Diagnostics, _ => ((WorkspaceManifestException)ex).Diagnostics });
 			}
 		return new(file, before, after, text == before ? [] : ["by hand"], diagnostics) { Root = root };
 	}
@@ -530,12 +532,14 @@ public static partial class ManifestEditor
 			{
 				if (Module == DotnetModule.Name)
 					DotnetYamlReader.Read(text, File);
+				else if (Module == Harness.HarnessModule.Name)
+					Harness.HarnessYamlReader.Read(text, File);
 				else if (Module == WorkspaceModule.Name)
 					WorkspaceManifest.Read(_root, text, strict: true);
 			}
-			catch (Exception ex) when (ex is DotnetConfigException or WorkspaceManifestException)
+			catch (Exception ex) when (ex is DotnetConfigException or WorkspaceManifestException or Harness.HarnessConfigException)
 			{
-				Diagnostics.AddRange(ex is DotnetConfigException d ? d.Diagnostics : ((WorkspaceManifestException)ex).Diagnostics);
+				Diagnostics.AddRange(ex switch { DotnetConfigException d => d.Diagnostics, Harness.HarnessConfigException h => h.Diagnostics, _ => ((WorkspaceManifestException)ex).Diagnostics });
 			}
 		}
 	}

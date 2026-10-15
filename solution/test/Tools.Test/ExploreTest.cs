@@ -139,6 +139,30 @@ public sealed class ExploreTest : SampleTree
 		Assert.DoesNotContain(reach, r => r.Repository.Guest);
 	}
 
+	[Fact(DisplayName = "what the harness gives a repository: the rule and the skill of fx, and each rule and skill, and why; the yaml behind AGENTS.md")]
+	public void AppliesHarness()
+	{
+		var acme = Clone(_acmeOrigin);
+		acme.WriteFile("_fx/harness/harness.yaml", "schema: 1.0.0\nrules:\n  - name: company\n  - name: apps\n    paths: [src/**]\n    applies-to:\n      tags: [app]\nskills:\n  - name: tool\n");
+		acme.WriteFile("_fx/harness/rules/company.md", "## Company\n");
+		acme.WriteFile("_fx/harness/rules/apps.md", "## Apps\n");
+		acme.WriteFile("_fx/harness/skills/tool/SKILL.md", "---\nname: tool\ndescription: The tool.\n---\n\n# tool\n");
+		Assert.Empty(Errors(Sync(acme.Path)));
+		var tree = FxTree.Build(acme.Path)!;
+		var c1 = FxTree.Applies(At(tree, "repo-w1/repo-c1"));
+		Assert.Contains(c1, a => a is { What: "rule", Name: "fx", Applies: true });
+		Assert.Contains(c1, a => a is { What: "skill", Name: "fx", Applies: true });
+		Assert.Contains(c1, a => a is { What: "module", Name: "harness", Applies: true, Reason.Kind: FxReasonKind.Everyone });
+		var apps = Assert.Single(c1, a => a.What == "rule" && a.Name == "apps (src/**)");
+		Assert.Equal((true, FxReasonKind.Tag, "/acme"), (apps.Applies, apps.Reason.Kind, apps.From.Single()));
+		Assert.Contains(c1, a => a is { What: "skill", Name: "tool", Applies: true, Reason.Kind: FxReasonKind.Everyone });
+		// repo-c2 is not an app: the rule did not reach it
+		Assert.DoesNotContain(FxTree.Applies(At(tree, "repo-w1/repo-c2")), a => a.Name.StartsWith("apps", StringComparison.Ordinal));
+		// AGENTS.md is generated from the harness of the repository and what it inherits
+		Assert.Equal(["repo-w1/repo-c1/_fx/.inherited/harness/harness.yaml"],
+			FxTree.Origins(tree, At(tree, "repo-w1/repo-c1/AGENTS.md")).Select(o => FxLayout.Relative(acme.Path, o)));
+	}
+
 	[Fact(DisplayName = "the catalog of tags: its own and what it inherits, and who has each")]
 	public void Tags()
 	{

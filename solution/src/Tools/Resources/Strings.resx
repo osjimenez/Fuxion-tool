@@ -56,7 +56,7 @@
     <value>No network: do not ask the remotes.</value>
   </data>
   <data name="module" xml:space="preserve">
-    <value>Only this module: workspace or dotnet.</value>
+    <value>Only this module: workspace, dotnet or harness.</value>
   </data>
   <data name="doctor.errors" xml:space="preserve">
     <value>{0} error(s)</value>
@@ -413,7 +413,7 @@
     <value>Turn a module off without losing its configuration (enabled: false).</value>
   </data>
   <data name="module.name" xml:space="preserve">
-    <value>The module: workspace or dotnet.</value>
+    <value>The module: workspace, dotnet or harness.</value>
   </data>
   <data name="module.tag" xml:space="preserve">
     <value>The tags of the repositories it goes down to (its applies-to).</value>

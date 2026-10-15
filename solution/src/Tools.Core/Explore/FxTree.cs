@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Fuxion.Tools.Core.Dotnet;
+using Fuxion.Tools.Core.Harness;
 using Fuxion.Tools.Core.Layout;
 using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Workspace;
@@ -93,6 +94,9 @@ public static class FxTree
 		var solutions = Solutions(node);
 		foreach (var generated in solutions.Prepend(GitignoreGenerator.FileName).Select(node.Full).Where(File.Exists))
 			Place(tree, FxLayout.Relative(node.Root, generated), FileNode(generated, inherited));
+		// and the files of the coding agents (plan Q), where the paths have not put them already
+		foreach (var agent in AgentFiles(node).Where(f => tree.Find(f)?.Path != Clean(f)))
+			Place(tree, FxLayout.Relative(node.Root, agent), FileNode(agent, inherited));
 
 		// its repositories, where they go
 		foreach (var state in WorkspaceModule.Repositories(manifest, withStatus: false, copies: copies))
@@ -149,6 +153,8 @@ public static class FxTree
 				Place(tree, share.Destination, FileNode(node.Full(share.Destination), inherited));
 		foreach (var solution in FxFiles.EnumerateFiles(node.Root, "*.slnx").Concat(FxFiles.EnumerateFiles(node.Root, "*.sln")))
 			Place(tree, Path.GetFileName(solution), FileNode(solution, inherited));
+		foreach (var agent in AgentFiles(node))
+			Place(tree, FxLayout.Relative(node.Root, agent), FileNode(agent, inherited));
 		SortAll(tree);
 		return tree;
 	}
@@ -307,6 +313,12 @@ public static class FxTree
 				}
 				else if (relative == ".gitignore")
 					Add(FxLayout.Full(root, WorkspaceManifest.RelativePath));
+				// the files of the coding agents: the harness of the root, and what it inherits
+				else if (HarnessModule.Files.Contains(relative) || HarnessModule.Folders.Any(f => relative.StartsWith(f + "/", StringComparison.Ordinal)))
+				{
+					Add(FxLayout.Full(root, HarnessModule.ConfigFile));
+					Add(FxLayout.Full(root, HarnessModule.InheritedConfigFile));
+				}
 				else if (relative.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase))
 					Add(FxLayout.Full(root, FxLayout.ModuleFile(DotnetModule.Name)));
 				break;
@@ -362,6 +374,21 @@ public static class FxTree
 	static string Last(string relative) => relative.TrimEnd('/').Split('/').Last();
 
 	/// <summary>Puts <paramref name="child"/> at <paramref name="relative"/> under <paramref name="parent"/>, with the folders on the way.</summary>
+	/// <summary>The files of the coding agents a root has (plan Q): <c>AGENTS.md</c>, <c>CLAUDE.md</c>, the rules for Claude and the <c>SKILL.md</c> of each skill.</summary>
+	static IEnumerable<string> AgentFiles(FxNode node)
+	{
+		foreach (var file in HarnessModule.Files.Select(node.Full).Where(FxFiles.Exists))
+			yield return file;
+		var rules = node.Full(HarnessModule.ClaudeRules);
+		if (FxFiles.DirectoryExists(rules))
+			foreach (var file in FxFiles.EnumerateFiles(rules, "*.md"))
+				yield return file;
+		foreach (var root in HarnessModule.SkillRoots.Select(node.Full).Where(FxFiles.DirectoryExists))
+			foreach (var skill in FxFiles.EnumerateDirectories(root))
+				if (FxFiles.Exists(Path.Combine(skill, HarnessModule.SkillFile)))
+					yield return Path.Combine(skill, HarnessModule.SkillFile);
+	}
+
 	static void Place(FxTreeNode parent, string relative, FxTreeNode child)
 	{
 		var segments = relative.Replace('\\', '/').Trim('/').Split('/');
@@ -422,7 +449,8 @@ public static class FxTree
 
 	/// <summary>
 	/// What reaches a repository or a workspace from above and from its own <c>_fx/</c>: the .NET module and its imports,
-	/// variables and packages (each one, if it is for it, and why), and the shares it receives.
+	/// variables and packages, the harness and its rules and skills (each one, if it is for it, and why), and the shares it
+	/// receives.
 	/// </summary>
 	public static IReadOnlyList<FxApplied> Applies(FxTreeNode repository)
 	{
@@ -445,10 +473,54 @@ public static class FxTree
 			foreach (var package in dotnet.Packages)
 				result.Add(new("package", string.Join(", ", package.Ids), package.AppliesTo.Matches(identity), Explain(package.AppliesTo, identity), from));
 		}
+		// the harness (plan Q): fx's own rule and skill, everywhere; then the module and each rule and skill
+		result.Add(new("rule", HarnessModule.Reserved, true, new(FxReasonKind.Everyone, []), ["fx"]));
+		result.Add(new("skill", HarnessModule.Reserved, true, new(FxReasonKind.Everyone, []), ["fx"]));
+		if (Harness(node, identity) is { } harness)
+		{
+			IReadOnlyList<string> From(string @base, string relative)
+				=> @base == HarnessModule.InheritedFolder
+					? inherited?.Files.FirstOrDefault(f => f.Path == $"{HarnessModule.Name}/{relative}")?.From ?? []
+					: [identity.FullName];
+			var module = harness.AppliesTo ?? FxAppliesTo.All;
+			var reason = conduit && !module.Matches(identity) ? new FxReason(FxReasonKind.Conduit, []) : Explain(module, identity);
+			result.Add(new("module", HarnessModule.Name, conduit || module.Matches(identity), reason,
+				inherited?.Files.FirstOrDefault(f => f.Path == $"{HarnessModule.Name}/{HarnessModule.Name}.yaml")?.From ?? [identity.FullName]));
+			foreach (var rule in harness.Rules)
+				result.Add(new("rule", rule.ByPath ? $"{rule.Name} ({string.Join(", ", rule.Paths)})" : rule.Name, rule.AppliesTo.Matches(identity),
+					Explain(rule.AppliesTo, identity), From(rule.Base, $"{HarnessModule.RulesFolder}/{rule.Name}.md")));
+			foreach (var skill in harness.Skills)
+				result.Add(new("skill", skill.Name, skill.AppliesTo.Matches(identity), Explain(skill.AppliesTo, identity),
+					From(skill.Base, $"{HarnessModule.SkillsFolder}/{skill.Name}/{HarnessModule.SkillFile}")));
+		}
 		foreach (var share in inherited?.Shares ?? [])
 			result.Add(new("share", share.Destination, true, new(FxReasonKind.Everyone, []), [share.From]));
 		return result;
 	}
+
+	/// <summary>The harness of a root: what it inherits with its own on top, every rule and skill (each one says whom it is for); null without it.</summary>
+	static HarnessConfig? Harness(FxNode node, FxIdentity identity)
+	{
+		var inheritedYaml = node.Full(HarnessModule.InheritedConfigFile);
+		var ownYaml = node.Full(HarnessModule.ConfigFile);
+		try
+		{
+			var inherited = FxFiles.Exists(inheritedYaml) ? HarnessYamlReader.ReadFile(inheritedYaml) : null;
+			var own = FxFiles.Exists(ownYaml) ? HarnessYamlReader.ReadFile(ownYaml).Absolute(identity.FullName) : null;
+			if (inherited is null && own is null)
+				return null;
+			return HarnessConfig.Combine((inherited ?? HarnessConfig.Empty).WithBase(HarnessModule.InheritedFolder),
+				(own is { Enabled: true } ? own : HarnessConfig.Empty).WithBase(HarnessModule.Folder));
+		}
+		catch (HarnessConfigException)
+		{
+			return null;
+		}
+	}
+
+	/// <summary>Whom the harness of <paramref name="workspace"/> reaches, as a module (its <c>applies-to</c>; everyone, without it).</summary>
+	public static FxAppliesTo HarnessAppliesTo(FxTreeNode workspace)
+		=> workspace.Identity is { } identity && Harness(new FxNode(workspace.Path), identity) is { } harness ? harness.AppliesTo ?? FxAppliesTo.All : FxAppliesTo.All;
 
 	/// <summary>The .NET of a root: what it inherits with its own on top (its own names made absolute from it); null without it.</summary>
 	static DotnetConfig? Dotnet(FxNode node, FxIdentity identity)
