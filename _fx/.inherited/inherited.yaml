@@ -10,7 +10,7 @@ parent:
   full-name: /fuxion
   url: https://github.com/osjimenez/Fuxion-workspace.git
   ref: main
-  commit: e7e3a60
+  commit: b0e25b5
 files:
   - path: dotnet/default.props
     from: /fuxion
@@ -29,4 +29,20 @@ files:
   - path: dotnet/test.targets
     from: /fuxion
   - path: fx.yaml
+    from: /fuxion
+  - path: harness/harness.yaml
+    from: /fuxion
+  - path: harness/rules/build.md
+    from: /fuxion
+  - path: harness/rules/comment-tags.md
+    from: /fuxion
+  - path: harness/rules/fuxion.md
+    from: /fuxion
+  - path: harness/skills/build-system/SKILL.md
+    from: /fuxion
+  - path: harness/skills/build-system/coverage.pl
+    from: /fuxion
+  - path: harness/skills/comment-tags/SKILL.md
+    from: /fuxion
+  - path: harness/skills/comment-tags/find-tags.pl
     from: /fuxion
