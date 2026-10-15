@@ -7,6 +7,7 @@ using System.Xml;
 using System.Xml.Linq;
 using Fuxion.Tools.Core.Dotnet;
 using Fuxion.Tools.Core.Git;
+using Fuxion.Tools.Core.Harness;
 using Fuxion.Tools.Core.Layout;
 using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Workspace;
@@ -206,13 +207,12 @@ public static class SyncEngine
 		}
 		run.Mounted.Add((node, identity, own));
 
-		// 4. The skill of fx for coding agents (plan O, O5.1): in every root of fx, so that whoever works in it knows how
-		// to use fx. Not with a module alone
-		IReadOnlyList<string> skill = context.Skill is not null && context.Only is null && FxFiles.DirectoryExists(node.Full(FxLayout.Folder)) ? FxLayout.SkillFiles : [];
-		foreach (var file in skill)
-			outputs.Generated(node.Full(file), context.Skill!);
+		// 4. The files of the coding agents (plan Q): in every root of fx, with the rule and the skill of fx, so that whoever
+		// works in it knows how to use fx (plan O, O5.1)
+		if (context.Runs(HarnessModule.Name) && HarnessModule.Run(node, identity, label, context) is { } harness)
+			run.Results.Add(harness);
 
-		// 5. What the workspace generates: its .gitignore, which versions the solutions and the shares it receives (and the skill, always)
+		// 5. What the workspace generates: its .gitignore, which versions the solutions and the shares it receives (and the files of the agents, always)
 		if (manifest is not null && context.Runs(WorkspaceModule.Name))
 			WorkspaceModule.Outputs(node, identity, manifest, node.Config(), (own?.Solutions ?? []).Select(s => s.Path), shared, context, outputs, diagnostics);
 

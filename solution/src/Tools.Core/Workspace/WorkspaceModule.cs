@@ -342,8 +342,8 @@ public static class WorkspaceModule
 	public static IEnumerable<(string Relative, bool Repository)> Strangers(string root, WorkspaceManifest manifest)
 	{
 		var repositories = manifest.Repositories.Select(r => manifest.FullPath(r)).ToList();
-		// the folders of the skill of fx (plan O, O5.1): fx's, as _fx/
-		var skills = FxLayout.SkillFiles.Select(f => f[..(f.LastIndexOf('/') + 1)]).ToList();
+		// the folders of the coding agents (plan Q): fx's, as _fx/
+		var skills = Harness.HarnessModule.Folders.Select(f => f + "/").ToList();
 		var found = new List<(string, bool)>();
 		void Visit(string directory)
 		{

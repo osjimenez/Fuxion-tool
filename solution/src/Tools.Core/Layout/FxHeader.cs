@@ -23,7 +23,23 @@ public static class FxHeader
 	/// <summary>The command that regenerates everything fx writes.</summary>
 	public const string Sync = "fx sync";
 
-	public static bool IsGenerated(string text) => text.Contains(Mark, StringComparison.Ordinal);
+	/// <summary>
+	/// Whether <paramref name="text"/> carries the header, where fx puts it: in its first lines (after an XML declaration,
+	/// or the root element of a <c>.slnx</c>), or right after the front matter of a Markdown file (a skill, a rule for
+	/// Claude). A file that only mentions it further down (a <c>CLAUDE.md</c> written by hand that explains it) is not fx's.
+	/// </summary>
+	public static bool IsGenerated(string text)
+	{
+		var lines = text.Replace("\r\n", "\n").Split('\n');
+		var at = 0;
+		if (lines[0].TrimEnd() == "---" && Array.FindIndex(lines, 1, l => l.TrimEnd() == "---") is var end and > 0)
+		{
+			at = end + 1;
+			while (at < lines.Length && lines[at].Trim().Length == 0)
+				at++;
+		}
+		return lines.Skip(at).Take(4).Any(l => l.Contains(Mark, StringComparison.Ordinal));
+	}
 
 	static string[] Lines(string from, string regenerated) => [Title, $"Generated from: {from}", $"Regenerated with: {regenerated}"];
 

@@ -3,6 +3,7 @@ using System.Linq;
 using System.Text.Json;
 using Fuxion.Tools.Cli;
 using Fuxion.Tools.Cli.Describe;
+using Fuxion.Tools.Core.Harness;
 using Fuxion.Tools.Core.Layout;
 using Fuxion.Tools.Core.Workspace;
 using Xunit;
@@ -28,11 +29,11 @@ public sealed class SkillTest : SampleTree
 		var acme = AcmeCommitted();
 		Assert.Equal(0, Fx(acme.Path, "sync").ExitCode);
 		foreach (var root in Repositories)
-			foreach (var file in FxLayout.SkillFiles)
-				Assert.Equal(FxSkill.Text, Read(Path.Combine(acme.Path, root, file)));
+			foreach (var folder in HarnessModule.SkillRoots)
+				Assert.Equal(FxSkill.Text, Read(Path.Combine(acme.Path, root, folder, "fx", "SKILL.md")));
 		// a workspace versions them (its .gitignore is a whitelist)
-		Assert.Contains("!/.claude/skills/fx/SKILL.md", Read(Path.Combine(acme.Path, ".gitignore")));
-		Assert.Contains("!/.agents/skills/fx/SKILL.md", Read(Path.Combine(acme.Path, "repo-w1", ".gitignore")));
+		Assert.Contains("!/.claude/skills/**", Read(Path.Combine(acme.Path, ".gitignore")));
+		Assert.Contains("!/.agents/skills/**", Read(Path.Combine(acme.Path, "repo-w1", ".gitignore")));
 		// the same skill as fx describe --skill
 		Assert.Equal(FxSkill.Text.TrimEnd('\n'), Fx(acme.Path, "describe", "--skill").Out.Replace("\r\n", "\n").TrimEnd('\n'));
 
@@ -40,7 +41,7 @@ public sealed class SkillTest : SampleTree
 		var c1 = Path.Combine(acme.Path, "repo-w1", "repo-c1", ".claude", "skills", "fx", "SKILL.md");
 		File.WriteAllText(c1, FxSkill.Text.Replace("Never `fx ui`", "Never fx ui"));
 		var doctor = JsonDocument.Parse(Fx(acme.Path, "doctor", "--output", "json", "--offline").Out).RootElement;
-		Assert.Contains(doctor.GetProperty("diagnostics").EnumerateArray(), d => d.GetProperty("code").GetString() == WorkspaceModule.Outdated
+		Assert.Contains(doctor.GetProperty("diagnostics").EnumerateArray(), d => d.GetProperty("code").GetString() == HarnessModule.Outdated
 		                                                                        && d.GetProperty("file").GetString()!.EndsWith("repo-c1/.claude/skills/fx/SKILL.md"));
 		Assert.Equal(0, Fx(acme.Path, "sync").ExitCode);
 		Assert.Equal(FxSkill.Text, Read(c1));

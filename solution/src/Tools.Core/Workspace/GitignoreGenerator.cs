@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Fuxion.Tools.Core.Harness;
 using Fuxion.Tools.Core.Layout;
 
 namespace Fuxion.Tools.Core.Workspace;
@@ -40,15 +41,18 @@ public static class GitignoreGenerator
 		}
 
 		b.Append('\n');
-		b.Append("# Always: the configuration of fx, and its skill (plan O, O5.1)\n");
+		b.Append("# Always: the configuration of fx, and the files of the coding agents it generates (plan Q)\n");
 		b.Append("!/.gitignore\n");
 		b.Append($"!/{FxLayout.Folder}/\n");
 		b.Append($"!/{FxLayout.Folder}/**\n");
-		// versioned whether the run that writes this file writes the skill or not
-		foreach (var skill in FxLayout.SkillFiles)
+		// versioned whether the run that writes this file writes them or not
+		foreach (var file in HarnessModule.Files)
+			Line(b, $"!/{file}");
+		foreach (var folder in HarnessModule.Folders)
 		{
-			Parents(b, skill);
-			Line(b, $"!/{skill}");
+			Parents(b, folder);
+			Line(b, $"!/{folder}/");
+			Line(b, $"!/{folder}/**");
 		}
 
 		if (included.Count > 0)

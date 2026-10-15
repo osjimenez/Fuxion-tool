@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using Fuxion.Tools.Core.Dotnet;
 using Fuxion.Tools.Core.Git;
+using Fuxion.Tools.Core.Harness;
 using Fuxion.Tools.Core.Layout;
 using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Workspace;
@@ -19,6 +20,7 @@ namespace Fuxion.Tools.Core.Sync;
 /// <list type="bullet">
 /// <item><c>fx.yaml</c>: <c>requires</c> and the catalog of tags.</item>
 /// <item><c>dotnet/</c>: the merged <c>dotnet.yaml</c> (without the solutions) and the files of the module folders.</item>
+/// <item><c>harness/</c>: the merged <c>harness.yaml</c> of what is for it, and the files of those rules and skills (plan Q).</item>
 /// <item><c>workspace/</c>, in a workspace: the shares, to pass them on (<see cref="WorkspaceShares"/>).</item>
 /// <item><c>inherited.yaml</c>: who the repository is for its parent, whose it is and where each file comes from,
 /// also the shares it receives, written outside <c>_fx/</c>.</item>
@@ -45,11 +47,12 @@ public static class Inheritance
 		var existingInherited = child.Inherited();
 
 		var dotnet = Dotnet(parent, parentIdentity, identity, child.IsWorkspace, expected, FromOf, diagnostics);
+		var harness = Harness(parent, parentIdentity, identity, child.IsWorkspace, expected, FromOf, diagnostics);
 		var flows = WorkspaceShares.Of(parent, parentIdentity, FromOf);
 		var received = WorkspaceShares.For(flows, identity);
 		if (child.IsWorkspace && flows.Count > 0)
 			Conduit(child, flows, existingInherited, expected);
-		var applies = dotnet || child.IsWorkspace || received.Any;
+		var applies = dotnet || harness || child.IsWorkspace || received.Any;
 		if (applies)
 		{
 			// fx.yaml: requires and the catalog, from above and from the parent
@@ -175,6 +178,73 @@ public static class Inheritance
 		expected[$"{module}/{module}.yaml"] = (Encoding.UTF8.GetBytes(DotnetYamlWriter.Inherited(merged, Workspaces(yamlFrom, $"_fx/{module}/{module}.yaml"))), yamlFrom);
 		foreach (var (relative, (content, from)) in files)
 			expected[$"{module}/{relative}"] = (FxHeader.Add(relative, content, Workspaces(from, $"_fx/{module}/{relative}")), from);
+		return true;
+	}
+
+	/// <summary>
+	/// The harness (plan Q): the parent's inherited <c>harness.yaml</c> with its own on top, and only what is for
+	/// <paramref name="identity"/> (proposal 1: what is only for others, a rule of the workspace itself, does not reach a
+	/// public repository): the yaml of that, and the files of its rules and skills. A workspace gets what may be for it or
+	/// for something below it, to pass it on (<see cref="HarnessConfig.ForBelow"/>). Whether it applies.
+	/// </summary>
+	static bool Harness(FxNode parent, FxIdentity parentIdentity, FxIdentity identity, bool conduit,
+		SortedDictionary<string, (byte[] Content, IReadOnlyList<string> From)> expected, Func<string, IReadOnlyList<string>> fromOf, FxDiagnostics diagnostics)
+	{
+		const string module = HarnessModule.Name;
+		var inheritedYaml = parent.Full(HarnessModule.InheritedConfigFile);
+		var ownYaml = parent.Full(HarnessModule.ConfigFile);
+		HarnessConfig inherited, own;
+		try
+		{
+			inherited = FxFiles.Exists(inheritedYaml) ? HarnessYamlReader.ReadFile(inheritedYaml) : HarnessConfig.Empty;
+			own = FxFiles.Exists(ownYaml) ? HarnessYamlReader.ReadFile(ownYaml).Absolute(parentIdentity.FullName) : HarnessConfig.Empty;
+		}
+		catch (HarnessConfigException ex)
+		{
+			diagnostics.AddRange(ex.Diagnostics.Select(d => d with { Code = InvalidParent, File = d.File is null ? null : FxLayout.Relative(parent.Root, d.File) }));
+			return false;
+		}
+		if (!own.Enabled)
+			own = HarnessConfig.Empty;
+		var merged = HarnessConfig.Combine(inherited.WithBase(HarnessModule.InheritedFolder), own.WithBase(HarnessModule.Folder));
+		if (!conduit && !(merged.AppliesTo ?? FxAppliesTo.All).Matches(identity))
+			return false;
+		var going = conduit ? merged.ForBelow(identity) : merged.ForTarget(identity);
+		if (going.IsEmpty)
+			return false;
+
+		// the files of what goes down, from where each one is in the parent (what is not there, its doctor says)
+		var inheritedBase = HarnessModule.InheritedFolder;
+		IReadOnlyList<string> From(string @base, string relative) => @base == inheritedBase ? fromOf($"{module}/{relative}") : [parentIdentity.FullName];
+		foreach (var rule in going.Rules)
+		{
+			var file = parent.Full(rule.File);
+			var relative = $"{HarnessModule.RulesFolder}/{rule.Name}.md";
+			if (FxFiles.Exists(file))
+				expected[$"{module}/{relative}"] = (FxFiles.ReadAllBytes(file), From(rule.Base, relative));
+		}
+		foreach (var skill in going.Skills)
+		{
+			var folder = parent.Full(skill.Folder);
+			if (!FxFiles.DirectoryExists(folder))
+				continue;
+			foreach (var file in FxFiles.EnumerateFiles(folder, "*", SearchOption.AllDirectories))
+			{
+				var inside = FxLayout.Relative(folder, file);
+				if (inside.Split('/').Any(FxLayout.IsLocal))
+					continue;
+				var relative = $"{HarnessModule.SkillsFolder}/{skill.Name}/{inside}";
+				expected[$"{module}/{relative}"] = (FxFiles.ReadAllBytes(file), From(skill.Base, relative));
+			}
+		}
+
+		var yamlFrom = new List<string>();
+		if (FxFiles.Exists(inheritedYaml))
+			yamlFrom.AddRange(fromOf($"{module}/{module}.yaml"));
+		if (FxFiles.Exists(ownYaml) && own.Enabled && !own.IsEmpty)
+			yamlFrom.Add(parentIdentity.FullName);
+		yamlFrom = yamlFrom.Distinct().ToList();
+		expected[$"{module}/{module}.yaml"] = (Encoding.UTF8.GetBytes(HarnessYamlWriter.Inherited(going, Workspaces(yamlFrom, $"_fx/{module}/{module}.yaml"))), yamlFrom);
 		return true;
 	}
 

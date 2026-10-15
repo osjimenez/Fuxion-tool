@@ -21,9 +21,6 @@ public static class FxLayout
 	public const string Worktrees = "_fx/~$worktrees";
 	public const string WorktreeFile = "~$worktree.yaml";
 
-	/// <summary>Where every root of fx has the skill of fx for coding agents (plan O, O5.1): Claude Code, and the agents that read <c>.agents/</c>.</summary>
-	public static readonly IReadOnlyList<string> SkillFiles = [".claude/skills/fx/SKILL.md", ".agents/skills/fx/SKILL.md"];
-
 	/// <summary>The folder of a module: <c>_fx/dotnet</c>.</summary>
 	public static string ModuleFolder(string module) => $"{Folder}/{module}";
 

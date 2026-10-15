@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Fuxion.Tools.Cli.Describe;
 using Fuxion.Tools.Core.Dotnet;
+using Fuxion.Tools.Core.Harness;
 using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Sync;
 using Fuxion.Tools.Core.Workspace;
@@ -66,7 +67,7 @@ public static class SyncCommand
 	static Argument<string?> ModuleArgument()
 	{
 		var argument = new Argument<string?>("module") { Description = Texts.Get("module"), Arity = ArgumentArity.ZeroOrOne };
-		argument.AcceptOnlyFromAmong(WorkspaceModule.Name, DotnetModule.Name);
+		argument.AcceptOnlyFromAmong(WorkspaceModule.Name, DotnetModule.Name, HarnessModule.Name);
 		return argument;
 	}
 

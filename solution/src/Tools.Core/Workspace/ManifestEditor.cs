@@ -48,7 +48,7 @@ public static partial class ManifestEditor
 	public const string Unchanged = "workspace.unchanged";
 
 	/// <summary>The modules fx knows: a folder of <c>_fx/</c> each.</summary>
-	public static readonly IReadOnlyList<string> KnownModules = [WorkspaceModule.Name, DotnetModule.Name];
+	public static readonly IReadOnlyList<string> KnownModules = [WorkspaceModule.Name, DotnetModule.Name, Harness.HarnessModule.Name];
 
 	/// <summary>The keys of a repository, in the order fx writes them.</summary>
 	public static readonly IReadOnlyList<string> RepositoryKeys = ["name", "aliases", "url", "path", "mount", "inherits", "depends-on", "tags"];

@@ -589,4 +589,88 @@
   <data name="fx.invalid-yaml" xml:space="preserve">
     <value>No es YAML válido: {0}</value>
   </data>
+  <data name="harness.outdated" xml:space="preserve">
+    <value>Desfasado: fx sync lo cambiaría.</value>
+  </data>
+  <data name="harness.missing-rule" xml:space="preserve">
+    <value>La regla '{0}' no tiene fichero: {1}.</value>
+  </data>
+  <data name="harness.missing-skill" xml:space="preserve">
+    <value>La skill '{0}' no tiene {1}.</value>
+  </data>
+  <data name="harness.invalid-skill.no-front-matter" xml:space="preserve">
+    <value>La skill '{0}': su SKILL.md necesita un front matter (entre líneas '---') con su nombre y su descripción.</value>
+  </data>
+  <data name="harness.invalid-skill.front-matter" xml:space="preserve">
+    <value>La skill '{0}': el front matter de su SKILL.md no es un mapa YAML válido.</value>
+  </data>
+  <data name="harness.invalid-skill.name" xml:space="preserve">
+    <value>La skill '{0}': el nombre de su SKILL.md tiene que ser '{0}', como su carpeta.</value>
+  </data>
+  <data name="harness.invalid-skill.description" xml:space="preserve">
+    <value>La skill '{0}': su SKILL.md necesita una descripción, que diga cuándo usarla.</value>
+  </data>
+  <data name="harness.undeclared" xml:space="preserve">
+    <value>'{0}' no está en harness.yaml: no va a ninguna parte.</value>
+  </data>
+  <data name="harness.undeclared.fix" xml:space="preserve">
+    <value>Declárala en rules: o skills: de harness.yaml, o bórrala.</value>
+  </data>
+  <data name="harness.foreign" xml:space="preserve">
+    <value>'{0}' no es de fx: los ficheros de los agentes se generan desde _fx/harness/.</value>
+  </data>
+  <data name="harness.foreign.fix" xml:space="preserve">
+    <value>fx sync --adopt lo mueve a _fx/harness/ y lo declara; o bórralo.</value>
+  </data>
+  <data name="harness.adopted.rule" xml:space="preserve">
+    <value>Adoptado: '{0}' es ahora la regla '{1}' de _fx/harness/.</value>
+  </data>
+  <data name="harness.adopted.skill" xml:space="preserve">
+    <value>Adoptado: '{0}' es ahora la skill '{1}' de _fx/harness/.</value>
+  </data>
+  <data name="harness.not-adopted" xml:space="preserve">
+    <value>No se adopta: '{0}' sería '{1}', que _fx/harness/ ya tiene (o es la de fx).</value>
+  </data>
+  <data name="harness.not-adopted.yaml" xml:space="preserve">
+    <value>No se adopta: harness.yaml no lo admite ({0}).</value>
+  </data>
+  <data name="harness.invalid-yaml" xml:space="preserve">
+    <value>harness.yaml no es válido.</value>
+  </data>
+  <data name="harness.invalid-yaml.list" xml:space="preserve">
+    <value>'{0}' tiene que ser una lista.</value>
+  </data>
+  <data name="harness.invalid-yaml.rule-mapping" xml:space="preserve">
+    <value>Una regla es un mapa con su nombre (y paths, applies-to).</value>
+  </data>
+  <data name="harness.invalid-yaml.skill-mapping" xml:space="preserve">
+    <value>Una skill es un mapa con su nombre (y applies-to).</value>
+  </data>
+  <data name="harness.invalid-yaml.rule-name" xml:space="preserve">
+    <value>El nombre de una regla ('{0}') tiene que ser un nombre de fichero: letras, dígitos, '.', '-' y '_'.</value>
+  </data>
+  <data name="harness.invalid-yaml.skill-name" xml:space="preserve">
+    <value>El nombre de una skill ('{0}') tiene que ser un nombre de carpeta: letras, dígitos, '.', '-' y '_'.</value>
+  </data>
+  <data name="harness.invalid-yaml.reserved-name" xml:space="preserve">
+    <value>'{0}' es el nombre de la regla y la skill de fx.</value>
+  </data>
+  <data name="harness.invalid-yaml.paths" xml:space="preserve">
+    <value>Los paths de la regla '{0}' tienen que ser un patrón o una lista de ellos.</value>
+  </data>
+  <data name="harness.invalid-yaml.duplicate-rule" xml:space="preserve">
+    <value>La regla '{0}' está declarada dos veces.</value>
+  </data>
+  <data name="harness.invalid-yaml.duplicate-skill" xml:space="preserve">
+    <value>La skill '{0}' está declarada dos veces.</value>
+  </data>
+  <data name="harness.invalid-yaml.applies-to" xml:space="preserve">
+    <value>'applies-to' admite tags y repositories.</value>
+  </data>
+  <data name="harness.invalid-yaml.bool" xml:space="preserve">
+    <value>'{0}' tiene que ser true o false.</value>
+  </data>
+  <data name="harness.invalid-yaml.enabled" xml:space="preserve">
+    <value>'enabled' tiene que ser true o false.</value>
+  </data>
 </root>
