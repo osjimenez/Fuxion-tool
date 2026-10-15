@@ -14,7 +14,6 @@
 		<PackageId>Fuxion.Tools.Sdk</PackageId>
 		<Description>MSBuild SDK of the Fuxion workspace tool (fx): versioning from git, static metadata, references between repositories and what fx generates from dotnet.yaml. It adds its own Fx* settings and leaves the rest of the build to the repository.</Description>
 		<PackageType>MSBuildSdk</PackageType>
-		<IsPackable>true</IsPackable>
 		<!-- the tasks and everything they need go to tasks/net11.0; the package has no dependencies -->
 		<BuildOutputTargetFolder>tasks</BuildOutputTargetFolder>
 		<SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
@@ -22,7 +21,8 @@
 		<TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);_FxIncludeTaskDependencies</TargetsForTfmSpecificBuildOutput>
 		<!-- NU5100: the assemblies are in tasks/, not lib/, on purpose; NU5128: no lib/ to match the dependencies -->
 		<NoWarn>$(NoWarn);NU5100;NU5128</NoWarn>
-		<Version>0.1.0-local</Version>
+		<!-- what a repo uses is its MSBuild properties (Sdk/Sdk.props says them), not these classes: no XML documentation -->
+		<GenerateDocumentationFile>false</GenerateDocumentationFile>
 	</PropertyGroup>
 
 	<ItemGroup>

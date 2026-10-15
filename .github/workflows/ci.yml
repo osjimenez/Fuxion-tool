@@ -1,13 +1,13 @@
 name: CI
 
-# Build and test on every push and pull request; on Windows, also the native fx.exe as an artifact.
-# Nothing is published here: releases come later (plan K, K5).
+# Build and test; on Windows, also the native fx.exe as an artifact. Nothing is published here: releases come later
+# (plan K, K5).
+#
+# OFF on push and pull requests: this repo builds with its own SDK (Fuxion.Tools.Sdk), which is only published locally
+# in the Fuxion workspace until it goes to nuget.org, so a clone on its own cannot restore it yet. Back on with the
+# release, with the .NET 11 SDK of the day.
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:

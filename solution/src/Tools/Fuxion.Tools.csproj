@@ -8,8 +8,6 @@
 		<!-- the executable is fx (fx.exe), as the command (design D-24) -->
 		<AssemblyName>fx</AssemblyName>
 		<PackageId>Fuxion.Tools</PackageId>
-		<!-- until the tool versions itself (K4) -->
-		<Version>0.1.0-local</Version>
 		<!-- native AOT, a single file (design §11) -->
 		<PublishAot>true</PublishAot>
 		<InvariantGlobalization>true</InvariantGlobalization>

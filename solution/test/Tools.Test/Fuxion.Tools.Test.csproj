@@ -2,14 +2,8 @@
 
 	<PropertyGroup>
 		<TargetFramework>$(LatestCoreFramework)</TargetFramework>
-		<!-- xUnit v3 test projects are executables, run on Microsoft.Testing.Platform (global.json) -->
-		<OutputType>Exe</OutputType>
+		<IsTestProject>true</IsTestProject>
 	</PropertyGroup>
-
-	<ItemGroup>
-		<PackageReference Include="xunit.v3" />
-		<PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
-	</ItemGroup>
 
 	<ItemGroup>
 		<!-- the YAML edit engine checks run on copies of the workspace files (YamlEditorTest) -->

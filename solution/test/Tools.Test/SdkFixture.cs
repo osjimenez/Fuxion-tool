@@ -25,8 +25,9 @@ public sealed class SdkFixture : IDisposable
 
 		var repository = FindRepository();
 		var configuration = AppContext.BaseDirectory.Contains($"{Path.DirectorySeparatorChar}Release{Path.DirectorySeparatorChar}") ? "Release" : "Debug";
+		// this repo builds with the SDK too: without its versioning, or the version of git would replace this one
 		var pack = Dotnet(repository, "pack", Path.Combine(repository, "solution", "src", "Tools.Sdk", "Fuxion.Tools.Sdk.csproj"),
-			"-c", configuration, "--no-build", "-o", Feed, $"-p:Version={Version}", "-nologo");
+			"-c", configuration, "--no-build", "-o", Feed, $"-p:Version={Version}", "-p:FxVersioningEnabled=false", "-nologo");
 		if (pack.ExitCode != 0)
 			throw new InvalidOperationException("Packing Fuxion.Tools.Sdk failed:\n" + pack.StandardOutput + pack.StandardError);
 

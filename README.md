@@ -224,8 +224,14 @@ The settings are listed at the top of `solution/src/Tools.Sdk/Sdk/Sdk.props`.
 
 - `FxTool.slnx` at the root; projects under `solution/src` (`Fuxion.Tools`, the `fx` command; `Fuxion.Tools.Core`,
   the logic; `Fuxion.Tools.Sdk`, the SDK) and tests under `solution/test`.
-- `solution/Directory.Build.props` and `solution/Directory.Packages.props` are provisional: this repo does not use its
-  own SDK yet.
+- This repo builds with its own SDK, like the other repos of the Fuxion workspace: the version it **published before**,
+  pinned in `global.json` (fx writes it from the `sdks:` of the workspace's `_fx/dotnet/dotnet.yaml`), never the one it
+  is building. `_fx/` has what fx gives it: `_fx/.inherited/` (versioned, so a clone on its own has it) and
+  `_fx/dotnet/*.g.*`, generated (do not edit them), and its own `_fx/dotnet/dotnet.yaml` (`standalone: true`). The
+  conventions and the versions of every package come from the workspace's `dotnet.yaml`. To use a change of the SDK
+  here: publish it, raise `sdks:` in the workspace and run `fx sync`.
+- Until the SDK is on nuget.org, this repo only restores inside the Fuxion workspace, whose local `nuget.config` has
+  `~$publish/tool/nupkgs`; meanwhile the CI only runs by hand.
 - `solution/sketches/NugetPackageManager` (list, unlist and deprecate Fuxion packages on nuget.org) is in no solution
   yet: it needs Fuxion 11.
 - `solution/dev` has tools to work on `fx`, not tests: `Pty`, a harness to try it in a real terminal without a person
@@ -243,15 +249,15 @@ dotnet test --solution FxTool.slnx
 dotnet publish solution/src/Tools/Fuxion.Tools.csproj -c Release -r win-x64 -o <folder>
 ```
 
-**Versions**: this repo versions itself from its `version/X.Y.0` tags (`fx version`; `main` gives `0.1.{commits}`).
-While it does not build with its own SDK, the version is passed when packing or publishing.
+**Versions**: this repo versions itself from its `version/X.Y.0` tags, with its own SDK (the same as `fx version`: the
+tag and the commits since give `X.Y.{commits}`).
 
-**Publishing locally** (inside the Fuxion workspace, design D-36):
+**Publishing locally** (inside the Fuxion workspace, design D-36): the package goes to the workspace's
+`~$publish/tool/nupkgs` by itself (its `packable.props`), with the version of git.
 
 ```bash
-V=$(fx version)
-dotnet pack solution/src/Tools.Sdk/Fuxion.Tools.Sdk.csproj -c Release -p:Version=$V -o ../../~\$publish/tool/nupkgs
-dotnet publish solution/src/Tools/Fuxion.Tools.csproj -c Release -r win-x64 -p:Version=$V -o ../../~\$publish/tool/fx/win-x64
+dotnet pack solution/src/Tools.Sdk/Fuxion.Tools.Sdk.csproj -c Release
+dotnet publish solution/src/Tools/Fuxion.Tools.csproj -c Release -r win-x64 -o ../../~\$publish/tool/fx/win-x64
 ```
 
 Publish from a clean commit: NuGet caches packages by version, so the same version must not change.

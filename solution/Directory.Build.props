@@ -1,33 +1,22 @@
 <Project>
 
 	<!--
-		PROVISIONAL (plan K): the minimum this repo needs to build on its own, until Fuxion.Tools.Sdk is published and
-		this repo uses it like any other (design §7.1). Copied from Fuxion's oss/solution/.config
-		(Core.Frameworks.props, Project.Default.props); no path to any other repo.
+		This repo builds with its own SDK, like the other repos of the workspace (design §7.1): the version it published
+		before, pinned in global.json (fx sync, from the sdks: of the workspace's _fx/dotnet/dotnet.yaml). The conventions
+		(frameworks, language, warnings, tests, packages) come from that dotnet.yaml (_fx/.inherited/, _fx/dotnet/*.g.*).
 	-->
 
+	<!-- Its packages: the SDK (fx as a dotnet tool, with the release); before the SDK, so that packable.props applies -->
 	<PropertyGroup>
+		<IsPackable Condition="'$(MSBuildProjectName)' == 'Fuxion.Tools.Sdk'">true</IsPackable>
+	</PropertyGroup>
+	<Import Project="Sdk.props" Sdk="Fuxion.Tools.Sdk" />
 
-		<!-- Frameworks -->
-		<LatestCoreFramework>net11.0</LatestCoreFramework>
-
-		<!-- Language -->
-		<LangVersion>preview</LangVersion>
-
-		<!-- Nullable -->
-		<Nullable>enable</Nullable>
-
-		<!-- Usings -->
-		<ImplicitUsings>disable</ImplicitUsings>
-
-		<!-- Packable -->
-		<IsPackable>false</IsPackable>
-
-		<!-- Warnings -->
-		<WarningsAsErrors>Nullable</WarningsAsErrors>
-		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-
+	<!-- The license and the repository of its packages -->
+	<PropertyGroup Condition="'$(IsPackable)' == 'true'">
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<RepositoryUrl>https://github.com/osjimenez/Fuxion-tool.git</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
 	</PropertyGroup>
 
 </Project>
