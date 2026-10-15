@@ -39,8 +39,8 @@ Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain
   per module (`_fx/workspace/workspace.yaml`, `_fx/dotnet/dotnet.yaml`…; a module is on if its folder is there,
   `enabled: false` turns it off); `_fx/fx.yaml` (the name of a root, `requires` and the catalog of tags);
   `_fx/.inherited/`, what a repository receives from its workspace; the shares it receives, which its `inherited.yaml`
-  lists; the local files, `~$…`; and the `.gitignore` of a
-  workspace (a whitelist: `*`, then `_fx/`, its `paths`, the solutions it generates, the shares it receives, the
+  lists; the local files, `~$…`; the skill of fx (`.claude/skills/fx/`, `.agents/skills/fx/`); and the `.gitignore` of a
+  workspace (a whitelist: `*`, then `_fx/`, its `paths`, the solutions and the skill it generates, the shares it receives, the
   repositories inside versioned folders and `~$*`). Where the repositories go, what the workspace versions and which solutions it composes are the
   user's. Every YAML file starts with its own `schema` (semver); keys are kebab-case.
 - **Workspaces inside workspaces**: each root inherits from its parent only, one level up (its `_fx/.inherited/` and
@@ -114,8 +114,11 @@ Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain
   `--dry-run` and whether it needs a person at the terminal (`fx ui`), the global options and the exit codes. `fx schema <id>` gives the JSON Schema (2020-12) of each output,
   made from the types that write it. They are the source of the skill of fx and of the documentation of the CLI:
   `fx describe --skill` writes the skill (a `SKILL.md` for coding agents, always in English: how an agent runs fx,
-  every command with its options and output, the exit codes). The Fuxion workspace versions it in `.claude/skills/fx/`
-  and `.agents/skills/fx/`; regenerate it when the commands change.
+  every command with its options and output, the exit codes).
+- **Every root of fx has the skill of fx**: `fx sync` writes it in every root with `_fx/`, in `.claude/skills/fx/` and
+  `.agents/skills/fx/`, generated and versioned (a workspace versions it in its `.gitignore`), so that a coding agent
+  working there knows how to use fx; a loose clone has it too. The doctor says when it is out of date, and fx never
+  overwrites a `SKILL.md` of the user's own (unless `--adopt`).
 - `--verbose` writes each step of the core on stderr as it finishes (clone, fetch, status… per repository), and the
   `info` diagnostics.
 - `--output ndjson` writes one JSON event per line as the work goes on (`fx-events/1`: `start`, `step-started`,

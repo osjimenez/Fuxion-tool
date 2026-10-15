@@ -369,7 +369,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		Succeeded(test);
 		Assert.Contains("succeeded: 1", test.StandardOutput);
 		Succeeded(fixture.Build(Path.Combine(repo.Path, "solution", "src", "Old")));
-		Assert.Equal(0, FxApp.Run(["doctor"], new StringWriter(), new StringWriter(), repo.Path));
+		Assert.Equal(0, FxApp.Run(["doctor", "dotnet"], new StringWriter(), new StringWriter(), repo.Path));
 	}
 
 	[Fact(DisplayName = "without central package management: the version of dotnet.yaml reaches the project's reference")]
@@ -509,7 +509,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		Assert.Contains("IsNet11[net11.0]=true", result.StandardOutput);
 		Assert.Contains("IsNet11[net10.0]=false", result.StandardOutput);
 		Assert.Contains("\"Spectre.Console/0.57.2\"", File.ReadAllText(Path.Combine(repo.Path, "solution", "src", "App", "obj", "project.assets.json")));
-		Assert.Equal(0, FxApp.Run(["doctor"], new StringWriter(), new StringWriter(), repo.Path));
+		Assert.Equal(0, FxApp.Run(["doctor", "dotnet"], new StringWriter(), new StringWriter(), repo.Path));
 	}
 
 	[Fact(DisplayName = "FxReference: a project in the workspace, a package outside it, and a clear error when it needs the workspace")]

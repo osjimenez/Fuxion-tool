@@ -579,7 +579,7 @@ public sealed class DotnetTest
 		using var repo = new Repo();
 		var stdout = new StringWriter();
 		var stderr = new StringWriter();
-		Assert.Equal(1, FxApp.Run(["doctor"], stdout, stderr, repo.Git.Path));
+		Assert.Equal(1, FxApp.Run(["doctor", "dotnet"], stdout, stderr, repo.Git.Path));
 		// for people, as flutter doctor and on stdout (plan O, decision 8): the module, each problem and its fix, the summary
 		var doctor = stdout.ToString();
 		Assert.Contains("[✗] dotnet     5 error(s)", doctor);
@@ -590,7 +590,7 @@ public sealed class DotnetTest
 
 		// The diagnostics, with their scope and fix (plan O, decision 13)
 		stdout = new StringWriter();
-		Assert.Equal(1, FxApp.Run(["doctor", "--output", "json"], stdout, new StringWriter(), repo.Git.Path));
+		Assert.Equal(1, FxApp.Run(["doctor", "dotnet", "--output", "json"], stdout, new StringWriter(), repo.Git.Path));
 		var outdated = JsonDocument.Parse(stdout.ToString()).RootElement.GetProperty("diagnostics").EnumerateArray().First();
 		Assert.Equal("dotnet.outdated", outdated.GetProperty("code").GetString());
 		Assert.Equal("dotnet", outdated.GetProperty("module").GetString());
@@ -607,7 +607,7 @@ public sealed class DotnetTest
 		Assert.Equal(5, dotnet.GetProperty("files").EnumerateArray().Count(f => f.GetProperty("status").GetString() == "written"));
 
 		stdout = new StringWriter();
-		Assert.Equal(0, FxApp.Run(["doctor", "--output", "json"], stdout, new StringWriter(), repo.Git.Path));
+		Assert.Equal(0, FxApp.Run(["doctor", "dotnet", "--output", "json"], stdout, new StringWriter(), repo.Git.Path));
 		Assert.Equal("fx-doctor/1", JsonDocument.Parse(stdout.ToString()).RootElement.GetProperty("schema").GetString());
 	}
 
@@ -618,7 +618,7 @@ public sealed class DotnetTest
 		try
 		{
 			var stdout = new StringWriter();
-			Assert.Equal(1, FxApp.Run(["doctor", "--lang", "es"], stdout, new StringWriter(), repo.Git.Path));
+			Assert.Equal(1, FxApp.Run(["doctor", "dotnet", "--lang", "es"], stdout, new StringWriter(), repo.Git.Path));
 			var doctor = stdout.ToString();
 			Assert.Contains("[✗] dotnet     5 error(es)", doctor);
 			Assert.Contains("Desfasado: fx sync lo cambiaría. (_fx/dotnet/dotnet.g.props · dotnet.outdated)", doctor);
@@ -626,7 +626,7 @@ public sealed class DotnetTest
 			Assert.Contains("El doctor ha encontrado problemas en 1 módulo(s).", doctor);
 
 			stdout = new StringWriter();
-			FxApp.Run(["doctor", "--lang", "es", "--output", "json"], stdout, new StringWriter(), repo.Git.Path);
+			FxApp.Run(["doctor", "dotnet", "--lang", "es", "--output", "json"], stdout, new StringWriter(), repo.Git.Path);
 			var outdated = JsonDocument.Parse(stdout.ToString()).RootElement.GetProperty("diagnostics").EnumerateArray().First();
 			Assert.Equal("Out of date: fx sync would change it.", outdated.GetProperty("message").GetString());
 

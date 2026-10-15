@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Fuxion.Tools.Cli.Describe;
 using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Sync;
 using Xunit;
@@ -197,7 +198,7 @@ public abstract class SampleTree : IDisposable
 	}
 
 	protected static IReadOnlyList<FxModuleResult> Sync(string directory, SyncOptions? options = null)
-		=> SyncEngine.Sync(directory, options ?? new(), cancellationToken: TestContext.Current.CancellationToken);
+		=> SyncEngine.Sync(directory, (options ?? new()) with { Skill = FxSkill.Text }, cancellationToken: TestContext.Current.CancellationToken);
 
 	protected static IEnumerable<FxDiagnostic> Errors(IEnumerable<FxModuleResult> results) => results.SelectMany(r => r.Diagnostics).Where(d => d.Severity == FxSeverity.Error);
 

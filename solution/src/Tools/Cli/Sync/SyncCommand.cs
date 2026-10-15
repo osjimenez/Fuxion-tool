@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Fuxion.Tools.Cli.Describe;
 using Fuxion.Tools.Core.Dotnet;
 using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Sync;
@@ -79,7 +80,7 @@ public static class SyncCommand
 	{
 		var schema = doctor ? DoctorSchema : SyncSchema;
 		var directory = settings.Global.Directory;
-		var options = new SyncOptions(settings.DryRun, settings.Offline, settings.Adopt, settings.Module, Version, settings.OnlyHere, settings.ParentRef);
+		var options = new SyncOptions(settings.DryRun, settings.Offline, settings.Adopt, settings.Module, Version, settings.OnlyHere, settings.ParentRef, FxSkill.Text);
 		var modules = console.WithProgress((progress, cancel) => doctor
 			? SyncEngine.Doctor(directory, options, progress, cancel)
 			: SyncEngine.Sync(directory, options, progress, cancel), cancellationToken).ToList();

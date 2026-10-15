@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using Fuxion.Tools.Cli.Describe;
 using Fuxion.Tools.Core.Explore;
 using Fuxion.Tools.Core.Layout;
 using Fuxion.Tools.Core.Results;
@@ -112,8 +113,8 @@ public sealed record UiAction(string Label, string Command, string Description, 
 
 	static UiAction Sync(FxTreeNode root, string option)
 		=> new(Texts.Get("ui.action.sync"), $"fx sync{option}", Texts.Get("ui.action.sync.description", root.Identity?.FullName ?? root.Name),
-			(progress, token) => UiOutcome.From(SyncEngine.Sync(root.Path, new(), progress, token)),
-			token => UiOutcome.From(SyncEngine.Sync(root.Path, new(DryRun: true), cancellationToken: token)));
+			(progress, token) => UiOutcome.From(SyncEngine.Sync(root.Path, new(Skill: FxSkill.Text), progress, token)),
+			token => UiOutcome.From(SyncEngine.Sync(root.Path, new(DryRun: true, Skill: FxSkill.Text), cancellationToken: token)));
 
 	static UiAction Pull(FxTreeNode workspace, FxTreeNode? repository, string option)
 	{

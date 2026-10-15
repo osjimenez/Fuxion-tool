@@ -342,6 +342,8 @@ public static class WorkspaceModule
 	public static IEnumerable<(string Relative, bool Repository)> Strangers(string root, WorkspaceManifest manifest)
 	{
 		var repositories = manifest.Repositories.Select(r => manifest.FullPath(r)).ToList();
+		// the folders of the skill of fx (plan O, O5.1): fx's, as _fx/
+		var skills = FxLayout.SkillFiles.Select(f => f[..(f.LastIndexOf('/') + 1)]).ToList();
 		var found = new List<(string, bool)>();
 		void Visit(string directory)
 		{
@@ -349,7 +351,8 @@ public static class WorkspaceModule
 			{
 				var name = Path.GetFileName(sub);
 				var relative = FxLayout.Relative(root, sub) + "/";
-				if (name is ".git" || FxLayout.IsLocal(name) || relative == FxLayout.Folder + "/" || manifest.Versions(relative))
+				if (name is ".git" || FxLayout.IsLocal(name) || relative == FxLayout.Folder + "/" || skills.Contains(relative, StringComparer.OrdinalIgnoreCase)
+				    || manifest.Versions(relative))
 					continue;
 				if (repositories.Any(r => FxLayout.SameFolder(r, sub)))
 					continue;
@@ -361,7 +364,8 @@ public static class WorkspaceModule
 				// a folder that leads to a repository (or to versioned paths) is walked; one with files of its own is reported
 				var hasFiles = FxFiles.EnumerateFiles(sub).Any(f => !FxLayout.IsLocal(Path.GetFileName(f)));
 				var leads = repositories.Any(r => r.StartsWith(FxLayout.Normalize(sub), StringComparison.OrdinalIgnoreCase))
-				            || (manifest.Paths ?? []).Any(p => !p.Exclude && p.Path.StartsWith(relative, StringComparison.OrdinalIgnoreCase));
+				            || (manifest.Paths ?? []).Any(p => !p.Exclude && p.Path.StartsWith(relative, StringComparison.OrdinalIgnoreCase))
+				            || skills.Any(s => s.StartsWith(relative, StringComparison.OrdinalIgnoreCase));
 				if (hasFiles && !leads)
 					found.Add((relative, false));
 				else if (!hasFiles || leads)

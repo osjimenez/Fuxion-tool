@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Fuxion.Tools.Cli.Describe;
 using Fuxion.Tools.Core.Explore;
 using Fuxion.Tools.Core.Git;
 using Fuxion.Tools.Core.Layout;
@@ -433,7 +434,7 @@ public sealed partial class UiApp
 				try
 				{
 					using (Pending.Overlay())
-						outcome = UiOutcome.From(SyncEngine.Sync(top, new(DryRun: true), cancellationToken: cancel.Token));
+						outcome = UiOutcome.From(SyncEngine.Sync(top, new(DryRun: true, Skill: FxSkill.Text), cancellationToken: cancel.Token));
 				}
 				catch (OperationCanceledException)
 				{

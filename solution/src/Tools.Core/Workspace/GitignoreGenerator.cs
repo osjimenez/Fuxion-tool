@@ -25,12 +25,6 @@ public static class GitignoreGenerator
 		b.Append('\n');
 		b.Append("# Nothing is versioned, at any depth, except what follows\n");
 		b.Append("*\n");
-		b.Append('\n');
-		b.Append("# Always: the configuration of fx\n");
-		b.Append("!/.gitignore\n");
-		b.Append($"!/{FxLayout.Folder}/\n");
-		b.Append($"!/{FxLayout.Folder}/**\n");
-
 		var included = (manifest.Paths ?? []).Where(p => !p.Exclude).ToList();
 		var written = new HashSet<string>(StringComparer.Ordinal);
 		void Line(StringBuilder to, string line)
@@ -43,6 +37,18 @@ public static class GitignoreGenerator
 			var parts = path.TrimEnd('/').Split('/');
 			for (var i = 1; i < parts.Length; i++)
 				Line(to, $"!/{string.Join('/', parts.Take(i))}/");
+		}
+
+		b.Append('\n');
+		b.Append("# Always: the configuration of fx, and its skill (plan O, O5.1)\n");
+		b.Append("!/.gitignore\n");
+		b.Append($"!/{FxLayout.Folder}/\n");
+		b.Append($"!/{FxLayout.Folder}/**\n");
+		// versioned whether the run that writes this file writes the skill or not
+		foreach (var skill in FxLayout.SkillFiles)
+		{
+			Parents(b, skill);
+			Line(b, $"!/{skill}");
 		}
 
 		if (included.Count > 0)

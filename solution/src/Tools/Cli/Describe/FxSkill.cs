@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using Fuxion.Tools.Core.Layout;
@@ -14,8 +16,10 @@ public static class FxSkill
 {
 	public const string Name = "fx";
 
-	/// <summary>The command that writes it: what its header says.</summary>
-	public const string Command = "fx describe --skill";
+	/// <summary>The skill, made once from the commands of this fx: what <c>fx sync</c> writes in every root of fx (plan O, O5.1).</summary>
+	public static string Text => Made.Value;
+
+	static readonly Lazy<string> Made = new(() => Render(DescribeCommand.Document(Directory.GetCurrentDirectory())));
 
 	public static string Render(DescribeDocument document)
 	{
@@ -27,7 +31,7 @@ public static class FxSkill
 			.Append("something generated is outdated; to mount, unmount or pull repositories; to work on a branch apart (fx worktree); or to read or change ")
 			.Append("the configuration of the workspace.\"\n");
 		b.Append("---\n\n");
-		b.Append(FxHeader.Xml("fx describe (the commands of fx itself)", Command));
+		b.Append(FxHeader.Xml("the commands of fx (fx describe --skill)"));
 		b.Append('\n');
 		b.Append("# fx\n\n");
 		b.Append("The tool of the Fuxion workspace: it generates what the repositories share from `_fx/` (`fx sync`), checks it (`fx doctor`), ")

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Fuxion.Tools.Cli.Describe;
 using Fuxion.Tools.Core.Explore;
 using Fuxion.Tools.Core.Git;
 using Fuxion.Tools.Core.Layout;
@@ -604,7 +605,7 @@ public sealed partial class UiApp
 			IReadOnlyList<FxModuleResult> results;
 			try
 			{
-				results = SyncEngine.Doctor(model.Path, new(Offline: true), cancellationToken: token);
+				results = SyncEngine.Doctor(model.Path, new(Offline: true, Skill: FxSkill.Text), cancellationToken: token);
 			}
 			catch (OperationCanceledException)
 			{

@@ -69,7 +69,8 @@ public static class SyncEngine
 		var context = new SyncContext(start.Root, write, options.Adopt, doctor, options.Offline, progress, cancellationToken)
 		{
 			Only = options.Module,
-			OnlyHere = options.OnlyHere
+			OnlyHere = options.OnlyHere,
+			Skill = options.Skill
 		};
 		var run = new Run_(start, context);
 		Process(run, start, FindParent(start, options, progress, first, cancellationToken), first);
@@ -205,7 +206,13 @@ public static class SyncEngine
 		}
 		run.Mounted.Add((node, identity, own));
 
-		// 4. What the workspace generates: its .gitignore, which versions the solutions and the shares it receives
+		// 4. The skill of fx for coding agents (plan O, O5.1): in every root of fx, so that whoever works in it knows how
+		// to use fx. Not with a module alone
+		IReadOnlyList<string> skill = context.Skill is not null && context.Only is null && FxFiles.DirectoryExists(node.Full(FxLayout.Folder)) ? FxLayout.SkillFiles : [];
+		foreach (var file in skill)
+			outputs.Generated(node.Full(file), context.Skill!);
+
+		// 5. What the workspace generates: its .gitignore, which versions the solutions and the shares it receives (and the skill, always)
 		if (manifest is not null && context.Runs(WorkspaceModule.Name))
 			WorkspaceModule.Outputs(node, identity, manifest, node.Config(), (own?.Solutions ?? []).Select(s => s.Path), shared, context, outputs, diagnostics);
 

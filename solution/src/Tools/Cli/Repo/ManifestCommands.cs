@@ -359,7 +359,7 @@ public static class ManifestCommands
 		IReadOnlyList<FxModuleResult>? sync = null;
 		if (dryRun && ok && changed.Count > 0)
 			using (FxFiles.Overlay(changed.Select(c => KeyValuePair.Create(FxLayout.Full(root, c.File), c.After.Text))))
-				sync = SyncEngine.Sync(root, new(DryRun: true));
+				sync = SyncEngine.Sync(root, new(DryRun: true, Skill: Describe.FxSkill.Text));
 		var problems = diagnostics.Where(d => d.Severity != FxSeverity.Info).ToList();
 		if (console.Settings.IsMachine)
 		{
