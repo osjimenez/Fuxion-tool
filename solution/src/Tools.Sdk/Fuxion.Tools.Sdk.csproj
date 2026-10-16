@@ -6,7 +6,7 @@
 		The tasks run on the .NET task host of MSBuild (UsingTask Runtime="NET"): in process under dotnet build, out of
 		process under Visual Studio (plan K, K3.1). This project follows the MSBuild it builds against: Microsoft.Build.Utilities.Core
 		18.11 is the line of .NET 11 and does not support net10.0, so the tasks are net11.0 and need the .NET 11 SDK (plan O,
-		its close). Core stays net10.0: it loads in either.
+		its close), and so is Core, which goes in tasks/ with them.
 	-->
 
 	<PropertyGroup>

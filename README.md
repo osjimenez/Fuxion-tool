@@ -227,7 +227,7 @@ nullable, test frameworks, PolySharp, packaging metadata… are the repo's, in p
 - fx's local files and folders (`~$…`) are not part of any project.
 - The tasks run on the .NET task host of MSBuild: in process under `dotnet build`, out of process under Visual Studio
   (its MSBuild is .NET Framework). They target `net11.0`, as the MSBuild they build against (18.11, the line of
-  .NET 11, which does not support `net10.0`): the SDK needs the .NET 11 SDK. `Fuxion.Tools.Core` stays `net10.0`.
+  .NET 11, which does not support `net10.0`): the SDK needs the .NET 11 SDK. `Fuxion.Tools.Core` too (inside `fx` and in `tasks/` of the package; it is not a package).
 
 The settings are listed at the top of `solution/src/Tools.Sdk/Sdk/Sdk.props`.
 
