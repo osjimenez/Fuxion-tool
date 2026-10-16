@@ -13,6 +13,7 @@ using XenoAtom.Ansi;
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.Backends;
 using XenoAtom.Terminal.UI;
+using XenoAtom.Terminal.UI.Rendering;
 
 namespace Fuxion.Tool.Cli;
 
@@ -46,7 +47,8 @@ public sealed partial class FxConsole
 		// the real console only when the writer is it (in process, as in the tests, it is not a terminal)
 		_isConsole = ReferenceEquals(stdout, Console.Out);
 		Capabilities = TerminalCapabilities.Detect(settings, Environment.GetEnvironmentVariable,
-			inputRedirected: !_isConsole || Console.IsInputRedirected, outputRedirected: !_isConsole || Console.IsOutputRedirected);
+			inputRedirected: !_isConsole || Console.IsInputRedirected, outputRedirected: !_isConsole || Console.IsOutputRedirected,
+			console: _isConsole);
 		Width = _isConsole && !Console.IsOutputRedirected ? Math.Max(40, SafeWindowWidth())
 			: int.TryParse(Environment.GetEnvironmentVariable("COLUMNS"), out var columns) && columns >= 40 ? columns : 120;
 		Progress = settings.Output switch
@@ -101,28 +103,16 @@ public sealed partial class FxConsole
 		=> markup.Length == 0 ? "" : AnsiMarkup.Render(markup, AnsiCapabilities.Default with { AnsiEnabled = Capabilities.CanColor }, markup.Length + 32);
 
 	/// <summary>
-	/// A visual (a table, a grid…) on stdout, laid out at <see cref="Width"/> on an in-memory terminal: it works the same
-	/// with or without a terminal (with the output redirected the real one has no width; plan O, O1).
+	/// A visual (a table, a grid…) on stdout, laid out at <see cref="Width"/> off screen: it works the same with or without
+	/// a terminal (with the output redirected the real one has no width; plan O, O1), and it does not open the terminal of
+	/// the process, a global of XenoAtom that <c>fx ui</c> and the prompts use.
 	/// </summary>
 	public void Write(Visual visual)
 	{
-		var backend = new InMemoryTerminalBackend(new TerminalSize(Width, 1000));
-		using (var session = XenoAtom.Terminal.Terminal.Open(backend, new TerminalOptions { ImplicitStartInput = false }, force: true))
-			session.Instance.Write(visual);
-		var text = backend.GetOutText();
-		if (!Capabilities.CanColor)
-			text = Escapes().Replace(text, "");
-		// the private modes of the renderer (synchronized output) are not output
-		text = PrivateModes().Replace(text, "");
-		foreach (var line in text.Replace("\r", "").Split('\n').Select(l => l.TrimEnd()).Reverse().SkipWhile(l => l.Length == 0).Reverse())
+		var lines = VisualSnapshotRenderer.Render(visual, Width, 1000).ToMarkupLines().Select(l => Render(l).TrimEnd()).ToList();
+		foreach (var line in lines.AsEnumerable().Reverse().SkipWhile(l => l.Length == 0).Reverse())
 			_stdout.WriteLine(line);
 	}
-
-	[GeneratedRegex(@"\x1b\[[0-9;?]*[A-Za-z]")]
-	private static partial Regex Escapes();
-
-	[GeneratedRegex(@"\x1b\[\?[0-9;]*[hl]")]
-	private static partial Regex PrivateModes();
 
 	/// <summary>Detail for <c>--verbose</c>, on stderr.</summary>
 	public void Verbose(string message)

@@ -20,7 +20,12 @@ public sealed record TerminalCapabilities(bool CanPrompt, bool CanAnimate, bool 
 	/// <summary>Nothing interactive: what a test, a pipe or a machine gets.</summary>
 	public static TerminalCapabilities None { get; } = new(false, false, false, false, false);
 
-	public static TerminalCapabilities Detect(GlobalSettings settings, Func<string, string?> environment, bool inputRedirected, bool outputRedirected)
+	/// <param name="console">
+	/// Whether the output is the console of the process, even redirected. A CI server shows the colours of the console in its
+	/// log; a writer in the process (fx run in process, as the tests do) is not a terminal, nor a log.
+	/// </param>
+	public static TerminalCapabilities Detect(GlobalSettings settings, Func<string, string?> environment, bool inputRedirected, bool outputRedirected,
+		bool console = true)
 	{
 		bool Set(string name) => !string.IsNullOrEmpty(environment(name));
 		var ci = environment("CI") is "true" or "1" or "True" or "TRUE" || CiVariables.Any(Set);
@@ -29,10 +34,11 @@ public sealed record TerminalCapabilities(bool CanPrompt, bool CanAnimate, bool 
 		var human = settings.Output == OutputFormat.Human;
 		var interactive = human && !settings.NonInteractive && !ci && !agent && !outputRedirected;
 		var forceColor = Set("FORCE_COLOR") || Set("CLICOLOR_FORCE");
+		var ciLog = console && (Set("GITHUB_ACTIONS") || Set("TF_BUILD"));
 		return new(
 			CanPrompt: interactive && !inputRedirected,
 			CanAnimate: interactive && !dumb,
-			CanColor: human && !settings.Plain && !Set("NO_COLOR") && !dumb && (!outputRedirected || forceColor || Set("GITHUB_ACTIONS") || Set("TF_BUILD")),
+			CanColor: human && !settings.Plain && !Set("NO_COLOR") && !dumb && (!outputRedirected || forceColor || ciLog),
 			IsCi: ci,
 			IsAgent: agent);
 	}
