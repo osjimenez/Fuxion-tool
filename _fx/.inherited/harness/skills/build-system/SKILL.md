@@ -286,12 +286,14 @@ versioned the `plus` build was removed in phase 4, plan N).
   back with `TestScreen`; XenoAtom has one dispatcher per process, so while the app is open it takes the gate of
   `InProcess` alone, and the command line shares it.
 - Verify with `dotnet build tool/repo/FxTool.slnx` and `dotnet test --solution tool/repo/FxTool.slnx`. CI
-  (`.github/workflows/ci.yml`): build and tests on Windows and Linux, `fx.exe` as an artifact; it publishes nothing.
-  Still **off** (only by hand); turning it on is the next step. It needs the `version/*` tags on GitHub.
+  (`.github/workflows/ci.yml`, since 17-oct): on every push to `main`, every pull request and by hand, build and tests on
+  Windows (about 12 minutes) and Linux (3), `fx.exe` as an artifact; a push to `main` then publishes the package of
+  `Fuxion.Tool.Sdk` that Linux packed to nuget.org, with the version of its commit (0.6.5 was the first), by Trusted
+  Publishing: no stored key, a policy of `OsJimenez` for `Fuxion.Tool*` that trusts `ci.yml` in the environment `nuget`
+  (main only). The checkout needs the history and the `version/*` tags (`fetch-depth: 0`).
 - **Local publishing** (stage K5, design D-36): `tool` versions itself from its `version/X.Y.0` tags (with its SDK, as
   `fx version`); `fx.exe` goes to `<workspace>/~$publish/tool/fx/win-x64/` and `Fuxion.Tool.Sdk` to
   `<workspace>/~$publish/tool/nupkgs/` (its `packable.props`; commands in the tool README). The workspace root has a
   local, unversioned `nuget.config` with those folders as sources (like `Fuxion.slnx`), so every mounted repo restores
-  the local SDK. Publish only from a clean commit: a new version each time. For **nuget.org** (the user publishes),
-  pack as CI (`CI=true dotnet pack …`: deterministic, no `+local` in the informational version) from a commit that is
-  on GitHub (SourceLink points to it), push the same package to the local feed, and raise `sdks:`.
+  the local SDK. Publish only from a clean commit: a new version each time. nuget.org gets the SDK from the CI; to use a
+  version in the workspace, raise `sdks:` (it restores from nuget.org, or from the local feed if it is there).
