@@ -1,17 +1,27 @@
 name: CI
 
-# Build and test; on Windows, also the native fx.exe as an artifact. Nothing is published here: releases come later
-# (plan K, K5).
+# Build and test on Windows and Linux, on every push to main, every pull request and by hand. A push to main also
+# publishes Fuxion.Tool.Sdk to nuget.org, with the version of its commit (fx version: 0.Y.N on main): the very package
+# the build job packed after the tests passed. fx itself, a native AOT executable, is only an artifact for now.
 #
-# OFF on push and pull requests: this repo builds with its own SDK (Fuxion.Tool.Sdk), which is only published locally
-# in the Fuxion workspace until it goes to nuget.org, so a clone on its own cannot restore it yet. Back on with the
-# release, with the .NET 11 SDK of the day.
+# Publishing uses nuget.org Trusted Publishing: no API key is stored. The policy on nuget.org (owner OsJimenez) trusts
+# this workflow file (ci.yml) of osjimenez/Fuxion-tool in the environment 'nuget', which GitHub only allows on main;
+# NuGet/login exchanges the OIDC token of the job for an API key that lasts one hour.
 
 on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # a newer push to main publishes a newer version anyway, but a publication is never cut in half
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   DOTNET_NOLOGO: 1
@@ -32,16 +42,29 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          # the SDK 11 builds; the runtime 10 runs the net10.0 sample projects of the tests
+          # the SDK 11 builds (the one of the workspace); the runtime 10 runs the net10.0 sample projects of the tests
           dotnet-version: |
             10.0.x
-            11.0.100-rc.1.26425.128
+            11.0.100-rc.2.26504.105
 
       - name: Build
         run: dotnet build FxTool.slnx -c Release
 
       - name: Test
         run: dotnet test --solution FxTool.slnx -c Release --no-build
+
+      # the package of the SDK does not depend on the operating system: Linux packs it
+      - name: Pack Fuxion.Tool.Sdk
+        if: runner.os == 'Linux'
+        run: dotnet pack solution/src/Tool.Sdk/Fuxion.Tool.Sdk.csproj -c Release --no-build -o artifacts/nupkgs
+
+      - name: Upload Fuxion.Tool.Sdk
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkgs
+          path: artifacts/nupkgs/
+          if-no-files-found: error
 
       - name: Publish fx (native AOT)
         if: runner.os == 'Windows'
@@ -53,3 +76,35 @@ jobs:
         with:
           name: fx-win-x64
           path: artifacts/fx/win-x64/fx.exe
+
+  publish:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: nuget
+    permissions:
+      contents: read
+      id-token: write   # the OIDC token that NuGet/login exchanges for a temporary API key
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: nupkgs
+          path: artifacts/nupkgs
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: NuGet login (OIDC, temporary API key)
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: OsJimenez   # the profile name on nuget.org, not an email
+
+      # the .snupkg next to each .nupkg goes with it; a version already there (a run again) is not an error
+      - name: Push to nuget.org
+        run: >
+          dotnet nuget push "artifacts/nupkgs/*.nupkg"
+          --api-key ${{ steps.login.outputs.NUGET_API_KEY }}
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate

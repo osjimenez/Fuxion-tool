@@ -245,7 +245,7 @@ The settings are listed at the top of `solution/src/Tool.Sdk/Sdk/Sdk.props`.
   conventions and the versions of every package come from the workspace's `dotnet.yaml`. To use a change of the SDK
   here: publish it, raise `sdks:` in the workspace and run `fx sync`.
 - The SDK is on nuget.org since 0.6.1, so a loose clone restores it; inside the Fuxion workspace, its local
-  `nuget.config` adds `~$publish/tool/nupkgs`, where a version goes before nuget.org. The CI still runs only by hand.
+  `nuget.config` adds `~$publish/tool/nupkgs`, where a version goes before nuget.org.
 - `solution/sketches/NugetPackageManager` (list, unlist and deprecate Fuxion packages on nuget.org) is in no solution
   yet: it needs Fuxion 11.
 - `solution/dev` has tools to work on `fx`, not tests: `Pty`, a harness to try it in a real terminal without a person
@@ -273,6 +273,12 @@ dotnet publish solution/src/Tool/Fuxion.Tool.csproj -c Release -r win-x64 -o ../
 ```
 
 Publish from a clean commit: NuGet caches packages by version, so the same version must not change.
+
+**CI** (`.github/workflows/ci.yml`): every push to `main`, every pull request and a run by hand build and test on
+Windows and Linux; Windows also publishes the native `fx.exe` as an artifact. A push to `main` then publishes
+`Fuxion.Tool.Sdk` to nuget.org with the version of its commit: the package the build packed after the tests passed.
+It uses nuget.org Trusted Publishing, with no stored key: a policy of the owner `OsJimenez` trusts `ci.yml` of this
+repository in the GitHub environment `nuget`, which only allows `main`.
 
 The tests build throwaway git repositories under the temp folder with the real `git`, isolated from the user's git
 configuration; the SDK tests pack the SDK and build sample repositories with it (`dotnet build` and, if Visual
