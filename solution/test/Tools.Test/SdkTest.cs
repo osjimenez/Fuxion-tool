@@ -532,8 +532,11 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 			""");
 		using var lib = Sample(path: Path.Combine(workspace.Path, "lib", "repo"));
 		lib.WriteFile("Lib.slnx", """<Solution><Project Path="solution/src/Lib/Lib.csproj" /></Solution>""");
+		File.AppendAllText(Path.Combine(lib.Path, "_fx", "dotnet", "dotnet.yaml"), "standalone: true\n");
 		using var app = CentralPackages("", Path.Combine(workspace.Path, "app", "repo"), """<PackageVersion Include="Lib" Version="2.3.1" />""");
-		app.WriteFile("App.slnx", """<Solution><Project Path="solution/src/App/App.csproj" /></Solution>""");
+		// it builds outside the workspace too, with the package of Lib (without it, it would need the workspace: FXTL001)
+		app.WriteFile(Path.Combine("_fx", "dotnet", "dotnet.yaml"), "schema: 1.0.0\nstandalone: true\n");
+		app.WriteFile("App.slnx", """<Solution><Project Path="solution/src/App/App.csproj" /><Project Path="solution/src/Helper/Helper.csproj" /></Solution>""");
 		app.WriteFile(Path.Combine("solution", "src", "App", "App.csproj"), """
 			<Project Sdk="Microsoft.NET.Sdk">
 				<PropertyGroup>
@@ -541,6 +544,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 				</PropertyGroup>
 				<ItemGroup>
 					<FxReference Include="Lib" />
+					<FxReference Include="Helper" />
 					<FxReference Include="OnlyInTheWorkspace" WorkspaceOnly="true" />
 				</ItemGroup>
 			</Project>
@@ -548,11 +552,29 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		app.WriteFile(Path.Combine("solution", "src", "App", "Use.cs"), """
 			namespace App;
 
-			/// <summary>Uses the library of the other repository.</summary>
+			/// <summary>Uses the library of the other repository and a project of its own.</summary>
 			public static class Use
 			{
 				/// <summary>Its version.</summary>
-				public static string Version => Lib.Info.Version;
+				public static string Version => Lib.Info.Version + Helper.Help.Text;
+			}
+			""");
+		// a project of the same repository, also by name (plan R, decision 1)
+		app.WriteFile(Path.Combine("solution", "src", "Helper", "Helper.csproj"), """
+			<Project Sdk="Microsoft.NET.Sdk">
+				<PropertyGroup>
+					<TargetFramework>net10.0</TargetFramework>
+				</PropertyGroup>
+			</Project>
+			""");
+		app.WriteFile(Path.Combine("solution", "src", "Helper", "Help.cs"), """
+			namespace Helper;
+
+			/// <summary>Help.</summary>
+			public static class Help
+			{
+				/// <summary>A text.</summary>
+				public const string Text = "!";
 			}
 			""");
 		app.CommitAll("c1");
@@ -562,21 +584,26 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		// In the workspace: fx sync writes the map, and Lib is a project
 		Assert.Equal(0, FxApp.Run(["sync", "--offline"], new StringWriter(), new StringWriter(), workspace.Path));
 		Assert.Contains("Include=\"Lib\" Repository=\"lib\"", File.ReadAllText(Path.Combine(workspace.Path, "_fx", "dotnet", "~$workspace.props")));
+		Assert.Contains("<FxRepositoryProject Include=\"Helper\"", File.ReadAllText(Path.Combine(app.Path, "_fx", "dotnet", "projects.g.props")));
 		Succeeded(fixture.Build(appProject));
 		Assert.Equal("project", LibraryType(app, "Lib"));
+		// its own project, through the map of the repository, once (the map of the workspace leaves it out)
+		Assert.Equal("project", LibraryType(app, "Helper"));
 		Assert.True(File.Exists(Path.Combine(appProject, "bin", "Debug", "net10.0", "Lib.dll")));
 
-		// Outside it (FxUsePackages, as a CI would): Lib is the package
+		// Outside it (FxUsePackages, as a CI would): Lib is the package; its own project is still a project
 		Succeeded(fixture.Build(Lib(lib), "-t:Pack", $"-p:PackageOutputPath={fixture.Feed}"));
 		Succeeded(fixture.Build(appProject, "-p:FxUsePackages=true"));
 		Assert.Equal("package", LibraryType(app, "Lib"));
+		Assert.Equal("project", LibraryType(app, "Helper"));
 
 		// A repo that only builds in the workspace says so, instead of NuGet not finding a package
 		var result = fixture.Build(appProject, "-p:FxUsePackages=true", "-p:FxRequiresWorkspace=true");
 		Assert.NotEqual(0, result.ExitCode);
 		Assert.Contains("FXTL001", result.StandardOutput);
-		// WorkspaceOnly="true" (the analyzers of oss): only in the workspace; never a package, never the error
+		// WorkspaceOnly="true" (the analyzers of oss): only in the workspace; never a package, never the error; nor its own
 		Assert.DoesNotContain("OnlyInTheWorkspace", result.StandardOutput);
+		Assert.DoesNotContain("Helper is not mounted", result.StandardOutput);
 	}
 
 	static string LibraryType(TempGitRepository repo, string library)

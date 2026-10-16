@@ -315,7 +315,7 @@ public sealed class WorkspaceTest
 
 		var map = ws.Read("_fx/dotnet/~$workspace.props");
 		Assert.Contains("<FxWorkspaceProject Include=\"plus\" Repository=\"plus\"", map);
-		Assert.Contains("<ProjectReference Include=\"@(FxReference->WithMetadataValue('Identity', 'plus')->'", map);
+		Assert.Contains("<ProjectReference Include=\"@(_FxExternalReference->WithMetadataValue('Identity', 'plus')->'", map);
 		var again = Sync(ws.Root);
 		Assert.All(Files(again), f => Assert.Equal(SyncFileStatus.Unchanged, f.Status));
 	}
@@ -461,27 +461,34 @@ public sealed class WorkspaceTest
 		Assert.Contains("'Tool' in the folder /all/tools/", error.Message.English);
 	}
 
-	[Fact(DisplayName = "inheritance: the .NET module goes down to the repos of applies-to, merged, with its folder, in _fx/.inherited/")]
+	[Fact(DisplayName = "inheritance: the .NET module goes down to the repos of applies-to, merged, with the files of what applies, in _fx/.inherited/")]
 	public void Sync_Inheritance()
 	{
 		using var ws = new Workspace(("plus", "mandatory"), ("docs", "mandatory"));
 		ws.WriteManifest(("plus", "mandatory", "    tags: [dotnet]\n"), ("docs", "mandatory", ""));
-		ws.WriteDotnet("imports:\n  - props: default.props\n", "plus");
+		ws.WriteDotnet("imports:\n  - props: default.props\n    files: [assets/icon.png]\n  - targets: other.targets\n    applies-to:\n      tags: [other]\n", "plus");
 		ws.Meta.WriteFile(Path.Combine("_fx", "dotnet", "default.props"), "<Project />\n");
+		ws.Meta.WriteFile(Path.Combine("_fx", "dotnet", "other.targets"), "<Project />\n");
 		ws.Meta.WriteFile(Path.Combine("_fx", "dotnet", "unused.targets"), "<Project />\n");
 		var icon = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0xFF };
 		Directory.CreateDirectory(Path.Combine(ws.Root, "_fx", "dotnet", "assets"));
 		File.WriteAllBytes(Path.Combine(ws.Root, "_fx", "dotnet", "assets", "icon.png"), icon);
 		Assert.Empty(Errors(Sync(ws.Root)));
 
-		// the yaml merged and without the solutions; the folder whole, binaries byte for byte, text with the header
+		// the yaml merged, of what is for it and without the solutions; only the files of what applies (plan R, decision 2),
+		// binaries byte for byte, text with the header
 		var inherited = Path.Combine(ws.RepoPath("plus"), "_fx", ".inherited");
 		var yaml = ws.Read("plus/repo/_fx/.inherited/dotnet/dotnet.yaml");
 		Assert.StartsWith($"# {FxHeader.Title}\n# Generated from: workspace /test (_fx/dotnet/dotnet.yaml)\n", yaml);
-		Assert.Contains("applies-to:\n  tags: [dotnet]\nimports:\n  - props: default.props\n", yaml);
+		Assert.Contains("applies-to:\n  tags: [dotnet]\nimports:\n  - props: default.props\n    files: assets/icon.png\n", yaml);
 		Assert.DoesNotContain("solutions", yaml);
-		Assert.Contains(FxHeader.Title, ws.Read("plus/repo/_fx/.inherited/dotnet/unused.targets"));
+		Assert.DoesNotContain("other.targets", yaml);
+		Assert.Contains(FxHeader.Title, ws.Read("plus/repo/_fx/.inherited/dotnet/default.props"));
+		Assert.False(File.Exists(Path.Combine(inherited, "dotnet", "other.targets")));
+		Assert.False(File.Exists(Path.Combine(inherited, "dotnet", "unused.targets")));
 		Assert.Equal(icon, File.ReadAllBytes(Path.Combine(inherited, "dotnet", "assets", "icon.png")));
+		// a file of the workspace that no import names reaches nobody: the doctor says so
+		Assert.Contains(Diagnostics(Doctor(ws.Root)), d => d.Code == DotnetModule.UnlistedFile && d.File == "_fx/dotnet/unused.targets");
 		var card = FxInherited.Load(ws.RepoPath("plus"))!;
 		Assert.Equal("/test/plus", card.Repository.FullName);
 		Assert.Equal(["dotnet"], card.Repository.Tags);
@@ -491,16 +498,22 @@ public sealed class WorkspaceTest
 		var props = ws.Read("plus/repo/_fx/dotnet/dotnet.g.props");
 		Assert.Contains("$(MSBuildThisFileDirectory)../.inherited/dotnet/default.props", props);
 		Assert.Contains("<FxRepositoryFullName>/test/plus</FxRepositoryFullName>", props);
+		// a repository of a workspace that does not say it builds on its own needs it (plan R, proposal 5)
+		Assert.Contains("<FxRequiresWorkspace Condition=\"'$(FxRequiresWorkspace)' == ''\">true</FxRequiresWorkspace>", props);
 		Assert.False(Directory.Exists(Path.Combine(ws.RepoPath("docs"), "_fx"))); // nothing applies to it
 		Assert.DoesNotContain(Codes(Doctor(ws.Root)), c => c is WorkspaceModule.Outdated or "dotnet.outdated");
 
 		// a change in the workspace is out of date in the repo until the next sync; what goes, goes from the repo
 		ws.Meta.WriteFile(Path.Combine("_fx", "dotnet", "default.props"), "<Project><PropertyGroup><X>1</X></PropertyGroup></Project>\n");
 		Assert.Contains(Diagnostics(Doctor(ws.Root)), d => d.Code == WorkspaceModule.Outdated && d.File == "plus/repo/_fx/.inherited/dotnet/default.props");
-		File.Delete(Path.Combine(ws.Root, "_fx", "dotnet", "unused.targets"));
+		ws.WriteDotnet("imports:\n  - props: default.props\n", "plus");
 		Sync(ws.Root);
-		Assert.False(File.Exists(Path.Combine(inherited, "dotnet", "unused.targets")));
+		Assert.False(File.Exists(Path.Combine(inherited, "dotnet", "assets", "icon.png")));
 		Assert.Contains("<X>1</X>", ws.Read("plus/repo/_fx/.inherited/dotnet/default.props"));
+		// one that builds on its own does not need it
+		File.WriteAllText(Path.Combine(ws.RepoPath("plus"), "_fx", "dotnet", "dotnet.yaml"), "schema: 1.0.0\nstandalone: true\n");
+		Sync(ws.Root);
+		Assert.DoesNotContain("FxRequiresWorkspace", ws.Read("plus/repo/_fx/dotnet/dotnet.g.props"));
 
 		// a repo the module no longer applies to loses all of it
 		ws.WriteManifest(("plus", "mandatory", "    tags: [other]\n"), ("docs", "mandatory", ""));

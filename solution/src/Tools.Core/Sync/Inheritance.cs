@@ -19,7 +19,7 @@ namespace Fuxion.Tools.Core.Sync;
 /// writes in someone else's repository: each one gets this when its own sync runs.
 /// <list type="bullet">
 /// <item><c>fx.yaml</c>: <c>requires</c> and the catalog of tags.</item>
-/// <item><c>dotnet/</c>: the merged <c>dotnet.yaml</c> (without the solutions) and the files of the module folders.</item>
+/// <item><c>dotnet/</c>: the merged <c>dotnet.yaml</c> of what is for it (without the solutions) and the files of those imports.</item>
 /// <item><c>harness/</c>: the merged <c>harness.yaml</c> of what is for it, and the files of those rules and skills (plan Q).</item>
 /// <item><c>workspace/</c>, in a workspace: the shares, to pass them on (<see cref="WorkspaceShares"/>).</item>
 /// <item><c>inherited.yaml</c>: who the repository is for its parent, whose it is and where each file comes from,
@@ -122,8 +122,9 @@ public static class Inheritance
 	}
 
 	/// <summary>
-	/// The .NET module: the parent's inherited <c>dotnet.yaml</c> with its own on top, and the files of both folders
-	/// (its own win by name), if they are for <paramref name="identity"/> or it is a workspace. Whether it applies.
+	/// The .NET module: the parent's inherited <c>dotnet.yaml</c> with its own on top, what of it is for
+	/// <paramref name="identity"/> (a workspace: what may be for it or below it), and the files of those imports from both
+	/// folders (its own win by name; plan R, decision 2). Whether it applies.
 	/// </summary>
 	static bool Dotnet(FxNode parent, FxIdentity parentIdentity, FxIdentity identity, bool conduit,
 		SortedDictionary<string, (byte[] Content, IReadOnlyList<string> From)> expected, Func<string, IReadOnlyList<string>> fromOf, FxDiagnostics diagnostics)
@@ -151,23 +152,20 @@ public static class Inheritance
 		if (!conduit && !(merged.AppliesTo ?? FxAppliesTo.All).Matches(identity))
 			return false;
 
+		// only what is for it (a workspace: what may be for it or below it), and only the files of those imports, what they
+		// import and what travels with them (plan R, decision 2); its own win by name
+		var going = conduit ? merged.ForBelow(identity) : merged.ForTarget(identity);
 		var files = new SortedDictionary<string, (byte[] Content, IReadOnlyList<string> From)>(StringComparer.OrdinalIgnoreCase);
-		if (FxFiles.DirectoryExists(inheritedFolder))
-			foreach (var file in FxFiles.EnumerateFiles(inheritedFolder, "*", SearchOption.AllDirectories))
-			{
-				var relative = FxLayout.Relative(inheritedFolder, file);
-				if (relative != $"{module}.yaml")
-					files[relative] = (FxHeader.Strip(FxFiles.ReadAllBytes(file)), fromOf($"{module}/{relative}"));
-			}
-		if (ownOn)
-			foreach (var file in FxFiles.EnumerateFiles(ownFolder, "*", SearchOption.AllDirectories))
-			{
-				var relative = FxLayout.Relative(ownFolder, file);
-				// not its yaml, not what fx generates there for the parent itself, not its local files
-				if (relative == $"{module}.yaml" || relative.Split('/').Any(FxLayout.IsLocal) || Path.GetFileName(relative).Contains(".g.", StringComparison.OrdinalIgnoreCase))
-					continue;
-				files[relative] = (FxFiles.ReadAllBytes(file), [parentIdentity.FullName]);
-			}
+		foreach (var relative in going.Imports.SelectMany(i => i.AllFiles).Distinct(StringComparer.OrdinalIgnoreCase))
+		{
+			var ownFile = Path.Combine(ownFolder, relative);
+			var inheritedFile = Path.Combine(inheritedFolder, relative);
+			if (ownOn && FxFiles.Exists(ownFile))
+				files[relative] = (FxFiles.ReadAllBytes(ownFile), [parentIdentity.FullName]);
+			else if (FxFiles.Exists(inheritedFile))
+				files[relative] = (FxHeader.Strip(FxFiles.ReadAllBytes(inheritedFile)), fromOf($"{module}/{relative}"));
+			// a file that is in neither: the doctor of the parent says so (dotnet.missing-import)
+		}
 
 		var yamlFrom = new List<string>();
 		if (FxFiles.Exists(inheritedYaml))
@@ -175,7 +173,7 @@ public static class Inheritance
 		if (ownOn && FxFiles.Exists(ownYaml))
 			yamlFrom.Add(parentIdentity.FullName);
 		yamlFrom = yamlFrom.Distinct().ToList();
-		expected[$"{module}/{module}.yaml"] = (Encoding.UTF8.GetBytes(DotnetYamlWriter.Inherited(merged, Workspaces(yamlFrom, $"_fx/{module}/{module}.yaml"))), yamlFrom);
+		expected[$"{module}/{module}.yaml"] = (Encoding.UTF8.GetBytes(DotnetYamlWriter.Inherited(going, Workspaces(yamlFrom, $"_fx/{module}/{module}.yaml"))), yamlFrom);
 		foreach (var (relative, (content, from)) in files)
 			expected[$"{module}/{relative}"] = (FxHeader.Add(relative, content, Workspaces(from, $"_fx/{module}/{relative}")), from);
 		return true;

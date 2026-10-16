@@ -3,7 +3,6 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
-using Fuxion.Tools.Core.Configuration;
 using Fuxion.Tools.Core.StaticMetadata;
 using Fuxion.Tools.Core.Versioning;
 using Xunit;
@@ -17,8 +16,6 @@ public sealed class StaticMetadataTest : IDisposable
 
 	public void Dispose() => Directory.Delete(_dir, true);
 
-	static FuxionToolsConfig ConfigFor(TempGitRepository repo) => new() { Versioning = new GitVersioningConfig { RepositoryPath = repo.Path } };
-
 	// Git information
 
 	[Fact(DisplayName = "git information: branch, commit, origin hash and first commit")]
@@ -31,7 +28,7 @@ public sealed class StaticMetadataTest : IDisposable
 		var head = repo.Commit("f1");
 		repo.SetOrigin("https://github.com/OSJimenez/Fuxion-tool.git");
 
-		var info = RepositoryInfoReader.TryRead(ConfigFor(repo), null);
+		var info = RepositoryInfoReader.TryRead(repo.Path);
 
 		Assert.Equal("feature/x", info.Branch);
 		Assert.Equal(head, info.Commit);
@@ -45,14 +42,14 @@ public sealed class StaticMetadataTest : IDisposable
 	{
 		using var repo = new TempGitRepository();
 		repo.Commit("c1");
-		Assert.Null(RepositoryInfoReader.TryRead(ConfigFor(repo), null).OriginUrlSHA256);
+		Assert.Null(RepositoryInfoReader.TryRead(repo.Path).OriginUrlSHA256);
 	}
 
 	[Fact(DisplayName = "git information outside a repository: nothing, no error")]
 	public void RepositoryInfo_NotARepository()
 	{
 		using var folder = new TempGitRepository(init: false);
-		Assert.Equal(RepositoryInfo.None, RepositoryInfoReader.TryRead(ConfigFor(folder), null));
+		Assert.Equal(RepositoryInfo.None, RepositoryInfoReader.TryRead(folder.Path));
 	}
 
 	[Theory(DisplayName = "origin URL normalization")]

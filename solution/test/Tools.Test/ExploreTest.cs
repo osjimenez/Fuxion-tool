@@ -130,8 +130,10 @@ public sealed class ExploreTest : SampleTree
 		Assert.Equal(["/acme/repo-w1/repo-c1"], serilog.Reason.Values);
 		Assert.Contains(c1, a => a is { What: "package", Name: "xunit.v3", Applies: true, Reason.Kind: FxReasonKind.Everyone });
 		Assert.Contains(c1, a => a is { What: "import", Name: "default.props", Applies: true });
-		var c2 = FxTree.Applies(At(tree, "repo-w1/repo-c2"));
-		Assert.Contains(c2, a => a is { What: "package", Name: "Serilog", Applies: false, Reason.Kind: FxReasonKind.NotForIt });
+		// a workspace receives it to pass it on, not for it; a repository it is not for does not even receive it (plan R,
+		// decision 2)
+		Assert.Contains(FxTree.Applies(At(tree, "repo-w1")), a => a is { What: "package", Name: "Serilog", Applies: false, Reason.Kind: FxReasonKind.NotForIt });
+		Assert.DoesNotContain(FxTree.Applies(At(tree, "repo-w1/repo-c2")), a => a.What == "package" && a.Name == "Serilog");
 
 		// and the other way: whom the .NET of acme reaches
 		var reach = FxTree.Reach(tree, FxTree.DotnetAppliesTo(tree));

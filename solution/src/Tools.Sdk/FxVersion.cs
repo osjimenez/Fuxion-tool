@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using Fuxion.Tools.Core.Configuration;
 using Fuxion.Tools.Core.Versioning;
 using Microsoft.Build.Framework;
 using Task = Microsoft.Build.Utilities.Task;
@@ -39,16 +38,7 @@ public sealed class FxVersion : Task
 		{
 			var props = BuildCache.GetOrAdd(BuildEngine, key, () =>
 			{
-				var result = VersioningInputsFactory.Calculate(new FuxionToolsConfig
-				{
-					Versioning = new GitVersioningConfig
-					{
-						RepositoryPath = root,
-						FailOnError = FailOnError,
-						ForceCIEnvironment = ForceCi,
-						InformationalSuffix = string.IsNullOrWhiteSpace(InformationalSuffix) ? null : InformationalSuffix
-					}
-				}, warn: message => Log.LogWarning(message));
+				var result = VersioningInputsFactory.Calculate(new GitVersioningOptions(root, FailOnError, ForceCi, string.IsNullOrWhiteSpace(InformationalSuffix) ? null : InformationalSuffix), warn: message => Log.LogWarning(message));
 				return DefaultVersionPropsProvider.FromInputs(result.Inputs);
 			}, out var cached);
 			Version = props.Version;

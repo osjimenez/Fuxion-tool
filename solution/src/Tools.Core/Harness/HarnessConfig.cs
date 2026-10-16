@@ -71,13 +71,9 @@ public sealed record HarnessConfig(IReadOnlyList<HarnessRule> Rules, IReadOnlyLi
 	/// </summary>
 	public HarnessConfig ForBelow(FxIdentity who) => this with
 	{
-		Rules = Rules.Where(r => MayApply(r.AppliesTo, who)).ToList(),
-		Skills = Skills.Where(s => MayApply(s.AppliesTo, who)).ToList()
+		Rules = Rules.Where(r => r.AppliesTo.MayApplyBelow(who)).ToList(),
+		Skills = Skills.Where(s => s.AppliesTo.MayApplyBelow(who)).ToList()
 	};
-
-	static bool MayApply(FxAppliesTo appliesTo, FxIdentity who)
-		=> appliesTo.IsAll || appliesTo.Tags.Count > 0 || appliesTo.Repositories.Any(r => who.Is(r)
-			|| new[] { who.FullName }.Concat(who.Aliases ?? []).Any(n => r.StartsWith(n + "/", StringComparison.OrdinalIgnoreCase)));
 
 	/// <summary>Every <c>applies-to</c> with its repositories absolute, as written by <paramref name="writer"/>.</summary>
 	public HarnessConfig Absolute(string writer) => this with

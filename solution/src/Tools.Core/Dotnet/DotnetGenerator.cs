@@ -17,13 +17,20 @@ public static class DotnetGenerator
 	static string Header(string sources) => FxHeader.Xml(sources);
 
 	/// <param name="imports">The props: imports: path relative to <c>_fx/dotnet/</c> and expanded condition (null: always).</param>
-	public static string Props(DotnetConfig config, FxIdentity identity, IReadOnlyList<(string Path, string? Condition)> imports, string sources)
+	/// <param name="requiresWorkspace">
+	/// A repository of a workspace that does not build on its own (its <c>dotnet.yaml</c> does not say <c>standalone</c>):
+	/// an <c>FxReference</c> that would be a package is an error (plan R, proposal 5), unless the repository says otherwise.
+	/// </param>
+	public static string Props(DotnetConfig config, FxIdentity identity, IReadOnlyList<(string Path, string? Condition)> imports, string sources,
+		bool requiresWorkspace = false)
 	{
 		var b = Start(sources);
 		// who the repository is, before the imports that may use it (plan P, decision 24)
 		b.Append("\t<PropertyGroup>\n");
 		b.Append($"\t\t<FxRepositoryName>{Escape(identity.Name)}</FxRepositoryName>\n");
 		b.Append($"\t\t<FxRepositoryFullName>{Escape(identity.FullName)}</FxRepositoryFullName>\n");
+		if (requiresWorkspace)
+			b.Append("\t\t<FxRequiresWorkspace Condition=\"'$(FxRequiresWorkspace)' == ''\">true</FxRequiresWorkspace>\n");
 		b.Append("\t</PropertyGroup>\n");
 		b.Append("\t<PropertyGroup>\n");
 		foreach (var variable in config.Variables.Where(v => !v.IsWhen))
@@ -85,6 +92,27 @@ public static class DotnetGenerator
 		b.Append("\t<ItemGroup>\n");
 		foreach (var (id, version, condition) in packages)
 			b.Append($"\t\t<PackageVersion Include=\"{EscapeAttribute(id)}\" Version=\"{EscapeAttribute(version)}\"{ConditionAttribute(condition)} />\n");
+		b.Append("\t</ItemGroup>\n");
+		return End(b);
+	}
+
+	/// <summary>
+	/// <c>projects.g.props</c> (plan R, decision 1): the projects of the repository by name, as the map of the workspace
+	/// does with the mounted ones, so an <c>FxReference</c> to one of them is a <c>ProjectReference</c> also in a clone on
+	/// its own. Paths relative to <c>_fx/dotnet/</c>.
+	/// </summary>
+	/// <param name="projects">Name and path relative to <c>_fx/dotnet/</c> ('/'), in the order to write them.</param>
+	public static string Projects(IEnumerable<(string Name, string Path)> projects, string sources)
+	{
+		var b = Start(sources);
+		b.Append("\t<ItemGroup>\n");
+		foreach (var (name, path) in projects)
+		{
+			var n = EscapeAttribute(name);
+			var p = "$(MSBuildThisFileDirectory)" + EscapeAttribute(path);
+			b.Append($"\t\t<FxRepositoryProject Include=\"{n}\" Path=\"{p}\" />\n");
+			b.Append($"\t\t<ProjectReference Include=\"@(FxReference->WithMetadataValue('Identity', '{n}')->'{p}')\" />\n");
+		}
 		b.Append("\t</ItemGroup>\n");
 		return End(b);
 	}

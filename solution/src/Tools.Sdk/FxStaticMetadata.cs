@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using Fuxion.Tools.Core.Configuration;
 using Fuxion.Tools.Core.StaticMetadata;
 using Fuxion.Tools.Core.Versioning;
 using Microsoft.Build.Framework;
@@ -51,10 +50,10 @@ public sealed class FxStaticMetadata : Task
 	{
 		var root = Path.GetFullPath(RepositoryRoot);
 		var repository = BuildCache.GetOrAdd(BuildEngine, $"Fuxion.Tools.Sdk.RepositoryInfo|{root}",
-			() => RepositoryInfoReader.TryRead(new FuxionToolsConfig { Versioning = new GitVersioningConfig { RepositoryPath = root } }, null), out _);
+			() => RepositoryInfoReader.TryRead(root), out _);
 
 		VersionProps? versionProps = VersionCalculated && !string.IsNullOrWhiteSpace(Version)
-			? new(Version!, PackageVersion ?? Version!, AssemblyVersion ?? "", FileVersion ?? "", InformationalVersion ?? Version!, "")
+			? new(Version!, PackageVersion ?? Version!, AssemblyVersion ?? "", FileVersion ?? "", InformationalVersion ?? Version!)
 			: null;
 
 		Written = StaticMetadataFileGenerator.Generate(new(

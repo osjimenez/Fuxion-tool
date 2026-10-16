@@ -673,4 +673,10 @@
   <data name="harness.invalid-yaml.enabled" xml:space="preserve">
     <value>'enabled' tiene que ser true o false.</value>
   </data>
+  <data name="dotnet.unlisted-file" xml:space="preserve">
+    <value>Ningún import nombra '{0}': no llega a ningún repo.</value>
+  </data>
+  <data name="dotnet.unlisted-file.fix" xml:space="preserve">
+    <value>Nómbralo en files: del import con el que viaja, o bórralo.</value>
+  </data>
 </root>

@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
-using Fuxion.Tools.Core.Configuration;
 using Fuxion.Tools.Core.Git;
 
 namespace Fuxion.Tools.Core.StaticMetadata;
@@ -16,12 +15,11 @@ public sealed record RepositoryInfo(string? Branch, string? Commit, string? Orig
 // Moved from the metadata command (plan K, K2.1) so it can be tested; on the git executable since K2.2.
 public static class RepositoryInfoReader
 {
-	public static RepositoryInfo TryRead(FuxionToolsConfig config, string? configPath)
+	public static RepositoryInfo TryRead(string? repositoryPath)
 	{
 		try
 		{
-			var repositoryPath = ResolveRepositoryPath((config.Versioning as GitVersioningConfig)?.RepositoryPath, configPath);
-			var git = GitClient.Discover(repositoryPath);
+			var git = GitClient.Discover(string.IsNullOrWhiteSpace(repositoryPath) ? Directory.GetCurrentDirectory() : Path.GetFullPath(repositoryPath));
 			if (git is null)
 				return RepositoryInfo.None;
 
@@ -51,24 +49,4 @@ public static class RepositoryInfoReader
 
 	static string ComputeSha256(string value)
 		=> Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
-
-	static string ResolveRepositoryPath(string? repositoryPath, string? configPath)
-	{
-		if (string.IsNullOrWhiteSpace(repositoryPath))
-			return Directory.GetCurrentDirectory();
-
-		// "..\" in a fuxion-tools.json written on Windows must also work on Linux
-		repositoryPath = repositoryPath.Replace('\\', Path.DirectorySeparatorChar);
-
-		if (Path.IsPathRooted(repositoryPath))
-			return repositoryPath;
-
-		var baseDir = !string.IsNullOrWhiteSpace(configPath)
-			? Path.GetDirectoryName(Path.GetFullPath(configPath))
-			: Directory.GetCurrentDirectory();
-
-		return string.IsNullOrWhiteSpace(baseDir)
-			? Directory.GetCurrentDirectory()
-			: Path.GetFullPath(Path.Combine(baseDir, repositoryPath));
-	}
 }

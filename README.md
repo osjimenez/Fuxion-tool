@@ -89,10 +89,13 @@ Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain
 
 - **`_fx/dotnet/dotnet.yaml`** is the single place for target frameworks, conditions and the packages that must be
   the same everywhere: `sdks` (written to `msbuild-sdks` in `global.json`), `variables` (a `value`, or a `when`
-  condition), `imports` (plain MSBuild files of `_fx/dotnet/` and where they go) and `packages` (ids with one version per
+  condition), `imports` (plain MSBuild files of `_fx/dotnet/` and where they go; `files:`, what travels with one and is not
+  imported) and `packages` (ids with one version per
   `when`; with a single version, `when` may be left out), each with its `applies-to` (tags or repositories). From what
   the root inherits and its own on top, `fx sync` generates `_fx/dotnet/dotnet.g.props` (with `FxRepositoryName` and
-  `FxRepositoryFullName`) and `dotnet.g.targets`, and the versions of the packages the repo uses: with central package
+  `FxRepositoryFullName`; `FxRequiresWorkspace` in a repository of a workspace that is not `standalone`) and
+  `dotnet.g.targets`, the map of its own projects (`projects.g.props`, for an `FxReference` inside the repository),
+  and the versions of the packages the repo uses: with central package
   management, `_fx/dotnet/packages.g.props` (and its `<Import>` in `Directory.Packages.props`); without it,
   `PackageReference Update` items. It also composes the `solutions` the root declares, by hand, from other `.slnx`; a
   workspace that composes them keeps the `sdks` in its own `global.json` too, because MSBuild reads `msbuild-sdks` from
@@ -221,8 +224,8 @@ nullable, test frameworks, PolySharp, packaging metadata… are the repo's, in p
       when: "'$(IsTestProject)' == 'true'"
   ```
 
-- **References between repositories**: `<FxReference Include="Project" />`, a project inside a workspace, a package
-  outside it.
+- **References by name**: `<FxReference Include="Project" />`: a project of the same repository (its
+  `projects.g.props`, also in a clone on its own), a project of a repository mounted in the workspace, or a package.
 - **Translated XML docs** (`FxDocumentationLanguages`), only when asked for.
 - fx's local files and folders (`~$…`) are not part of any project.
 - The tasks run on the .NET task host of MSBuild: in process under `dotnet build`, out of process under Visual Studio
@@ -249,8 +252,6 @@ The settings are listed at the top of `solution/src/Tools.Sdk/Sdk/Sdk.props`.
   (Windows: a pseudoconsole; how to use it, at the top of its `Program.cs`), and `resx.pl`, which adds, changes or
   removes a text in English and Spanish at once (`perl solution/dev/resx.pl <data.tsv> <Strings.resx>
   <Strings.es.resx>`, with lines `key<TAB>english<TAB>spanish`, or `-key`).
-- `solution/.config` keeps the MSBuild targets that integrate the old tool in the Fuxion-plus build, which the SDK
-  replaces.
 
 ## Build, test, publish
 

@@ -33,6 +33,15 @@ public sealed record DotnetImport(IReadOnlyList<string> Props, IReadOnlyList<str
 	/// <summary>Every file, relative to the folder of its yaml.</summary>
 	public IEnumerable<string> Files => Props.Concat(Targets);
 
+	/// <summary>
+	/// The files that travel with it and are not imported (<c>files:</c>; the <c>icon.png</c> of <c>packable.targets</c>):
+	/// the module gives a repository only the files of what applies to it (plan R, decision 2).
+	/// </summary>
+	public IReadOnlyList<string> Assets { get; init; } = [];
+
+	/// <summary>What it imports and what travels with it.</summary>
+	public IEnumerable<string> AllFiles => Files.Concat(Assets);
+
 	/// <summary>A path of this import, relative to <c>_fx/dotnet/</c>.</summary>
 	public string FromModule(string path) => Base.Length == 0 ? path : $"{Base}/{path}";
 }
@@ -102,6 +111,14 @@ public sealed record DotnetConfig(
 			Standalone = own.Standalone
 		};
 	}
+
+	/// <summary>What may be for the workspace <paramref name="who"/> or for something below it, to pass it on (plan R, decision 2).</summary>
+	public DotnetConfig ForBelow(FxIdentity who) => this with
+	{
+		Variables = Variables.Where(v => v.AppliesTo.MayApplyBelow(who)).ToList(),
+		Packages = Packages.Where(p => p.AppliesTo.MayApplyBelow(who)).ToList(),
+		Imports = Imports.Where(i => i.AppliesTo.MayApplyBelow(who)).ToList()
+	};
 
 	/// <summary>Only what is for <paramref name="who"/>: what has no <c>applies-to</c>, or one that matches.</summary>
 	public DotnetConfig ForTarget(FxIdentity who) => this with

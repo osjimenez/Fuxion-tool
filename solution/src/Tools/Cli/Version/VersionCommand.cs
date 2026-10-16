@@ -1,6 +1,5 @@
 using System.CommandLine;
 using System.Linq;
-using Fuxion.Tools.Core.Configuration;
 using Fuxion.Tools.Core.Results;
 using Fuxion.Tools.Core.Versioning;
 
@@ -35,10 +34,7 @@ public static class VersionCommand
 		VersioningResult result;
 		try
 		{
-			result = VersioningInputsFactory.Calculate(new FuxionToolsConfig
-			{
-				Versioning = new GitVersioningConfig { RepositoryPath = settings.Global.Directory, FailOnError = true }
-			});
+			result = VersioningInputsFactory.Calculate(new GitVersioningOptions(settings.Global.Directory, FailOnError: true));
 		}
 		catch (VersioningException ex)
 		{

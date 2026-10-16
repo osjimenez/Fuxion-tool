@@ -265,8 +265,10 @@ public sealed class DotnetTest
 		var result = Sync(repo.Git.Path);
 		Assert.Empty(result.Diagnostics);
 		Assert.All(result.Files, f => Assert.Equal(SyncFileStatus.Written, f.Status));
-		Assert.Equal(["_fx/dotnet/dotnet.g.props", "_fx/dotnet/dotnet.g.targets", "_fx/dotnet/packages.g.props", "global.json", "solution/Directory.Packages.props"],
-			result.Files.Select(f => f.Path));
+		Assert.Equal(["_fx/dotnet/dotnet.g.props", "_fx/dotnet/dotnet.g.targets", "_fx/dotnet/packages.g.props", "_fx/dotnet/projects.g.props", "global.json",
+			"solution/Directory.Packages.props"], result.Files.Select(f => f.Path));
+		// its projects by name, for an FxReference inside the repository (plan R, decision 1)
+		Assert.Contains("<FxRepositoryProject Include=\"Lib\" Path=\"$(MSBuildThisFileDirectory)../../solution/src/Lib/Lib.csproj\" />", repo.Read("_fx/dotnet/projects.g.props"));
 
 		var props = repo.Read("_fx/dotnet/dotnet.g.props");
 		Assert.StartsWith($"<!-- {FxHeader.Title} -->\n<!-- Generated from: _fx/dotnet/dotnet.yaml -->\n<!-- Regenerated with: fx sync -->\n<Project>\n", props);
@@ -327,7 +329,7 @@ public sealed class DotnetTest
 		var dry = Sync(repo.Git.Path, dryRun: true);
 		Assert.All(dry.Files, f => Assert.Equal(SyncFileStatus.WouldWrite, f.Status));
 		Assert.False(File.Exists(repo.At("_fx/dotnet/dotnet.g.props")));
-		Assert.Equal(5, Codes(Doctor(repo.Git.Path)).Count(c => c == DotnetModule.Outdated));
+		Assert.Equal(6, Codes(Doctor(repo.Git.Path)).Count(c => c == DotnetModule.Outdated));
 	}
 
 	[Fact(DisplayName = "a file without the GENERATED header is not fx's: not written, and an error")]
@@ -582,7 +584,7 @@ public sealed class DotnetTest
 		Assert.Equal(1, FxApp.Run(["doctor", "dotnet"], stdout, stderr, repo.Git.Path));
 		// for people, as flutter doctor and on stdout (plan O, decision 8): the module, each problem and its fix, the summary
 		var doctor = stdout.ToString();
-		Assert.Contains("[✗] dotnet     5 error(s)", doctor);
+		Assert.Contains("[✗] dotnet     6 error(s)", doctor);
 		Assert.Contains("Out of date: fx sync would change it. (_fx/dotnet/dotnet.g.props · dotnet.outdated)", doctor);
 		Assert.Contains("      → fx sync", doctor);
 		Assert.Contains("Doctor found issues in 1 module(s).", doctor);
@@ -604,7 +606,7 @@ public sealed class DotnetTest
 		Assert.True(json.GetProperty("ok").GetBoolean());
 		var dotnet = Assert.Single(json.GetProperty("modules").EnumerateArray());
 		Assert.Equal("dotnet", dotnet.GetProperty("module").GetString());
-		Assert.Equal(5, dotnet.GetProperty("files").EnumerateArray().Count(f => f.GetProperty("status").GetString() == "written"));
+		Assert.Equal(6, dotnet.GetProperty("files").EnumerateArray().Count(f => f.GetProperty("status").GetString() == "written"));
 
 		stdout = new StringWriter();
 		Assert.Equal(0, FxApp.Run(["doctor", "dotnet", "--output", "json"], stdout, new StringWriter(), repo.Git.Path));
@@ -620,7 +622,7 @@ public sealed class DotnetTest
 			var stdout = new StringWriter();
 			Assert.Equal(1, FxApp.Run(["doctor", "dotnet", "--lang", "es"], stdout, new StringWriter(), repo.Git.Path));
 			var doctor = stdout.ToString();
-			Assert.Contains("[✗] dotnet     5 error(es)", doctor);
+			Assert.Contains("[✗] dotnet     6 error(es)", doctor);
 			Assert.Contains("Desfasado: fx sync lo cambiaría. (_fx/dotnet/dotnet.g.props · dotnet.outdated)", doctor);
 			Assert.Contains("      → fx sync", doctor);
 			Assert.Contains("El doctor ha encontrado problemas en 1 módulo(s).", doctor);

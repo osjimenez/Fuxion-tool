@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using Fuxion.Tools.Core.Configuration;
 using Fuxion.Tools.Core.Versioning;
 using Xunit;
 
@@ -14,16 +13,7 @@ namespace Fuxion.Tools.Test;
 public sealed class VersioningInputsFactoryTest
 {
 	static VersioningInputs FromGit(TempGitRepository repo, bool failOnError = true, bool forceCi = false, string? suffix = null)
-		=> VersioningInputsFactory.Create(new()
-		{
-			Versioning = new GitVersioningConfig
-			{
-				RepositoryPath = repo.Path,
-				FailOnError = failOnError,
-				ForceCIEnvironment = forceCi,
-				InformationalSuffix = suffix
-			}
-		});
+		=> VersioningInputsFactory.Create(new(repo.Path, failOnError, forceCi, suffix));
 
 	/// <summary>main with <c>version/1.2.0</c> on the first commit.</summary>
 	static TempGitRepository TaggedMain(string tag = "version/1.2.0")
@@ -300,20 +290,7 @@ public sealed class VersioningInputsFactoryTest
 		using var repo = TaggedMain();
 		repo.Commit("c2");
 		var sub = Directory.CreateDirectory(Path.Combine(repo.Path, "solution", "src")).FullName;
-		var inputs = VersioningInputsFactory.Create(new() { Versioning = new GitVersioningConfig { RepositoryPath = sub, FailOnError = true } });
-		Assert.Equal("1.2.1", inputs.BaseVersion);
-	}
-
-	[Fact(DisplayName = "a relative repositoryPath is relative to the config file")]
-	public void RelativeToConfigFile()
-	{
-		using var ci = CiEnvironment.Local();
-		using var repo = TaggedMain();
-		repo.Commit("c2");
-		var configDir = Directory.CreateDirectory(Path.Combine(repo.Path, "solution", ".config")).FullName;
-		var configPath = Path.Combine(configDir, "fuxion-tools.json");
-		var inputs = VersioningInputsFactory.Create(
-			new() { Versioning = new GitVersioningConfig { RepositoryPath = @"..\", FailOnError = true } }, configPath);
+		var inputs = VersioningInputsFactory.Create(new(sub, FailOnError: true));
 		Assert.Equal("1.2.1", inputs.BaseVersion);
 	}
 
@@ -353,28 +330,5 @@ public sealed class VersioningInputsFactoryTest
 		using var ci = new CiEnvironment("true");
 		using var repo = TaggedMain();
 		Assert.Equal("+dev", FromGit(repo, suffix: "+dev").InformationalSuffix);
-	}
-
-	// Other modes
-
-	[Fact(DisplayName = "no versioning config: 0.1.0+local, even in CI")]
-	public void NoVersioning()
-	{
-		using var ci = new CiEnvironment("true");
-		Assert.Equal(new("0.1.0", "+local"), VersioningInputsFactory.Create(new()));
-	}
-
-	[Fact(DisplayName = "fixed mode: the configured version")]
-	public void Fixed()
-	{
-		using var ci = CiEnvironment.Local();
-		Assert.Equal(new("3.4.5", "+local"), VersioningInputsFactory.Create(new() { Versioning = new FixedVersioningConfig { Version = " 3.4.5 " } }));
-	}
-
-	[Fact(DisplayName = "fixed mode: 0.1.0 without a version, empty suffix in CI")]
-	public void Fixed_DefaultsAndCi()
-	{
-		using var ci = new CiEnvironment("true");
-		Assert.Equal(new("0.1.0", ""), VersioningInputsFactory.Create(new() { Versioning = new FixedVersioningConfig() }));
 	}
 }

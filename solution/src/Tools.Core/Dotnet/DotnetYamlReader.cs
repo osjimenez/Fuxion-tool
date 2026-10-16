@@ -129,18 +129,19 @@ public static partial class DotnetYamlReader
 			reader.Error(node, "import-mapping");
 			return null;
 		}
-		reader.Keys(map, "props", "targets", "when", "applies-to");
+		reader.Keys(map, "props", "targets", "files", "when", "applies-to");
 		var props = Paths(map, "props", reader);
 		var targets = Paths(map, "targets", reader);
+		var assets = Paths(map, "files", reader);
 		if (props.Count + targets.Count == 0)
 		{
 			reader.Error(node, "import-empty");
 			return null;
 		}
 		// Relative to the folder of the yaml and inside it: fx copies it, with the folder, to the repositories below
-		foreach (var path in props.Concat(targets).Where(p => Path.IsPathRooted(p) || p.Split('/').Contains("..")))
+		foreach (var path in props.Concat(targets).Concat(assets).Where(p => Path.IsPathRooted(p) || p.Split('/').Contains("..")))
 			reader.Error(node, "import-path", path);
-		return new(props, targets, FxYamlReader.Scalar(map["when"]), FxAppliesTo.Read(map, reader) ?? FxAppliesTo.All, source, node.Line);
+		return new(props, targets, FxYamlReader.Scalar(map["when"]), FxAppliesTo.Read(map, reader) ?? FxAppliesTo.All, source, node.Line) { Assets = assets };
 	}
 
 	static IReadOnlyList<string> Paths(YamlMapping map, string key, FxYamlReader reader)

@@ -14,7 +14,8 @@ namespace Fuxion.Tools.Core.Workspace;
 /// <c>_fx/dotnet/~$workspace.props</c> of the highest workspace on disk (plan P, decision 19 and proposal C): the map
 /// Fuxion.Tools.Sdk uses to resolve <c>FxReference</c>. For each project versioned in the mounted repositories (named
 /// by its file, like the package): a <c>FxWorkspaceProject</c> item, and a <c>ProjectReference</c> built from the
-/// <c>FxReference</c> with that name, so it keeps its metadata. Absolute paths: local (<c>~$</c>), generated.
+/// <c>FxReference</c> with that name, so it keeps its metadata, unless the project is of the repository that references
+/// it (its own map resolves it: <c>_FxExternalReference</c>, plan R). Absolute paths: local (<c>~$</c>), generated.
 /// </summary>
 public static class WorkspacePropsGenerator
 {
@@ -31,7 +32,7 @@ public static class WorkspacePropsGenerator
 			var n = SecurityElement.Escape(name);
 			var p = SecurityElement.Escape(path);
 			b.Append($"\t\t<FxWorkspaceProject Include=\"{n}\" Repository=\"{SecurityElement.Escape(repository)}\" Path=\"{p}\" />\n");
-			b.Append($"\t\t<ProjectReference Include=\"@(FxReference->WithMetadataValue('Identity', '{n}')->'{p}')\" />\n");
+			b.Append($"\t\t<ProjectReference Include=\"@(_FxExternalReference->WithMetadataValue('Identity', '{n}')->'{p}')\" />\n");
 		}
 		b.Append("\t</ItemGroup>\n");
 		b.Append("</Project>\n");

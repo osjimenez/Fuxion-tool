@@ -5,6 +5,5 @@ public sealed record VersionProps(
 	string PackageVersion,
 	string AssemblyVersion,
 	string FileVersion,
-	string InformationalVersion,
-	string Fingerprint
+	string InformationalVersion
 );

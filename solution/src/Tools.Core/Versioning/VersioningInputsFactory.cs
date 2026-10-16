@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Fuxion;
-using Fuxion.Tools.Core.Configuration;
 using Fuxion.Tools.Core.Git;
 using Fuxion.Tools.Core.Results;
 
@@ -14,34 +13,16 @@ public static class VersioningInputsFactory
 	/// <summary>The branch name of a detached HEAD (the name LibGit2Sharp gave it, kept so versions do not change).</summary>
 	const string DetachedBranchName = "(no branch)";
 
-	public static VersioningInputs Create(FuxionToolsConfig config, string? configPath = null)
-		=> Calculate(config, configPath).Inputs;
+	public static VersioningInputs Create(GitVersioningOptions options) => Calculate(options).Inputs;
 
-	/// <summary>The version and, when it comes from git, how it was calculated.</summary>
-	public static VersioningResult Calculate(FuxionToolsConfig config, string? configPath = null, Action<string>? warn = null)
+	/// <summary>The version from git and how it was calculated (none, when it falls back to the default one).</summary>
+	public static VersioningResult Calculate(GitVersioningOptions cfg, Action<string>? warn = null)
 	{
-		config ??= new();
-		return config.Versioning switch
-		{
-			FixedVersioningConfig fixedCfg => new(CreateFixed(fixedCfg), null),
-			GitVersioningConfig gitCfg => CreateGit(gitCfg, configPath, warn ?? (message => Console.Error.WriteLine(message))),
-			_ => new(VersioningInputs.Default, null)
-		};
-	}
-
-	static VersioningInputs CreateFixed(FixedVersioningConfig cfg)
-	{
-		var version = string.IsNullOrWhiteSpace(cfg.Version) ? VersioningInputs.Default.BaseVersion : cfg.Version.Trim();
-		var suffix = ResolveInformationalSuffix(cfg.InformationalSuffix, forceCi: false);
-		return new(version, suffix);
-	}
-
-	static VersioningResult CreateGit(GitVersioningConfig cfg, string? configPath, Action<string> warn)
-	{
-		var suffix = ResolveInformationalSuffix(cfg.InformationalSuffix, cfg.ForceCIEnvironment);
+		warn ??= message => Console.Error.WriteLine(message);
+		var suffix = ResolveInformationalSuffix(cfg.InformationalSuffix, cfg.ForceCi);
 		try
 		{
-			var git = GitClient.Discover(ResolveRepositoryPath(cfg.RepositoryPath, configPath));
+			var git = GitClient.Discover(string.IsNullOrWhiteSpace(cfg.RepositoryPath) ? Directory.GetCurrentDirectory() : Path.GetFullPath(cfg.RepositoryPath));
 			if (git is null)
 				return FailOrDefault(cfg, suffix, warn, VersioningErrorCodes.RepositoryNotFound, new("version.reason.repository-not-found"));
 
@@ -142,27 +123,7 @@ public static class VersioningInputsFactory
 		return string.Equals(githubActions, "true", StringComparison.OrdinalIgnoreCase);
 	}
 
-	static string ResolveRepositoryPath(string? repositoryPath, string? configPath)
-	{
-		if (string.IsNullOrWhiteSpace(repositoryPath))
-			return Directory.GetCurrentDirectory();
-
-		// "..\" in a fuxion-tools.json written on Windows must also work on Linux
-		repositoryPath = repositoryPath.Replace('\\', Path.DirectorySeparatorChar);
-
-		if (Path.IsPathRooted(repositoryPath))
-			return repositoryPath;
-
-		var baseDir = !string.IsNullOrWhiteSpace(configPath)
-			? Path.GetDirectoryName(Path.GetFullPath(configPath))
-			: Directory.GetCurrentDirectory();
-
-		return string.IsNullOrWhiteSpace(baseDir)
-			? Directory.GetCurrentDirectory()
-			: Path.GetFullPath(Path.Combine(baseDir, repositoryPath));
-	}
-
-	static VersioningResult FailOrDefault(GitVersioningConfig cfg, string suffix, Action<string> warn, string code, FxText reason)
+	static VersioningResult FailOrDefault(GitVersioningOptions cfg, string suffix, Action<string> warn, string code, FxText reason)
 	{
 		if (!cfg.FailOnError)
 		{

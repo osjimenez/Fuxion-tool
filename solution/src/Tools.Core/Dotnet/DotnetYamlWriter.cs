@@ -49,6 +49,8 @@ public static class DotnetYamlWriter
 			entries.Add(("props", Paths(import.Props)));
 		if (import.Targets.Count > 0)
 			entries.Add(("targets", Paths(import.Targets)));
+		if (import.Assets.Count > 0)
+			entries.Add(("files", Paths(import.Assets)));
 		if (import.When is not null)
 			entries.Add(("when", import.When));
 		AppliesTo(entries, import.AppliesTo);

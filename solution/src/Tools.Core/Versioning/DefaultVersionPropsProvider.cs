@@ -6,7 +6,6 @@ public static class DefaultVersionPropsProvider
 	{
 		var version = inputs.BaseVersion;
 		var informational = version + inputs.InformationalSuffix;
-		var fingerprint = VersionFingerprint.Compute(inputs);
 		var assemblyBase = version;
 		if (Fuxion.SemanticVersion.TryParse(version, out var semver))
 			assemblyBase = $"{semver.Major}.{semver.Minor}.{semver.Patch}";
@@ -16,8 +15,7 @@ public static class DefaultVersionPropsProvider
 			PackageVersion: version,
 			AssemblyVersion: assemblyBase + ".0",
 			FileVersion: assemblyBase + ".0",
-			InformationalVersion: informational,
-			Fingerprint: fingerprint
+			InformationalVersion: informational
 		);
 	}
 

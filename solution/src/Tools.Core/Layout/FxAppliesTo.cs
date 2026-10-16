@@ -45,6 +45,15 @@ public sealed record FxAppliesTo(IReadOnlyList<string> Tags, IReadOnlyList<strin
 		   || Tags.Any(t => who.Tags.Contains(t, StringComparer.OrdinalIgnoreCase))
 		   || Repositories.Any(who.Is);
 
+	/// <summary>
+	/// Whether it may be for the workspace <paramref name="who"/> or for something below it, so the workspace passes it
+	/// on: by tags (its repositories have tags its parent does not know), for everyone, or naming it or a repository
+	/// below it (plan Q, proposal 1; plan R, decision 2).
+	/// </summary>
+	public bool MayApplyBelow(FxIdentity who)
+		=> IsAll || Tags.Count > 0 || Repositories.Any(r => who.Is(r)
+			|| new[] { who.FullName }.Concat(who.Aliases ?? []).Any(n => r.StartsWith(n + "/", StringComparison.OrdinalIgnoreCase)));
+
 	/// <summary>The repositories made absolute, written by <paramref name="writer"/>.</summary>
 	public FxAppliesTo Absolute(string writer) => this with { Repositories = Repositories.Select(r => FxIdentity.Resolve(r, writer)).ToList() };
 

@@ -32,9 +32,13 @@ public static partial class DotnetModule
 	public const string IgnoredVersion = "dotnet.ignored-version";
 	public const string UnusedPackage = "dotnet.unused-package";
 	public const string MissingImport = "dotnet.missing-import";
+	public const string UnlistedFile = "dotnet.unlisted-file";
 
 	/// <summary>Where the module writes, relative to a root.</summary>
 	public const string Folder = "_fx/dotnet";
+
+	/// <summary>The projects of the repository by name (plan R, decision 1), versioned so a clone on its own has it.</summary>
+	public const string ProjectsFile = "_fx/dotnet/projects.g.props";
 
 	public static readonly string ConfigFile = FxLayout.ModuleFile(Name);
 	public static readonly string InheritedConfigFile = $"{FxLayout.InheritedModuleFolder(Name)}/{Name}.yaml";
@@ -143,9 +147,32 @@ public static partial class DotnetModule
 			return true;
 		});
 		if (context.Doctor)
+		{
 			foreach (var file in outputs.Files.Where(f => f.Status == SyncFileStatus.WouldWrite))
 				diagnostics.Add(FxDiagnostic.Error(Outdated, new(Outdated), file.Path, fix: FxFix.Run(FxHeader.Sync)));
+			CheckUnlisted(node, own, outputs, diagnostics);
+		}
 		return new(Name, context.DisplayRoot, repository, outputs.Files, [], diagnostics.ToList()) { Node = node.Root };
+	}
+
+	/// <summary>
+	/// A file of the root's own <c>_fx/dotnet/</c> that no import names (as a file to import or one that travels with it,
+	/// <c>files:</c>): it reaches no repository (plan R, decision 2).
+	/// </summary>
+	static void CheckUnlisted(FxNode node, DotnetConfig own, FxOutputs outputs, FxDiagnostics diagnostics)
+	{
+		var folder = node.Full(Folder);
+		if (!FxFiles.DirectoryExists(folder))
+			return;
+		var named = own.Imports.SelectMany(i => i.AllFiles).ToHashSet(StringComparer.OrdinalIgnoreCase);
+		foreach (var file in FxFiles.EnumerateFiles(folder, "*", SearchOption.AllDirectories))
+		{
+			var relative = FxLayout.Relative(folder, file);
+			if (relative == $"{Name}.yaml" || named.Contains(relative) || relative.Split('/').Any(FxLayout.IsLocal)
+			    || Path.GetFileName(relative).Contains(".g.", StringComparison.OrdinalIgnoreCase))
+				continue;
+			diagnostics.Add(FxDiagnostic.Warning(UnlistedFile, new(UnlistedFile, relative), outputs.Display(file), fix: FxFix.Do($"{UnlistedFile}.fix")));
+		}
 	}
 
 	static void Generate(FxNode node, GitClient git, FxIdentity identity, DotnetConfig config, string sources, SyncContext context, FxOutputs outputs, FxDiagnostics diagnostics)
@@ -200,13 +227,24 @@ public static partial class DotnetModule
 		// packages.g.props; without it, PackageReference Update items in dotnet.g.targets, right after the project file
 		var centralFiles = git.ListFiles(":(glob)**/Directory.Packages.props");
 		var centralManagement = centralFiles.Any(f => CentralManagement().IsMatch(Read(root, f)));
-		outputs.Generated(Path.Combine(root, Folder, "dotnet.g.props"), DotnetGenerator.Props(config, identity, propsImports, sources));
+		// a repository of a workspace that does not build on its own needs it (plan R, proposal 5)
+		var requiresWorkspace = !config.Standalone && !node.IsWorkspace && node.Inherited() is not null;
+		outputs.Generated(Path.Combine(root, Folder, "dotnet.g.props"), DotnetGenerator.Props(config, identity, propsImports, sources, requiresWorkspace));
 		outputs.Generated(Path.Combine(root, Folder, "dotnet.g.targets"),
 			DotnetGenerator.Targets(config, whenExpanded, targetsImports, centralManagement ? [] : packages, sources));
 		if (centralManagement)
 			outputs.Generated(Path.Combine(root, Folder, "packages.g.props"), DotnetGenerator.Packages(packages, sources));
 		else
 			outputs.Delete(Path.Combine(root, Folder, "packages.g.props"));
+		// its projects by name, for an FxReference inside the repository (plan R, decision 1)
+		var projects = Workspace.WorkspacePropsGenerator.Projects([(node, identity)], diagnostics)
+			.OrderBy(p => p.Key, StringComparer.OrdinalIgnoreCase)
+			.Select(p => (p.Key, Path.GetRelativePath(node.Full(Folder), p.Value.Path).Replace('\\', '/')))
+			.ToList();
+		if (projects.Count > 0)
+			outputs.Generated(node.Full(ProjectsFile), DotnetGenerator.Projects(projects, "the projects of this repository"));
+		else
+			outputs.Delete(node.Full(ProjectsFile));
 
 		// 4. The keys fx owns in files that are not fx's: msbuild-sdks and the Import of packages.g.props
 		if (config.Sdks.Count > 0)
