@@ -10,19 +10,19 @@ parent:
   full-name: /fuxion
   url: https://github.com/osjimenez/Fuxion-workspace.git
   ref: main
-  commit: e5a4492
+  commit: effde47
 files:
   - path: dotnet/default.props
     from: /fuxion
   - path: dotnet/dotnet.yaml
-    from: /fuxion
-  - path: dotnet/fuxion-analyzers.targets
     from: /fuxion
   - path: dotnet/icon.png
     from: /fuxion
   - path: dotnet/packable.props
     from: /fuxion
   - path: dotnet/packable.targets
+    from: /fuxion
+  - path: dotnet/package-oss.targets
     from: /fuxion
   - path: dotnet/polysharp.targets
     from: /fuxion

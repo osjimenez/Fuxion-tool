@@ -5,7 +5,7 @@ schema: 1.0.0
 applies-to:
   tags: [fuxion-build]
 sdks:
-  Fuxion.Tools.Sdk: 0.3.0
+  Fuxion.Tools.Sdk: 0.5.0
 variables:
   - name: OldFrameworks
     value: net472
@@ -46,15 +46,14 @@ imports:
   - props: default.props
   - props: packable.props
     targets: packable.targets
+    files: icon.png
     when: "'$(IsPackable)' == 'true'"
+  - targets: package-oss.targets
+    when: "'$(IsPackable)' == 'true' And '$(FuxionPackage)' == 'oss'"
   - targets: test.targets
     when: "'$(IsTestProject)' == 'true'"
   - targets: polysharp.targets
     when: $(IsStandardOrOldFrameworks)
-  - targets: fuxion-analyzers.targets
-    when: "'$(UseFuxionAnalyzers)' != 'false'"
-    applies-to:
-      tags: [uses-fuxion]
 packages:
   - ids: [Aspire.Hosting.RabbitMQ]
     versions:

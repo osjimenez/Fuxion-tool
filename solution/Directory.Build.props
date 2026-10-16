@@ -6,17 +6,12 @@
 		(frameworks, language, warnings, tests, packages) come from that dotnet.yaml (_fx/.inherited/, _fx/dotnet/*.g.*).
 	-->
 
-	<!-- Its packages: the SDK (fx as a dotnet tool, with the release); before the SDK, so that packable.props applies -->
+	<!-- Its packages: the SDK (fx as a dotnet tool, with the release), open source (their license, from the workspace's
+	     package-oss.targets); before the SDK, so that packable.props applies -->
 	<PropertyGroup>
 		<IsPackable Condition="'$(MSBuildProjectName)' == 'Fuxion.Tools.Sdk'">true</IsPackable>
+		<FuxionPackage>oss</FuxionPackage>
 	</PropertyGroup>
 	<Import Project="Sdk.props" Sdk="Fuxion.Tools.Sdk" />
-
-	<!-- The license and the repository of its packages -->
-	<PropertyGroup Condition="'$(IsPackable)' == 'true'">
-		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<RepositoryUrl>https://github.com/osjimenez/Fuxion-tool.git</RepositoryUrl>
-		<RepositoryType>git</RepositoryType>
-	</PropertyGroup>
 
 </Project>

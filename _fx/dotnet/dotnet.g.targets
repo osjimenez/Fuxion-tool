@@ -28,6 +28,7 @@
 		<DefineConstants>$(DefineConstants);STANDARD_OR_OLD_FRAMEWORKS</DefineConstants>
 	</PropertyGroup>
 	<Import Project="$(MSBuildThisFileDirectory)../.inherited/dotnet/packable.targets" Condition="'$(IsPackable)' == 'true'" />
+	<Import Project="$(MSBuildThisFileDirectory)../.inherited/dotnet/package-oss.targets" Condition="'$(IsPackable)' == 'true' And '$(FuxionPackage)' == 'oss'" />
 	<Import Project="$(MSBuildThisFileDirectory)../.inherited/dotnet/test.targets" Condition="'$(IsTestProject)' == 'true'" />
 	<Import Project="$(MSBuildThisFileDirectory)../.inherited/dotnet/polysharp.targets" Condition="(('$(TargetFramework)' == 'netstandard2.0') Or ('$(TargetFramework)' == 'net472'))" />
 </Project>

@@ -47,8 +47,8 @@ packaging metadata: those are the shared props of §3). It gives:
 - **Version from git** (§6) and **static metadata** (`Fuxion.Metadata.<Project>.{Project, Build, Versioning,
   Repository, Json}`), `FxVersioningEnabled`, `FxStaticMetadataEnabled`.
 - **`FxReference`** (§5) and the error `FXTL001`.
-- Translated XML documentation (`FxDocumentationLanguages=es`: copies the English XML to `~$docs/en` and packs
-  `~$docs/<lang>/<Assembly>.xml`).
+- Translated XML documentation (`FxDocumentationLanguages`: copies the English XML to `~$docs/en` and packs
+  `~$docs/<lang>/<Assembly>.xml`). No Fuxion repo uses it now (plan R: the documentation module is to be rethought).
 - fx's local files and folders (`~$…`) out of the projects' default globs.
 
 Local publishing is not the SDK's: the workspace's `packable.props` sets `PackageOutputPath` to
@@ -69,17 +69,22 @@ Three different things (plan N, decision 15):
 - **Imports**: which plain MSBuild files of `_fx/dotnet/` (paths relative to it) go into which projects. `props:`
   before the project file (they cannot see what the `.csproj` sets), `targets:` right after it (they can); `when:` on
   a variable, a property of the repo, or nothing (every project); `applies-to:` (tags or repositories) for some repos
-  only, as variables and packages can too.
+  only, as variables and packages can too; `files:` what travels with an import without being imported (the
+  `icon.png` of `packable.targets`). A repo gets only what is for it, and only the files of those imports (plan R):
+  a file of `_fx/dotnet/` that no import names is a warning of `fx doctor`.
 
 Today's imports (`_fx/dotnet/`):
 
 | File | Where | What |
 |---|---|---|
 | `default.props` | every project | `LangVersion preview`, `Nullable enable`, `ImplicitUsings disable`, warnings as errors (and nullable ones), code style in build, `IsPackable=false` by default, `ContinuousIntegrationBuild` on CI. Only what the project has not set |
-| `packable.props` / `.targets` | `IsPackable=true` | XML docs, symbols (snupkg), author, product, `fuxion.dev`, `PackageOutputPath` (local publishing); `PACKAGE_README.md` and `icon.png` (next to the file) in the package |
+| `packable.props` / `.targets` | `IsPackable=true` | XML docs, symbols (snupkg), author, product, `fuxion.dev`, `PackageOutputPath` (local publishing); `PACKAGE_README.md` and `icon.png` (`files:` of the import) in the package |
+| `package-oss.targets` | `IsPackable=true` and `FuxionPackage=oss` (the area or the project says it) | the MIT license; the repository comes from git (SourceLink) |
+| `package-plus.targets` | `IsPackable=true` and `FuxionPackage=plus`; only in the private repos (`uses-fuxion`) | the proprietary license, `plus/LICENSE.txt` (`files:`), which the user accepts |
 | `test.targets` | `IsTestProject=true` | `OutputType=Exe`, `xunit.v3`, `Microsoft.Testing.Extensions.CodeCoverage` |
 | `polysharp.targets` | `netstandard2.0`, `net472` | PolySharp |
-| `fuxion-analyzers.targets` | repos tagged `uses-fuxion`, unless the project says `UseFuxionAnalyzers=false` | the analyzers of oss (§5), and their dlls for Visual Studio's live analysis |
+| `fuxion-analyzers.targets` | repos tagged `uses-fuxion` and `oss`, unless the project says `UseFuxionAnalyzers=false` (the analyzer projects themselves) | the analyzers of oss (§5), and their dlls for Visual Studio's live analysis |
+| `pack-analyzers.targets` | `oss`, `IsPackable=true` | the analyzers inside every package of oss (`analyzers/dotnet/cs`) and `Fuxion.Analyzers.Abstractions` in `lib/`, from the map of the repository |
 
 ### Target frameworks and constants
 
@@ -100,34 +105,36 @@ Conditions per framework: `IsOldFrameworks`, `IsStandardFramework`, `IsStandardO
 
 ## 4. Package versions
 
-Central Package Management (`ManagePackageVersionsCentrally` + `CentralPackageTransitivePinningEnabled`) in every repo
-but `tool`. Two owners, never both for one package (D-16; NuGet rejects it, and `fx doctor` explains it):
-- **The workspace's `dotnet.yaml`** (`packages:`) governs what every repo shares: `xunit.v3`, the coverage package,
-  PolySharp, the .NET platform packages (11 rc on net11, 10.0.x on the rest), EF Core and MongoDB EF Core. fx writes
+Central Package Management (`ManagePackageVersionsCentrally` + `CentralPackageTransitivePinningEnabled`) in every
+repo. Every package version is in one place (user, 15-oct), never also in a repo (D-16; NuGet rejects it, and
+`fx doctor` explains it):
+- **The workspace's `dotnet.yaml`** (`packages:`, in alphabetical order; the .NET platform, EF Core and MongoDB EF
+  Core at the end, with a version per framework; `Fuxion` 10.0.18 only for `tool`, which uses it by package). fx writes
   the ones the repo uses (also through an `FxReference`) in `_fx/dotnet/packages.g.props`, which the repo's
   `Directory.Packages.props` imports (or, in a repo without central management, as `PackageReference Update` in
   `dotnet.g.targets`). With several versions, each needs its `when` (D-32: every framework gets exactly one;
   `fx doctor` checks it); a single version is for every framework. **To upgrade one, change the yaml and `fx sync`.**
-- **The repo's `solution/Directory.Packages.props`**: the rest, only what its projects use, directly or transitively
-  (transitive pins on purpose, like `System.Private.Uri`, are legitimate). `fx doctor` warns about a version no
-  project uses (`dotnet.unused-package`, from the last restore).
+- **The repo's `solution/Directory.Packages.props`** only imports `packages.g.props`. fx writes there only what the
+  repo references directly: a version that only arrives transitively (the `System.Security.Cryptography.Pkcs` of the
+  vulnerability of `Microsoft.Data.SqlClient`) is not pinned in a repo that does not reference it (plan R, finding).
 - `PackageReference` never carries `Version=`.
-- oss's `solution/test` adds `NU1902;NU1903` to `NoWarn` (vulnerability warnings of old test packages); everywhere
-  else warnings are errors.
+- oss's `solution/test` adds `NU1902;NU1903` to `NoWarn` (the vulnerable `System.Security.Cryptography.Pkcs` that
+  `Microsoft.Data.SqlClient` brings, which fx does not pin there: see above); everywhere else warnings are errors.
 
 ## 5. References between projects
 
-- **Inside a repo**: relative `ProjectReference`s (oss also keeps its own path variables, `solution/.config/props/
-  Core.Paths.props`, for its projects and its analyzers' packaging).
-- **To another repo**: `<FxReference Include="Fuxion" />`, by project name, never a path. In the workspace it is a
+- **Inside a repo and to another repo**: `<FxReference Include="Fuxion" />`, by project name, never a path (plan R).
+  A project of the same repo is a `ProjectReference` through the map of the repo (`_fx/dotnet/projects.g.props`,
+  generated and versioned, so it works in a clone on its own too); one of another repo, in the workspace, is a
   `ProjectReference` (whichever solution is open, design D-13: the map is `_fx/dotnet/~$workspace.props` of the
   highest workspace on disk, written by `fx sync`); outside it, a `PackageReference` (its version in the repo's
   `Directory.Packages.props`, or the workspace's `dotnet.yaml`).
-  `FxUsePackages=true` makes them all packages (a CI).
+  `FxUsePackages=true` makes those of other repos packages (a CI); those of the same repo are always projects.
 - **`WorkspaceOnly="true"`** on an `FxReference`: only in the workspace, nothing outside it (the analyzers of oss,
   which the `Fuxion` package already carries).
-- A repo that only builds inside the workspace (`next`, `archive`, `lab`) says `FxRequiresWorkspace=true`: an
-  `FxReference` that is not mounted is error `FXTL001`. `fx doctor` checks that a `standalone: true` repo (its own
+- A repo that only builds inside the workspace (`next`, `archive`, `lab`: not `standalone`) gets
+  `FxRequiresWorkspace=true` from fx, in its `dotnet.g.props` (plan R): an `FxReference` that is not mounted is error
+  `FXTL001`. `fx doctor` checks that a `standalone: true` repo (its own
   `_fx/dotnet/dotnet.yaml`) references nothing from a repo that is not.
 - `plus` references `Fuxion` with `PrivateAssets="none"`, so its packages give their users the analyzers (they come in
   the `Fuxion` package).
@@ -180,11 +187,11 @@ creates a new base (local; push it yourself). `FxVersioningEnabled=false` turns 
 
 ## 8. Checklist
 
-- **New package:** shared by every repo or with a version per framework → `packages:` of the workspace's
-  `_fx/dotnet/dotnet.yaml` and `fx sync`; only this repo's → `PackageVersion` in its `solution/Directory.Packages.props`.
+- **New package:** its version in `packages:` of the workspace's `_fx/dotnet/dotnet.yaml` (every package is there,
+  in alphabetical order; `applies-to` if it is only for some repos) and `fx sync`.
   Then `PackageReference` without version in the `.csproj` (or in a shared props if every project of a kind needs it).
-- **New project:** folder in the repo's `solution/` → `.csproj` with `$(…Frameworks)`, relative `ProjectReference`s
-  inside the repo and `FxReference` to other repos → `IsTestProject=true` if it is a test → add it to the repo's
+- **New project:** folder in the repo's `solution/` → `.csproj` with `$(…Frameworks)` and `FxReference` by name
+  (inside the repo too, plan R); `FuxionPackage` if it is a package of another kind than its area → `IsTestProject=true` if it is a test → add it to the repo's
   solution → `fx sync` (the workspace's `Fuxion.slnx` and the map pick it up).
 - **New repo**: `fx repo add <url> <path> --tag dotnet --tag fuxion-build` (and `uses-fuxion` if it uses Fuxion);
   its solution in the `solutions` of the workspace's `_fx/dotnet/dotnet.yaml`; `global.json`, `Directory.Build.props`
@@ -254,14 +261,14 @@ versioned the `plus` build was removed in phase 4, plan N).
   `dotnet.yaml`. The version it builds with is the one it **published before** (the `sdks:` pin, in its `global.json`),
   never the one it is building: to use a change of the SDK in `tool`, publish it locally, raise `sdks:` and run
   `fx sync`. `solution/Directory.Build.props` makes only `Fuxion.Tools.Sdk` packable (before importing the SDK, so
-  `packable.props` applies) and adds the license and repository of its packages; the SDK project has no XML
+  `packable.props` applies), of the kind `oss` (`FuxionPackage`: the MIT license); the SDK project has no XML
   documentation (its interface is its MSBuild properties). The SDK tests pack it with `FxVersioningEnabled=false`, or
   the version of git would replace theirs. Until the SDK is on nuget.org, `tool` only restores inside the workspace.
 - It uses Fuxion **by package** (10.0.18, the last published) instead of linking oss source files: the `Fuxion`
   entry of the workspace's `dotnet.yaml` applies only to `tool` (`applies-to: repositories`), because elsewhere Fuxion
   is the project of oss.
-- `solution/sketches/NugetPackageManager` needs Fuxion 11 and is in no solution; `solution/.config` holds the seed of
-  the SDK (`fuxion-tools.json`, `Tools.*.targets`), not used by the build.
+- `solution/sketches/NugetPackageManager` needs Fuxion 11 and is in no solution. The old `Fuxion.Tools` (its
+  `fuxion-tools.json`, its targets and the `version.g.props` it wrote) is gone (plan R): the SDK does all that.
 - **`solution/dev`**, tools to work on `fx` (folder `dev` of `FxTool.slnx`; not tests):
   - `Pty`, a harness to try `fx` in a real terminal without a person (Windows: ConPTY). It types keys and prints what
     the terminal receives, or pictures of the screen; how to use it, at the top of its `Program.cs`.

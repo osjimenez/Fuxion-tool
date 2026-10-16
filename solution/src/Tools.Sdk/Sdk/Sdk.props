@@ -33,7 +33,8 @@
 		                          FxStaticMetadataNamespace (default Fuxion.Metadata)
 		  FxDocumentationLanguages translated XML documentation to pack, from ~$docs/<lang> (for example: es)
 		  FxUsePackages           every FxReference as a package, also in a workspace (CI)
-		  FxRequiresWorkspace     an FxReference that would be a package is an error (FXTL001)
+		  FxRequiresWorkspace     an FxReference that would be a package is an error (FXTL001); fx sets it in a repository
+		                          of a workspace that is not standalone (dotnet.g.props)
 	-->
 
 	<PropertyGroup>
