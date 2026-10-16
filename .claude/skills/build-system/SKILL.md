@@ -210,7 +210,8 @@ versioned the `plus` build was removed in phase 4, plan N).
   the .NET SDK computes anything: `dotnet.g.targets`), `CustomBeforeDirectoryBuildTargets` and `CustomAfterMicrosoftCommonCrossTargetingTargets`
   (the late part, also in the outer build that packs), keeping whatever each one had. Its tasks use `UsingTask … Runtime="NET"` (the .NET task host under Visual Studio)
   and target `net11.0`, as the MSBuild they build against (18.11, the line of .NET 11): the SDK needs the .NET 11 SDK;
-  `Core` stays `net10.0`. A local package needs a new version each time: NuGet caches by version.
+  `Core` too (it is no package: inside the exe of `fx`, and copied to `tasks/` of the package of the SDK). A local
+  package needs a new version each time: NuGet caches by version.
 - `fx` is published with **native AOT** (`PublishAot`, `InvariantGlobalization`; `Core` has `IsAotCompatible`, so its
   analyzers turn any trimming or AOT problem into a build error). Keep it so: no reflection (JSON through
   `JsonSerializerContext`), no packages that are not AOT-compatible. Publish with
