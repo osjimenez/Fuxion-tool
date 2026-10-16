@@ -214,7 +214,7 @@ public sealed class DotnetTest
 
 	// Module, on a repository with fx and no workspace
 
-	sealed class Repo : IDisposable
+	internal sealed class Repo : IDisposable
 	{
 		public readonly TempGitRepository Git = new();
 
@@ -614,7 +614,7 @@ public sealed class DotnetTest
 		using var repo = new Repo();
 		var stdout = new StringWriter();
 		var stderr = new StringWriter();
-		Assert.Equal(1, FxApp.Run(["doctor", "dotnet"], stdout, stderr, repo.Git.Path));
+		Assert.Equal(1, InProcess.Run(["doctor", "dotnet"], stdout, stderr, repo.Git.Path));
 		// for people, as flutter doctor and on stdout (plan O, decision 8): the module, each problem and its fix, the summary
 		var doctor = stdout.ToString();
 		Assert.Contains("[✗] dotnet     6 error(s)", doctor);
@@ -625,7 +625,7 @@ public sealed class DotnetTest
 
 		// The diagnostics, with their scope and fix (plan O, decision 13)
 		stdout = new StringWriter();
-		Assert.Equal(1, FxApp.Run(["doctor", "dotnet", "--output", "json"], stdout, new StringWriter(), repo.Git.Path));
+		Assert.Equal(1, InProcess.Run(["doctor", "dotnet", "--output", "json"], stdout, new StringWriter(), repo.Git.Path));
 		var outdated = JsonDocument.Parse(stdout.ToString()).RootElement.GetProperty("diagnostics").EnumerateArray().First();
 		Assert.Equal("dotnet.outdated", outdated.GetProperty("code").GetString());
 		Assert.Equal("dotnet", outdated.GetProperty("module").GetString());
@@ -633,7 +633,7 @@ public sealed class DotnetTest
 		Assert.Equal("fx sync", outdated.GetProperty("fix").GetProperty("command").GetString());
 
 		stdout = new StringWriter();
-		Assert.Equal(0, FxApp.Run(["sync", "dotnet", "--output", "json"], stdout, new StringWriter(), repo.Git.Path));
+		Assert.Equal(0, InProcess.Run(["sync", "dotnet", "--output", "json"], stdout, new StringWriter(), repo.Git.Path));
 		var json = JsonDocument.Parse(stdout.ToString()).RootElement;
 		Assert.Equal("fx-sync/1", json.GetProperty("schema").GetString());
 		Assert.True(json.GetProperty("ok").GetBoolean());
@@ -642,48 +642,8 @@ public sealed class DotnetTest
 		Assert.Equal(6, dotnet.GetProperty("files").EnumerateArray().Count(f => f.GetProperty("status").GetString() == "written"));
 
 		stdout = new StringWriter();
-		Assert.Equal(0, FxApp.Run(["doctor", "dotnet", "--output", "json"], stdout, new StringWriter(), repo.Git.Path));
+		Assert.Equal(0, InProcess.Run(["doctor", "dotnet", "--output", "json"], stdout, new StringWriter(), repo.Git.Path));
 		Assert.Equal("fx-doctor/1", JsonDocument.Parse(stdout.ToString()).RootElement.GetProperty("schema").GetString());
-	}
-
-	[Fact(DisplayName = "fx in Spanish: the messages and the help are; codes, commands and JSON are not (plan O, decision 7)")]
-	public void Cli_Spanish()
-	{
-		using var repo = new Repo();
-		try
-		{
-			var stdout = new StringWriter();
-			Assert.Equal(1, FxApp.Run(["doctor", "dotnet", "--lang", "es"], stdout, new StringWriter(), repo.Git.Path));
-			var doctor = stdout.ToString();
-			Assert.Contains("[✗] dotnet     6 error(es)", doctor);
-			Assert.Contains("Desfasado: fx sync lo cambiaría. (_fx/dotnet/dotnet.g.props · dotnet.outdated)", doctor);
-			Assert.Contains("      → fx sync", doctor);
-			Assert.Contains("El doctor ha encontrado problemas en 1 módulo(s).", doctor);
-
-			stdout = new StringWriter();
-			FxApp.Run(["doctor", "dotnet", "--lang", "es", "--output", "json"], stdout, new StringWriter(), repo.Git.Path);
-			var outdated = JsonDocument.Parse(stdout.ToString()).RootElement.GetProperty("diagnostics").EnumerateArray().First();
-			Assert.Equal("Out of date: fx sync would change it.", outdated.GetProperty("message").GetString());
-
-			stdout = new StringWriter();
-			Assert.Equal(0, FxApp.Run(["sync", "--help", "--lang", "es"], stdout, new StringWriter(), repo.Git.Path));
-			Assert.Contains("Genera y pone al día lo que es de fx aquí", stdout.ToString());
-			Assert.Contains("--dry-run", stdout.ToString());
-
-			// FX_LANG, and back to English
-			stdout = new StringWriter();
-			Environment.SetEnvironmentVariable(FxLanguage.Variable, "es");
-			FxApp.Run(["doctor"], stdout, new StringWriter(), repo.Git.Path);
-			Assert.Contains("Desfasado", stdout.ToString());
-		}
-		finally
-		{
-			Environment.SetEnvironmentVariable(FxLanguage.Variable, "en");
-			FxLanguage.Apply("en");
-		}
-		var english = new StringWriter();
-		FxApp.Run(["doctor"], english, new StringWriter(), repo.Git.Path);
-		Assert.Contains("Out of date: fx sync would change it.", english.ToString());
 	}
 
 	[Fact(DisplayName = "a composed solution keeps the paths as its solutions write them, also under a '~' (a worktree), whatever the case on disk")]

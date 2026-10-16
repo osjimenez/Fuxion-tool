@@ -799,12 +799,12 @@ public sealed class WorkspaceTest
 	{
 		using var ws = new Workspace(("plus", "mandatory"));
 		var stdout = new StringWriter();
-		Assert.Equal(0, FxApp.Run(["sync"], stdout, new StringWriter(), ws.Root));
+		Assert.Equal(0, InProcess.Run(["sync"], stdout, new StringWriter(), ws.Root));
 		Assert.Contains("cloned      plus", stdout.ToString());
 
-		Assert.Equal(0, FxApp.Run(["doctor", "--offline"], new StringWriter(), new StringWriter(), ws.RepoPath("plus")));
+		Assert.Equal(0, InProcess.Run(["doctor", "--offline"], new StringWriter(), new StringWriter(), ws.RepoPath("plus")));
 		stdout = new StringWriter();
-		Assert.Equal(0, FxApp.Run(["doctor", "-w", "--offline", "--output", "json"], stdout, new StringWriter(), ws.RepoPath("plus")));
+		Assert.Equal(0, InProcess.Run(["doctor", "-w", "--offline", "--output", "json"], stdout, new StringWriter(), ws.RepoPath("plus")));
 		Assert.Contains(JsonDocument.Parse(stdout.ToString()).RootElement.GetProperty("modules").EnumerateArray(), m => m.GetProperty("module").GetString() == "workspace");
 	}
 
@@ -813,7 +813,7 @@ public sealed class WorkspaceTest
 	{
 		using var ws = new Workspace(("plus", "mandatory"), ("lab", "manual"));
 		var stdout = new StringWriter();
-		Assert.Equal(0, FxApp.Run(["repo", "list", "--output", "json"], stdout, new StringWriter(), ws.Root));
+		Assert.Equal(0, InProcess.Run(["repo", "list", "--output", "json"], stdout, new StringWriter(), ws.Root));
 		var json = JsonDocument.Parse(stdout.ToString()).RootElement;
 		Assert.Equal("fx-repo-list/1", json.GetProperty("schema").GetString());
 		var repos = json.GetProperty("repositories").EnumerateArray().ToList();
@@ -825,11 +825,11 @@ public sealed class WorkspaceTest
 	public void Cli_MountParking()
 	{
 		using var ws = new Workspace(("plus", "mandatory"), ("lab", "mandatory"));
-		Assert.Equal(0, FxApp.Run(["sync"], new StringWriter(), new StringWriter(), ws.Root));
+		Assert.Equal(0, InProcess.Run(["sync"], new StringWriter(), new StringWriter(), ws.Root));
 		ws.WriteManifest(("plus", "mandatory", ""), ("lab", "manual", ""));
 
 		var stdout = new StringWriter();
-		Assert.Equal(0, FxApp.Run(["repo", "unmount", "lab", "--output", "json"], stdout, new StringWriter(), ws.Root));
+		Assert.Equal(0, InProcess.Run(["repo", "unmount", "lab", "--output", "json"], stdout, new StringWriter(), ws.Root));
 		var json = JsonDocument.Parse(stdout.ToString()).RootElement;
 		Assert.Equal("fx-repo-mount/1", json.GetProperty("schema").GetString());
 		var lab = Assert.Single(json.GetProperty("repositories").EnumerateArray());
@@ -837,13 +837,13 @@ public sealed class WorkspaceTest
 		Assert.Equal("in _fx/~$parking/lab/repo", lab.GetProperty("detail").GetString());
 
 		stdout = new StringWriter();
-		Assert.Equal(0, FxApp.Run(["repo", "list", "--output", "json"], stdout, new StringWriter(), ws.Root));
+		Assert.Equal(0, InProcess.Run(["repo", "list", "--output", "json"], stdout, new StringWriter(), ws.Root));
 		var repos = JsonDocument.Parse(stdout.ToString()).RootElement.GetProperty("repositories").EnumerateArray().ToList();
 		Assert.True(repos[1].GetProperty("parked").GetBoolean());
 		Assert.False(repos[0].GetProperty("parked").GetBoolean());
 
 		stdout = new StringWriter();
-		Assert.Equal(0, FxApp.Run(["repo", "mount", "lab"], stdout, new StringWriter(), ws.Root));
+		Assert.Equal(0, InProcess.Run(["repo", "mount", "lab"], stdout, new StringWriter(), ws.Root));
 		Assert.Equal("unparked   lab", stdout.ToString().Trim());
 	}
 
@@ -854,7 +854,7 @@ public sealed class WorkspaceTest
 	{
 		using var ws = new Workspace(("plus", "mandatory"), ("lab", "manual"));
 		var stderr = new StringWriter();
-		Assert.Equal(FxConsole.UsageError, FxApp.Run(["repo", verb], new StringWriter(), stderr, ws.Root));
+		Assert.Equal(FxConsole.UsageError, InProcess.Run(["repo", verb], new StringWriter(), stderr, ws.Root));
 		Assert.Contains($"fx repo {verb} <names>", stderr.ToString());
 	}
 
@@ -862,21 +862,21 @@ public sealed class WorkspaceTest
 	public void Cli_RepoStatus()
 	{
 		using var ws = new Workspace(("plus", "mandatory"), ("lab", "mandatory"));
-		Assert.Equal(0, FxApp.Run(["sync"], new StringWriter(), new StringWriter(), ws.Root));
+		Assert.Equal(0, InProcess.Run(["sync"], new StringWriter(), new StringWriter(), ws.Root));
 		var stdout = new StringWriter();
-		Assert.Equal(0, FxApp.Run(["repo", "status"], stdout, new StringWriter(), ws.Root));
+		Assert.Equal(0, InProcess.Run(["repo", "status"], stdout, new StringWriter(), ws.Root));
 		Assert.Equal("✓ All 2 repositories are clean.", stdout.ToString().Trim());
 
 		File.WriteAllText(Path.Combine(ws.RepoPath("lab"), "new.txt"), "x");
 		stdout = new StringWriter();
-		Assert.Equal(0, FxApp.Run(["repo", "status"], stdout, new StringWriter(), ws.Root));
+		Assert.Equal(0, InProcess.Run(["repo", "status"], stdout, new StringWriter(), ws.Root));
 		var text = stdout.ToString();
 		Assert.Contains("lab", text);
 		Assert.DoesNotContain("plus", text);
 		Assert.Contains("1 of 2 repositories are clean (--all to see them).", text);
 
 		stdout = new StringWriter();
-		Assert.Equal(0, FxApp.Run(["repo", "status", "--all"], stdout, new StringWriter(), ws.Root));
+		Assert.Equal(0, InProcess.Run(["repo", "status", "--all"], stdout, new StringWriter(), ws.Root));
 		text = stdout.ToString();
 		Assert.Contains("lab", text);
 		Assert.Contains("plus", text);

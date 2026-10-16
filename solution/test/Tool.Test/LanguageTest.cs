@@ -25,6 +25,7 @@ static class TestLanguage
 }
 
 /// <summary>The languages of fx (plan O, O2.4): which one, and that every text is in both.</summary>
+[Collection(nameof(ProcessCollection))]
 public sealed partial class LanguageTest
 {
 	static Func<string, string?> Env(params (string Name, string Value)[] variables)
@@ -80,7 +81,7 @@ public sealed partial class LanguageTest
 				$"{which}: '{key}' has other arguments in Spanish");
 	}
 
-	static string SourceRoot([CallerFilePath] string path = "") => Path.GetFullPath(Path.Combine(Path.GetDirectoryName(path)!, "..", "..", "src"));
+	static string SourceRoot() => Path.Combine(SdkFixture.FindRepository(), "solution", "src");
 
 	[GeneratedRegex(@"Texts\.Get\(""(?<key>[^""]+)""")]
 	private static partial Regex CliKey();

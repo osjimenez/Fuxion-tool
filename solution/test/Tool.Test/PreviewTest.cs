@@ -21,7 +21,7 @@ public sealed class PreviewTest : SampleTree
 	{
 		var stdout = new StringWriter();
 		var stderr = new StringWriter();
-		var exitCode = FxApp.Run(args, stdout, stderr, root);
+		var exitCode = InProcess.Run(args, stdout, stderr, root);
 		return (exitCode, stdout.ToString(), stderr.ToString());
 	}
 

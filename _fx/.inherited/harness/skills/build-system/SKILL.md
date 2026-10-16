@@ -212,7 +212,8 @@ versioned the `plus` build was removed in phase 4, plan N).
   the packages go. It hooks itself in three places: `BeforeMicrosoftNETSdkTargets` (right after the project file, before
   the .NET SDK computes anything: `dotnet.g.targets`), `CustomBeforeDirectoryBuildTargets` and `CustomAfterMicrosoftCommonCrossTargetingTargets`
   (the late part, also in the outer build that packs), keeping whatever each one had. Its tasks use `UsingTask … Runtime="NET"` (the .NET task host under Visual Studio)
-  and target `net11.0`, as the MSBuild they build against (18.11, the line of .NET 11): the SDK needs the .NET 11 SDK;
+  and target `net11.0`, as the MSBuild they build against (18.11, the line of .NET 11): the SDK needs the .NET 11 SDK, and in Visual Studio
+  18.11 or later (18.10, the one of the GitHub runners in October 2026, cannot load the tasks; its test is skipped there);
   `Core` too (it is no package: inside the exe of `fx`, and copied to `tasks/` of the package of the SDK). A local
   package needs a new version each time: NuGet caches by version.
 - `fx` is published with **native AOT** (`PublishAot`, `InvariantGlobalization`; `Core` has `IsAotCompatible`, so its
@@ -277,8 +278,13 @@ versioned the `plus` build was removed in phase 4, plan N).
     `key<TAB>english<TAB>spanish` (or `-key` to remove one). Every text of `fx` goes in both languages.
 - Tests: xUnit v3 on MTP like oss (`<IsTestProject>true</IsTestProject>`, the workspace's `test.targets`). They create
   throwaway git repos with the real `git` (`TempGitRepository`, isolated from the user's git configuration) and run
-  the CLI in process (`FxApp.Run`). Not parallel: the versioning reads the CI variables of the process environment.
-  `fx ui` is tested on a terminal in memory (`UiTest`): keys pushed, the screen read back with `TestScreen`.
+  the CLI in process (`InProcess.Run`). The classes run in parallel (I-44: about 3.5 minutes instead of 15 on Windows,
+  where every `git` is a process that costs); what changes the process (environment variables: `CI`, `FX_CACHE`,
+  `FX_WORKTREES`; the language) goes to the collection `ProcessCollection`, alone, after the rest. A class of the sample
+  tree costs about 10-20 s per test (each builds its git repositories): split a heavy one rather than make it parallel
+  inside. `fx ui` is tested on a terminal in memory (`UiTree`, `UiTest`, `UiActionTest`): keys pushed, the screen read
+  back with `TestScreen`; XenoAtom has one dispatcher per process, so while the app is open it takes the gate of
+  `InProcess` alone, and the command line shares it.
 - Verify with `dotnet build tool/repo/FxTool.slnx` and `dotnet test --solution tool/repo/FxTool.slnx`. CI
   (`.github/workflows/ci.yml`): build and tests on Windows and Linux, `fx.exe` as an artifact; it publishes nothing.
   Still **off** (only by hand); turning it on is the next step. It needs the `version/*` tags on GitHub.

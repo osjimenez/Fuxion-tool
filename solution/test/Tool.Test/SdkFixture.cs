@@ -45,8 +45,15 @@ public sealed class SdkFixture : IDisposable
 	public string Version { get; }
 
 	/// <summary>
-	/// MSBuild.exe of the newest Visual Studio 18 or later (the .NET Framework MSBuild the IDE uses; the .NET task host the SDK
-	/// needs is MSBuild 18), if there is one.
+	/// The oldest Visual Studio whose MSBuild loads the tasks of the SDK, which build against MSBuild 18.11
+	/// (Microsoft.Build.Utilities.Core in dotnet.yaml): 18.10, the one of the GitHub runners in October 2026, cannot
+	/// instantiate them on its .NET task host.
+	/// </summary>
+	public const string MinimumVisualStudio = "18.11";
+
+	/// <summary>
+	/// MSBuild.exe of the newest Visual Studio <see cref="MinimumVisualStudio"/> or later (the .NET Framework MSBuild of the
+	/// IDE), if there is one.
 	/// </summary>
 	public string? MSBuildExe { get; }
 
@@ -106,7 +113,8 @@ public sealed class SdkFixture : IDisposable
 		return environment;
 	}
 
-	static string FindRepository()
+	/// <summary>The root of this repository, above the test assembly (not the path of the sources: a deterministic build maps it to /_/).</summary>
+	internal static string FindRepository()
 	{
 		for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
 			if (File.Exists(Path.Combine(dir.FullName, "FxTool.slnx")))
@@ -120,7 +128,7 @@ public sealed class SdkFixture : IDisposable
 		if (!OperatingSystem.IsWindows() || !File.Exists(vswhere))
 			return null;
 		var result = ProcessRunner.Run(vswhere, Path.GetTempPath(),
-			["-latest", "-prerelease", "-version", "[18.0,", "-requires", "Microsoft.Component.MSBuild", "-find", @"MSBuild\**\Bin\MSBuild.exe"], TimeSpan.FromSeconds(30));
+			["-latest", "-prerelease", "-version", $"[{MinimumVisualStudio},", "-requires", "Microsoft.Component.MSBuild", "-find", @"MSBuild\**\Bin\MSBuild.exe"], TimeSpan.FromSeconds(30));
 		return result.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
 			.FirstOrDefault(File.Exists);
 	}

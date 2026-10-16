@@ -78,7 +78,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 			repo.WriteFile(Path.Combine("_fx", "dotnet", "dotnet.yaml"), "schema: 1.0.0\nimports:\n  - props: publish.props\n");
 			repo.WriteFile(Path.Combine("_fx", "dotnet", "publish.props"), PublishProps);
 			var stderr = new StringWriter();
-			Assert.True(FxApp.Run(["sync", "--offline"], new StringWriter(), stderr, repo.Path) == 0, stderr.ToString());
+			Assert.True(InProcess.Run(["sync", "--offline"], new StringWriter(), stderr, repo.Path) == 0, stderr.ToString());
 		}
 		repo.CommitAll("c1");
 		if (tag)
@@ -360,7 +360,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 				public string Name { get; init; } = "";
 			}
 			""");
-		Assert.Equal(0, FxApp.Run(["sync", "dotnet"], new StringWriter(), new StringWriter(), repo.Path));
+		Assert.Equal(0, InProcess.Run(["sync", "dotnet"], new StringWriter(), new StringWriter(), repo.Path));
 		repo.CommitAll("c1");
 		repo.Tag("version/1.0.0");
 
@@ -369,7 +369,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		Succeeded(test);
 		Assert.Contains("succeeded: 1", test.StandardOutput);
 		Succeeded(fixture.Build(Path.Combine(repo.Path, "solution", "src", "Old")));
-		Assert.Equal(0, FxApp.Run(["doctor", "dotnet"], new StringWriter(), new StringWriter(), repo.Path));
+		Assert.Equal(0, InProcess.Run(["doctor", "dotnet"], new StringWriter(), new StringWriter(), repo.Path));
 	}
 
 	[Fact(DisplayName = "without central package management: the version of dotnet.yaml reaches the project's reference")]
@@ -397,7 +397,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 				</ItemGroup>
 			</Project>
 			""");
-		Assert.Equal(0, FxApp.Run(["sync", "dotnet"], new StringWriter(), new StringWriter(), repo.Path));
+		Assert.Equal(0, InProcess.Run(["sync", "dotnet"], new StringWriter(), new StringWriter(), repo.Path));
 		Assert.False(File.Exists(Path.Combine(repo.Path, "_fx", "dotnet", "packages.g.props")));
 		repo.CommitAll("c1");
 		repo.Tag("version/1.0.0");
@@ -499,7 +499,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 			""");
 
 		var stdout = new StringWriter();
-		Assert.Equal(0, FxApp.Run(["sync"], stdout, new StringWriter(), repo.Path));
+		Assert.Equal(0, InProcess.Run(["sync"], stdout, new StringWriter(), repo.Path));
 		Assert.Contains("written     _fx/dotnet/packages.g.props", stdout.ToString());
 		repo.CommitAll("c1");
 		repo.Tag("version/1.0.0");
@@ -509,7 +509,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		Assert.Contains("IsNet11[net11.0]=true", result.StandardOutput);
 		Assert.Contains("IsNet11[net10.0]=false", result.StandardOutput);
 		Assert.Contains("\"Spectre.Console/0.57.2\"", File.ReadAllText(Path.Combine(repo.Path, "solution", "src", "App", "obj", "project.assets.json")));
-		Assert.Equal(0, FxApp.Run(["doctor", "dotnet"], new StringWriter(), new StringWriter(), repo.Path));
+		Assert.Equal(0, InProcess.Run(["doctor", "dotnet"], new StringWriter(), new StringWriter(), repo.Path));
 	}
 
 	[Fact(DisplayName = "FxReference: a project in the workspace, a package outside it, and a clear error when it needs the workspace")]
@@ -582,7 +582,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		var appProject = Path.Combine(app.Path, "solution", "src", "App");
 
 		// In the workspace: fx sync writes the map, and Lib is a project
-		Assert.Equal(0, FxApp.Run(["sync", "--offline"], new StringWriter(), new StringWriter(), workspace.Path));
+		Assert.Equal(0, InProcess.Run(["sync", "--offline"], new StringWriter(), new StringWriter(), workspace.Path));
 		Assert.Contains("Include=\"Lib\" Repository=\"lib\"", File.ReadAllText(Path.Combine(workspace.Path, "_fx", "dotnet", "~$workspace.props")));
 		Assert.Contains("<FxRepositoryProject Include=\"Helper\"", File.ReadAllText(Path.Combine(app.Path, "_fx", "dotnet", "projects.g.props")));
 		Succeeded(fixture.Build(appProject));
@@ -616,7 +616,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 	[Fact(DisplayName = "the MSBuild of Visual Studio (.NET Framework): the tasks run on the .NET task host")]
 	public void VisualStudioMSBuild()
 	{
-		Assert.SkipWhen(fixture.MSBuildExe is null, "Visual Studio (MSBuild.exe) is not installed");
+		Assert.SkipWhen(fixture.MSBuildExe is null, $"Visual Studio {SdkFixture.MinimumVisualStudio} or later (MSBuild.exe) is not installed");
 		using var repo = Sample();
 		// net10.0 only: the stable Visual Studio of a CI runner uses the stable .NET SDK, which cannot build net11.0
 		Succeeded(fixture.BuildWithVisualStudio(Lib(repo), "-p:TargetFrameworks=net10.0"));

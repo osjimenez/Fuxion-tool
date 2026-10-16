@@ -230,7 +230,7 @@ nullable, test frameworks, PolySharp, packaging metadata… are the repo's, in p
 - fx's local files and folders (`~$…`) are not part of any project.
 - The tasks run on the .NET task host of MSBuild: in process under `dotnet build`, out of process under Visual Studio
   (its MSBuild is .NET Framework). They target `net11.0`, as the MSBuild they build against (18.11, the line of
-  .NET 11, which does not support `net10.0`): the SDK needs the .NET 11 SDK. `Fuxion.Tool.Core` too (inside `fx` and in `tasks/` of the package; it is not a package).
+  .NET 11, which does not support `net10.0`): the SDK needs the .NET 11 SDK and, in Visual Studio, 18.11 or later (an older MSBuild cannot load its tasks). `Fuxion.Tool.Core` too (inside `fx` and in `tasks/` of the package; it is not a package).
 
 The settings are listed at the top of `solution/src/Tool.Sdk/Sdk/Sdk.props`.
 
@@ -283,7 +283,9 @@ repository in the GitHub environment `nuget`, which only allows `main`.
 The tests build throwaway git repositories under the temp folder with the real `git`, isolated from the user's git
 configuration; the SDK tests pack the SDK and build sample repositories with it (`dotnet build` and, if Visual
 Studio is installed, its `MSBuild.exe`). `fx ui` is tested on a terminal in memory: the tests push keys and read the
-screen back. Publishing needs the C++ build tools of Visual Studio (native AOT); from Git Bash, add
+screen back. The test classes run in parallel, except those that change the process (its environment variables or its
+language, `ProcessCollection`), which go alone after the rest; `fx ui` and the command line in process share a gate,
+because XenoAtom has one dispatcher per process. Publishing needs the C++ build tools of Visual Studio (native AOT); from Git Bash, add
 `C:\Program Files (x86)\Microsoft Visual Studio\Installer` to the `PATH` so the linker finds `vswhere.exe`.
 
 Licensed under the [MIT license](LICENSE).

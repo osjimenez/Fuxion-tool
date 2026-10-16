@@ -249,4 +249,25 @@ public abstract class SampleTree : IDisposable
 	protected static string Project(params string[] path) => $"Path=\"{Path.GetFullPath(Path.Combine(path))}\"";
 
 	protected static void Append(string file, string from, string to) => File.WriteAllText(file, File.ReadAllText(file).Replace("\r\n", "\n").Replace(from, to));
+
+	/// <summary>The folder of the cache where fx keeps a parent read from <paramref name="origin"/>.</summary>
+	protected static string CacheFolder(TempGitRepository origin) => Core.Sync.RemoteParent.Folder(Url(origin));
+
+	protected static readonly byte[] Icon = [0x89, (byte)'P', (byte)'N', (byte)'G', 0, 1, 2, 3];
+
+	/// <summary>acme shares, pushed: its icon for the libraries, its LICENSE for every repository. Returns its work clone.</summary>
+	protected TempGitRepository ShareFromAcme()
+	{
+		var work = Clone(_acmeOrigin);
+		Directory.CreateDirectory(Path.Combine(work.Path, "res"));
+		File.WriteAllBytes(Path.Combine(work.Path, "res", "icon.png"), Icon);
+		work.WriteFile("LICENSE", "MIT acme\n");
+		var manifest = Path.Combine(work.Path, "_fx", "workspace", "workspace.yaml");
+		// (the manifest of the fixture does not end in a new line)
+		File.WriteAllText(manifest, File.ReadAllText(manifest).Replace("\r\n", "\n").Replace("paths:\n", "paths:\n  - path: res/\n  - path: LICENSE\n").TrimEnd('\n')
+			+ "\nshares:\n  - path: res/icon.png\n    applies-to:\n      tags: [library]\n  - path: LICENSE\n");
+		work.CommitAll("shares");
+		work.Git("push", "--quiet", "origin", "HEAD");
+		return work;
+	}
 }

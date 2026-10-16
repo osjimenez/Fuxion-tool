@@ -44,6 +44,13 @@ public sealed class OutputTest
 		Assert.Equal((prompt, animate, color), (c.CanPrompt, c.CanAnimate, c.CanColor));
 	}
 
+	[Theory(DisplayName = "capabilities: a writer in the process is no CI log, so a CI server brings it no colours (FORCE_COLOR does)")]
+	[InlineData("GITHUB_ACTIONS=true", false)]
+	[InlineData("TF_BUILD=True", false)]
+	[InlineData("CI=true GITHUB_ACTIONS=true FORCE_COLOR=1", true)]
+	public void Capabilities_InProcess(string variables, bool color)
+		=> Assert.Equal(color, TerminalCapabilities.Detect(Settings(), Env(variables), inputRedirected: true, outputRedirected: true, console: false).CanColor);
+
 	[Fact(DisplayName = "--output ndjson: a start line, one line per event, and the document last")]
 	public void Ndjson()
 	{
@@ -64,7 +71,7 @@ public sealed class OutputTest
 		meta.Commit("manifest");
 
 		var stdout = new StringWriter();
-		Assert.Equal(0, FxApp.Run(["sync", "--output", "ndjson"], stdout, new StringWriter(), meta.Path));
+		Assert.Equal(0, InProcess.Run(["sync", "--output", "ndjson"], stdout, new StringWriter(), meta.Path));
 		var lines = stdout.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(l => JsonDocument.Parse(l).RootElement).ToList();
 		Assert.Equal("start", lines[0].GetProperty("type").GetString());
 		Assert.Equal("fx-events/1", lines[0].GetProperty("schema").GetString());
@@ -96,10 +103,10 @@ public sealed class OutputTest
 	{
 		using var folder = new TempGitRepository();
 		var stderr = new StringWriter();
-		Assert.Equal(0, FxApp.Run(["sync"], new StringWriter(), stderr, folder.Path));
+		Assert.Equal(0, InProcess.Run(["sync"], new StringWriter(), stderr, folder.Path));
 		Assert.DoesNotContain("fx.nothing-to-do", stderr.ToString());
 		stderr = new StringWriter();
-		Assert.Equal(0, FxApp.Run(["sync", "-v"], new StringWriter(), stderr, folder.Path));
+		Assert.Equal(0, InProcess.Run(["sync", "-v"], new StringWriter(), stderr, folder.Path));
 		Assert.Contains("info fx.nothing-to-do", stderr.ToString());
 	}
 }

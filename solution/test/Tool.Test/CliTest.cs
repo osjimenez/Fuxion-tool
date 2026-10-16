@@ -10,6 +10,7 @@ using Xunit;
 namespace Fuxion.Tool.Test;
 
 /// <summary>The fx command line, run in process (plan K, K2.3).</summary>
+[Collection(nameof(ProcessCollection))]
 public sealed class CliTest
 {
 	sealed record Run(int ExitCode, string Out, string Err)
@@ -21,7 +22,7 @@ public sealed class CliTest
 	{
 		var stdout = new StringWriter();
 		var stderr = new StringWriter();
-		var exitCode = FxApp.Run(args, stdout, stderr, currentDirectory);
+		var exitCode = InProcess.Run(args, stdout, stderr, currentDirectory);
 		return new(exitCode, stdout.ToString(), stderr.ToString());
 	}
 

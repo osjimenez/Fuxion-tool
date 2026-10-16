@@ -10,13 +10,14 @@ using Xunit;
 namespace Fuxion.Tool.Test;
 
 /// <summary><c>fx describe</c>, <c>fx schema</c> and the exit codes (plan O, O3.6): fx described by itself.</summary>
+[Collection(nameof(ProcessCollection))]
 public sealed class DescribeTest
 {
 	static (int ExitCode, string Stdout, string Stderr) Run(string directory, params string[] args)
 	{
 		var stdout = new StringWriter();
 		var stderr = new StringWriter();
-		var exitCode = FxApp.Run(args, stdout, stderr, directory);
+		var exitCode = InProcess.Run(args, stdout, stderr, directory);
 		return (exitCode, stdout.ToString(), stderr.ToString());
 	}
 
