@@ -88,7 +88,7 @@ Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain
   with native AOT both languages are inside the single exe.
 
 - **`_fx/dotnet/dotnet.yaml`** is the single place for target frameworks, conditions and the packages that must be
-  the same everywhere: `sdks` (written to `msbuild-sdks` in `global.json`), `variables` (a `value`, or a `when`
+  the same everywhere: `sdks` (`msbuild-sdks` in `global.json` is exactly them), `variables` (a `value`, or a `when`
   condition), `imports` (plain MSBuild files of `_fx/dotnet/` and where they go; `files:`, what travels with one and is not
   imported) and `packages` (ids with one version per
   `when`; with a single version, `when` may be left out), each with its `applies-to` (tags or repositories). From what

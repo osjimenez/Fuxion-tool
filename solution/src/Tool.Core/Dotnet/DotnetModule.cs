@@ -284,20 +284,18 @@ public static partial class DotnetModule
 			diagnostics.Add(FxDiagnostic.Error(DotnetYamlReader.InvalidYaml, new("dotnet.invalid-json", ex.Message), outputs.Display(path)));
 			return;
 		}
-		var msbuildSdks = json["msbuild-sdks"] as JsonObject;
-		var changed = msbuildSdks is null;
-		msbuildSdks ??= new JsonObject();
-		foreach (var (name, version) in sdks.OrderBy(s => s.Key, StringComparer.OrdinalIgnoreCase))
-			if (msbuildSdks[name]?.GetValue<string>() != version)
-			{
-				msbuildSdks[name] = version;
-				changed = true;
-			}
-		if (!changed)
+		// the key is fx's: exactly the sdks of dotnet.yaml, so one that leaves it (renamed, removed) goes from global.json too
+		var current = json["msbuild-sdks"] as JsonObject;
+		var wanted = sdks.OrderBy(s => s.Key, StringComparer.OrdinalIgnoreCase).ToList();
+		if (current is not null && current.Count == wanted.Count
+		    && wanted.All(s => current[s.Key] is JsonValue value && value.TryGetValue<string>(out var version) && version == s.Value))
 		{
 			outputs.Files.Add(new(outputs.Display(path), SyncFileStatus.Unchanged));
 			return;
 		}
+		var msbuildSdks = new JsonObject();
+		foreach (var (name, version) in wanted)
+			msbuildSdks[name] = version;
 		json["msbuild-sdks"] = msbuildSdks;
 		using var buffer = new MemoryStream();
 		using (var writer = new Utf8JsonWriter(buffer, new() { Indented = true, IndentSize = 2 }))

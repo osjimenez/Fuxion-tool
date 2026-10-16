@@ -291,6 +291,21 @@ public sealed class DotnetTest
 		Assert.Empty(Doctor(repo.Git.Path));
 	}
 
+	[Fact(DisplayName = "sync: msbuild-sdks is fx's, exactly the sdks of dotnet.yaml: one renamed or removed goes from global.json")]
+	public void Sync_GlobalJsonExactly()
+	{
+		using var repo = new Repo();
+		repo.Git.WriteFile("global.json",
+			"{\n  \"msbuild-sdks\": { \"Fuxion.Tools.Sdk\": \"0.5.0\", \"Fuxion.Tool.Sdk\": \"0.1.0\" },\n  \"test\": { \"runner\": \"Microsoft.Testing.Platform\" }\n}\n");
+		Assert.Contains(Codes(Doctor(repo.Git.Path)), c => c == DotnetModule.Outdated);
+		Sync(repo.Git.Path);
+		var global = JsonDocument.Parse(repo.Read("global.json")).RootElement;
+		Assert.Equal(["Fuxion.Tool.Sdk"], global.GetProperty("msbuild-sdks").EnumerateObject().Select(p => p.Name));
+		Assert.Equal("0.1.0", global.GetProperty("msbuild-sdks").GetProperty("Fuxion.Tool.Sdk").GetString());
+		Assert.Equal("Microsoft.Testing.Platform", global.GetProperty("test").GetProperty("runner").GetString());
+		Assert.Equal(SyncFileStatus.Unchanged, Assert.Single(Sync(repo.Git.Path).Files, f => f.Path == "global.json").Status);
+	}
+
 	[Fact(DisplayName = "sync: the Import of an older layout in Directory.Packages.props is moved, not added again")]
 	public void ImportMoved()
 	{

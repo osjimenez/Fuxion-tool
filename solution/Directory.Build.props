@@ -12,6 +12,6 @@
 		<IsPackable Condition="'$(MSBuildProjectName)' == 'Fuxion.Tool.Sdk'">true</IsPackable>
 		<FuxionPackage>oss</FuxionPackage>
 	</PropertyGroup>
-	<Import Project="Sdk.props" Sdk="Fuxion.Tools.Sdk" />
+	<Import Project="Sdk.props" Sdk="Fuxion.Tool.Sdk" />
 
 </Project>

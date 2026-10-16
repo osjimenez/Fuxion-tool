@@ -1,6 +1,6 @@
 ## Build and tests
 
-- **How the build works** (plan N, decisions 15-18; plan P): each repository imports `Fuxion.Tools.Sdk` in its
+- **How the build works** (plan N, decisions 15-18; plan P): each repository imports `Fuxion.Tool.Sdk` in its
   `Directory.Build.props`; what the repositories share is in the workspace's `_fx/dotnet/` (`dotnet.yaml` and its
   files), which `fx sync` gives each repository it applies to (`applies-to: tags [fuxion-build]`) in its
   `_fx/.inherited/` (versioned, so a loose clone builds; `inherited.yaml` says who the repository is and where each file
