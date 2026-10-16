@@ -244,8 +244,8 @@ The settings are listed at the top of `solution/src/Tool.Sdk/Sdk/Sdk.props`.
   `_fx/dotnet/*.g.*`, generated (do not edit them), and its own `_fx/dotnet/dotnet.yaml` (`standalone: true`). The
   conventions and the versions of every package come from the workspace's `dotnet.yaml`. To use a change of the SDK
   here: publish it, raise `sdks:` in the workspace and run `fx sync`.
-- Until the SDK is on nuget.org, this repo only restores inside the Fuxion workspace, whose local `nuget.config` has
-  `~$publish/tool/nupkgs`; meanwhile the CI only runs by hand.
+- The SDK is on nuget.org since 0.6.1, so a loose clone restores it; inside the Fuxion workspace, its local
+  `nuget.config` adds `~$publish/tool/nupkgs`, where a version goes before nuget.org. The CI still runs only by hand.
 - `solution/sketches/NugetPackageManager` (list, unlist and deprecate Fuxion packages on nuget.org) is in no solution
   yet: it needs Fuxion 11.
 - `solution/dev` has tools to work on `fx`, not tests: `Pty`, a harness to try it in a real terminal without a person

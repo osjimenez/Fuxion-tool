@@ -264,7 +264,7 @@ versioned the `plus` build was removed in phase 4, plan N).
   `fx sync`. `solution/Directory.Build.props` makes only `Fuxion.Tool.Sdk` packable (before importing the SDK, so
   `packable.props` applies), of the kind `oss` (`FuxionPackage`: the MIT license); the SDK project has no XML
   documentation (its interface is its MSBuild properties). The SDK tests pack it with `FxVersioningEnabled=false`, or
-  the version of git would replace theirs. Until the SDK is on nuget.org, `tool` only restores inside the workspace.
+  the version of git would replace theirs. The SDK is on nuget.org since 0.6.1 (16-oct): a loose clone of `tool` restores it.
 - It uses Fuxion **by package** (10.0.18, the last published) instead of linking oss source files: the `Fuxion`
   entry of the workspace's `dotnet.yaml` applies only to `tool` (`applies-to: repositories`), because elsewhere Fuxion
   is the project of oss.
@@ -285,9 +285,11 @@ versioned the `plus` build was removed in phase 4, plan N).
   `fx ui` is tested on a terminal in memory (`UiTest`): keys pushed, the screen read back with `TestScreen`.
 - Verify with `dotnet build tool/repo/FxTool.slnx` and `dotnet test --solution tool/repo/FxTool.slnx`. CI
   (`.github/workflows/ci.yml`): build and tests on Windows and Linux, `fx.exe` as an artifact; it publishes nothing.
-  **Off** (only by hand) until the SDK is on nuget.org: a clone on its own cannot restore it.
+  Still **off** (only by hand); turning it on is the next step. It needs the `version/*` tags on GitHub.
 - **Local publishing** (stage K5, design D-36): `tool` versions itself from its `version/X.Y.0` tags (with its SDK, as
   `fx version`); `fx.exe` goes to `<workspace>/~$publish/tool/fx/win-x64/` and `Fuxion.Tool.Sdk` to
   `<workspace>/~$publish/tool/nupkgs/` (its `packable.props`; commands in the tool README). The workspace root has a
   local, unversioned `nuget.config` with those folders as sources (like `Fuxion.slnx`), so every mounted repo restores
-  the local SDK. Publish only from a clean commit: a new version each time.
+  the local SDK. Publish only from a clean commit: a new version each time. For **nuget.org** (the user publishes),
+  pack as CI (`CI=true dotnet pack …`: deterministic, no `+local` in the informational version) from a commit that is
+  on GitHub (SourceLink points to it), push the same package to the local feed, and raise `sdks:`.

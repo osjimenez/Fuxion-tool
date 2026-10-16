@@ -5,7 +5,7 @@ schema: 1.0.0
 applies-to:
   tags: [fuxion-build]
 sdks:
-  Fuxion.Tool.Sdk: 0.6.0
+  Fuxion.Tool.Sdk: 0.6.1
 variables:
   - name: OldFrameworks
     value: net472
