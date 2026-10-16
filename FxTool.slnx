@@ -9,14 +9,14 @@
   </Folder>
   <Folder Name="/dev/">
     <File Path="solution/dev/resx.pl" />
-    <Project Path="solution/dev/Pty/Fuxion.Tools.Pty.csproj" />
+    <Project Path="solution/dev/Pty/Fuxion.Tool.Pty.csproj" />
   </Folder>
   <Folder Name="/src/">
-    <Project Path="solution/src/Tools.Core/Fuxion.Tools.Core.csproj" />
-    <Project Path="solution/src/Tools.Sdk/Fuxion.Tools.Sdk.csproj" />
-    <Project Path="solution/src/Tools/Fuxion.Tools.csproj" />
+    <Project Path="solution/src/Tool.Core/Fuxion.Tool.Core.csproj" />
+    <Project Path="solution/src/Tool.Sdk/Fuxion.Tool.Sdk.csproj" />
+    <Project Path="solution/src/Tool/Fuxion.Tool.csproj" />
   </Folder>
   <Folder Name="/test/">
-    <Project Path="solution/test/Tools.Test/Fuxion.Tools.Test.csproj" />
+    <Project Path="solution/test/Tool.Test/Fuxion.Tool.Test.csproj" />
   </Folder>
 </Solution>

@@ -3,16 +3,16 @@
 <!-- Regenerated with: fx sync -->
 <Project>
 	<ItemGroup>
-		<FxRepositoryProject Include="Fuxion.Tools" Path="$(MSBuildThisFileDirectory)../../solution/src/Tools/Fuxion.Tools.csproj" />
-		<ProjectReference Include="@(FxReference->WithMetadataValue('Identity', 'Fuxion.Tools')->'$(MSBuildThisFileDirectory)../../solution/src/Tools/Fuxion.Tools.csproj')" />
-		<FxRepositoryProject Include="Fuxion.Tools.Core" Path="$(MSBuildThisFileDirectory)../../solution/src/Tools.Core/Fuxion.Tools.Core.csproj" />
-		<ProjectReference Include="@(FxReference->WithMetadataValue('Identity', 'Fuxion.Tools.Core')->'$(MSBuildThisFileDirectory)../../solution/src/Tools.Core/Fuxion.Tools.Core.csproj')" />
-		<FxRepositoryProject Include="Fuxion.Tools.Pty" Path="$(MSBuildThisFileDirectory)../../solution/dev/Pty/Fuxion.Tools.Pty.csproj" />
-		<ProjectReference Include="@(FxReference->WithMetadataValue('Identity', 'Fuxion.Tools.Pty')->'$(MSBuildThisFileDirectory)../../solution/dev/Pty/Fuxion.Tools.Pty.csproj')" />
-		<FxRepositoryProject Include="Fuxion.Tools.Sdk" Path="$(MSBuildThisFileDirectory)../../solution/src/Tools.Sdk/Fuxion.Tools.Sdk.csproj" />
-		<ProjectReference Include="@(FxReference->WithMetadataValue('Identity', 'Fuxion.Tools.Sdk')->'$(MSBuildThisFileDirectory)../../solution/src/Tools.Sdk/Fuxion.Tools.Sdk.csproj')" />
-		<FxRepositoryProject Include="Fuxion.Tools.Test" Path="$(MSBuildThisFileDirectory)../../solution/test/Tools.Test/Fuxion.Tools.Test.csproj" />
-		<ProjectReference Include="@(FxReference->WithMetadataValue('Identity', 'Fuxion.Tools.Test')->'$(MSBuildThisFileDirectory)../../solution/test/Tools.Test/Fuxion.Tools.Test.csproj')" />
+		<FxRepositoryProject Include="Fuxion.Tool" Path="$(MSBuildThisFileDirectory)../../solution/src/Tool/Fuxion.Tool.csproj" />
+		<ProjectReference Include="@(FxReference->WithMetadataValue('Identity', 'Fuxion.Tool')->'$(MSBuildThisFileDirectory)../../solution/src/Tool/Fuxion.Tool.csproj')" />
+		<FxRepositoryProject Include="Fuxion.Tool.Core" Path="$(MSBuildThisFileDirectory)../../solution/src/Tool.Core/Fuxion.Tool.Core.csproj" />
+		<ProjectReference Include="@(FxReference->WithMetadataValue('Identity', 'Fuxion.Tool.Core')->'$(MSBuildThisFileDirectory)../../solution/src/Tool.Core/Fuxion.Tool.Core.csproj')" />
+		<FxRepositoryProject Include="Fuxion.Tool.Pty" Path="$(MSBuildThisFileDirectory)../../solution/dev/Pty/Fuxion.Tool.Pty.csproj" />
+		<ProjectReference Include="@(FxReference->WithMetadataValue('Identity', 'Fuxion.Tool.Pty')->'$(MSBuildThisFileDirectory)../../solution/dev/Pty/Fuxion.Tool.Pty.csproj')" />
+		<FxRepositoryProject Include="Fuxion.Tool.Sdk" Path="$(MSBuildThisFileDirectory)../../solution/src/Tool.Sdk/Fuxion.Tool.Sdk.csproj" />
+		<ProjectReference Include="@(FxReference->WithMetadataValue('Identity', 'Fuxion.Tool.Sdk')->'$(MSBuildThisFileDirectory)../../solution/src/Tool.Sdk/Fuxion.Tool.Sdk.csproj')" />
+		<FxRepositoryProject Include="Fuxion.Tool.Test" Path="$(MSBuildThisFileDirectory)../../solution/test/Tool.Test/Fuxion.Tool.Test.csproj" />
+		<ProjectReference Include="@(FxReference->WithMetadataValue('Identity', 'Fuxion.Tool.Test')->'$(MSBuildThisFileDirectory)../../solution/test/Tool.Test/Fuxion.Tool.Test.csproj')" />
 		<FxRepositoryProject Include="NugetPackageManager" Path="$(MSBuildThisFileDirectory)../../solution/sketches/NugetPackageManager/NugetPackageManager.csproj" />
 		<ProjectReference Include="@(FxReference->WithMetadataValue('Identity', 'NugetPackageManager')->'$(MSBuildThisFileDirectory)../../solution/sketches/NugetPackageManager/NugetPackageManager.csproj')" />
 	</ItemGroup>

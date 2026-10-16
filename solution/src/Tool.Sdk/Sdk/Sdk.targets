@@ -1,0 +1,9 @@
+<Project>
+
+	<!--
+		Fuxion.Tool.Sdk: nothing here on purpose. When the SDK is used as <Sdk Name="Fuxion.Tool.Sdk" /> in
+		Directory.Build.props, MSBuild imports this file at the end of Directory.Build.props, before the project file:
+		too early. The late part is build/Fuxion.Tool.Sdk.targets, which Sdk.props hooks in after the project file.
+	-->
+
+</Project>

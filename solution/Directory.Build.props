@@ -9,7 +9,7 @@
 	<!-- Its packages: the SDK (fx as a dotnet tool, with the release), open source (their license, from the workspace's
 	     package-oss.targets); before the SDK, so that packable.props applies -->
 	<PropertyGroup>
-		<IsPackable Condition="'$(MSBuildProjectName)' == 'Fuxion.Tools.Sdk'">true</IsPackable>
+		<IsPackable Condition="'$(MSBuildProjectName)' == 'Fuxion.Tool.Sdk'">true</IsPackable>
 		<FuxionPackage>oss</FuxionPackage>
 	</PropertyGroup>
 	<Import Project="Sdk.props" Sdk="Fuxion.Tools.Sdk" />

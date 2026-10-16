@@ -22,7 +22,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
-using Fuxion.Tools.Test;
+using Fuxion.Tool.Test;
 using Microsoft.Win32.SafeHandles;
 
 var sizeText = Environment.GetEnvironmentVariable("PTY_SIZE") ?? "100x30";
