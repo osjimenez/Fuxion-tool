@@ -37,7 +37,7 @@ public sealed class ManifestEditorTest
 	{
 		public Workspace(string manifest = Manifest)
 		{
-			Root = Directory.CreateTempSubdirectory("fx-test-").FullName;
+			Root = TempGitRepository.TempFolder("fx-test-");
 			Directory.CreateDirectory(Path.Combine(Root, "_fx", "workspace"));
 			File.WriteAllText(ManifestEditor.ManifestPath(Root), manifest.Replace("\r\n", "\n"));
 			Directory.CreateDirectory(Path.Combine(Root, "_fx", "dotnet"));

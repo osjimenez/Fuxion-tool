@@ -650,7 +650,7 @@ public sealed class DotnetTest
 	public void Solution_PathsAsWritten()
 	{
 		// .NET takes a path with '~' for an 8.3 short name and, on Windows, gives it the case it has on disk
-		var root = Directory.CreateTempSubdirectory("fx~").FullName;
+		var root = TempGitRepository.TempFolder("fx~");
 		try
 		{
 			Directory.CreateDirectory(Path.Combine(root, "sub", "src", "xUnit"));

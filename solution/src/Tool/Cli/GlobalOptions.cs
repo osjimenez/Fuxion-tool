@@ -101,7 +101,8 @@ public sealed class GlobalOptions
 	public GlobalSettings Bind(ParseResult result, string currentDirectory)
 	{
 		var root = result.GetValue(Root);
-		var directory = string.IsNullOrWhiteSpace(root) ? currentDirectory : Path.GetFullPath(root, currentDirectory);
+		// real (without symbolic links), as git names its folders: on macOS /var and /tmp are links
+		var directory = Fuxion.Tool.Core.Layout.FxLayout.Real(string.IsNullOrWhiteSpace(root) ? currentDirectory : Path.GetFullPath(root, currentDirectory));
 		if (result.GetValue(Workspace) && Fuxion.Tool.Core.Workspace.WorkspaceManifest.FindRoot(directory) is { } workspace)
 			directory = workspace;
 		return new(

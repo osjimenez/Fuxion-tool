@@ -56,7 +56,7 @@ public sealed class CliTest
 		using var ci = CiEnvironment.Local();
 		using var repo = FeatureRepo();
 		var sub = Directory.CreateDirectory(Path.Combine(repo.Path, "solution")).FullName;
-		var run = Fx(Path.GetTempPath(), "version", "--root", sub);
+		var run = Fx(TempGitRepository.TempRoot, "version", "--root", sub);
 		Assert.Equal("1.2.1-feature.x.1", run.Out.Trim());
 	}
 
@@ -201,7 +201,7 @@ public sealed class CliTest
 	[Fact(DisplayName = "an unknown --output value is a usage error: exit code 2 and where the help is")]
 	public void Parse_InvalidOutput()
 	{
-		var run = Fx(Path.GetTempPath(), "version", "--output", "xml");
+		var run = Fx(TempGitRepository.TempRoot, "version", "--output", "xml");
 		Assert.Equal(FxConsole.UsageError, run.ExitCode);
 		Assert.Contains("'xml'", run.Err);
 		Assert.Contains("fx --help", run.Err);
@@ -210,7 +210,7 @@ public sealed class CliTest
 	[Fact(DisplayName = "an unknown command is a usage error")]
 	public void Parse_UnknownCommand()
 	{
-		var run = Fx(Path.GetTempPath(), "nosuch");
+		var run = Fx(TempGitRepository.TempRoot, "nosuch");
 		Assert.Equal(FxConsole.UsageError, run.ExitCode);
 		Assert.Contains("'nosuch'", run.Err);
 	}
@@ -218,7 +218,7 @@ public sealed class CliTest
 	[Fact(DisplayName = "fx alone and fx --help: fx's help, with every command and the global options (plan O, O3.3)")]
 	public void Help()
 	{
-		var alone = Fx(Path.GetTempPath());
+		var alone = Fx(TempGitRepository.TempRoot);
 		Assert.Equal(0, alone.ExitCode);
 		Assert.Equal("", alone.Err);
 		Assert.Contains("Usage: fx <command> [options]", alone.Out);
@@ -227,15 +227,15 @@ public sealed class CliTest
 		Assert.Contains("  -v, --verbose", alone.Out);
 		Assert.Contains("  --output <format>", alone.Out);
 		// generated from the commands: none is missing; fx ui, at the top (plan O, O4)
-		foreach (var command in Commands(FxApp.Build(Path.GetTempPath()), ""))
+		foreach (var command in Commands(FxApp.Build(TempGitRepository.TempRoot), ""))
 			Assert.Contains(command == "ui" ? "fx ui · " : $"  {command}", alone.Out);
 		Assert.True(alone.Out.IndexOf("fx ui · ", StringComparison.Ordinal) < alone.Out.IndexOf("Usage:", StringComparison.Ordinal));
 
-		var help = Fx(Path.GetTempPath(), "--help");
+		var help = Fx(TempGitRepository.TempRoot, "--help");
 		Assert.Equal(0, help.ExitCode);
 		Assert.Equal(alone.Out, help.Out);
 		// the help of a command is System.CommandLine's
-		Assert.Contains("--dry-run", Fx(Path.GetTempPath(), "sync", "--help").Out);
+		Assert.Contains("--dry-run", Fx(TempGitRepository.TempRoot, "sync", "--help").Out);
 	}
 
 	/// <summary>Every command that does something, with its path (<c>repo mount</c>).</summary>

@@ -110,7 +110,7 @@ public sealed class LooseRepositoryTest : SampleTree
 	[Fact(DisplayName = "a repository on its own: its worktrees in the folder of the user")]
 	public void Loose()
 	{
-		var folder = Directory.CreateTempSubdirectory("fx-worktrees-").FullName;
+		var folder = TempGitRepository.TempFolder("fx-worktrees-");
 		var before = Environment.GetEnvironmentVariable("FX_WORKTREES");
 		Environment.SetEnvironmentVariable("FX_WORKTREES", folder);
 		try

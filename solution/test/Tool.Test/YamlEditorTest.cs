@@ -218,7 +218,7 @@ public sealed class YamlEditorTest
 	[Fact]
 	public void ReadFile_WriteFile_KeepTheByteOrderMark()
 	{
-		var path = Path.Combine(Path.GetTempPath(), $"fx-yaml-{Guid.NewGuid():N}.yaml");
+		var path = Path.Combine(TempGitRepository.TempRoot, $"fx-yaml-{Guid.NewGuid():N}.yaml");
 		try
 		{
 			File.WriteAllBytes(path, [0xEF, 0xBB, 0xBF, .. Encoding.UTF8.GetBytes("# café\nname: a\n")]);

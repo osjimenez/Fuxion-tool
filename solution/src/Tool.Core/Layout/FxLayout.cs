@@ -53,6 +53,30 @@ public static class FxLayout
 	public static string Normalize(string directory)
 		=> Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory)) + Path.DirectorySeparatorChar;
 
+	/// <summary>
+	/// The full path of <paramref name="path"/> with its symbolic links resolved, as git gives its paths: on macOS
+	/// <c>/var</c> and <c>/tmp</c> are links to <c>/private/var</c> and <c>/private/tmp</c>, and a folder named through a
+	/// link is not the root git names. fx takes real the folders it receives (the command line). On Windows, the full
+	/// path as it is.
+	/// </summary>
+	public static string Real(string path)
+	{
+		var full = Path.GetFullPath(path);
+		if (OperatingSystem.IsWindows())
+			return full;
+		var root = Path.GetPathRoot(full)!;
+		var real = root;
+		foreach (var part in full[root.Length..].Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
+		{
+			real = Path.Combine(real, part);
+			FileSystemInfo info = Directory.Exists(real) ? new DirectoryInfo(real) : new FileInfo(real);
+			// a link: its final target, whose path may go through links too
+			if (info.Exists && info.LinkTarget is not null && info.ResolveLinkTarget(returnFinalTarget: true) is { } target)
+				real = Real(target.FullName);
+		}
+		return Path.EndsInDirectorySeparator(full) ? Path.TrimEndingDirectorySeparator(real) + Path.DirectorySeparatorChar : real;
+	}
+
 	/// <summary>The full path of <paramref name="relative"/> (with '/') under <paramref name="root"/>.</summary>
 	public static string Full(string root, string relative) => Path.GetFullPath(Path.Combine(root, relative));
 

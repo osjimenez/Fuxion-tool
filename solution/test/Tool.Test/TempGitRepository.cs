@@ -12,14 +12,24 @@ namespace Fuxion.Tool.Test;
 /// </summary>
 public sealed class TempGitRepository : IDisposable
 {
+	/// <summary>
+	/// The temporary folder of the system, real: on macOS it is under /var, a link to /private/var, and git names the
+	/// folders by their real path (fx takes real what it receives; the tests give it real paths too).
+	/// </summary>
+	public static readonly string TempRoot = Fuxion.Tool.Core.Layout.FxLayout.Real(System.IO.Path.GetTempPath());
+
+	/// <summary>A new folder under <see cref="TempRoot"/> (as <see cref="Directory.CreateTempSubdirectory(string?)"/>).</summary>
+	public static string TempFolder(string prefix)
+		=> Directory.CreateDirectory(System.IO.Path.Combine(TempRoot, prefix + Guid.NewGuid().ToString("N")[..12])).FullName;
+
 	readonly string _emptyConfig;
 	DateTimeOffset _clock = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
 
 	/// <param name="init">Run <c>git init</c> (otherwise it is just an empty folder).</param>
-	/// <param name="path">Where (a new folder under %TEMP% by default); it is deleted on dispose.</param>
+	/// <param name="path">Where (a new folder under <see cref="TempRoot"/> by default); it is deleted on dispose.</param>
 	public TempGitRepository(bool init = true, string? path = null)
 	{
-		Path = path ?? System.IO.Path.Combine(System.IO.Path.GetTempPath(), "fx-test-" + Guid.NewGuid().ToString("N")[..12]);
+		Path = path ?? System.IO.Path.Combine(TempRoot, "fx-test-" + Guid.NewGuid().ToString("N")[..12]);
 		Directory.CreateDirectory(Path);
 		_emptyConfig = Path + ".gitconfig";
 		File.WriteAllText(_emptyConfig, "");

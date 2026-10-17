@@ -12,7 +12,7 @@ namespace Fuxion.Tool.Test;
 /// <summary>The static metadata: git information and the generated source (plan K, K2.1).</summary>
 public sealed class StaticMetadataTest : IDisposable
 {
-	readonly string _dir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "fx-test-" + Guid.NewGuid().ToString("N")[..12])).FullName;
+	readonly string _dir = Directory.CreateDirectory(Path.Combine(TempGitRepository.TempRoot, "fx-test-" + Guid.NewGuid().ToString("N")[..12])).FullName;
 
 	public void Dispose() => Directory.Delete(_dir, true);
 

@@ -18,7 +18,7 @@ public sealed class SdkFixture : IDisposable
 
 	public SdkFixture()
 	{
-		Root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "fx-sdk-" + Guid.NewGuid().ToString("N")[..12])).FullName;
+		Root = Directory.CreateDirectory(Path.Combine(TempGitRepository.TempRoot, "fx-sdk-" + Guid.NewGuid().ToString("N")[..12])).FullName;
 		Feed = Directory.CreateDirectory(Path.Combine(Root, "feed")).FullName;
 		Packages = Path.Combine(Root, "packages");
 		Version = $"0.0.0-test.{DateTime.UtcNow:yyyyMMddHHmmss}";
@@ -127,7 +127,7 @@ public sealed class SdkFixture : IDisposable
 		var vswhere = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Microsoft Visual Studio", "Installer", "vswhere.exe");
 		if (!OperatingSystem.IsWindows() || !File.Exists(vswhere))
 			return null;
-		var result = ProcessRunner.Run(vswhere, Path.GetTempPath(),
+		var result = ProcessRunner.Run(vswhere, TempGitRepository.TempRoot,
 			["-latest", "-prerelease", "-version", $"[{MinimumVisualStudio},", "-requires", "Microsoft.Component.MSBuild", "-find", @"MSBuild\**\Bin\MSBuild.exe"], TimeSpan.FromSeconds(30));
 		return result.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
 			.FirstOrDefault(File.Exists);

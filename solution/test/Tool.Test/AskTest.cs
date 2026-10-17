@@ -25,7 +25,7 @@ public sealed class AskTest
 	static (T Answer, string Err) Answer<T>(Func<FxConsole, ITerminalBackend, T> ask, params TerminalKeyEvent[] keys)
 	{
 		var stderr = new StringWriter();
-		var console = new FxConsole(new StringWriter(), stderr, new GlobalSettings(Path.GetTempPath(), OutputFormat.Human, Verbose: false, Plain: true));
+		var console = new FxConsole(new StringWriter(), stderr, new GlobalSettings(TempGitRepository.TempRoot, OutputFormat.Human, Verbose: false, Plain: true));
 		var backend = new InMemoryTerminalBackend(new TerminalSize(80, 20));
 		var task = Task.Run(() => ask(console, backend), TestContext.Current.CancellationToken);
 		var clock = Stopwatch.StartNew();

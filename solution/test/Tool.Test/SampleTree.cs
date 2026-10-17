@@ -215,7 +215,7 @@ public abstract class SampleTree : IDisposable
 	/// <summary>With the cache of the parents read from their remotes in a folder of its own.</summary>
 	protected static T WithCache<T>(Func<string, T> body)
 	{
-		var cache = Directory.CreateTempSubdirectory("fx-cache-").FullName;
+		var cache = TempGitRepository.TempFolder("fx-cache-");
 		var before = Environment.GetEnvironmentVariable("FX_CACHE");
 		Environment.SetEnvironmentVariable("FX_CACHE", cache);
 		try
