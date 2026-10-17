@@ -78,25 +78,25 @@ public sealed class UiTest : UiTree
 	{
 		var acme = AcmeCommitted();
 		using var h = Open(acme.Path);
-		string Show(string relative)
+		// the screen once it shows what only the panel of that node has
+		string Show(string relative, string only)
 		{
 			Assert.True(h.OnUi(() => h.Ui.Select(Node(h.Ui, acme.Path, relative))), relative);
-			h.Settle();
-			return h.Screen();
+			return h.Shows(only);
 		}
 		// the copy that is not used: nothing to clone it
-		var ghost = Show("repo-w2/libs/shared");
+		var ghost = Show("repo-w2/libs/shared", "/acme/shared");
 		Assert.Contains("/acme/shared", ghost);
 		Assert.DoesNotContain("fx sync", ghost);
-		Assert.Contains("fx module enable workspace", Show("repo-w1/repo-c1/_fx/workspace"));
-		Assert.Contains("fx sync", Show("Acme.slnx"));
+		Assert.Contains("fx module enable workspace", Show("repo-w1/repo-c1/_fx/workspace", "fx module enable workspace"));
+		Assert.Contains("fx sync", Show("Acme.slnx", "<Solution>"));
 		// the content, a line each
 		var solution = h.LineOf("<Solution>");
 		Assert.DoesNotContain("<Folder", solution);
 		Assert.DoesNotContain("<Project", solution);
-		Assert.Contains("/acme", Show("repo-w1/repo-c1/_fx/.inherited/dotnet/dotnet.yaml"));
+		Assert.Contains("/acme", Show("repo-w1/repo-c1/_fx/.inherited/dotnet/dotnet.yaml", "CoreFrameworks"));
 		// the catalog of tags, on fx.yaml
-		var tags = Show("_fx/fx.yaml");
+		var tags = Show("_fx/fx.yaml", "library");
 		Assert.Contains("library", tags);
 		Assert.Contains("repo-c1", tags);
 	}
@@ -111,8 +111,7 @@ public sealed class UiTest : UiTree
 		h.Key(TerminalKey.F3);
 		h.Settle();
 		Assert.True(h.OnUi(() => h.Ui.Select(state)));
-		h.Settle();
-		Assert.Contains("~$state.yaml", h.Screen());
+		h.Shows("~$state.yaml");
 
 		// repo-c1 opened: its src, loaded
 		var c1 = Node(h.Ui, acme.Path, "repo-w1/repo-c1");
@@ -145,8 +144,7 @@ public sealed class UiTest : UiTree
 		// an inherited file: its panel says where it comes from, the nearest first, and F4 goes there
 		var inherited = Node(h.Ui, acme.Path, "repo-w1/repo-c1/_fx/.inherited/dotnet/dotnet.yaml");
 		Assert.True(h.OnUi(() => h.Ui.Select(inherited)));
-		h.Settle();
-		Assert.Contains("repo-w1/_fx/dotnet/dotnet.yaml", h.Screen());
+		h.Shows("repo-w1/_fx/dotnet/dotnet.yaml");
 		Assert.Contains("[F4]", h.Screen());
 		h.Key(TerminalKey.F4);
 		h.Settle();
@@ -187,8 +185,7 @@ public sealed class UiTest : UiTree
 		Assert.Contains("[F6]", h.Screen());
 		// what the worktree does not have comes with fx worktree mount, not with fx sync
 		Assert.True(h.OnUi(() => h.Ui.Select(Node(h.Ui, root, "repo-w1"))));
-		h.Settle();
-		Assert.Contains("fx worktree mount fix/t repo-w1", h.Screen());
+		h.Shows("fx worktree mount fix/t repo-w1");
 		// Enter does it, once confirmed
 		h.Key(TerminalKey.Enter);
 		h.Settle();

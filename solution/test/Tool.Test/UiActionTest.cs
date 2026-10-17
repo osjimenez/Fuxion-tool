@@ -28,8 +28,7 @@ public sealed class UiActionTest : UiTree
 		File.Delete(props);
 		using var h = Open(acme.Path);
 		Assert.True(h.OnUi(() => h.Ui.Select(Node(h.Ui, acme.Path, "repo-w1/repo-c1/_fx/dotnet"))));
-		h.Settle();
-		Assert.Contains("[F7]", h.Screen());
+		h.Shows("[F7]");
 		h.Key(TerminalKey.F7);
 		h.Until(() => h.Screen().Contains("dotnet.g.props"), "the preview of sync");
 		Assert.Contains("fx sync --root repo-w1/repo-c1", h.Screen());
@@ -43,8 +42,7 @@ public sealed class UiActionTest : UiTree
 		Assert.True(entry.Outcome!.Ok);
 		// the log, with its command; the tree, read again
 		h.Key(TerminalKey.F8);
-		h.Settle();
-		Assert.Contains("fx sync --root repo-w1/repo-c1", h.LineOf("✓"));
+		h.Until(() => h.Screen().Split('\n').Any(l => l.Contains('✓') && l.Contains("fx sync --root repo-w1/repo-c1")), "the log, with the command");
 		Assert.NotNull(Node(h.Ui, acme.Path, "repo-w1/repo-c1/_fx/dotnet/dotnet.g.props"));
 	}
 
@@ -89,8 +87,7 @@ public sealed class UiActionTest : UiTree
 
 		// Enter on it: mounting it brings it back
 		Assert.True(h.OnUi(() => h.Ui.Select(parked)));
-		h.Settle();
-		Assert.Contains("fx repo mount repo-c2 --root repo-w1", h.Screen());
+		h.Shows("fx repo mount repo-c2 --root repo-w1");
 		h.Key(TerminalKey.Enter);
 		h.Settle();
 		h.Key(TerminalKey.Enter);
@@ -222,7 +219,8 @@ public sealed class UiActionTest : UiTree
 		h.Key(TerminalKey.Down);
 		h.Key(TerminalKey.Down);
 		h.Key(TerminalKey.Enter);
-		h.Settle();
+		// the keys take effect when the app reads them: what they open, waited for (a slow machine needs more than a frame)
+		h.Until(() => h.Ui.Editor is not null, "the editor of the YAML");
 		Assert.Contains("name: repo-c2", h.OnUi(() => h.Ui.Editor!.Text));
 
 		// not valid: where, and nothing pending
@@ -254,11 +252,10 @@ public sealed class UiActionTest : UiTree
 		h.Key(TerminalKey.Down);
 		h.Key(TerminalKey.Down);
 		h.Key(TerminalKey.Enter);
-		h.Settle();
+		h.Until(() => h.Ui.Form is not null, "the form of the repository");
 		h.OnUi(() => h.Ui.Form!["tags"].Text.Value = "dotnet, app, mobile");
 		h.Key(TerminalKey.F4);
-		h.Settle();
-		Assert.Null(h.OnUi(() => h.Ui.Form));
+		h.Until(() => h.Ui.Form is null && h.Ui.Editor is not null, "the YAML, from the form");
 		Assert.Equal("fx repo tag repo-c1 mobile --root repo-w1", h.OnUi(() => h.Ui.Pending.Edits.Single().Command));
 		Assert.Contains("tags: [dotnet, app, mobile]", h.OnUi(() => h.Ui.Editor!.Text));
 		h.Key(TerminalKey.Escape);
@@ -270,7 +267,7 @@ public sealed class UiActionTest : UiTree
 		h.Key(TerminalKey.Down);
 		h.Key(TerminalKey.Down);
 		h.Key(TerminalKey.Enter);
-		h.Settle();
+		h.Until(() => h.Ui.Form is not null, "the form again");
 		Assert.Equal("dotnet, app, mobile", h.OnUi(() => h.Ui.Form!["tags"].Value));
 	}
 

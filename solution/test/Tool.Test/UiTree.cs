@@ -64,11 +64,23 @@ public abstract class UiTree : SampleTree
 			return done.Task.WaitAsync(TimeSpan.FromSeconds(60)).GetAwaiter().GetResult();
 		}
 
-		/// <summary>What the background found, on the screen, and a frame drawn.</summary>
+		/// <summary>
+		/// What the background found, on the screen, and a frame drawn. Then, until the screen stops changing (two reads
+		/// alike, two seconds at most): on a slow machine (a runner of the CI) the app may still be reading the keys pushed
+		/// and drawing what they bring.
+		/// </summary>
 		public void Settle(int ms = 150)
 		{
 			OnUi(() => Ui.OnUpdate());
 			Thread.Sleep(ms);
+			var last = _backend.GetOutText().Length;
+			for (int i = 0, alike = 0; i < 20 && alike < 2; i++)
+			{
+				Thread.Sleep(100);
+				var now = _backend.GetOutText().Length;
+				alike = now == last ? alike + 1 : 0;
+				last = now;
+			}
 			OnUi(() => 0);
 		}
 
@@ -89,6 +101,16 @@ public abstract class UiTree : SampleTree
 				Thread.Sleep(250);
 			}
 			throw new TimeoutException("the doctor did not finish");
+		}
+
+		/// <summary>
+		/// Waits until the screen shows <paramref name="text"/>, and returns it: a slow machine (a runner of the CI) may need
+		/// more than a frame to draw what a key or a selection brings. The text must be one the screen before did not have.
+		/// </summary>
+		public string Shows(string text)
+		{
+			Until(() => Screen().Contains(text, StringComparison.Ordinal), $"the screen shows '{text}'");
+			return Screen();
 		}
 
 		/// <summary>Waits until <paramref name="condition"/> holds, with what the background found on the screen.</summary>
