@@ -1,12 +1,15 @@
 name: CI
 
-# Build and test on Windows and Linux, on every push to main, every pull request and by hand. A push to main also
-# publishes Fuxion.Tool.Sdk to nuget.org, with the version of its commit (fx version: 0.Y.N on main): the very package
-# the build job packed after the tests passed. fx itself, a native AOT executable, is only an artifact for now.
+# Build and test on every push to main, every pull request and by hand, on Windows, Linux and macOS (plan S). Each
+# runner also makes, from the same commit, what goes out of tool: fx as a native executable for the platforms it
+# compiles (a dotnet tool package each, and an archive with the license) and, on Linux, Fuxion.Tool.Sdk and the main
+# package of the tool. A push to main then waits for the approval of the user (the environment 'nuget' has him as its
+# required reviewer). Approved, it publishes all of it with one version: the packages to nuget.org, and the archives to
+# the GitHub release release/X.Y.Z, with SHA256SUMS and an attestation. Rejected, or never approved, nothing goes out.
 #
-# Publishing uses nuget.org Trusted Publishing: no API key is stored. The policy on nuget.org (owner OsJimenez) trusts
-# this workflow file (ci.yml) of osjimenez/Fuxion-tool in the environment 'nuget', which GitHub only allows on main;
-# NuGet/login exchanges the OIDC token of the job for an API key that lasts one hour.
+# nuget.org: Trusted Publishing, no stored key. The policy of the owner OsJimenez (Fuxion.Tool*) trusts this workflow
+# file (ci.yml) of osjimenez/Fuxion-tool in the environment 'nuget', which GitHub only allows on main; NuGet/login
+# exchanges the OIDC token of the job for an API key that lasts one hour.
 
 on:
   push:
@@ -19,9 +22,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
-  # a newer push to main publishes a newer version anyway, but a publication is never cut in half
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # a pull request: only its last push; main: every push runs, each with its own approval (a run waiting for one must
+  # not hold the next ones)
+  group: ${{ github.event_name == 'pull_request' && format('ci-{0}', github.ref) || format('ci-{0}', github.run_id) }}
+  cancel-in-progress: true
 
 env:
   DOTNET_NOLOGO: 1
@@ -32,7 +36,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest]
+        include:
+          # the native executables: each runner the platforms the SDK of .NET compiles on it (AOT does not cross
+          # operating systems; Windows x64 also makes win-arm64, macOS both)
+          - os: windows-latest
+            test: true
+          - os: ubuntu-latest
+            test: true
+            sdk: true         # the SDK and the main package of fx come from here
+          - os: ubuntu-24.04-arm
+            test: false
+          - os: macos-latest
+            test: true
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -51,31 +66,66 @@ jobs:
         run: dotnet build FxTool.slnx -c Release
 
       - name: Test
+        if: matrix.test
         run: dotnet test --solution FxTool.slnx -c Release --no-build
 
-      # the package of the SDK does not depend on the operating system: Linux packs it
+      # the main package and those of the platforms of this runner, each with fx, its native executable
+      - name: Pack fx
+        run: dotnet pack solution/src/Tool/Fuxion.Tool.csproj -c Release -o artifacts/nupkgs
+
       - name: Pack Fuxion.Tool.Sdk
-        if: runner.os == 'Linux'
+        if: matrix.sdk
         run: dotnet pack solution/src/Tool.Sdk/Fuxion.Tool.Sdk.csproj -c Release --no-build -o artifacts/nupkgs
 
-      - name: Upload Fuxion.Tool.Sdk
-        if: runner.os == 'Linux'
-        uses: actions/upload-artifact@v7
+      - name: The main package of fx, from one runner only
+        if: '!matrix.sdk'
+        shell: pwsh
+        run: Get-ChildItem artifacts/nupkgs -Filter 'Fuxion.Tool.[0-9]*.nupkg' | Remove-Item
+
+      # the archives of the release: the executable of each package (the same binary as on nuget.org) with the
+      # license; a smoke test with the one of this platform
+      - name: Archives
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force artifacts/archives | Out-Null
+          $here = [System.Runtime.InteropServices.RuntimeInformation]::RuntimeIdentifier
+          foreach ($package in Get-ChildItem artifacts/nupkgs -Filter 'Fuxion.Tool.*.nupkg') {
+            if ($package.Name -notmatch '^Fuxion\.Tool\.(?<rid>(win|linux|osx)-(x64|arm64))\.(?<version>.+)\.nupkg$') { continue }
+            $rid = $Matches.rid; $version = $Matches.version
+            $folder = Join-Path artifacts "fx-$rid"
+            # a package is a zip (Expand-Archive wants the extension)
+            Copy-Item $package.FullName "$folder.zip"
+            Expand-Archive "$folder.zip" -DestinationPath $folder
+            $windows = $rid.StartsWith('win-')
+            $exe = Join-Path $folder "tools/any/$rid/fx$(if ($windows) { '.exe' })"
+            $out = New-Item -ItemType Directory -Force (Join-Path $folder 'out')
+            Copy-Item $exe, LICENSE $out
+            if ($windows) {
+              Compress-Archive -Path (Join-Path $out '*') -DestinationPath "artifacts/archives/fx-$version-$rid.zip"
+            }
+            else {
+              chmod +x (Join-Path $out 'fx')
+              tar -czf "artifacts/archives/fx-$version-$rid.tar.gz" -C $out fx LICENSE
+            }
+            if ($rid -eq $here) {
+              & $exe --version
+              if ($LASTEXITCODE -ne 0) { throw "fx $rid does not run" }
+            }
+          }
+          Get-ChildItem artifacts/archives
+
+      - uses: actions/upload-artifact@v7
         with:
-          name: nupkgs
+          name: packages-${{ matrix.os }}
           path: artifacts/nupkgs/
           if-no-files-found: error
 
-      - name: Publish fx (native AOT)
-        if: runner.os == 'Windows'
-        run: dotnet publish solution/src/Tool/Fuxion.Tool.csproj -c Release -r win-x64 -o artifacts/fx/win-x64
-
-      - name: Upload fx
-        if: runner.os == 'Windows'
-        uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7
         with:
-          name: fx-win-x64
-          path: artifacts/fx/win-x64/fx.exe
+          name: archives-${{ matrix.os }}
+          path: artifacts/archives/
+          if-no-files-found: error
 
   publish:
     needs: build
@@ -83,17 +133,33 @@ jobs:
     runs-on: ubuntu-latest
     environment: nuget
     permissions:
-      contents: read
-      id-token: write   # the OIDC token that NuGet/login exchanges for a temporary API key
+      contents: write      # the tag and the release
+      id-token: write      # the OIDC token: nuget.org (Trusted Publishing) and the attestation
+      attestations: write
     steps:
       - uses: actions/download-artifact@v8
         with:
-          name: nupkgs
+          pattern: packages-*
+          merge-multiple: true
           path: artifacts/nupkgs
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: archives-*
+          merge-multiple: true
+          path: artifacts/archives
 
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
+
+      - name: Version
+        id: version
+        run: |
+          sdk=$(ls artifacts/nupkgs/Fuxion.Tool.Sdk.*.nupkg)
+          version=${sdk##*/Fuxion.Tool.Sdk.}
+          echo "version=${version%.nupkg}" >> "$GITHUB_OUTPUT"
+          ls -l artifacts/nupkgs artifacts/archives
 
       - name: NuGet login (OIDC, temporary API key)
         uses: NuGet/login@v1
@@ -101,10 +167,32 @@ jobs:
         with:
           user: OsJimenez   # the profile name on nuget.org, not an email
 
-      # the .snupkg next to each .nupkg goes with it; a version already there (a run again) is not an error
+      # the SDK (its .snupkg goes with it), fx of each platform, and last the main package of fx, which points to them;
+      # a version already there (a run again) is not an error
       - name: Push to nuget.org
-        run: >
-          dotnet nuget push "artifacts/nupkgs/*.nupkg"
-          --api-key ${{ steps.login.outputs.NUGET_API_KEY }}
-          --source https://api.nuget.org/v3/index.json
-          --skip-duplicate
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: |
+          for id in Fuxion.Tool.Sdk Fuxion.Tool.win-x64 Fuxion.Tool.win-arm64 Fuxion.Tool.linux-x64 Fuxion.Tool.linux-arm64 \
+                    Fuxion.Tool.osx-arm64 Fuxion.Tool.osx-x64 Fuxion.Tool; do
+            dotnet nuget push "artifacts/nupkgs/$id.$VERSION.nupkg" --api-key "$API_KEY" \
+              --source https://api.nuget.org/v3/index.json --skip-duplicate
+          done
+
+      - name: SHA256SUMS
+        working-directory: artifacts/archives
+        run: sha256sum fx-* > SHA256SUMS && cat SHA256SUMS
+
+      - name: Attestation
+        uses: actions/attest@v4
+        with:
+          subject-path: artifacts/archives/fx-*
+
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "release/$VERSION" artifacts/archives/* --repo "${{ github.repository }}" \
+            --target "${{ github.sha }}" --title "fx $VERSION" --generate-notes

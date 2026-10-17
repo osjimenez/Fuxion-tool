@@ -5,9 +5,33 @@
 Work in progress: extracted on 06-oct-2026 from Fuxion-plus (with its history) and being rebuilt. The design lives in
 the Fuxion workspace (`_docs/plans/diseno-workspace-fx.md`); this repo follows plan K there.
 
+## Install
+
+`fx` is a native executable for Windows, Linux and macOS (x64 and ARM64); no .NET is needed to run it. Three ways:
+
+```powershell
+# Windows: to %LOCALAPPDATA%\fx\bin, added to the PATH of the user
+irm https://raw.githubusercontent.com/osjimenez/Fuxion-tool/main/install.ps1 | iex
+```
+
+```sh
+# Linux and macOS: to ~/.local/bin
+curl -fsSL https://raw.githubusercontent.com/osjimenez/Fuxion-tool/main/install.sh | sh
+```
+
+```sh
+# with the .NET SDK 10 or later: a dotnet tool (the same native executable)
+dotnet tool install -g Fuxion.Tool
+```
+
+The scripts install the latest [release](https://github.com/osjimenez/Fuxion-tool/releases) (or another:
+`-Version 0.7.0` in PowerShell, `--version 0.7.0` in `sh`), after checking it against its `SHA256SUMS`; running them
+again updates `fx`. Each release has the archives of the six platforms and an attestation of GitHub:
+`gh attestation verify <archive> --repo osjimenez/Fuxion-tool` says they were built by its CI.
+
 ## `fx`
 
-A native executable (`fx.exe`, about 12 MB, no .NET needed to run it) built with System.CommandLine and
+A native executable (`fx.exe`, about 15 MB, no .NET needed to run it) built with System.CommandLine and
 XenoAtom.Terminal.UI. It reads git with the `git` executable, so `git` must be on the `PATH`.
 
 ```text
@@ -275,10 +299,15 @@ dotnet publish solution/src/Tool/Fuxion.Tool.csproj -c Release -r win-x64 -o ../
 Publish from a clean commit: NuGet caches packages by version, so the same version must not change.
 
 **CI** (`.github/workflows/ci.yml`): every push to `main`, every pull request and a run by hand build and test on
-Windows and Linux; Windows also publishes the native `fx.exe` as an artifact. A push to `main` then publishes
-`Fuxion.Tool.Sdk` to nuget.org with the version of its commit: the package the build packed after the tests passed.
-It uses nuget.org Trusted Publishing, with no stored key: a policy of the owner `OsJimenez` trusts `ci.yml` of this
-repository in the GitHub environment `nuget`, which only allows `main`.
+Windows, Linux and macOS, and each runner makes `fx` for the platforms it compiles natively (AOT does not cross
+operating systems): a dotnet tool package and an archive with the license each (win-x64 and win-arm64 on Windows,
+linux-x64 and linux-arm64 on two Linux runners, osx-arm64 and osx-x64 on macOS), and a smoke test with its own. A push
+to `main` then waits for the approval of the owner (the GitHub environment `nuget`, which only allows `main`, has him
+as its required reviewer): approved, it publishes it all with the version of its commit: `Fuxion.Tool.Sdk`, the six
+packages of `Fuxion.Tool` and its main package last (nuget.org, Trusted Publishing with no stored key: a policy of
+`OsJimenez` for `Fuxion.Tool*` trusts `ci.yml` in that environment), and the GitHub release `release/X.Y.Z` with the
+six archives, `SHA256SUMS` and an attestation. The tag of a release is `release/`: `version/` is only for the base
+versions (`version/X.Y.0`).
 
 The tests build throwaway git repositories under the temp folder with the real `git`, isolated from the user's git
 configuration; the SDK tests pack the SDK and build sample repositories with it (`dotnet build` and, if Visual
