@@ -8,8 +8,20 @@
 		<!-- the executable is fx (fx.exe), as the command (design D-24) -->
 		<AssemblyName>fx</AssemblyName>
 		<PackageId>Fuxion.Tool</PackageId>
+		<Description>fx, the tool of the Fuxion workspace: its repositories, the shared build of .NET (with Fuxion.Tool.Sdk), the instructions for the coding agents and the versions, from the configuration in _fx/. A native executable for each platform.</Description>
 		<!-- native AOT, a single file (design §11) -->
 		<PublishAot>true</PublishAot>
+		<!-- a dotnet tool per platform (plan S, decision 2): `dotnet pack` makes the main package, which points to the
+		     others; `dotnet pack -r <rid>` the one of each platform, on its own operating system (AOT does not cross them) -->
+		<ToolPackageRuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx-arm64;osx-x64</ToolPackageRuntimeIdentifiers>
+		<!-- the restore of the main package needs them too (they must contain ToolPackageRuntimeIdentifiers) -->
+		<RuntimeIdentifiers>$(ToolPackageRuntimeIdentifiers)</RuntimeIdentifiers>
+		<!-- no symbols in the packages nor in the archives of the release: the one of a native executable is a native
+		     PDB (64 MB on Windows), which the symbol packages of nuget.org do not take; they stay in obj/ -->
+		<CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
+		<IncludeSymbols>false</IncludeSymbols>
+		<!-- what a user of fx uses is its commands, not these classes: no XML documentation (packable.props turns it on) -->
+		<GenerateDocumentationFile>false</GenerateDocumentationFile>
 		<InvariantGlobalization>true</InvariantGlobalization>
 		<!-- English and Spanish (plan O, decision 7): without the culture data (invariant), but with the cultures by
 		     name, so that ResourceManager finds the Spanish texts (compiled into the exe); only these two languages of
@@ -35,6 +47,13 @@
 		<ItemGroup>
 			<IlcSatelliteAssembly Include="@(ResolvedFileToPublish)"
 			                      Condition="'%(ResolvedFileToPublish.AssetType)' != 'resources' And '%(ResolvedFileToPublish.Extension)' == '.dll' And $([System.String]::new('%(ResolvedFileToPublish.Filename)').EndsWith('.resources'))" />
+		</ItemGroup>
+	</Target>
+
+	<!-- nor the symbols of the projects it references (Core is inside the executable): only fx goes out -->
+	<Target Name="FxNoSymbolsToPublish" AfterTargets="ComputeResolvedFilesToPublishList">
+		<ItemGroup>
+			<ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(ResolvedFileToPublish.Extension)' == '.pdb'" />
 		</ItemGroup>
 	</Target>
 
