@@ -1159,4 +1159,40 @@
   <data name="describe.skill" xml:space="preserve">
     <value>The skill of fx for coding agents (its SKILL.md), made from these same descriptions</value>
   </data>
+  <data name="self" xml:space="preserve">
+    <value>fx itself: its installation.</value>
+  </data>
+  <data name="self.update" xml:space="preserve">
+    <value>Update fx to its latest release (or the one of --version), as it was installed.</value>
+  </data>
+  <data name="self.update.version" xml:space="preserve">
+    <value>The version to install (also an older one); the latest release, without it.</value>
+  </data>
+  <data name="self.update.check" xml:space="preserve">
+    <value>Only say whether there is another release; change nothing.</value>
+  </data>
+  <data name="self.update.downloading" xml:space="preserve">
+    <value>Downloading fx {0} ({1})...</value>
+  </data>
+  <data name="self.update.updated" xml:space="preserve">
+    <value>fx updated from {0} to {1} ({2}).</value>
+  </data>
+  <data name="self.update.up-to-date" xml:space="preserve">
+    <value>fx {0} is up to date: it is the latest release.</value>
+  </data>
+  <data name="self.update.installed" xml:space="preserve">
+    <value>fx {0} is already the one installed.</value>
+  </data>
+  <data name="self.update.newer" xml:space="preserve">
+    <value>fx {0} is newer than the latest release ({1}).</value>
+  </data>
+  <data name="self.update.available" xml:space="preserve">
+    <value>fx {0} is available; this one is {1}.</value>
+  </data>
+  <data name="self.update.dotnet-tool" xml:space="preserve">
+    <value>fx was installed with dotnet tool; to update it, run: {0}</value>
+  </data>
+  <data name="self.update.package" xml:space="preserve">
+    <value>fx runs with dnx, from its NuGet package; dnx runs the version it is given: {0}</value>
+  </data>
 </root>

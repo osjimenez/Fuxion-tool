@@ -23,7 +23,12 @@ namespace Fuxion.Tool.Core.Sync;
 public static class SyncEngine
 {
 	public const string Requires = "fx.requires";
+	public const string SdkNewer = "fx.sdk-newer";
+	public const string SdkOlder = "fx.sdk-older";
 	public const string StandaloneReference = "dotnet.standalone-reference";
+
+	/// <summary>What fixes a fx older than the tree it runs on.</summary>
+	const string UpdateFx = "fx self update";
 
 	public static IReadOnlyList<FxModuleResult> Sync(string directory, SyncOptions options, IFxProgress? progress = null, CancellationToken cancellationToken = default)
 		=> Run(directory, options, doctor: false, progress, cancellationToken);
@@ -58,14 +63,29 @@ public static class SyncEngine
 		using var staged = write ? null : FxFiles.Overlay([]);
 		var first = new FxDiagnostics(progress);
 
-		// a fx older than the one this tree requires reads, but writes nothing (decision 4)
+		// a fx older than the one this tree requires reads, but writes nothing (decision 4); so does one older than the
+		// Fuxion.Tool.Sdk the tree builds with, which a newer fx pinned: they are released together (plan S)
 		var found = new List<FxDiagnostic>();
 		var config = start.Config(found);
 		first.AddRange(found);
-		if (options.FxVersion is { } version && config.RequiresNewer(version))
+		var parent = FindParent(start, options, progress, first, cancellationToken);
+		if (options.FxVersion is { } version)
 		{
-			first.Add(FxDiagnostic.Error(Requires, new(Requires, config.Requires, version), FxLayout.ConfigFile, fix: FxFix.Do($"{Requires}.fix")));
-			write = false;
+			if (config.RequiresNewer(version))
+			{
+				first.Add(FxDiagnostic.Error(Requires, new(Requires, config.Requires, FxToolVersion.Core(version)), FxLayout.ConfigFile, fix: FxFix.Run(UpdateFx)));
+				write = false;
+			}
+			if (PinnedSdk(start, parent?.Node) is { } pinned && FxToolVersion.Compare(pinned.Version, version) is { } order)
+				if (order > 0)
+				{
+					first.Add(FxDiagnostic.Error(SdkNewer, new(SdkNewer, pinned.Version, FxToolVersion.Core(version)), pinned.File, fix: FxFix.Run(UpdateFx)));
+					write = false;
+				}
+				// the doctor, of an older one; not for a fx built from its sources, whose version was never published
+				else if (order < 0 && doctor && !FxToolVersion.IsLocal(version))
+					first.Add(FxDiagnostic.Warning(SdkOlder, new(SdkOlder, pinned.Version, FxToolVersion.Core(version)), pinned.File,
+						fix: FxFix.Do(new FxText(pinned.Own ? $"{SdkOlder}.fix" : $"{SdkOlder}.fix-above", FxToolVersion.Core(version)))));
 		}
 		var context = new SyncContext(start.Root, write, options.Adopt, doctor, options.Offline, progress, cancellationToken)
 		{
@@ -74,7 +94,7 @@ public static class SyncEngine
 			Skill = options.Skill
 		};
 		var run = new Run_(start, context);
-		Process(run, start, FindParent(start, options, progress, first, cancellationToken), first);
+		Process(run, start, parent, first);
 
 		// The map of FxReference: only the highest workspace on disk makes it (decision 19), from all it has mounted; in a
 		// worktree, its root (a closed tree, decision 28)
@@ -119,6 +139,37 @@ public static class SyncEngine
 			return null;
 		}
 		return new(remote.Node, remote.Node.SelfIdentity(), declaration, remote.Branch);
+	}
+
+	/// <summary>
+	/// The highest <see cref="FxToolVersion.SdkPackage"/> the tree pins where the run starts: in its own
+	/// <c>dotnet.yaml</c>, in what it inherited and in its parent on disk (what the run would pass down); the file, from
+	/// the start, and whether it is the own of a root (not inherited, where it is raised).
+	/// </summary>
+	static (string Version, string File, bool Own)? PinnedSdk(FxNode start, FxNode? parent)
+	{
+		(string Version, string File, bool Own)? highest = null;
+		foreach (var node in parent is null ? [start] : new[] { start, parent })
+			foreach (var (file, own) in new[] { (DotnetModule.ConfigFile, true), (DotnetModule.InheritedConfigFile, false) })
+			{
+				var path = node.Full(file);
+				if (!FxFiles.Exists(path))
+					continue;
+				DotnetConfig config;
+				try
+				{
+					config = DotnetYamlReader.ReadFile(path);
+				}
+				catch (DotnetConfigException)
+				{
+					// its module reports it
+					continue;
+				}
+				if (config.Sdks.FirstOrDefault(s => string.Equals(s.Key, FxToolVersion.SdkPackage, StringComparison.OrdinalIgnoreCase)).Value is { } version
+				    && (highest is null || FxToolVersion.Compare(version, highest.Value.Version) > 0))
+					highest = (version, Path.GetRelativePath(start.Root, path).Replace('\\', '/'), own);
+			}
+		return highest;
 	}
 
 	static void Process(Run_ run, FxNode node, Parent? parent, FxDiagnostics? first = null)

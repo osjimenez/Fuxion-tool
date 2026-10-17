@@ -74,14 +74,17 @@ public static class SyncCommand
 	public static int Run(ModuleSettings settings, FxConsole console, bool doctor, CancellationToken cancellationToken = default)
 		=> console.Run(token => Execute(settings, console, doctor, token), cancellationToken);
 
-	/// <summary>The version of fx, for <c>requires</c> (plan P, decision 4) and what <c>fx describe</c> says.</summary>
-	internal static string? Version => typeof(SyncCommand).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0];
+	/// <summary>The version of fx, what <c>fx describe</c> says.</summary>
+	internal static string? Version => Informational?.Split('+')[0];
+
+	/// <summary>The informational version of fx, for <c>requires</c> (plan P, decision 4) and the SDK a tree pins (plan S).</summary>
+	internal static string? Informational => typeof(SyncCommand).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
 
 	static int Execute(ModuleSettings settings, FxConsole console, bool doctor, CancellationToken cancellationToken)
 	{
 		var schema = doctor ? DoctorSchema : SyncSchema;
 		var directory = settings.Global.Directory;
-		var options = new SyncOptions(settings.DryRun, settings.Offline, settings.Adopt, settings.Module, Version, settings.OnlyHere, settings.ParentRef, FxSkill.Text);
+		var options = new SyncOptions(settings.DryRun, settings.Offline, settings.Adopt, settings.Module, Informational, settings.OnlyHere, settings.ParentRef, FxSkill.Text);
 		var modules = console.WithProgress((progress, cancel) => doctor
 			? SyncEngine.Doctor(directory, options, progress, cancel)
 			: SyncEngine.Sync(directory, options, progress, cancel), cancellationToken).ToList();

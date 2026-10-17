@@ -144,6 +144,14 @@ public sealed record VersionDocument(
 /// <summary><c>fx-version-tag/1</c>.</summary>
 public sealed record VersionTagDocument(string Schema, bool Ok, string? Tag, string? Commit, IReadOnlyList<JsonDiagnostic> Diagnostics);
 
+/// <summary>
+/// <c>fx-self-update/1</c>: how fx was installed (<c>release</c>, <c>dotnet-tool</c>, <c>package</c>, <c>local</c>, <c>unknown</c>), its
+/// version, the release found and whether it was installed; for an installation fx does not update itself, the command
+/// that does.
+/// </summary>
+public sealed record SelfUpdateDocument(string Schema, bool Ok, string Install, string Executable, string Current, string? Release, bool Updated, string? Command,
+	IReadOnlyList<JsonDiagnostic> Diagnostics);
+
 /// <summary>A file a command that edits changes, and its diff.</summary>
 public sealed record JsonFileEdit(string File, string Diff);
 
@@ -174,6 +182,7 @@ public sealed record JsonDiagnosticEvent(string Type, JsonDiagnostic Diagnostic)
 [JsonSerializable(typeof(PullDocument))]
 [JsonSerializable(typeof(VersionDocument))]
 [JsonSerializable(typeof(VersionTagDocument))]
+[JsonSerializable(typeof(SelfUpdateDocument))]
 [JsonSerializable(typeof(ManifestEditDocument))]
 [JsonSerializable(typeof(WorktreeDocument))]
 [JsonSerializable(typeof(WorktreeListDocument))]

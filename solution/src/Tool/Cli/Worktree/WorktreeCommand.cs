@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Fuxion.Tool.Cli.Repo;
+using Fuxion.Tool.Cli.Sync;
 using Fuxion.Tool.Core.Layout;
 using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Worktree;
@@ -29,7 +30,7 @@ public static class WorktreeCommand
 		var addMandatory = Mandatory();
 		var add = new Command("add", Texts.Get("worktree.add")) { addBranch, @in, addMandatory }.Describe("fx-worktree-add/1", writes: true, network: true);
 		add.SetAction((result, cancellationToken) => Run(result, global, currentDirectory, "fx-worktree-add/1", (console, progress, token) =>
-			WorktreeModule.Add(console.Settings.Directory, result.GetValue(addBranch)!, result.GetValue(@in), result.GetValue(addMandatory), progress, token), cancellationToken));
+			WorktreeModule.Add(console.Settings.Directory, result.GetValue(addBranch)!, result.GetValue(@in), result.GetValue(addMandatory), SyncCommand.Informational, progress, token), cancellationToken));
 		command.Add(add);
 
 		var mountBranch = Branch();
@@ -37,7 +38,7 @@ public static class WorktreeCommand
 		var mountMandatory = Mandatory();
 		var mount = new Command("mount", Texts.Get("worktree.mount")) { mountBranch, targets, mountMandatory }.Describe("fx-worktree-mount/1", writes: true, network: true);
 		mount.SetAction((result, cancellationToken) => Run(result, global, currentDirectory, "fx-worktree-mount/1", (console, progress, token) =>
-			WorktreeModule.Mount(console.Settings.Directory, result.GetValue(mountBranch)!, result.GetValue(targets) ?? [], result.GetValue(mountMandatory), progress, token),
+			WorktreeModule.Mount(console.Settings.Directory, result.GetValue(mountBranch)!, result.GetValue(targets) ?? [], result.GetValue(mountMandatory), SyncCommand.Informational, progress, token),
 			cancellationToken));
 		command.Add(mount);
 
@@ -45,7 +46,7 @@ public static class WorktreeCommand
 		var repositories = new Argument<string[]>("repositories") { Description = Texts.Get("worktree.unmount.repositories"), Arity = ArgumentArity.OneOrMore };
 		var unmount = new Command("unmount", Texts.Get("worktree.unmount")) { unmountBranch, repositories }.Describe("fx-worktree-unmount/1", writes: true);
 		unmount.SetAction((result, cancellationToken) => Run(result, global, currentDirectory, "fx-worktree-unmount/1", (console, progress, token) =>
-			WorktreeModule.Unmount(console.Settings.Directory, result.GetValue(unmountBranch)!, result.GetValue(repositories) ?? [], progress, token), cancellationToken));
+			WorktreeModule.Unmount(console.Settings.Directory, result.GetValue(unmountBranch)!, result.GetValue(repositories) ?? [], SyncCommand.Informational, progress, token), cancellationToken));
 		command.Add(unmount);
 
 		var list = new Command("list", Texts.Get("worktree.list")).Describe("fx-worktree-list/1");

@@ -9,18 +9,21 @@ the Fuxion workspace (`_docs/plans/diseno-workspace-fx.md`); this repo follows p
 
 `fx` is a native executable for Windows, Linux and macOS (x64 and ARM64); no .NET is needed to run it. Three ways:
 
+On Windows, to `%LOCALAPPDATA%\fx\bin`, added to the `PATH` of the user (Windows PowerShell 5.1 or later):
+
 ```powershell
-# Windows: to %LOCALAPPDATA%\fx\bin, added to the PATH of the user
 irm https://raw.githubusercontent.com/osjimenez/Fuxion-tool/main/install.ps1 | iex
 ```
 
+On Linux and macOS, to `~/.local/bin`:
+
 ```sh
-# Linux and macOS: to ~/.local/bin
 curl -fsSL https://raw.githubusercontent.com/osjimenez/Fuxion-tool/main/install.sh | sh
 ```
 
+With the .NET SDK 10 or later, as a dotnet tool (the same native executable):
+
 ```sh
-# with the .NET SDK 10 or later: a dotnet tool (the same native executable)
 dotnet tool install -g Fuxion.Tool
 ```
 
@@ -28,6 +31,10 @@ The scripts install the latest [release](https://github.com/osjimenez/Fuxion-too
 `-Version 0.7.0` in PowerShell, `--version 0.7.0` in `sh`), after checking it against its `SHA256SUMS`; running them
 again updates `fx`. Each release has the archives of the six platforms and an attestation of GitHub:
 `gh attestation verify <archive> --repo osjimenez/Fuxion-tool` says they were built by its CI.
+
+To update it, however it was installed, `fx self update` (`--check`: only say whether there is a newer release). From a
+release, `fx` updates itself the same way; installed with dotnet, it says the command (`dotnet tool update -g
+Fuxion.Tool`): on Windows, dotnet cannot replace the `fx` that runs.
 
 ## `fx`
 
@@ -42,6 +49,7 @@ fx sync [module] [--dry-run]  generate what fx owns here and in everything mount
 fx doctor [module]            check it, changing nothing
 fx version [--explain]        the version this repository would build now, and why
 fx version tag <X.Y>          create the tag version/X.Y.0 on HEAD (local; push it yourself)
+fx self update [--check]      update fx to its latest release (--version <v>: another), as it was installed
 fx repo list|status [--all]   the repositories of the workspace; status, only those that ask for attention
 fx repo mount|unmount|pull    mount (back from the parking) or unmount (park) repositories; pull the mounted ones
 fx repo add|remove|tag|set    edit the repositories of the manifest (a diff; --dry-run)

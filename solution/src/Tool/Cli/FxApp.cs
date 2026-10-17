@@ -24,7 +24,8 @@ public static class FxApp
 			ManifestCommands.CreatePath(global, currentDirectory),
 			Worktree.WorktreeCommand.Create(global, currentDirectory),
 			Ui.UiCommand.Create(global, currentDirectory),
-			VersionCommand.Create(global, currentDirectory)
+			VersionCommand.Create(global, currentDirectory),
+			Self.SelfCommand.Create(global, currentDirectory)
 		};
 		foreach (var command in Describe.DescribeCommand.Create(global, currentDirectory))
 			root.Add(command);

@@ -349,8 +349,17 @@
   <data name="fx.requires" xml:space="preserve">
     <value>This tree requires fx {0} and this is {1}: nothing is written.</value>
   </data>
-  <data name="fx.requires.fix" xml:space="preserve">
-    <value>Update fx.</value>
+  <data name="fx.sdk-newer" xml:space="preserve">
+    <value>This tree builds with Fuxion.Tool.Sdk {0}, newer than this fx ({1}): nothing is written.</value>
+  </data>
+  <data name="fx.sdk-older" xml:space="preserve">
+    <value>This tree builds with Fuxion.Tool.Sdk {0}, older than this fx ({1}).</value>
+  </data>
+  <data name="fx.sdk-older.fix" xml:space="preserve">
+    <value>Raise it to {0} and run fx sync.</value>
+  </data>
+  <data name="fx.sdk-older.fix-above" xml:space="preserve">
+    <value>It comes from above: raise it there to {0} and run fx sync.</value>
   </data>
   <data name="workspace.outdated" xml:space="preserve">
     <value>Out of date: fx sync would change it.</value>
@@ -678,5 +687,32 @@
   </data>
   <data name="dotnet.unlisted-file.fix" xml:space="preserve">
     <value>Name it in the files: of the import it travels with, or remove it.</value>
+  </data>
+  <data name="self.local" xml:space="preserve">
+    <value>This fx was built from its sources: it is updated by building it again.</value>
+  </data>
+  <data name="self.not-fx" xml:space="preserve">
+    <value>This is not an installed fx: there is nothing to update.</value>
+  </data>
+  <data name="self.platform" xml:space="preserve">
+    <value>fx has no build for this system ({0}, {1}).</value>
+  </data>
+  <data name="self.no-release" xml:space="preserve">
+    <value>Fuxion-tool has no {0} on GitHub.</value>
+  </data>
+  <data name="self.no-release.any" xml:space="preserve">
+    <value>releases</value>
+  </data>
+  <data name="self.network" xml:space="preserve">
+    <value>Could not read {0}: {1}</value>
+  </data>
+  <data name="self.no-archive" xml:space="preserve">
+    <value>{0} has no {1}.</value>
+  </data>
+  <data name="self.checksum" xml:space="preserve">
+    <value>The checksum of {0} does not match SHA256SUMS: fx does not change.</value>
+  </data>
+  <data name="self.replace-failed" xml:space="preserve">
+    <value>Could not replace fx: {0}</value>
   </data>
 </root>

@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Fuxion.Tool.Cli.Describe;
+using Fuxion.Tool.Cli.Sync;
 using Fuxion.Tool.Core.Dotnet;
 using Fuxion.Tool.Core.Explore;
 using Fuxion.Tool.Core.Git;
@@ -607,7 +608,7 @@ public sealed partial class UiApp
 			IReadOnlyList<FxModuleResult> results;
 			try
 			{
-				results = SyncEngine.Doctor(model.Path, new(Offline: true, Skill: FxSkill.Text), cancellationToken: token);
+				results = SyncEngine.Doctor(model.Path, new(Offline: true, FxVersion: SyncCommand.Informational, Skill: FxSkill.Text), cancellationToken: token);
 			}
 			catch (OperationCanceledException)
 			{

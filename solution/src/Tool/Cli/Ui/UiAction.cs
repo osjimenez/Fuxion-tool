@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Fuxion.Tool.Cli.Describe;
+using Fuxion.Tool.Cli.Sync;
 using Fuxion.Tool.Core.Explore;
 using Fuxion.Tool.Core.Layout;
 using Fuxion.Tool.Core.Results;
@@ -113,8 +114,8 @@ public sealed record UiAction(string Label, string Command, string Description, 
 
 	static UiAction Sync(FxTreeNode root, string option)
 		=> new(Texts.Get("ui.action.sync"), $"fx sync{option}", Texts.Get("ui.action.sync.description", root.Identity?.FullName ?? root.Name),
-			(progress, token) => UiOutcome.From(SyncEngine.Sync(root.Path, new(Skill: FxSkill.Text), progress, token)),
-			token => UiOutcome.From(SyncEngine.Sync(root.Path, new(DryRun: true, Skill: FxSkill.Text), cancellationToken: token)));
+			(progress, token) => UiOutcome.From(SyncEngine.Sync(root.Path, new(FxVersion: SyncCommand.Informational, Skill: FxSkill.Text), progress, token)),
+			token => UiOutcome.From(SyncEngine.Sync(root.Path, new(DryRun: true, FxVersion: SyncCommand.Informational, Skill: FxSkill.Text), cancellationToken: token)));
 
 	static UiAction Pull(FxTreeNode workspace, FxTreeNode? repository, string option)
 	{
@@ -138,14 +139,14 @@ public sealed record UiAction(string Label, string Command, string Description, 
 	{
 		var path = WorktreePath(node);
 		return new(Texts.Get("ui.action.mount"), $"fx worktree mount {card.Branch} {path}", Texts.Get("ui.action.worktree-mount.description", card.Branch),
-			(progress, token) => UiOutcome.From(WorktreeModule.Mount(Top(node).Path, card.Branch, [path], false, progress, token)));
+			(progress, token) => UiOutcome.From(WorktreeModule.Mount(Top(node).Path, card.Branch, [path], false, SyncCommand.Informational, progress, token)));
 	}
 
 	static UiAction WorktreeUnmount(FxTreeNode node, WorktreeCard card)
 	{
 		var path = WorktreePath(node);
 		return new(Texts.Get("ui.action.unmount"), $"fx worktree unmount {card.Branch} {path}", Texts.Get("ui.action.worktree-unmount.description"),
-			(progress, token) => UiOutcome.From(WorktreeModule.Unmount(Top(node).Path, card.Branch, [path], progress, token)));
+			(progress, token) => UiOutcome.From(WorktreeModule.Unmount(Top(node).Path, card.Branch, [path], SyncCommand.Informational, progress, token)));
 	}
 
 	/// <summary>The root of the tree of <paramref name="node"/>: in a worktree, its root (it is on disk, the node may not be).</summary>

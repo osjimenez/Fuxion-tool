@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Fuxion.Tool.Cli.Sync;
 using Fuxion.Tool.Core.Layout;
 using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Sync;
@@ -359,7 +360,7 @@ public static class ManifestCommands
 		IReadOnlyList<FxModuleResult>? sync = null;
 		if (dryRun && ok && changed.Count > 0)
 			using (FxFiles.Overlay(changed.Select(c => KeyValuePair.Create(FxLayout.Full(root, c.File), c.After.Text))))
-				sync = SyncEngine.Sync(root, new(DryRun: true, Skill: Describe.FxSkill.Text));
+				sync = SyncEngine.Sync(root, new(DryRun: true, FxVersion: SyncCommand.Informational, Skill: Describe.FxSkill.Text));
 		var problems = diagnostics.Where(d => d.Severity != FxSeverity.Info).ToList();
 		if (console.Settings.IsMachine)
 		{

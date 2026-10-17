@@ -20,7 +20,7 @@ static class FxHelp
 	static readonly (string Group, string[] Commands)[] Groups =
 	[
 		("help.group.workspace", ["sync", "doctor", "repo", "worktree", "module", "path"]),
-		("help.group.version", ["version"])
+		("help.group.version", ["version", "self"])
 	];
 
 	public static int Write(FxConsole console, RootCommand root, GlobalOptions global)

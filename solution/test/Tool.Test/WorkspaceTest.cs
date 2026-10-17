@@ -587,6 +587,40 @@ public sealed class WorkspaceTest
 		Assert.DoesNotContain(SyncEngine.Requires, Codes(Sync(ws.Root, new(FxVersion: "9.0.1-local"))));
 	}
 
+	[Fact(DisplayName = "the SDK the tree pins: newer than fx, it reads but writes nothing (also from a repository); older, the doctor says it, where it is raised")]
+	public void SdkPinned()
+	{
+		using var ws = new Workspace(("plus", "mandatory"));
+		ws.WriteDotnet("sdks:\n  Fuxion.Tool.Sdk: 1.2.3\n", "plus");
+		var newer = Assert.Single(Diagnostics(Sync(ws.Root, new(FxVersion: "1.2.2+62d65aa"))), d => d.Code == SyncEngine.SdkNewer);
+		Assert.Equal((FxSeverity.Error, "_fx/dotnet/dotnet.yaml", "fx self update"), (newer.Severity, newer.File, newer.Fix?.Command));
+		Assert.Contains("1.2.2)", newer.Message.English);
+		Assert.False(Directory.Exists(ws.RepoPath("plus")));
+		Assert.Empty(Errors(Sync(ws.Root, new(FxVersion: "1.2.3+62d65aa"))));
+		Assert.True(Directory.Exists(ws.RepoPath("plus")));
+
+		// raised in the workspace, a sync from the repository sees it in its parent on disk
+		ws.WriteDotnet("sdks:\n  Fuxion.Tool.Sdk: 1.2.4\n", "plus");
+		var fromRepository = Assert.Single(Diagnostics(Sync(ws.RepoPath("plus"), new(FxVersion: "1.2.3+62d65aa"))), d => d.Code == SyncEngine.SdkNewer);
+		Assert.Equal("../../_fx/dotnet/dotnet.yaml", fromRepository.File);
+
+		// older than fx: a warning of the doctor only, not for a fx built from its sources
+		DiagnosticsOf(new(FxVersion: "1.3.0+62d65aa"), doctor: false, none: true);
+		var older = DiagnosticsOf(new(Offline: true, FxVersion: "1.3.0+62d65aa"), doctor: true, none: false)!;
+		Assert.Equal((FxSeverity.Warning, "_fx/dotnet/dotnet.yaml"), (older.Severity, older.File));
+		Assert.Contains("1.3.0", older.Fix!.Hint!.English);
+		DiagnosticsOf(new(Offline: true, FxVersion: "1.3.0+local.62d65aa"), doctor: true, none: true);
+
+		FxDiagnostic? DiagnosticsOf(SyncOptions options, bool doctor, bool none)
+		{
+			var results = doctor ? SyncEngine.Doctor(ws.Root, options, cancellationToken: TestContext.Current.CancellationToken) : Sync(ws.Root, options);
+			var found = Diagnostics(results).Where(d => d.Code is SyncEngine.SdkOlder or SyncEngine.SdkNewer).ToList();
+			if (none)
+				Assert.Empty(found);
+			return none ? null : Assert.Single(found);
+		}
+	}
+
 	[Fact(DisplayName = "doctor: a standalone repo cannot reference a project of a repo that is not")]
 	public void Doctor_StandaloneReference()
 	{

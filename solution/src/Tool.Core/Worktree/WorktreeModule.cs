@@ -110,7 +110,8 @@ public static class WorktreeModule
 	/// in the nearest workspace around <paramref name="directory"/> (or <paramref name="in"/>, one of those above),
 	/// with the node of <paramref name="directory"/> mounted, and the workspaces on the way to it.
 	/// </summary>
-	public static WorktreeResult Add(string directory, string branch, string? @in, bool mandatory, IFxProgress? progress = null, CancellationToken cancellationToken = default)
+	public static WorktreeResult Add(string directory, string branch, string? @in, bool mandatory, string? fxVersion = null,
+		IFxProgress? progress = null, CancellationToken cancellationToken = default)
 	{
 		var actions = new List<RepositoryAction>();
 		var diagnostics = new List<FxDiagnostic>();
@@ -157,7 +158,7 @@ public static class WorktreeModule
 		if (mandatory)
 			session.Mandatory([""]);
 		session.Save();
-		return new(root, branch, actions, diagnostics, SyncEngine.Sync(root, new(), progress, cancellationToken));
+		return new(root, branch, actions, diagnostics, SyncEngine.Sync(root, new(FxVersion: fxVersion), progress, cancellationToken));
 	}
 
 	/// <summary>Whether the workspace at <paramref name="workspace"/> is <paramref name="name"/>: its name, its full name or its path.</summary>
@@ -414,8 +415,8 @@ public static class WorktreeModule
 	/// worktree. A repository by its name, its path or its full name (with the workspaces on the way to it); a path left
 	/// out (<c>worktree: false</c>), brought back.
 	/// </summary>
-	public static WorktreeResult Mount(string directory, string branch, IReadOnlyList<string> targets, bool mandatory, IFxProgress? progress = null,
-		CancellationToken cancellationToken = default)
+	public static WorktreeResult Mount(string directory, string branch, IReadOnlyList<string> targets, bool mandatory, string? fxVersion = null,
+		IFxProgress? progress = null, CancellationToken cancellationToken = default)
 	{
 		if (Find(directory, branch) is not { } worktree)
 			return NotFoundResult(directory, branch);
@@ -441,7 +442,7 @@ public static class WorktreeModule
 		if (mandatory)
 			session.Mandatory(mounted.Where(p => WorkspaceManifest.IsWorkspace(FxLayout.Full(worktree.Root, p))).ToList());
 		session.Save();
-		return new(worktree.Root, branch, actions, diagnostics, SyncEngine.Sync(worktree.Root, new(), progress, cancellationToken));
+		return new(worktree.Root, branch, actions, diagnostics, SyncEngine.Sync(worktree.Root, new(FxVersion: fxVersion), progress, cancellationToken));
 	}
 
 	/// <summary>A repository of the tree by its path, its full name or its name (if only one has it).</summary>
@@ -461,7 +462,8 @@ public static class WorktreeModule
 	/// <c>fx worktree unmount &lt;branch&gt; &lt;repositories…&gt;</c>: their worktrees out (and what is mounted inside
 	/// them), not if any has uncommitted changes; the branches fx created, deleted if git deletes them safely.
 	/// </summary>
-	public static WorktreeResult Unmount(string directory, string branch, IReadOnlyList<string> targets, IFxProgress? progress = null, CancellationToken cancellationToken = default)
+	public static WorktreeResult Unmount(string directory, string branch, IReadOnlyList<string> targets, string? fxVersion = null,
+		IFxProgress? progress = null, CancellationToken cancellationToken = default)
 	{
 		if (Find(directory, branch) is not { } worktree)
 			return NotFoundResult(directory, branch);
@@ -484,7 +486,7 @@ public static class WorktreeModule
 		var session = new Session(worktree.Root, worktree.Card, actions, diagnostics, progress, cancellationToken);
 		session.Remove(mounts.Distinct().ToList());
 		session.Save();
-		return new(worktree.Root, branch, actions, diagnostics, SyncEngine.Sync(worktree.Root, new(), progress, cancellationToken));
+		return new(worktree.Root, branch, actions, diagnostics, SyncEngine.Sync(worktree.Root, new(FxVersion: fxVersion), progress, cancellationToken));
 	}
 
 	/// <summary>
