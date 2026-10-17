@@ -98,6 +98,17 @@ jobs:
         if: matrix.sdk
         run: dotnet pack solution/src/Tool.Sdk/Fuxion.Tool.Sdk.csproj -c Release --no-build -o artifacts/nupkgs
 
+      # the version that would go out, seen before approving: a notice at the top of the run, and in its summary (a tag
+      # not pushed gives another version)
+      - name: Version
+        if: matrix.sdk
+        run: |
+          sdk=$(ls artifacts/nupkgs/Fuxion.Tool.Sdk.*.nupkg)
+          version=${sdk##*/Fuxion.Tool.Sdk.}
+          version=${version%.nupkg}
+          echo "::notice title=Version::$version"
+          echo "### Version $version (fx and Fuxion.Tool.Sdk)" >> "$GITHUB_STEP_SUMMARY"
+
       - name: The main package of fx, from one runner only
         if: '!matrix.sdk'
         shell: pwsh
