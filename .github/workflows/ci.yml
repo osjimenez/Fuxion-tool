@@ -49,6 +49,8 @@ jobs:
           - os: macos-latest
             test: true
     runs-on: ${{ matrix.os }}
+    # a step that hangs does not hold the runner for the six hours GitHub allows by default (a run takes about 15 minutes)
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
         with:
@@ -65,9 +67,10 @@ jobs:
       - name: Build
         run: dotnet build FxTool.slnx -c Release
 
+      # every wait of the tests has its limit; this one is for all of them (on Windows they take about 9 minutes)
       - name: Test
         if: matrix.test
-        run: dotnet test --solution FxTool.slnx -c Release --no-build
+        run: dotnet test --solution FxTool.slnx -c Release --no-build --timeout 25m
 
       # the main package and those of the platforms of this runner, each with fx, its native executable
       - name: Pack fx
@@ -136,6 +139,8 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: nuget
+    # once approved (the wait for the approval does not count): the pushes, and the unlisting, which waits for nuget.org
+    timeout-minutes: 30
     permissions:
       contents: write      # the tag and the release
       id-token: write      # the OIDC token: nuget.org (Trusted Publishing) and the attestation

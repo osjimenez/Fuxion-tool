@@ -108,6 +108,9 @@ public sealed partial class UiApp
 
 	(string Root, string File, Dialog Dialog, State<string> Error)? _yaml;
 
+	/// <summary>What the raw editor says is wrong with its text, after Ctrl+S; none, if nothing.</summary>
+	public string? EditorError => _yaml?.Error.Value is { Length: > 0 } error ? error : null;
+
 	/// <summary>
 	/// The raw YAML of a file of fx, editable (14.9): its text with the pending changes; Ctrl+S adds it to them, valid
 	/// as fx reads it (the manifest, the yaml of a module, <c>fx.yaml</c>); Esc, nothing.

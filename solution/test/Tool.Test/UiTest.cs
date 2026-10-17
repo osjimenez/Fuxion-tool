@@ -25,14 +25,13 @@ public sealed class UiTest : UiTree
 	{
 		var acme = AcmeCommitted();
 		using var h = Open(acme.Path, Path.Combine(acme.Path, "repo-w1", "repo-c1"));
-		var screen = h.Screen();
+		// started inside repo-c1: it is selected, and its panel says who it is
+		var screen = h.Shows("/acme/repo-w1/repo-c1");
+		Assert.Equal("repo-c1", h.OnUi(() => h.Ui.Selected?.Name));
 		Assert.Contains("fx ui", screen);
 		Assert.Contains("/acme", screen);
 		foreach (var name in new[] { "_fx", "repo-w1", "repo-c1", "repo-w2", "libs" })
 			Assert.Contains(name, screen);
-		// started inside repo-c1: it is selected, and its panel says who it is
-		Assert.Equal("repo-c1", h.OnUi(() => h.Ui.Selected?.Name));
-		Assert.Contains("/acme/repo-w1/repo-c1", screen);
 		foreach (var key in new[] { "F2", "F3", "F5" })
 			Assert.Contains(key, screen);
 	}
@@ -44,23 +43,15 @@ public sealed class UiTest : UiTree
 		File.WriteAllText(Path.Combine(acme.Path, "repo-w1", "repo-c2", "work.txt"), "work\n");
 		using var h = Open(acme.Path);
 		h.Doctor();
-		h.OnUi(() => h.Ui.Select(Node(h.Ui, acme.Path, "repo-w1/repo-c2")));
-		h.Settle();
+		h.OnUi(() => h.Ui.Select(h.Node(acme.Path, "repo-w1/repo-c2")));
 		// git (*1: the change) and the doctor (!) on repo-c2, the doctor on repo-w1 too
-		Assert.Contains("*1", h.LineOf(" repo-c2"));
-		Assert.Contains("!", h.LineOf(" repo-c2"));
-		Assert.Contains("!", h.LineOf(" repo-w1"));
+		h.Until(() => h.LineOf(" repo-c2") is var c2 && c2.Contains("*1") && c2.Contains('!') && h.LineOf(" repo-w1").Contains('!'), "the marks of git and of the doctor");
 
 		// F2: the list of problems; Enter on one goes to its node
 		h.Key(TerminalKey.F2);
-		h.Settle();
-		var index = h.OnUi(() =>
-		{
-			var items = h.Ui.Problems.Items.ToList();
-			return items.FindIndex(p => p.Diagnostic.Code == WorkspaceModule.Dirty);
-		});
+		h.Shows("workspace.dirty");
+		var index = h.OnUi(() => h.Ui.Problems.Items.ToList().FindIndex(p => p.Diagnostic.Code == WorkspaceModule.Dirty));
 		Assert.True(index >= 0);
-		Assert.Contains("workspace.dirty", h.Screen());
 		h.OnUi(() =>
 		{
 			h.Ui.Select(h.Ui.Model);
@@ -69,8 +60,7 @@ public sealed class UiTest : UiTree
 			return 0;
 		});
 		h.Key(TerminalKey.Enter);
-		h.Settle();
-		Assert.Equal("repo-c2", h.OnUi(() => h.Ui.Selected?.Name));
+		h.Until(() => h.Ui.Selected?.Name == "repo-c2", "Enter goes to the node of the problem");
 	}
 
 	[Fact(DisplayName = "the panels: a copy that is not used says which is, a module not used says how to turn it on, a file says whose it is")]
@@ -81,7 +71,7 @@ public sealed class UiTest : UiTree
 		// the screen once it shows what only the panel of that node has
 		string Show(string relative, string only)
 		{
-			Assert.True(h.OnUi(() => h.Ui.Select(Node(h.Ui, acme.Path, relative))), relative);
+			Assert.True(h.OnUi(() => h.Ui.Select(h.Node(acme.Path, relative))), relative);
 			return h.Shows(only);
 		}
 		// the copy that is not used: nothing to clone it
@@ -106,15 +96,14 @@ public sealed class UiTest : UiTree
 	{
 		var acme = AcmeCommitted();
 		using var h = Open(acme.Path);
-		var state = Node(h.Ui, acme.Path, "_fx/workspace/~$state.yaml");
+		var state = h.Node(acme.Path, "_fx/workspace/~$state.yaml");
 		Assert.False(h.OnUi(() => h.Ui.Select(state)));
 		h.Key(TerminalKey.F3);
-		h.Settle();
-		Assert.True(h.OnUi(() => h.Ui.Select(state)));
+		h.Until(() => h.Ui.Select(state), "F3 shows the local files");
 		h.Shows("~$state.yaml");
 
 		// repo-c1 opened: its src, loaded
-		var c1 = Node(h.Ui, acme.Path, "repo-w1/repo-c1");
+		var c1 = h.Node(acme.Path, "repo-w1/repo-c1");
 		h.OnUi(() =>
 		{
 			h.Ui.Select(c1);
@@ -123,8 +112,7 @@ public sealed class UiTest : UiTree
 			tree.Children.Last().IsExpanded = true;
 			return 0;
 		});
-		h.Settle();
-		Assert.Contains(c1.Children, c => c.Name == "src");
+		h.Until(() => c1.Children.Any(c => c.Name == "src"), "the rest of repo-c1, loaded");
 		Assert.True(h.OnUi(() => h.Ui.Select(c1.Children.Single(c => c.Name == "src"))));
 	}
 
@@ -139,30 +127,25 @@ public sealed class UiTest : UiTree
 			"\nshares:\n  - path: _docs/guide/notes.txt\n    destination: notes.txt\n    applies-to:\n      repositories: [repo-w1/repo-c1]\n");
 		Assert.Empty(Errors(Sync(acme.Path)));
 		using var h = Open(acme.Path);
-		string? Selected() => h.OnUi(() => h.Ui.Selected?.Path);
+		bool At(string path) => string.Equals(h.Ui.Selected?.Path, path, StringComparison.OrdinalIgnoreCase);
 
 		// an inherited file: its panel says where it comes from, the nearest first, and F4 goes there
-		var inherited = Node(h.Ui, acme.Path, "repo-w1/repo-c1/_fx/.inherited/dotnet/dotnet.yaml");
+		var inherited = h.Node(acme.Path, "repo-w1/repo-c1/_fx/.inherited/dotnet/dotnet.yaml");
 		Assert.True(h.OnUi(() => h.Ui.Select(inherited)));
-		h.Shows("repo-w1/_fx/dotnet/dotnet.yaml");
-		Assert.Contains("[F4]", h.Screen());
+		Assert.Contains("[F4]", h.Shows("repo-w1/_fx/dotnet/dotnet.yaml"));
 		h.Key(TerminalKey.F4);
-		h.Settle();
-		Assert.Equal(Path.Combine(acme.Path, "repo-w1", "_fx", "dotnet", "dotnet.yaml"), Selected(), ignoreCase: true);
+		h.Until(() => At(Path.Combine(acme.Path, "repo-w1", "_fx", "dotnet", "dotnet.yaml")), "F4 goes where the file comes from");
 		// a file by hand comes from nowhere: no F4
-		Assert.DoesNotContain("[F4]", h.Screen());
-		Assert.Contains("[Alt+", h.Screen());
+		h.Until(() => h.Screen() is var screen && !screen.Contains("[F4]") && screen.Contains("[Alt+"), "the keys of a file by hand: Alt+←, no F4");
 		h.Key(TerminalKey.Left, TerminalModifiers.Alt);
-		h.Settle();
-		Assert.Equal(inherited.Path, Selected());
+		h.Until(() => At(inherited.Path), "Alt+← comes back");
 
 		// a share: its source, in a folder of the workspace not loaded yet
-		Assert.True(h.OnUi(() => h.Ui.Select(Node(h.Ui, acme.Path, "repo-w1/repo-c1/notes.txt"))));
+		Assert.True(h.OnUi(() => h.Ui.Select(h.Node(acme.Path, "repo-w1/repo-c1/notes.txt"))));
 		h.Key(TerminalKey.F4);
-		h.Settle();
-		Assert.Equal(Path.Combine(acme.Path, "_docs", "guide", "notes.txt"), Selected(), ignoreCase: true);
+		h.Until(() => At(Path.Combine(acme.Path, "_docs", "guide", "notes.txt")), "F4 goes to the source of the share");
 		// shown in the tree, inside its folder now loaded
-		Assert.Contains("notes.txt", h.Screen().Split('\n').Single(l => l.StartsWith('→')));
+		h.Until(() => h.Screen().Split('\n').Any(l => l.StartsWith('→') && l.Contains("notes.txt")), "the source, selected in its folder");
 	}
 
 	[Fact(DisplayName = "a worktree opens as its own tree, with its mark on top; Alt+← or F6 go back to the main one")]
@@ -172,38 +155,32 @@ public sealed class UiTest : UiTree
 		Assert.DoesNotContain(WorktreeModule.Add(Path.Combine(acme.Path, "libs", "shared"), "fix/t", null, false, cancellationToken: TestContext.Current.CancellationToken)
 			.AllDiagnostics, d => d.Severity == FxSeverity.Error);
 		using var h = Open(acme.Path);
-		var root = Path.TrimEndingDirectorySeparator(Assert.Single(h.Ui.Model.Worktrees).Root);
-		string Tree() => h.OnUi(() => h.Ui.Model.Path);
+		var root = Path.TrimEndingDirectorySeparator(Assert.Single(h.OnUi(() => h.Ui.Model.Worktrees)).Root);
+		bool Tree(string path) => string.Equals(h.Ui.Model.Path, path, StringComparison.OrdinalIgnoreCase);
 		Assert.DoesNotContain("worktree fix/t", h.Screen());
 		Assert.DoesNotContain("[F6]", h.Screen());
 
 		h.OnUi(() => h.Ui.OpenTree(root));
-		h.Settle();
-		Assert.Equal(root, Tree());
+		Assert.Contains("[F6]", h.Shows("worktree fix/t"));
+		Assert.True(h.OnUi(() => Tree(root)));
 		Assert.Equal("fix/t", h.OnUi(() => h.Ui.Worktree?.Branch));
-		Assert.Contains("worktree fix/t", h.Screen());
-		Assert.Contains("[F6]", h.Screen());
 		// what the worktree does not have comes with fx worktree mount, not with fx sync
-		Assert.True(h.OnUi(() => h.Ui.Select(Node(h.Ui, root, "repo-w1"))));
+		Assert.True(h.OnUi(() => h.Ui.Select(h.Node(root, "repo-w1"))));
 		h.Shows("fx worktree mount fix/t repo-w1");
 		// Enter does it, once confirmed
 		h.Key(TerminalKey.Enter);
-		h.Settle();
+		h.AnyDialog();
 		h.Key(TerminalKey.Enter);
-		h.Until(() => h.Ui.Log.Count == 1, "worktree mount");
+		h.Until(() => h.Ui.Log.Count == 1 && !h.Ui.Busy, "worktree mount");
 		Assert.True(h.OnUi(() => h.Ui.Log[0].Outcome!.Ok));
-		Assert.Equal(FxTreeKind.Workspace, Node(h.Ui, root, "repo-w1").Kind);
+		h.Until(() => h.Find(root, "repo-w1")?.Kind == FxTreeKind.Workspace, "the tree, read again: repo-w1 mounted");
 		h.Key(TerminalKey.Left, TerminalModifiers.Alt);
-		h.Settle();
-		Assert.Equal(acme.Path, Tree(), ignoreCase: true);
-		Assert.DoesNotContain("worktree fix/t", h.Screen());
+		h.Until(() => Tree(acme.Path) && !h.Screen().Contains("worktree fix/t"), "Alt+← goes back to the main tree");
 
 		// F6: from the worktree to its main tree, as it was (its doctor is not run again)
 		h.OnUi(() => h.Ui.OpenTree(root));
-		h.Settle();
+		h.Shows("worktree fix/t");
 		h.Key(TerminalKey.F6);
-		h.Settle();
-		Assert.Equal(acme.Path, Tree(), ignoreCase: true);
-		Assert.Null(h.OnUi(() => h.Ui.Worktree));
+		h.Until(() => Tree(acme.Path) && h.Ui.Worktree is null, "F6 goes back to the main tree");
 	}
 }

@@ -293,6 +293,14 @@ dotnet test --solution FxTool.slnx
 dotnet publish solution/src/Tool/Fuxion.Tool.csproj -c Release -r win-x64 -o <folder>
 ```
 
+Before a push, also as the CI runs them: with `CI` set, the version of `fx` has no `+local`, as the one the CI builds,
+and what depends on it runs as there.
+
+```bash
+CI=true dotnet build FxTool.slnx -c Release
+CI=true dotnet test --solution FxTool.slnx -c Release --no-build
+```
+
 **Versions**: this repo versions itself from its `version/X.Y.0` tags, with its own SDK (the same as `fx version`: the
 tag and the commits since give `X.Y.{commits}`).
 
@@ -310,21 +318,23 @@ Publish from a clean commit: NuGet caches packages by version, so the same versi
 Windows, Linux and macOS, and each runner makes `fx` for the platforms it compiles natively (AOT does not cross
 operating systems): a dotnet tool package and an archive with the license each (win-x64 and win-arm64 on Windows,
 linux-x64 and linux-arm64 on two Linux runners, osx-arm64 and osx-x64 on macOS), and a smoke test with its own. A push
-to `main` then waits for the approval of the owner (the GitHub environment `nuget`, which only allows `main`, has him
-as its required reviewer): approved, it publishes it all with the version of its commit: `Fuxion.Tool.Sdk`, the six
-packages of `Fuxion.Tool` and its main package last (nuget.org, Trusted Publishing with no stored key: a policy of
+to `main` then waits for the approval of the owner (the GitHub environment `nuget`, which only allows `main`, has the
+owner as its required reviewer): approved, it publishes it all with the version of its commit: `Fuxion.Tool.Sdk`, the
+six packages of `Fuxion.Tool` and its main package last (nuget.org, Trusted Publishing with no stored key: a policy of
 `OsJimenez` for `Fuxion.Tool*` trusts `ci.yml` in that environment), and the GitHub release `release/X.Y.Z` with the
 six archives, `SHA256SUMS` and an attestation. The six packages of the platforms are unlisted then: only
 `Fuxion.Tool` shows on nuget.org, and it asks for them by their exact version, which an unlisted package still serves.
-The tag of a release is `release/`: `version/` is only for the base
-versions (`version/X.Y.0`).
+The tag of a release is `release/`: `version/` is only for the base versions (`version/X.Y.0`). Each job has a time
+limit (45 minutes; the tests, 25), so nothing that hangs holds a runner.
 
 The tests build throwaway git repositories under the temp folder with the real `git`, isolated from the user's git
 configuration; the SDK tests pack the SDK and build sample repositories with it (`dotnet build` and, if Visual
 Studio is installed, its `MSBuild.exe`). `fx ui` is tested on a terminal in memory: the tests push keys and read the
-screen back. The test classes run in parallel, except those that change the process (its environment variables or its
-language, `ProcessCollection`), which go alone after the rest; `fx ui` and the command line in process share a gate,
-because XenoAtom has one dispatcher per process. Publishing needs the C++ build tools of Visual Studio (native AOT); from Git Bash, add
-`C:\Program Files (x86)\Microsoft Visual Studio\Installer` to the `PATH` so the linker finds `vswhere.exe`.
+screen back. A key takes effect when the app reads it: after one, a test waits for what it brings, never a fixed
+while, and every wait has its limit (30 s), past which it fails saying what it waited for and showing the screen. The
+test classes run in parallel, except those that change the process (its environment variables or its language,
+`ProcessCollection`), which go alone after the rest; `fx ui` and the command line in process share a gate, because
+XenoAtom has one dispatcher per process. Publishing needs the C++ build tools of Visual Studio (native AOT); from Git
+Bash, add `C:\Program Files (x86)\Microsoft Visual Studio\Installer` to the `PATH` so the linker finds `vswhere.exe`.
 
 Licensed under the [MIT license](LICENSE).
