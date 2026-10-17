@@ -3,3 +3,10 @@ schema: 1.0.0
 # This repository builds on its own, outside the workspace: an FxReference of it cannot point to a repository that
 # does not (fx doctor checks it).
 standalone: true
+
+# The Fuxion this repository builds with: a package, as tool references no project of oss (plan K); the 10 until it
+# moves to the 11. Its own, as the oss that plus uses (plan T).
+packages:
+  - ids: [Fuxion]
+    versions:
+      - version: 10.0.18
