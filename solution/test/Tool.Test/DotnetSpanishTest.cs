@@ -20,7 +20,7 @@ public sealed class DotnetSpanishTest
 	[Fact(DisplayName = "fx in Spanish: the messages and the help are; codes, commands and JSON are not (plan O, decision 7)")]
 	public void Cli_Spanish()
 	{
-		using var repo = new DotnetTest.Repo();
+		using var repo = new DotnetTest.Repo(DotnetTest.DesignYamlOfThisFx);
 		try
 		{
 			var stdout = new StringWriter();

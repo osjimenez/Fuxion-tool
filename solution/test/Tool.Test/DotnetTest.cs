@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using Fuxion.Tool.Cli;
@@ -16,6 +17,13 @@ namespace Fuxion.Tool.Test;
 /// <summary>The .NET module: dotnet.yaml, its generation and the doctor (plan K, K4; plan P).</summary>
 public sealed class DotnetTest
 {
+	/// <summary>
+	/// <see cref="DesignYaml"/> pinning the SDK of the fx under test: the doctor of the command line says the same with fx built
+	/// here (<c>+local</c>, whose version is not checked against the SDK) and by the CI (whose version is).
+	/// </summary>
+	internal static string DesignYamlOfThisFx => DesignYaml.Replace("Fuxion.Tool.Sdk: 0.1.0",
+		$"Fuxion.Tool.Sdk: {typeof(FxApp).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion.Split('+')[0]}");
+
 	const string DesignYaml = """
 		schema: 1.0.0
 		sdks:
@@ -611,7 +619,7 @@ public sealed class DotnetTest
 	[Fact(DisplayName = "fx sync and fx doctor: fx-sync/1 and fx-doctor/1, exit code 1 only with errors")]
 	public void Cli()
 	{
-		using var repo = new Repo();
+		using var repo = new Repo(DesignYamlOfThisFx);
 		var stdout = new StringWriter();
 		var stderr = new StringWriter();
 		Assert.Equal(1, InProcess.Run(["doctor", "dotnet"], stdout, stderr, repo.Git.Path));
