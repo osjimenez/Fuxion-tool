@@ -58,6 +58,7 @@ The tool of the Fuxion workspace: it generates what the repositories share from 
 | `fx ui` | The workspace in full screen: its tree, what each node is and what reaches it, the doctor, and acting and editing with the command of each (in a terminal). | — |  |  |  |
 | `fx version` | The version this repository would build now, from its git history. | `fx-version/1` |  |  |  |
 | `fx version tag` | Create the tag version/X.Y.0 on HEAD to start a new minor or major (local; push it yourself). | `fx-version-tag/1` | yes |  |  |
+| `fx self update` | Update fx to its latest release (or the one of --version), as it was installed. | `fx-self-update/1` | yes | yes |  |
 | `fx describe` | fx described by itself: every command, what it outputs and what it does (with --output json, for agents). | `fx-describe/1` |  |  |  |
 | `fx schema` | The JSON Schema of an output of fx; without an id, the list of them. | `fx-schemas/1` |  |  |  |
 
@@ -231,6 +232,13 @@ The version this repository would build now, from its git history.
 Create the tag version/X.Y.0 on HEAD to start a new minor or major (local; push it yourself).
 
 - `<X.Y>` (optional): The new major and minor, like 11.3.
+
+### `fx self update`
+
+Update fx to its latest release (or the one of --version), as it was installed.
+
+- `--version` <string>: The version to install (also an older one); the latest release, without it.
+- `--check`: Only say whether there is another release; change nothing.
 
 ### `fx describe`
 

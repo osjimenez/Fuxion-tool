@@ -289,12 +289,24 @@ versioned the `plus` build was removed in phase 4, plan N).
   inside. `fx ui` is tested on a terminal in memory (`UiTree`, `UiTest`, `UiActionTest`): keys pushed, the screen read
   back with `TestScreen`; XenoAtom has one dispatcher per process, so while the app is open it takes the gate of
   `InProcess` alone, and the command line shares it.
-- Verify with `dotnet build tool/repo/FxTool.slnx` and `dotnet test --solution tool/repo/FxTool.slnx`. CI
-  (`.github/workflows/ci.yml`, since 17-oct): on every push to `main`, every pull request and by hand, build and tests on
-  Windows (about 12 minutes) and Linux (3), `fx.exe` as an artifact; a push to `main` then publishes the package of
-  `Fuxion.Tool.Sdk` that Linux packed to nuget.org, with the version of its commit (0.6.5 was the first), by Trusted
+  A key takes effect when the app reads it, and a runner of the CI with the rest in parallel may need more than a frame:
+  after a key, a test waits for what it brings (`Until`, `Shows`, `Focused`: the dialog with the focus), never a while,
+  and every wait has its limit (`Harness.Patience`, 30 s: past it, the test fails saying what it waited for and showing
+  the screen).
+- Verify with `dotnet build tool/repo/FxTool.slnx` and `dotnet test --solution tool/repo/FxTool.slnx`. **Before a push,
+  also as the CI runs them**: `CI=true dotnet build tool/repo/FxTool.slnx -c Release`, then
+  `CI=true dotnet test --solution tool/repo/FxTool.slnx -c Release --no-build` (in PowerShell, `$env:CI = 'true'` first).
+  With `CI` the version of `fx` has no `+local`, as the one the CI builds, and what depends on it (the SDK a tree pins,
+  checked against it) runs as there; a change of paths or processes, also on Linux, in Docker (the repo copied to a disk
+  Docker mounts). CI (`.github/workflows/ci.yml`, since 17-oct; plan S): on every push to `main`, every pull request and
+  by hand, build and tests on Windows, Linux and macOS (and Linux ARM, without tests), each job with its limit (45
+  minutes; the tests, 25); a push to `main` then, once the user approves it (the environment `nuget`), publishes
+  `Fuxion.Tool.Sdk`, the packages of `fx` and a release of GitHub with the version of its commit, by Trusted
   Publishing: no stored key, a policy of `OsJimenez` for `Fuxion.Tool*` that trusts `ci.yml` in the environment `nuget`
   (main only). The checkout needs the history and the `version/*` tags (`fetch-depth: 0`).
+- **`fx` itself** is installed from its releases (the install scripts, or `dotnet tool install -g Fuxion.Tool`), and
+  `fx self update` updates it. `fx doctor` warns when the `Fuxion.Tool.Sdk` a tree pins is older than `fx` (raise
+  `sdks:` and run `fx sync`); `fx sync` writes nothing with one newer than `fx` (update `fx` first).
 - **Local publishing** (stage K5, design D-36): `tool` versions itself from its `version/X.Y.0` tags (with its SDK, as
   `fx version`); `fx.exe` goes to `<workspace>/~$publish/tool/fx/win-x64/` and `Fuxion.Tool.Sdk` to
   `<workspace>/~$publish/tool/nupkgs/` (its `packable.props`; commands in the tool README). The workspace root has a
