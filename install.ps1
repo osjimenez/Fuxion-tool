@@ -20,11 +20,13 @@ $ProgressPreference = 'SilentlyContinue'
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 $repository = 'osjimenez/Fuxion-tool'
 
-# the platform: the architecture of the system, not of this PowerShell (an x64 one runs on ARM64 too)
-$architecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+# the platform: the architecture of Windows, from its registry (not of this PowerShell: an x64 one runs on ARM64 too;
+# nor from .NET: RuntimeInformation may give nothing in a session of Windows PowerShell)
+$architecture = (Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment' -Name PROCESSOR_ARCHITECTURE -ErrorAction SilentlyContinue).PROCESSOR_ARCHITECTURE
+if (-not $architecture) { $architecture = $env:PROCESSOR_ARCHITECTURE }
 $rid = switch ($architecture) {
-	'X64' { 'win-x64' }
-	'Arm64' { 'win-arm64' }
+	'AMD64' { 'win-x64' }
+	'ARM64' { 'win-arm64' }
 	default { throw "fx has no build for Windows on $architecture." }
 }
 
