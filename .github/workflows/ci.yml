@@ -193,10 +193,34 @@ jobs:
         with:
           subject-path: artifacts/archives/fx-*
 
+      # once (a run again, after a failure further on, finds it made)
       - name: GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          gh release create "release/$VERSION" artifacts/archives/* --repo "${{ github.repository }}" \
-            --target "${{ github.sha }}" --title "fx $VERSION" --generate-notes
+          if gh release view "release/$VERSION" --repo "${{ github.repository }}" > /dev/null 2>&1; then
+            echo "The release release/$VERSION is there already."
+          else
+            gh release create "release/$VERSION" artifacts/archives/* --repo "${{ github.repository }}" \
+              --target "${{ github.sha }}" --title "fx $VERSION" --generate-notes
+          fi
+
+      # the packages of the platforms, unlisted: only Fuxion.Tool shows on nuget.org, and it asks for them by their exact
+      # version, which an unlisted package still serves (the policy also has the scope to unlist). nuget.org may not
+      # take it while it validates them: again, every 30 seconds for 15 minutes (the key lasts an hour)
+      - name: Unlist the packages of the platforms
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: |
+          for rid in win-x64 win-arm64 linux-x64 linux-arm64 osx-arm64 osx-x64; do
+            for attempt in $(seq 30); do
+              if dotnet nuget delete "Fuxion.Tool.$rid" "$VERSION" --api-key "$API_KEY" \
+                   --source https://api.nuget.org/v3/index.json --non-interactive; then
+                break
+              fi
+              if [ "$attempt" = 30 ]; then echo "Fuxion.Tool.$rid $VERSION could not be unlisted." >&2; exit 1; fi
+              sleep 30
+            done
+          done

@@ -306,7 +306,9 @@ to `main` then waits for the approval of the owner (the GitHub environment `nuge
 as its required reviewer): approved, it publishes it all with the version of its commit: `Fuxion.Tool.Sdk`, the six
 packages of `Fuxion.Tool` and its main package last (nuget.org, Trusted Publishing with no stored key: a policy of
 `OsJimenez` for `Fuxion.Tool*` trusts `ci.yml` in that environment), and the GitHub release `release/X.Y.Z` with the
-six archives, `SHA256SUMS` and an attestation. The tag of a release is `release/`: `version/` is only for the base
+six archives, `SHA256SUMS` and an attestation. The six packages of the platforms are unlisted then: only
+`Fuxion.Tool` shows on nuget.org, and it asks for them by their exact version, which an unlisted package still serves.
+The tag of a release is `release/`: `version/` is only for the base
 versions (`version/X.Y.0`).
 
 The tests build throwaway git repositories under the temp folder with the real `git`, isolated from the user's git
