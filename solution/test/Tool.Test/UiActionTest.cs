@@ -235,8 +235,8 @@ public sealed class UiActionTest : UiTree
 		// valid: pending, by hand; written with the line endings of the file
 		h.OnUi(() => h.Ui.Editor!.Text = original.Replace("\r\n", "\n") + "# by hand\n");
 		h.Ctrl(TerminalChar.CtrlS);
-		h.Settle();
-		Assert.Null(h.OnUi(() => h.Ui.Editor));
+		// a slow machine (a runner of the CI) needs more than a frame to take it
+		h.Until(() => h.Ui.Editor is null, "the editor closes with a valid YAML");
 		Assert.EndsWith("_fx/workspace/workspace.yaml", h.OnUi(() => h.Ui.Pending.Edits.Single().Command));
 		Assert.True(h.OnUi(() => h.Ui.ApplyPending()));
 		h.Settle();

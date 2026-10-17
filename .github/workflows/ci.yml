@@ -89,7 +89,9 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force artifacts/archives | Out-Null
-          $here = [System.Runtime.InteropServices.RuntimeInformation]::RuntimeIdentifier
+          # the platform of this runner, as fx names them (RuntimeIdentifier may name the distribution: ubuntu.24.04-x64)
+          $here = "$(if ($IsWindows) { 'win' } elseif ($IsMacOS) { 'osx' } else { 'linux' })-" +
+            [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
           foreach ($package in Get-ChildItem artifacts/nupkgs -Filter 'Fuxion.Tool.*.nupkg') {
             if ($package.Name -notmatch '^Fuxion\.Tool\.(?<rid>(win|linux|osx)-(x64|arm64))\.(?<version>.+)\.nupkg$') { continue }
             $rid = $Matches.rid; $version = $Matches.version
@@ -98,14 +100,16 @@ jobs:
             Copy-Item $package.FullName "$folder.zip"
             Expand-Archive "$folder.zip" -DestinationPath $folder
             $windows = $rid.StartsWith('win-')
-            $exe = Join-Path $folder "tools/any/$rid/fx$(if ($windows) { '.exe' })"
+            $name = "fx$(if ($windows) { '.exe' })"
             $out = New-Item -ItemType Directory -Force (Join-Path $folder 'out')
-            Copy-Item $exe, LICENSE $out
+            Copy-Item (Join-Path $folder "tools/any/$rid/$name"), LICENSE $out
+            # the zip of a package keeps no permissions: on Linux and macOS, fx is made executable here
+            $exe = Join-Path $out $name
             if ($windows) {
               Compress-Archive -Path (Join-Path $out '*') -DestinationPath "artifacts/archives/fx-$version-$rid.zip"
             }
             else {
-              chmod +x (Join-Path $out 'fx')
+              chmod +x $exe
               tar -czf "artifacts/archives/fx-$version-$rid.tar.gz" -C $out fx LICENSE
             }
             if ($rid -eq $here) {
