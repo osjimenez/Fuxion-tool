@@ -3,9 +3,11 @@ name: CI
 # Build and test on every push to main, every pull request and by hand, on Windows, Linux and macOS (plan S). Each
 # runner also makes, from the same commit, what goes out of tool: fx as a native executable for the platforms it
 # compiles (a dotnet tool package each, and an archive with the license) and, on Linux, Fuxion.Tool.Sdk and the main
-# package of the tool. A push to main then waits for the approval of the user (the environment 'nuget' has him as its
-# required reviewer). Approved, it publishes all of it with one version: the packages to nuget.org, and the archives to
-# the GitHub release release/X.Y.Z, with SHA256SUMS and an attestation. Rejected, or never approved, nothing goes out.
+# package of the tool. A push to main then waits for the approval of the user (the environment 'nuget' has the user as
+# its required reviewer). Approved, it publishes all of it with one version: the packages to nuget.org, and the
+# archives to the GitHub release release/X.Y.Z, with SHA256SUMS and an attestation. Rejected, or never approved,
+# nothing goes out. A push that only changes what does not reach the build (documentation, the files of the coding
+# agents) runs nothing (idea I-45; plan T).
 #
 # nuget.org: Trusted Publishing, no stored key. The policy of the owner OsJimenez (Fuxion.Tool*) trusts this workflow
 # file (ci.yml) of osjimenez/Fuxion-tool in the environment 'nuget', which GitHub only allows on main; NuGet/login
@@ -14,8 +16,24 @@ name: CI
 on:
   push:
     branches: [main]
+    paths:
+      - '**'
+      - '!**/*.md'
+      - '**/PACKAGE_README.md'
+      - '!.claude/**'
+      - '!.agents/**'
+      - '!_fx/harness/**'
+      - '!_fx/.inherited/harness/**'
   pull_request:
     branches: [main]
+    paths:
+      - '**'
+      - '!**/*.md'
+      - '**/PACKAGE_README.md'
+      - '!.claude/**'
+      - '!.agents/**'
+      - '!_fx/harness/**'
+      - '!_fx/.inherited/harness/**'
   workflow_dispatch:
 
 permissions:

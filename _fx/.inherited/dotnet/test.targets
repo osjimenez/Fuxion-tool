@@ -10,6 +10,16 @@
 		<OutputType>Exe</OutputType>
 	</PropertyGroup>
 
+	<!-- .NET Framework runs only on Windows (plan T): elsewhere (the Linux of the CI) a test project leaves its net4x out,
+	     and one that has nothing else still builds but is no test application there, so dotnet test does not run it. The
+	     result of a property function comes escaped: unescaped, its semicolons separate the frameworks again -->
+	<PropertyGroup Condition="!$([MSBuild]::IsOSPlatform('Windows')) And '$(TargetFrameworks)' != ''">
+		<FxTestFrameworks>$([MSBuild]::Unescape($([System.Text.RegularExpressions.Regex]::Replace(';$(TargetFrameworks);', ';net4\d+;', ';').Trim(';'))))</FxTestFrameworks>
+		<TargetFrameworks Condition="'$(FxTestFrameworks)' != ''">$(FxTestFrameworks)</TargetFrameworks>
+		<IsTestProject Condition="'$(FxTestFrameworks)' == ''">false</IsTestProject>
+		<IsTestingPlatformApplication Condition="'$(FxTestFrameworks)' == ''">false</IsTestingPlatformApplication>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<PackageReference Include="xunit.v3" />
 		<PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
