@@ -7,7 +7,7 @@ name: CI
 # its required reviewer). Approved, it publishes all of it with one version: the packages to nuget.org, and the
 # archives to the GitHub release release/X.Y.Z, with SHA256SUMS and an attestation. Rejected, or never approved,
 # nothing goes out. A push that only changes what does not reach the build (documentation, the files of the coding
-# agents) runs nothing (idea I-45; plan T).
+# agents, the bookkeeping of fx sync in _fx/.inherited/inherited.yaml) runs nothing (idea I-45; plan T).
 #
 # nuget.org: Trusted Publishing, no stored key. The policy of the owner OsJimenez (Fuxion.Tool*) trusts this workflow
 # file (ci.yml) of osjimenez/Fuxion-tool in the environment 'nuget', which GitHub only allows on main; NuGet/login
@@ -24,6 +24,7 @@ on:
       - '!.agents/**'
       - '!_fx/harness/**'
       - '!_fx/.inherited/harness/**'
+      - '!_fx/.inherited/inherited.yaml'
   pull_request:
     branches: [main]
     paths:
@@ -34,6 +35,7 @@ on:
       - '!.agents/**'
       - '!_fx/harness/**'
       - '!_fx/.inherited/harness/**'
+      - '!_fx/.inherited/inherited.yaml'
   workflow_dispatch:
 
 permissions:
