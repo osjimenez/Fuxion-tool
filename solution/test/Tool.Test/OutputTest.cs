@@ -58,7 +58,7 @@ public sealed class OutputTest
 		using var origin = new TempGitRepository();
 		origin.WriteFile("FxPlus.slnx", "<Solution />\n");
 		origin.Commit("c1");
-		meta.WriteFile(Path.Combine("_fx", "fx.yaml"), "schema: 1.0.0\nname: test\n");
+		meta.WriteFile(Path.Combine("_fx", "space.yaml"), "schema: 1.0.0\nname: test\n");
 		meta.WriteFile(Path.Combine("_fx", "workspace", "workspace.yaml"), $"""
 			schema: 1.0.0
 			repositories:

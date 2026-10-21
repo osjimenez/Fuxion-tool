@@ -470,22 +470,22 @@
     <value>A guest: the workspace uses it, but it inherits from its own parent (inherits: false).</value>
   </data>
   <data name="path" xml:space="preserve">
-    <value>What the git of the workspace versions (paths: of the manifest).</value>
+    <value>What the git of the space versions (paths: of _fx/space.yaml).</value>
   </data>
   <data name="path.add" xml:space="preserve">
-    <value>Version a file or a folder (ending in /) of the workspace; nothing is created.</value>
+    <value>Version a file or a folder (ending in /) of the space; nothing is created.</value>
   </data>
   <data name="path.remove" xml:space="preserve">
     <value>Stop versioning a path; nothing is deleted.</value>
   </data>
   <data name="path.name" xml:space="preserve">
-    <value>The path, relative to the workspace (a folder ends in /).</value>
+    <value>The path, relative to the space (a folder ends in /).</value>
   </data>
   <data name="path.exclude" xml:space="preserve">
     <value>An exception inside something versioned (exclude: true).</value>
   </data>
   <data name="path.no-worktree" xml:space="preserve">
-    <value>Left out of the worktrees of the workspace (worktree: false).</value>
+    <value>Left out of the worktrees of the space (worktree: false).</value>
   </data>
   <data name="path.ask.add" xml:space="preserve">
     <value>Path to version</value>

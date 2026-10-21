@@ -35,19 +35,6 @@ public sealed record WorkspaceRepository(
 	IReadOnlyList<string>? Aliases = null,
 	int Line = 0);
 
-/// <summary>
-/// What the git of the workspace versions (plan P, decision 8): a file, or a folder (ending in '/'). With
-/// <see cref="Exclude"/>, an exception inside something included; with <see cref="Worktree"/> false, a folder the
-/// worktrees of the workspace leave out unless asked (decision 26).
-/// </summary>
-public sealed record WorkspacePath(string Path, bool Exclude = false, bool Worktree = true, int Line = 0)
-{
-	public bool IsFolder => Path.EndsWith('/');
-}
-
-/// <summary>A file (or folder) the workspace gives the repositories below it (plan P, decision 23).</summary>
-public sealed record WorkspaceShare(string Path, string Destination, FxAppliesTo AppliesTo, int Line = 0);
-
 /// <summary>An invalid workspace manifest: every problem found, each with its line.</summary>
 public sealed class WorkspaceManifestException(IReadOnlyList<FxDiagnostic> diagnostics)
 	: Exception(string.Join(Environment.NewLine, diagnostics.Select(d => d.WhereIn(CultureInfo.InvariantCulture))))
@@ -57,13 +44,10 @@ public sealed class WorkspaceManifestException(IReadOnlyList<FxDiagnostic> diagn
 
 /// <summary>
 /// <c>_fx/workspace/workspace.yaml</c>, the module that makes a root of fx a workspace (plan P, decision 3): the
-/// repositories it mounts, what its git versions (<c>paths</c>) and what it shares. Nothing about solutions or .NET.
+/// repositories it mounts. What its git versions and what it shares are the space's (<c>_fx/space.yaml</c>, plan
+/// spaces, decisions 11 and 19). Nothing about solutions or .NET.
 /// </summary>
-public sealed record WorkspaceManifest(
-	string Root,
-	IReadOnlyList<WorkspaceRepository> Repositories,
-	IReadOnlyList<WorkspacePath>? Paths = null,
-	IReadOnlyList<WorkspaceShare>? Shares = null)
+public sealed record WorkspaceManifest(string Root, IReadOnlyList<WorkspaceRepository> Repositories)
 {
 	public const string InvalidManifest = "workspace.invalid-manifest";
 	public const string ModuleName = "workspace";
@@ -107,7 +91,7 @@ public sealed record WorkspaceManifest(
 	}
 
 	/// <summary>
-	/// Reads a manifest. Lenient by default (what other modules need: repositories, paths and tags); with
+	/// Reads a manifest. Lenient by default (what other modules need: the repositories and their tags); with
 	/// <paramref name="strict"/>, every problem is an error with its line.
 	/// </summary>
 	public static WorkspaceManifest Read(string root, string yaml, bool strict = false)
@@ -120,7 +104,7 @@ public sealed record WorkspaceManifest(
 				throw new WorkspaceManifestException(reader.Diagnostics);
 			return new(root, []);
 		}
-		reader.Keys(map, "schema", "enabled", "repositories", "paths", "shares");
+		reader.Keys(map, "schema", "enabled", "repositories");
 
 		var repositories = new List<WorkspaceRepository>();
 		if (map["repositories"] is YamlSequence list)
@@ -149,42 +133,7 @@ public sealed record WorkspaceManifest(
 		else if (map["repositories"] is { } notAList && notAList is not YamlScalar { Value: "" })
 			reader.Error(notAList, "list", "repositories");
 
-		var paths = new List<WorkspacePath>();
-		if (map["paths"] is YamlSequence pathList)
-			foreach (var item in pathList.Items)
-			{
-				if (item is not YamlMapping entry || FxYamlReader.Scalar(entry["path"]) is not { Length: > 0 } path)
-				{
-					reader.Error(item, "path-entry");
-					continue;
-				}
-				reader.Keys(entry, "path", "exclude", "worktree");
-				paths.Add(new(path.Replace('\\', '/').TrimStart('/'), reader.Bool(entry, "exclude", false), reader.Bool(entry, "worktree", true), item.Line));
-			}
-		else if (map["paths"] is { } notAList && notAList is not YamlScalar { Value: "" })
-			reader.Error(notAList, "list", "paths");
-
-		var shares = new List<WorkspaceShare>();
-		if (map["shares"] is YamlSequence shareList)
-			foreach (var item in shareList.Items)
-			{
-				if (item is not YamlMapping entry || FxYamlReader.Scalar(entry["path"]) is not { Length: > 0 } path)
-				{
-					reader.Error(item, "share-entry");
-					continue;
-				}
-				reader.Keys(entry, "path", "destination", "applies-to");
-				path = path.Replace('\\', '/').TrimStart('/');
-				var destination = FxYamlReader.Scalar(entry["destination"])?.Replace('\\', '/').TrimStart('/') ?? path;
-				// a folder goes to a folder; a file to a folder ('/' at the end) keeps its name
-				if (path.EndsWith('/') && !destination.EndsWith('/'))
-					destination += "/";
-				else if (!path.EndsWith('/') && destination.EndsWith('/'))
-					destination += System.IO.Path.GetFileName(path);
-				shares.Add(new(path, destination, FxAppliesTo.Read(entry, reader) ?? FxAppliesTo.All, item.Line));
-			}
-
-		var manifest = new WorkspaceManifest(root, repositories, paths, shares);
+		var manifest = new WorkspaceManifest(root, repositories);
 		if (strict)
 		{
 			var errors = reader.Diagnostics.Concat(manifest.Validate()).ToList();
@@ -203,7 +152,7 @@ public sealed record WorkspaceManifest(
 
 		foreach (var repo in Repositories)
 		{
-			if (!FxConfig.NamePattern().IsMatch(repo.Name))
+			if (!SpaceConfig.NamePattern().IsMatch(repo.Name))
 				yield return Error(repo.Line, "name", repo.Name);
 			if (BadPath(repo.Path))
 				yield return Error(repo.Line, "path-relative", repo.Name, repo.Path);
@@ -217,7 +166,7 @@ public sealed record WorkspaceManifest(
 				if (!Repositories.Any(r => r.Name == dependency || (r.Aliases ?? []).Contains(dependency)))
 					yield return Error(repo.Line, "depends-on", repo.Name, dependency);
 			foreach (var alias in repo.Aliases ?? [])
-				if (!FxConfig.NamePattern().IsMatch(alias))
+				if (!SpaceConfig.NamePattern().IsMatch(alias))
 					yield return Error(repo.Line, "name", alias);
 		}
 		foreach (var duplicate in Repositories.GroupBy(r => r.Name, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1))
@@ -233,27 +182,6 @@ public sealed record WorkspaceManifest(
 		foreach (var repo in Repositories)
 			foreach (var other in Repositories.Where(o => o != repo && o.Path.StartsWith(repo.Path + "/", StringComparison.OrdinalIgnoreCase)))
 				yield return Error(other.Line, "nested", other.Name, repo.Name);
-		foreach (var path in Paths ?? [])
-		{
-			if (BadPath(path.Path))
-				yield return Error(path.Line, "path-relative", path.Path, path.Path);
-			else if (FxLayout.IsLocal(path.Path.Split('/')[0]) || path.Path.TrimEnd('/') is FxLayout.Folder or ".git" or ".gitignore")
-				yield return Error(path.Line, "path-fixed", path.Path);
-			// inside a repository it is that repository's, not the workspace's
-			if (Repositories.FirstOrDefault(r => path.Path.StartsWith(r.Path + "/", StringComparison.OrdinalIgnoreCase)) is { } inside)
-				yield return Error(path.Line, "path-in-repository", path.Path, inside.Name);
-		}
-		foreach (var duplicate in (Paths ?? []).GroupBy(p => p.Path, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1))
-			yield return Error(duplicate.Last().Line, "duplicate-path-entry", duplicate.Key);
-		foreach (var share in Shares ?? [])
-		{
-			if (!WorkspaceShares.SafeSource(share.Path))
-				yield return Error(share.Line, "share-path", share.Path);
-			if (!WorkspaceShares.SafeDestination(share.Destination))
-				yield return Error(share.Line, "share-destination", share.Path, share.Destination);
-		}
-		foreach (var duplicate in (Shares ?? []).GroupBy(s => s.Destination, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1))
-			yield return Error(duplicate.Last().Line, "duplicate-share", duplicate.Key);
 	}
 
 	/// <summary>Full path of a repository's mount point, with a trailing separator.</summary>
@@ -262,18 +190,4 @@ public sealed record WorkspaceManifest(
 	/// <summary>The repository mounted at <paramref name="repositoryRoot"/>, if the manifest lists it.</summary>
 	public WorkspaceRepository? RepositoryAt(string repositoryRoot)
 		=> Repositories.FirstOrDefault(r => FxLayout.SameFolder(FullPath(r), repositoryRoot));
-
-	/// <summary>
-	/// Whether <paramref name="relative"/> (a path of the workspace, with '/') is versioned by its <c>paths</c>: the
-	/// longest entry that contains it decides (an exclusion inside an inclusion wins).
-	/// </summary>
-	public bool Versions(string relative)
-	{
-		var match = (Paths ?? [])
-			.Where(p => p.IsFolder
-				? relative.StartsWith(p.Path, StringComparison.OrdinalIgnoreCase) || string.Equals(relative.TrimEnd('/') + "/", p.Path, StringComparison.OrdinalIgnoreCase)
-				: string.Equals(relative.TrimEnd('/'), p.Path, StringComparison.OrdinalIgnoreCase))
-			.MaxBy(p => p.Path.Length);
-		return match is { Exclude: false };
-	}
 }

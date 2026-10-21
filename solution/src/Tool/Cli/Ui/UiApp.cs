@@ -854,20 +854,19 @@ public sealed partial class UiApp
 	/// <summary>What a workspace versions (its paths) and what it shares, and whom (14.5).</summary>
 	static Visual Versions(FxTreeNode node)
 	{
-		var file = FxLayout.Full(node.Path, WorkspaceManifest.RelativePath);
-		var manifest = WorkspaceManifest.Read(node.Path, File.Exists(file) ? File.ReadAllText(file) : "");
+		var space = SpaceConfig.Load(node.Path);
 		var text = new StringBuilder();
 		text.AppendLine($"[bold]{Esc(Texts.Get("ui.paths"))}[/]");
-		foreach (var path in manifest.Paths ?? [])
+		foreach (var path in space.Paths ?? [])
 			text.AppendLine($"  {(path.Exclude ? "[muted]− " : "+ ")}{Esc(path.Path)}{(path.Exclude ? "[/]" : "")}{(path.Worktree ? "" : $" [muted]({Esc(Texts.Get("ui.no-worktree"))})[/]")}");
 		text.AppendLine();
 		text.AppendLine($"[bold]{Esc(Texts.Get("ui.shares"))}[/]");
-		foreach (var share in manifest.Shares ?? [])
+		foreach (var share in space.Shares ?? [])
 		{
 			var reach = node.Identity is { } identity ? FxTree.Reach(node, share.AppliesTo.Absolute(identity.FullName)).Count(r => r.Applies) : 0;
 			text.AppendLine($"  {Esc(share.Path)} → {Esc(share.Destination)}  [muted]{Esc(Texts.Get("ui.reaches", reach))}[/]");
 		}
-		if ((manifest.Shares ?? []).Count == 0)
+		if ((space.Shares ?? []).Count == 0)
 			text.AppendLine($"  [muted]—[/]");
 		return new ScrollViewer(new Markup(text.ToString().TrimEnd()) { Wrap = false });
 	}
@@ -1025,7 +1024,7 @@ public sealed partial class UiApp
 			lines.Add(new VStack(origins.Select(o => (Visual)Line($"  [accent]{Esc(FxLayout.Relative(Model.Path, o))}[/]"))
 				.Prepend(Line($"[muted]{Esc(Texts.Get("ui.origins"))}[/]")).ToArray()).Spacing(0));
 		// the catalog of tags of a root (14.13)
-		if (node.Name == "fx.yaml" && node.Parent is { Name: "_fx", Parent: { } root })
+		if (node.Name == FxLayout.ConfigName && node.Parent is { Name: "_fx", Parent: { } root })
 		{
 			var table = new Table().Headers(new TextBlock(Texts.Get("ui.column.tag")), new TextBlock(Texts.Get("ui.column.description")), new TextBlock(Texts.Get("ui.column.from")),
 				new TextBlock(Texts.Get("ui.column.used-by")));

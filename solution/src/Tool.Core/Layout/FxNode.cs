@@ -9,12 +9,12 @@ namespace Fuxion.Tool.Core.Layout;
 /// <summary>
 /// A root of fx on disk: a repository or a workspace (plan P, decision 1). It knows itself by its
 /// <c>_fx/.inherited/inherited.yaml</c> (what its workspace said last time) or, if nobody declares it, by the
-/// <c>name</c> of its <c>_fx/fx.yaml</c>.
+/// <c>name</c> of its <c>_fx/space.yaml</c>.
 /// </summary>
 public sealed class FxNode(string root)
 {
-	public const string NameMissing = "fx.name-missing";
-	public const string NotARoot = "fx.not-a-root";
+	public const string NameMissing = "space.name-missing";
+	public const string NotARoot = "space.not-a-space";
 
 	public string Root { get; } = FxLayout.Normalize(root);
 
@@ -35,12 +35,12 @@ public sealed class FxNode(string root)
 
 	public FxInherited? Inherited(ICollection<FxDiagnostic>? diagnostics = null) => FxInherited.Load(Root, diagnostics);
 
-	/// <summary>Its own <c>_fx/fx.yaml</c>.</summary>
-	public FxConfig OwnConfig(ICollection<FxDiagnostic>? diagnostics = null) => FxConfig.Load(Root, FxLayout.ConfigFile, diagnostics ?? []);
+	/// <summary>Its own <c>_fx/space.yaml</c>.</summary>
+	public SpaceConfig OwnConfig(ICollection<FxDiagnostic>? diagnostics = null) => SpaceConfig.Load(Root, FxLayout.ConfigFile, diagnostics ?? []);
 
-	/// <summary>What it inherits (<c>_fx/.inherited/fx.yaml</c>) with its own on top.</summary>
-	public FxConfig Config(ICollection<FxDiagnostic>? diagnostics = null)
-		=> FxConfig.Merge(FxConfig.Load(Root, $"{FxLayout.Inherited}/fx.yaml", diagnostics ?? []), OwnConfig(diagnostics), FxLayout.ConfigFile, diagnostics);
+	/// <summary>What it inherits (<c>_fx/.inherited/space.yaml</c>) with its own on top.</summary>
+	public SpaceConfig Config(ICollection<FxDiagnostic>? diagnostics = null)
+		=> SpaceConfig.Merge(SpaceConfig.Load(Root, FxLayout.InheritedConfigFile, diagnostics ?? []), OwnConfig(diagnostics), FxLayout.ConfigFile, diagnostics);
 
 	/// <summary>
 	/// Who it is when nobody on disk declares it: what its workspace said last time, or its own name as a root. A root
@@ -55,7 +55,7 @@ public sealed class FxNode(string root)
 		// a repository without _fx/ is not a root of fx: nothing to ask of it
 		if (FxFiles.DirectoryExists(Full(FxLayout.Folder)))
 			diagnostics?.Add(FxDiagnostic.Error(NameMissing, new(NameMissing, FolderName), FxLayout.ConfigFile, fix: FxFix.Do($"{NameMissing}.fix")));
-		return FxIdentity.Root(FxConfig.NamePattern().IsMatch(FolderName) ? FolderName : "root");
+		return FxIdentity.Root(SpaceConfig.NamePattern().IsMatch(FolderName) ? FolderName : "root");
 	}
 
 	/// <summary>

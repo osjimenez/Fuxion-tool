@@ -129,8 +129,8 @@ public sealed class NestedTest : SampleTree
 
 		// repo-w1 mounts it as a guest too: two copies at the same height, an error, and nothing moves
 		var w1Manifest = Path.Combine(acme.Path, "repo-w1", "_fx", "workspace", "workspace.yaml");
-		File.WriteAllText(w1Manifest, Read(acme.Path, "repo-w1/_fx/workspace/workspace.yaml")
-			.Replace("paths:\n", $"  - name: shared\n    url: {Url(_sharedOrigin)}\n    path: libs/shared\n    mount: mandatory\n    inherits: false\n    tags: [dotnet]\npaths:\n"));
+		File.WriteAllText(w1Manifest, Read(acme.Path, "repo-w1/_fx/workspace/workspace.yaml").TrimEnd('\n')
+			+ $"\n  - name: shared\n    url: {Url(_sharedOrigin)}\n    path: libs/shared\n    mount: mandatory\n    inherits: false\n    tags: [dotnet]\n");
 		var tie = Assert.Single(Errors(Sync(acme.Path)));
 		Assert.Equal(WorkspaceCopies.SameHeight, tie.Code);
 		Assert.Equal("'shared' is mounted twice at the same height, as /acme/repo-w1/shared and /acme/repo-w2/shared: fx cannot tell which copy to use, and parks neither.",

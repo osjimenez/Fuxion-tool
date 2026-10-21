@@ -8,8 +8,8 @@ using Fuxion.Tool.Core.Layout;
 namespace Fuxion.Tool.Core.Workspace;
 
 /// <summary>
-/// The <c>.gitignore</c> of a workspace (plan P, decision 7): a whitelist. Nothing is versioned, at any depth, except
-/// fx's configuration, the <c>paths</c> of the manifest, what the modules generate and version (the solutions) and what
+/// The <c>.gitignore</c> of a space (plan P, decision 7): a whitelist. Nothing is versioned, at any depth, except
+/// fx's configuration, the <c>paths</c> of its <c>space.yaml</c>, what the modules generate and version (the solutions) and what
 /// the workspace receives from above (the shares); then
 /// the exclusions, the repositories that fall inside versioned folders, and the local files. A path deep inside also
 /// brings its folders above (git does not look inside an ignored folder; plan P, P1, detail 5).
@@ -20,13 +20,13 @@ public static class GitignoreGenerator
 
 	/// <param name="versioned">What the modules generate and version, relative to the workspace (<c>Acme.slnx</c>).</param>
 	/// <param name="shared">The shares it receives from above, relative to it (<c>res/icon.png</c>).</param>
-	public static string Generate(WorkspaceManifest manifest, IEnumerable<string> versioned, IEnumerable<string>? shared = null)
+	public static string Generate(SpaceConfig space, WorkspaceManifest manifest, IEnumerable<string> versioned, IEnumerable<string>? shared = null)
 	{
-		var b = new StringBuilder(FxHeader.Hash(WorkspaceManifest.RelativePath + " and the modules of _fx"));
+		var b = new StringBuilder(FxHeader.Hash(FxLayout.ConfigFile + " and the modules of _fx"));
 		b.Append('\n');
 		b.Append("# Nothing is versioned, at any depth, except what follows\n");
 		b.Append("*\n");
-		var included = (manifest.Paths ?? []).Where(p => !p.Exclude).ToList();
+		var included = (space.Paths ?? []).Where(p => !p.Exclude).ToList();
 		var written = new HashSet<string>(StringComparer.Ordinal);
 		void Line(StringBuilder to, string line)
 		{
@@ -96,7 +96,7 @@ public static class GitignoreGenerator
 			}
 		}
 
-		var exclusions = (manifest.Paths ?? []).Where(p => p.Exclude).ToList();
+		var exclusions = (space.Paths ?? []).Where(p => p.Exclude).ToList();
 		if (exclusions.Count > 0)
 		{
 			b.Append('\n');
@@ -105,7 +105,7 @@ public static class GitignoreGenerator
 				b.Append($"/{path.Path}\n");
 		}
 
-		var inside = manifest.Repositories.Where(r => manifest.Versions(r.Path + "/")).ToList();
+		var inside = manifest.Repositories.Where(r => space.Versions(r.Path + "/")).ToList();
 		if (inside.Count > 0)
 		{
 			b.Append('\n');

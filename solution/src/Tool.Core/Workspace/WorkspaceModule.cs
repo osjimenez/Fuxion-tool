@@ -40,7 +40,7 @@ public static class WorkspaceModule
 	public const string NotARepository = "workspace.not-a-repository";
 	public const string OriginMismatch = "workspace.origin-mismatch";
 	public const string Orphan = "workspace.orphan";
-	public const string NotVersioned = "workspace.not-versioned";
+	public const string NotVersioned = "space.not-versioned";
 	public const string NotIgnored = "workspace.not-ignored";
 	public const string LocalNotIgnored = "workspace.local-not-ignored";
 	public const string Outdated = "workspace.outdated";
@@ -257,28 +257,38 @@ public static class WorkspaceModule
 	/// generate and version, and <paramref name="shared"/>, the shares it receives) and, in the doctor, what only it
 	/// checks. Its own shares, in both.
 	/// </summary>
-	public static void Outputs(FxNode node, FxIdentity identity, WorkspaceManifest manifest, FxConfig config, IEnumerable<string> versioned, IEnumerable<string> shared,
+	public static void Outputs(FxNode node, FxIdentity identity, WorkspaceManifest manifest, SpaceConfig config, IEnumerable<string> versioned, IEnumerable<string> shared,
 		SyncContext context, FxOutputs outputs, FxDiagnostics diagnostics)
 	{
-		outputs.Generated(node.Full(GitignoreGenerator.FileName), GitignoreGenerator.Generate(manifest, versioned, shared));
+		outputs.Generated(node.Full(GitignoreGenerator.FileName), GitignoreGenerator.Generate(config, manifest, versioned, shared));
 		var manifestFile = Display(context, node.Root, WorkspaceManifest.RelativePath);
-		WorkspaceShares.Check(node, manifest, manifestFile, context.Doctor, diagnostics);
+		var configFile = Display(context, node.Root, FxLayout.ConfigFile);
+		WorkspaceShares.Check(node, config, configFile, context.Doctor, diagnostics);
+		foreach (var diagnostic in PathsInRepositories(config, manifest, configFile))
+			diagnostics.Add(diagnostic);
 		if (!context.Doctor)
 			return;
 		foreach (var repo in manifest.Repositories)
 			foreach (var tag in repo.Tags.Where(t => !config.Knows(t)))
 				diagnostics.Add(FxDiagnostic.Warning(UnknownTag, new(UnknownTag, tag, repo.Name), manifestFile, repo.Line, repo.Name, FxFix.Do($"{UnknownTag}.fix")));
-		AliasReferences(node, identity, manifest, context, diagnostics);
-		Walk(node.Root, manifest, context, diagnostics);
+		AliasReferences(node, identity, manifest, config, context, diagnostics);
+		Walk(node.Root, manifest, config, context, diagnostics);
 		Check(manifest, context, diagnostics);
 	}
+
+	/// <summary>The paths of the space inside one of its repositories: they are that repository's, not the space's (an error each).</summary>
+	public static IEnumerable<FxDiagnostic> PathsInRepositories(SpaceConfig config, WorkspaceManifest manifest, string configFile)
+		=> from path in config.Paths ?? []
+		   let inside = manifest.Repositories.FirstOrDefault(r => path.Path.StartsWith(r.Path + "/", StringComparison.OrdinalIgnoreCase))
+		   where inside is not null
+		   select FxDiagnostic.Error(SpaceConfig.Invalid, new($"{SpaceConfig.Invalid}.path-in-repository", path.Path, inside.Name), configFile, path.Line);
 
 	/// <summary>
 	/// The references of this workspace that use an old name of one of its repositories (<c>aliases</c>, plan P,
 	/// decision 12): they still work, but they should change. In <c>depends-on</c> and in the <c>applies-to</c> of the
 	/// shares and of the .NET module.
 	/// </summary>
-	static void AliasReferences(FxNode node, FxIdentity identity, WorkspaceManifest manifest, SyncContext context, FxDiagnostics diagnostics)
+	static void AliasReferences(FxNode node, FxIdentity identity, WorkspaceManifest manifest, SpaceConfig config, SyncContext context, FxDiagnostics diagnostics)
 	{
 		var aliases = manifest.Repositories.SelectMany(r => (r.Aliases ?? []).Select(a => (Alias: a, r.Name))).ToList();
 		if (aliases.Count == 0)
@@ -296,9 +306,10 @@ public static class WorkspaceModule
 		foreach (var repo in manifest.Repositories)
 			foreach (var dependency in repo.DependsOn ?? [])
 				Check(dependency, manifestFile, repo.Line);
-		foreach (var share in manifest.Shares ?? [])
+		var configFile = Display(context, node.Root, FxLayout.ConfigFile);
+		foreach (var share in config.Shares ?? [])
 			foreach (var reference in share.AppliesTo.Repositories)
-				Check(reference, manifestFile, share.Line);
+				Check(reference, configFile, share.Line);
 		var dotnetFile = node.Full(FxLayout.ModuleFile(Dotnet.DotnetModule.Name));
 		if (!FxFiles.Exists(dotnetFile))
 			return;
@@ -326,20 +337,20 @@ public static class WorkspaceModule
 	/// not version (an info). It does not go into the repositories, <c>_fx/</c>, the local files nor what is versioned; a
 	/// folder with only folders is walked, one with files is reported and left.
 	/// </summary>
-	static void Walk(string root, WorkspaceManifest manifest, SyncContext context, FxDiagnostics diagnostics)
+	static void Walk(string root, WorkspaceManifest manifest, SpaceConfig config, SyncContext context, FxDiagnostics diagnostics)
 	{
-		foreach (var (relative, repository) in Strangers(root, manifest))
+		foreach (var (relative, repository) in Strangers(root, manifest, config))
 			if (repository)
 				diagnostics.Add(FxDiagnostic.Warning(Orphan, new(Orphan, relative.TrimEnd('/')), fix: FxFix.Do($"{Orphan}.fix")));
 			else
-				diagnostics.Add(FxDiagnostic.Info(NotVersioned, new(NotVersioned, relative), Display(context, root, relative.TrimEnd('/')), fix: FxFix.Do($"{NotVersioned}.fix")));
+				diagnostics.Add(FxDiagnostic.Info(NotVersioned, new(NotVersioned, relative), Display(context, root, relative.TrimEnd('/')), fix: FxFix.Do(new FxText($"{NotVersioned}.fix", relative))));
 	}
 
 	/// <summary>
 	/// What is on disk in the workspace at <paramref name="root"/> that nobody declared (plan P, P1, detail 6): repositories
 	/// (<c>repository</c>), and folders with files of their own that it does not version; relative, ending in '/'.
 	/// </summary>
-	public static IEnumerable<(string Relative, bool Repository)> Strangers(string root, WorkspaceManifest manifest)
+	public static IEnumerable<(string Relative, bool Repository)> Strangers(string root, WorkspaceManifest manifest, SpaceConfig config)
 	{
 		var repositories = manifest.Repositories.Select(r => manifest.FullPath(r)).ToList();
 		// the folders of the coding agents (plan Q): fx's, as _fx/
@@ -352,7 +363,7 @@ public static class WorkspaceModule
 				var name = Path.GetFileName(sub);
 				var relative = FxLayout.Relative(root, sub) + "/";
 				if (name is ".git" || FxLayout.IsLocal(name) || relative == FxLayout.Folder + "/" || skills.Contains(relative, StringComparer.OrdinalIgnoreCase)
-				    || manifest.Versions(relative))
+				    || config.Versions(relative))
 					continue;
 				if (repositories.Any(r => FxLayout.SameFolder(r, sub)))
 					continue;
@@ -364,7 +375,7 @@ public static class WorkspaceModule
 				// a folder that leads to a repository (or to versioned paths) is walked; one with files of its own is reported
 				var hasFiles = FxFiles.EnumerateFiles(sub).Any(f => !FxLayout.IsLocal(Path.GetFileName(f)));
 				var leads = repositories.Any(r => r.StartsWith(FxLayout.Normalize(sub), StringComparison.OrdinalIgnoreCase))
-				            || (manifest.Paths ?? []).Any(p => !p.Exclude && p.Path.StartsWith(relative, StringComparison.OrdinalIgnoreCase))
+				            || (config.Paths ?? []).Any(p => !p.Exclude && p.Path.StartsWith(relative, StringComparison.OrdinalIgnoreCase))
 				            || skills.Any(s => s.StartsWith(relative, StringComparison.OrdinalIgnoreCase));
 				if (hasFiles && !leads)
 					found.Add((relative, false));

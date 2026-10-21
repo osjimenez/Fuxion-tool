@@ -68,7 +68,7 @@ public abstract class SampleTree : IDisposable
 			("Shared.csproj", "<Project />\n"));
 		_w1Origin = Origin(
 			("README.md", "repo-w1\n"),
-			("_fx/fx.yaml", "schema: 1.0.0\ntags:\n  - name: mobile\n    description: The mobile part.\n"),
+			("_fx/space.yaml", "schema: 1.0.0\ntags:\n  - name: mobile\n    description: The mobile part.\npaths:\n  - path: README.md\n"),
 			("_fx/workspace/workspace.yaml", $"""
 				schema: 1.0.0
 				repositories:
@@ -82,8 +82,6 @@ public abstract class SampleTree : IDisposable
 				    path: repo-c2
 				    mount: mandatory
 				    tags: [dotnet, mobile]
-				paths:
-				  - path: README.md
 				"""),
 			("_fx/dotnet/dotnet.yaml", """
 				schema: 1.0.0
@@ -108,6 +106,7 @@ public abstract class SampleTree : IDisposable
 		// shared, also here as a guest: used, but it inherits from acme
 		_w2Origin = Origin(
 			("README.md", "repo-w2\n"),
+			("_fx/space.yaml", "schema: 1.0.0\npaths:\n  - path: README.md\n"),
 			("_fx/workspace/workspace.yaml", $"""
 				schema: 1.0.0
 				repositories:
@@ -122,8 +121,6 @@ public abstract class SampleTree : IDisposable
 				    mount: mandatory
 				    inherits: false
 				    tags: [dotnet]
-				paths:
-				  - path: README.md
 				"""),
 			("_fx/dotnet/dotnet.yaml", """
 				schema: 1.0.0
@@ -139,7 +136,20 @@ public abstract class SampleTree : IDisposable
 			("README.md", "acme\n"),
 			("libs/README.md", "libraries\n"),
 			("_docs/guide.md", "guide\n"),
-			("_fx/fx.yaml", "schema: 1.0.0\nname: acme\ntags:\n  - name: dotnet\n  - name: product\n  - name: library\n  - name: app\n"),
+			("_fx/space.yaml", """
+				schema: 1.0.0
+				name: acme
+				tags:
+				  - name: dotnet
+				  - name: product
+				  - name: library
+				  - name: app
+				paths:
+				  - path: README.md
+				  - path: libs/
+				  - path: _docs/
+				    worktree: false
+				"""),
 			("_fx/workspace/workspace.yaml", $"""
 				schema: 1.0.0
 				repositories:
@@ -158,11 +168,6 @@ public abstract class SampleTree : IDisposable
 				    path: libs/shared
 				    mount: mandatory
 				    tags: [dotnet, library]
-				paths:
-				  - path: README.md
-				  - path: libs/
-				  - path: _docs/
-				    worktree: false
 				"""),
 			("_fx/dotnet/default.props", "<Project><PropertyGroup><Nullable>enable</Nullable></PropertyGroup></Project>\n"),
 			("_fx/dotnet/dotnet.yaml", """
@@ -262,9 +267,9 @@ public abstract class SampleTree : IDisposable
 		Directory.CreateDirectory(Path.Combine(work.Path, "res"));
 		File.WriteAllBytes(Path.Combine(work.Path, "res", "icon.png"), Icon);
 		work.WriteFile("LICENSE", "MIT acme\n");
-		var manifest = Path.Combine(work.Path, "_fx", "workspace", "workspace.yaml");
-		// (the manifest of the fixture does not end in a new line)
-		File.WriteAllText(manifest, File.ReadAllText(manifest).Replace("\r\n", "\n").Replace("paths:\n", "paths:\n  - path: res/\n  - path: LICENSE\n").TrimEnd('\n')
+		var space = Path.Combine(work.Path, "_fx", "space.yaml");
+		// (the space.yaml of the fixture does not end in a new line)
+		File.WriteAllText(space, File.ReadAllText(space).Replace("\r\n", "\n").Replace("paths:\n", "paths:\n  - path: res/\n  - path: LICENSE\n").TrimEnd('\n')
 			+ "\nshares:\n  - path: res/icon.png\n    applies-to:\n      tags: [library]\n  - path: LICENSE\n");
 		work.CommitAll("shares");
 		work.Git("push", "--quiet", "origin", "HEAD");

@@ -30,7 +30,7 @@ public sealed class WorkspaceTest
 		{
 			foreach (var (name, _) in repositories)
 				Origins[name] = Origin(name);
-			Meta.WriteFile(Path.Combine("_fx", "fx.yaml"), "schema: 1.0.0\nname: test\ntags:\n  - name: dotnet\n  - name: x\n  - name: other\n");
+			Meta.WriteFile(Path.Combine("_fx", "space.yaml"), "schema: 1.0.0\nname: test\ntags:\n  - name: dotnet\n  - name: x\n  - name: other\npaths:\n  - path: _docs/\n");
 			WriteManifest(repositories.Select(r => (r.Name, r.Mount, "")).ToArray());
 			WriteDotnet("", repositories.Select(r => r.Name).ToArray());
 			Meta.CommitAll("workspace");
@@ -61,7 +61,7 @@ public sealed class WorkspaceTest
 		}
 
 		public void WriteManifest(params (string Name, string Mount, string Extra)[] repositories)
-			=> Meta.WriteFile(Path.Combine("_fx", "workspace", "workspace.yaml"), "schema: 1.0.0\npaths:\n  - path: _docs/\nrepositories:\n" + string.Concat(repositories.Select(r => $"""
+			=> Meta.WriteFile(Path.Combine("_fx", "workspace", "workspace.yaml"), "schema: 1.0.0\nrepositories:\n" + string.Concat(repositories.Select(r => $"""
 				  - name: {r.Name}
 				    path: {r.Name}/repo
 				    url: {Origins[r.Name].Path.Replace('\\', '/')}
@@ -127,20 +127,29 @@ public sealed class WorkspaceTest
 		Assert.Contains(ex.Diagnostics, d => d.Severity == FxSeverity.Error && d.Message.English.Contains(message) && d.Line is > 0);
 	}
 
-	[Theory(DisplayName = "manifest: a share comes from inside the workspace and goes inside the repository, out of what is fx's or git's; one per destination")]
-	[InlineData("  - path: ../x\n", "has to come from a path inside the workspace")]
-	[InlineData("  - path: _fx/.inherited/dotnet/x.props\n", "has to come from a path inside the workspace")]
-	[InlineData("  - path: x\n    destination: _fx/dotnet/x\n", "cannot go to '_fx/dotnet/x'")]
-	[InlineData("  - path: x\n    destination: .git/hooks/x\n", "cannot go to '.git/hooks/x'")]
-	[InlineData("  - path: x\n    destination: ~$x\n", "cannot go to '~$x'")]
-	[InlineData("  - path: a\n    destination: x\n  - path: b\n    destination: x\n", "Two shares go to 'x'")]
-	public void Manifest_InvalidShare(string shares, string message)
+	[Theory(DisplayName = "space.yaml: every problem, with its line; a share comes from inside the space and goes inside the repository, out of what is fx's or git's, one per destination")]
+	[InlineData("name: Acme\n", "lowercase letters, digits and '-'")]
+	[InlineData("visibility: internal\n", "private or public")]
+	[InlineData("paths:\n  - path: ../x\n", "must be relative, inside the space")]
+	[InlineData("paths:\n  - path: _fx/\n", "is fx's: it is always versioned")]
+	[InlineData("paths:\n  - path: ~$x\n", "is fx's: it is always versioned")]
+	[InlineData("paths:\n  - path: a/\n  - path: A/\n", "'a/' is twice in paths")]
+	[InlineData("paths:\n  - path: a/\n    worktree: maybe\n", "'worktree' must be true or false")]
+	[InlineData("paths: x\n", "'paths' must be a list")]
+	[InlineData("shares:\n  - path: ../x\n", "has to come from a path inside the space")]
+	[InlineData("shares:\n  - path: _fx/.inherited/dotnet/x.props\n", "has to come from a path inside the space")]
+	[InlineData("shares:\n  - path: x\n    destination: _fx/dotnet/x\n", "cannot go to '_fx/dotnet/x'")]
+	[InlineData("shares:\n  - path: x\n    destination: .git/hooks/x\n", "cannot go to '.git/hooks/x'")]
+	[InlineData("shares:\n  - path: x\n    destination: ~$x\n", "cannot go to '~$x'")]
+	[InlineData("shares:\n  - path: a\n    destination: x\n  - path: b\n    destination: x\n", "Two shares go to 'x'")]
+	public void Space_Invalid(string yaml, string message)
 	{
-		var ex = Assert.Throws<WorkspaceManifestException>(() => WorkspaceManifest.Read("root", "schema: 1.0.0\nrepositories: []\nshares:\n" + shares, strict: true));
-		Assert.Contains(ex.Diagnostics, d => d.Severity == FxSeverity.Error && d.Message.English.Contains(message) && d.Line is > 0);
+		var diagnostics = new List<FxDiagnostic>();
+		SpaceConfig.Read("schema: 1.0.0\n" + yaml, FxLayout.ConfigFile, diagnostics);
+		Assert.Contains(diagnostics, d => d.Severity == FxSeverity.Error && d.Message.English.Contains(message) && d.Line is > 0);
 	}
 
-	[Fact(DisplayName = "manifest: repositories anywhere, paths as objects, shares; nothing about solutions")]
+	[Fact(DisplayName = "manifest: repositories anywhere; nothing about solutions")]
 	public void Manifest_Read()
 	{
 		var manifest = WorkspaceManifest.Read("root", """
@@ -157,6 +166,24 @@ public sealed class WorkspaceTest
 			    path: libs/shared
 			    inherits: false
 			    depends-on: [repo-w1]
+			""", strict: true);
+		var w1 = manifest.Repositories[0];
+		Assert.Equal(MountPolicy.Mandatory, w1.Mount);
+		Assert.Equal(["w1"], w1.Aliases);
+		Assert.Equal(["dotnet", "product"], w1.Tags);
+		var shared = manifest.Repositories[1];
+		Assert.False(shared.Inherits);
+		Assert.Equal(["repo-w1"], shared.DependsOn);
+	}
+
+	[Fact(DisplayName = "space.yaml: its name and visibility, paths as objects, shares")]
+	public void Space_Read()
+	{
+		var diagnostics = new List<FxDiagnostic>();
+		var space = SpaceConfig.Read("""
+			schema: 1.0.0
+			name: acme
+			visibility: public
 			paths:
 			  - path: README.md
 			  - path: _docs/
@@ -172,26 +199,23 @@ public sealed class WorkspaceTest
 			    destination: icons
 			  - path: LICENSE
 			    destination: legal/
-			""", strict: true);
-		var w1 = manifest.Repositories[0];
-		Assert.Equal(MountPolicy.Mandatory, w1.Mount);
-		Assert.Equal(["w1"], w1.Aliases);
-		Assert.Equal(["dotnet", "product"], w1.Tags);
-		var shared = manifest.Repositories[1];
-		Assert.False(shared.Inherits);
-		Assert.Equal(["repo-w1"], shared.DependsOn);
-		Assert.Equal(4, manifest.Paths!.Count);
-		Assert.False(manifest.Paths[1].Worktree);
-		Assert.True(manifest.Paths[2].Exclude);
-		Assert.True(manifest.Versions("libs/README.md"));
-		Assert.True(manifest.Versions("_docs/plans/a.md"));
-		Assert.False(manifest.Versions("_docs/drafts/a.md"));
-		Assert.False(manifest.Versions("notes/"));
-		var share = manifest.Shares![0];
+			""", FxLayout.ConfigFile, diagnostics);
+		Assert.Empty(diagnostics);
+		Assert.Equal("acme", space.Name);
+		Assert.Equal(SpaceVisibility.Public, space.Visibility);
+		Assert.Equal(SpaceVisibility.Private, SpaceConfig.Read("schema: 1.0.0\n", FxLayout.ConfigFile, diagnostics).Visibility);
+		Assert.Equal(4, space.Paths!.Count);
+		Assert.False(space.Paths[1].Worktree);
+		Assert.True(space.Paths[2].Exclude);
+		Assert.True(space.Versions("libs/README.md"));
+		Assert.True(space.Versions("_docs/plans/a.md"));
+		Assert.False(space.Versions("_docs/drafts/a.md"));
+		Assert.False(space.Versions("notes/"));
+		var share = space.Shares![0];
 		Assert.Equal("res/icon.png", share.Destination);
 		Assert.Equal(["nuget-package"], share.AppliesTo.Tags);
 		// a folder goes to a folder; a file to a folder keeps its name
-		Assert.Equal(["res/icon.png", "icons/", "legal/LICENSE"], manifest.Shares.Select(s => s.Destination));
+		Assert.Equal(["res/icon.png", "icons/", "legal/LICENSE"], space.Shares.Select(s => s.Destination));
 	}
 
 	[Fact(DisplayName = "schema: a newer major is not read; a newer minor, unknown keys only warn; none, a warning")]
@@ -368,15 +392,18 @@ public sealed class WorkspaceTest
 			  - name: app
 			    url: y
 			    path: apps/app
+			""", strict: true);
+		var space = SpaceConfig.Read("""
+			schema: 1.0.0
 			paths:
 			  - path: README.md
 			  - path: libs/
 			  - path: docs/guides/
 			  - path: docs/guides/drafts/
 			    exclude: true
-			""", strict: true);
+			""", FxLayout.ConfigFile, []);
 		using var repo = new TempGitRepository();
-		repo.WriteFile(".gitignore", GitignoreGenerator.Generate(manifest, ["build/All.slnx"]));
+		repo.WriteFile(".gitignore", GitignoreGenerator.Generate(space, manifest, ["build/All.slnx"]));
 		bool Ignored(string path)
 		{
 			try
@@ -399,6 +426,7 @@ public sealed class WorkspaceTest
 		Assert.False(Ignored("build/All.slnx"));
 		Assert.True(Ignored("apps/app/"));
 		Assert.True(Ignored("notes/todo.md"));
+		Assert.False(Ignored("_fx/space.yaml"));
 		Assert.False(Ignored("_fx/workspace/workspace.yaml"));
 		Assert.True(Ignored("_fx/workspace/~$state.yaml"));
 		Assert.True(Ignored("libs/~$tmp"));
@@ -494,7 +522,7 @@ public sealed class WorkspaceTest
 		Assert.Equal(["dotnet"], card.Repository.Tags);
 		Assert.Equal("/test", card.Parent.FullName);
 		Assert.Contains(card.Files, f => f.Path == "dotnet/assets/icon.png" && f.From.SequenceEqual(["/test"]));
-		Assert.Contains("name: dotnet", ws.Read("plus/repo/_fx/.inherited/fx.yaml"));
+		Assert.Contains("name: dotnet", ws.Read("plus/repo/_fx/.inherited/space.yaml"));
 		var props = ws.Read("plus/repo/_fx/dotnet/dotnet.g.props");
 		Assert.Contains("$(MSBuildThisFileDirectory)../.inherited/dotnet/default.props", props);
 		Assert.Contains("<FxRepositoryFullName>/test/plus</FxRepositoryFullName>", props);
@@ -530,14 +558,14 @@ public sealed class WorkspaceTest
 		c1.WriteFile("C1.slnx", "<Solution>\n  <Folder Name=\"/src/\">\n    <Project Path=\"src/App/C1.App.csproj\" />\n  </Folder>\n</Solution>\n");
 		c1.CommitAll("c1");
 		using var w1 = new TempGitRepository();
-		w1.WriteFile(Path.Combine("_fx", "fx.yaml"), "schema: 1.0.0\ntags:\n  - name: mobile\n");
+		w1.WriteFile(Path.Combine("_fx", "space.yaml"), "schema: 1.0.0\ntags:\n  - name: mobile\n");
 		w1.WriteFile(Path.Combine("_fx", "workspace", "workspace.yaml"),
 			$"schema: 1.0.0\nrepositories:\n  - name: c1\n    url: {c1.Path.Replace('\\', '/')}\n    path: c1\n    mount: mandatory\n    tags: [dotnet, mobile]\n");
 		w1.WriteFile(Path.Combine("_fx", "dotnet", "dotnet.yaml"),
 			"schema: 1.0.0\npackages:\n  - ids: [Serilog]\n    versions:\n      - version: 4.0.0\nsolutions:\n  - path: W1.slnx\n    folders:\n      - name: /C1\n        solutions: [c1/C1.slnx]\n");
 		w1.CommitAll("w1");
 		using var acme = new TempGitRepository();
-		acme.WriteFile(Path.Combine("_fx", "fx.yaml"), "schema: 1.0.0\nname: acme\nrequires: 0.1.0\ntags:\n  - name: dotnet\n  - name: product\n");
+		acme.WriteFile(Path.Combine("_fx", "space.yaml"), "schema: 1.0.0\nname: acme\nrequires: 0.1.0\ntags:\n  - name: dotnet\n  - name: product\n");
 		acme.WriteFile(Path.Combine("_fx", "workspace", "workspace.yaml"),
 			$"schema: 1.0.0\nrepositories:\n  - name: w1\n    url: {w1.Path.Replace('\\', '/')}\n    path: products/w1\n    mount: mandatory\n    tags: [product]\n");
 		acme.WriteFile(Path.Combine("_fx", "dotnet", "dotnet.yaml"),
@@ -558,8 +586,8 @@ public sealed class WorkspaceTest
 		var yaml = Read("products/w1/c1/_fx/.inherited/dotnet/dotnet.yaml");
 		Assert.Contains("ids: [xunit.v3]", yaml);
 		Assert.Contains("ids: [Serilog]", yaml);
-		Assert.Contains("name: mobile", Read("products/w1/c1/_fx/.inherited/fx.yaml"));
-		Assert.Contains("requires: 0.1.0", Read("products/w1/c1/_fx/.inherited/fx.yaml"));
+		Assert.Contains("name: mobile", Read("products/w1/c1/_fx/.inherited/space.yaml"));
+		Assert.Contains("requires: 0.1.0", Read("products/w1/c1/_fx/.inherited/space.yaml"));
 		var targets = Read("products/w1/c1/_fx/dotnet/dotnet.g.targets");
 		Assert.Contains("<PackageReference Update=\"xunit.v3\" Version=\"4.0.0\" />", targets);
 		Assert.Contains("<PackageReference Update=\"Serilog\" Version=\"4.0.0\" />", targets);
@@ -579,7 +607,7 @@ public sealed class WorkspaceTest
 	public void Requires()
 	{
 		using var ws = new Workspace(("plus", "mandatory"));
-		ws.Meta.WriteFile(Path.Combine("_fx", "fx.yaml"), "schema: 1.0.0\nname: test\nrequires: 9.0.0\n");
+		ws.Meta.WriteFile(Path.Combine("_fx", "space.yaml"), "schema: 1.0.0\nname: test\nrequires: 9.0.0\n");
 		var results = Sync(ws.Root, new(FxVersion: "1.2.0"));
 		Assert.Contains(SyncEngine.Requires, Codes(results));
 		Assert.False(Directory.Exists(ws.RepoPath("plus")));

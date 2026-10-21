@@ -32,8 +32,8 @@ public sealed class SharesTest : SampleTree
 		Assert.Equal("MIT acme\n", Read(w1, "LICENSE"));
 		Assert.False(File.Exists(Path.Combine(w1, "res", "icon.png")));
 		Assert.False(GitClient.Discover(w1)!.Ignores("LICENSE"));
-		Assert.Contains("  - path: res/icon.png\n    destination: res/icon.png\n    applies-to:\n      tags: [library]\n", Read(w1, "_fx/.inherited/workspace/workspace.yaml"));
-		Assert.Equal(Icon, File.ReadAllBytes(Path.Combine(w1, "_fx", ".inherited", "workspace", "res", "icon.png")));
+		Assert.Contains("  - path: res/icon.png\n    destination: res/icon.png\n    applies-to:\n      tags: [library]\n", Read(w1, "_fx/.inherited/shares/shares.yaml"));
+		Assert.Equal(Icon, File.ReadAllBytes(Path.Combine(w1, "_fx", ".inherited", "shares", "res", "icon.png")));
 		Assert.Equal("MIT acme\n", Read(w1, "repo-c1/LICENSE"));
 		Assert.False(Directory.Exists(Path.Combine(w1, "repo-c1", "res")));
 		Assert.DoesNotContain(SyncEngine.Doctor(acme.Path, new(Offline: true), cancellationToken: TestContext.Current.CancellationToken).SelectMany(r => r.Diagnostics),
@@ -41,9 +41,9 @@ public sealed class SharesTest : SampleTree
 
 		// repo-w1 shares its own LICENSE: the nearest wins, below it
 		File.WriteAllText(Path.Combine(w1, "LICENSE.w1"), "MIT w1\n");
-		var w1Manifest = Path.Combine(w1, "_fx", "workspace", "workspace.yaml");
-		Append(w1Manifest, "paths:\n", "paths:\n  - path: LICENSE.w1\n");
-		File.AppendAllText(w1Manifest, "\nshares:\n  - path: LICENSE.w1\n    destination: LICENSE\n");
+		var w1Space = Path.Combine(w1, "_fx", "space.yaml");
+		Append(w1Space, "paths:\n", "paths:\n  - path: LICENSE.w1\n");
+		File.AppendAllText(w1Space, "\nshares:\n  - path: LICENSE.w1\n    destination: LICENSE\n");
 		Assert.Empty(Errors(Sync(acme.Path)));
 		Assert.Equal("MIT w1\n", Read(w1, "repo-c1/LICENSE"));
 		Assert.Equal("/acme/repo-w1", FxInherited.Load(Path.Combine(w1, "repo-c1"))!.Shares.Single(s => s.Destination == "LICENSE").From);
@@ -54,9 +54,9 @@ public sealed class SharesTest : SampleTree
 		var c2Notice = Path.Combine(w1, "repo-c2", "NOTICE");
 		File.WriteAllText(c2Notice, "c2's own\n");
 		File.WriteAllText(Path.Combine(acme.Path, "NOTICE"), "acme notice\n");
-		var acmeManifest = Path.Combine(acme.Path, "_fx", "workspace", "workspace.yaml");
-		Append(acmeManifest, "paths:\n", "paths:\n  - path: NOTICE\n");
-		File.AppendAllText(acmeManifest, "  - path: NOTICE\n");
+		var acmeSpace = Path.Combine(acme.Path, "_fx", "space.yaml");
+		Append(acmeSpace, "paths:\n", "paths:\n  - path: NOTICE\n");
+		File.AppendAllText(acmeSpace, "  - path: NOTICE\n");
 		var refused = Assert.Single(Errors(Sync(acme.Path)));
 		Assert.Equal(WorkspaceShares.Refused, refused.Code);
 		Assert.Equal("repo-w1/repo-c2/NOTICE is the repository's own: fx does not overwrite it with the share of /acme.", refused.Message.English);
@@ -67,15 +67,15 @@ public sealed class SharesTest : SampleTree
 		Assert.Contains(FxInherited.Load(Path.Combine(w1, "repo-c2"))!.Shares, s => s.Destination == "NOTICE");
 
 		// a share that goes: what fx gave goes too, and the folders it leaves empty
-		Append(acmeManifest, "  - path: res/icon.png\n    applies-to:\n      tags: [library]\n", "");
+		Append(acmeSpace, "  - path: res/icon.png\n    applies-to:\n      tags: [library]\n", "");
 		Assert.Empty(Errors(Sync(acme.Path)));
 		Assert.False(Directory.Exists(Path.Combine(shared, "res")));
-		Assert.False(Directory.Exists(Path.Combine(w1, "_fx", ".inherited", "workspace", "res")));
+		Assert.False(Directory.Exists(Path.Combine(w1, "_fx", ".inherited", "shares", "res")));
 		Assert.DoesNotContain(FxInherited.Load(shared)!.Shares, s => s.Destination == "res/icon.png");
 
 		// the doctor of the workspace that shares: a source it does not version, and one that is not there
 		File.WriteAllText(Path.Combine(acme.Path, "notes.txt"), "notes\n");
-		File.AppendAllText(acmeManifest, "  - path: notes.txt\n  - path: missing.txt\n");
+		File.AppendAllText(acmeSpace, "  - path: notes.txt\n  - path: missing.txt\n");
 		var doctor = SyncEngine.Doctor(acme.Path, new(Offline: true), cancellationToken: TestContext.Current.CancellationToken).SelectMany(r => r.Diagnostics).ToList();
 		var notVersioned = Assert.Single(doctor, d => d.Code == WorkspaceShares.NotVersioned);
 		Assert.Equal("fx path add notes.txt", notVersioned.Fix!.Command);
@@ -90,9 +90,9 @@ public sealed class SharesTest : SampleTree
 		Directory.CreateDirectory(Path.Combine(acme.Path, "cfg", "sub"));
 		File.WriteAllText(Path.Combine(acme.Path, "cfg", "a.txt"), "a\n");
 		File.WriteAllText(Path.Combine(acme.Path, "cfg", "sub", "b.txt"), "b\n");
-		var manifest = Path.Combine(acme.Path, "_fx", "workspace", "workspace.yaml");
-		Append(manifest, "paths:\n", "paths:\n  - path: cfg/\n");
-		File.AppendAllText(manifest, "\nshares:\n  - path: cfg/\n    destination: build\n    applies-to:\n      tags: [app]\n"
+		var space = Path.Combine(acme.Path, "_fx", "space.yaml");
+		Append(space, "paths:\n", "paths:\n  - path: cfg/\n");
+		File.AppendAllText(space, "\nshares:\n  - path: cfg/\n    destination: build\n    applies-to:\n      tags: [app]\n"
 		                             + "  - path: README.md\n    destination: docs/\n    applies-to:\n      repositories: [repo-w1/repo-c1]\n");
 		Assert.Empty(Errors(Sync(acme.Path)));
 
@@ -104,10 +104,10 @@ public sealed class SharesTest : SampleTree
 		Assert.Equal("b\n", Read(acme.Path, "repo-w2/apps/c3/build/sub/b.txt"));
 		Assert.False(Directory.Exists(Path.Combine(w1, "repo-c2", "build")));
 		Assert.False(Directory.Exists(Path.Combine(w1, "repo-c2", "docs")));
-		var stored = Read(w1, "_fx/.inherited/workspace/workspace.yaml");
+		var stored = Read(w1, "_fx/.inherited/shares/shares.yaml");
 		Assert.Contains("  - path: build/\n    destination: build/\n", stored);
 		Assert.Contains("repositories: [/acme/repo-w1/repo-c1]", stored);
-		Assert.Equal("b\n", Read(w1, "_fx/.inherited/workspace/build/sub/b.txt"));
+		Assert.Equal("b\n", Read(w1, "_fx/.inherited/shares/build/sub/b.txt"));
 
 		// a file of the folder goes: it goes from the repositories too
 		File.Delete(Path.Combine(acme.Path, "cfg", "sub", "b.txt"));

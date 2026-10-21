@@ -113,7 +113,7 @@ public sealed partial class UiApp
 
 	/// <summary>
 	/// The raw YAML of a file of fx, editable (14.9): its text with the pending changes; Ctrl+S adds it to them, valid
-	/// as fx reads it (the manifest, the yaml of a module, <c>fx.yaml</c>); Esc, nothing.
+	/// as fx reads it (the manifest, the yaml of a module, <c>space.yaml</c>); Esc, nothing.
 	/// </summary>
 	public void ShowYaml(string root, string file)
 	{
@@ -290,15 +290,15 @@ public sealed partial class UiApp
 			if (path.Length == 0)
 				return [];
 			return [new($"fx path add {Q(path)}{(exclude ? " --exclude" : "")}{(worktree ? "" : " --no-worktree")}{root}", () => [ManifestEditor.AddPath(workspace.Path, path, exclude, worktree)])];
-		}, ManifestEditor.ManifestPath(workspace.Path));
+		}, ManifestEditor.SpacePath(workspace.Path));
 	}
 
 	/// <summary>Something the workspace stops versioning: its <c>paths</c> (with the pending ones), to choose one.</summary>
 	void ShowPathRemove(FxTreeNode workspace)
 	{
-		IReadOnlyList<WorkspacePath> paths;
+		IReadOnlyList<SpacePath> paths;
 		using (Pending.Overlay())
-			paths = WorkspaceManifest.Read(workspace.Path, FxFiles.ReadAllText(ManifestEditor.ManifestPath(workspace.Path))).Paths ?? [];
+			paths = SpaceConfig.Load(workspace.Path).Paths ?? [];
 		var root = UiAction.RootOption(_start, workspace.Path);
 		var list = new ListBox<string>();
 		foreach (var path in paths)

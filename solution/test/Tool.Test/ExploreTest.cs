@@ -73,9 +73,9 @@ public sealed class ExploreTest : SampleTree
 		// acme shares a folder with the apps (repo-c1 among them)
 		Directory.CreateDirectory(Path.Combine(acme.Path, "cfg", "sub"));
 		File.WriteAllText(Path.Combine(acme.Path, "cfg", "sub", "b.txt"), "b\n");
-		var manifest = Path.Combine(acme.Path, "_fx", "workspace", "workspace.yaml");
-		Append(manifest, "paths:\n", "paths:\n  - path: cfg/\n");
-		File.AppendAllText(manifest, "\nshares:\n  - path: cfg/\n    destination: build\n    applies-to:\n      tags: [app]\n");
+		var space = Path.Combine(acme.Path, "_fx", "space.yaml");
+		Append(space, "paths:\n", "paths:\n  - path: cfg/\n");
+		File.AppendAllText(space, "\nshares:\n  - path: cfg/\n    destination: build\n    applies-to:\n      tags: [app]\n");
 		Assert.Empty(Errors(Sync(acme.Path)));
 		var tree = FxTree.Build(acme.Path)!;
 		string[] Origins(string relative) => FxTree.Origins(tree, At(tree, relative)).Select(o => FxLayout.Relative(acme.Path, o)).ToArray();
@@ -85,8 +85,8 @@ public sealed class ExploreTest : SampleTree
 		Assert.Equal(["repo-w1/_fx/workspace/workspace.yaml"], Origins("repo-w1/repo-c1/_fx/.inherited/inherited.yaml"));
 		// a share: its source; on its way down, too
 		Assert.Equal(["cfg/sub/b.txt"], Origins("repo-w1/repo-c1/build/sub/b.txt"));
-		Assert.Equal(["cfg/sub/b.txt"], Origins("repo-w1/_fx/.inherited/workspace/build/sub/b.txt"));
-		Assert.Equal(["_fx/workspace/workspace.yaml"], Origins("repo-w1/_fx/.inherited/workspace/workspace.yaml"));
+		Assert.Equal(["cfg/sub/b.txt"], Origins("repo-w1/_fx/.inherited/shares/build/sub/b.txt"));
+		Assert.Equal(["_fx/space.yaml"], Origins("repo-w1/_fx/.inherited/shares/shares.yaml"));
 		// generated: the yaml it is made of
 		Assert.Equal(["repo-w1/repo-c1/_fx/dotnet/dotnet.yaml", "repo-w1/repo-c1/_fx/.inherited/dotnet/dotnet.yaml"], Origins("repo-w1/repo-c1/_fx/dotnet/dotnet.g.props"));
 		Assert.Equal(["_fx/dotnet/dotnet.yaml"], Origins("Acme.slnx"));

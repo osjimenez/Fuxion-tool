@@ -13,7 +13,7 @@ namespace Fuxion.Tool.Core.Workspace;
 public sealed record SharedFile(string Destination, byte[] Content, string From);
 
 /// <summary>A share on its way down: its entry (<c>applies-to</c> already absolute) and its files; none if its source is not there.</summary>
-public sealed record ShareFlow(WorkspaceShare Share, IReadOnlyList<SharedFile>? Files);
+public sealed record ShareFlow(SpaceShare Share, IReadOnlyList<SharedFile>? Files);
 
 /// <summary>What a repository receives of the shares: its files by destination, and the destinations whose source is missing (kept as they are).</summary>
 public sealed record ReceivedShares(IReadOnlyDictionary<string, SharedFile> Files, IReadOnlyList<string> Kept)
@@ -24,7 +24,7 @@ public sealed record ReceivedShares(IReadOnlyDictionary<string, SharedFile> File
 /// <summary>
 /// The shares (plan P, decision 23): files a workspace gives the repositories below it, outside <c>_fx/</c>, at their
 /// <c>destination</c>, versioned there. They go down level by level like the rest of what is inherited: a workspace in
-/// between keeps them in its <c>_fx/.inherited/workspace/</c> (the merged entries in <c>workspace.yaml</c> and the
+/// between keeps them in its <c>_fx/.inherited/shares/</c> (the merged entries in <c>shares.yaml</c> and the
 /// files, under their destination) to pass them on, and a repository they apply to receives them. A received file is
 /// fx's because its <c>inherited.yaml</c> lists it (an image cannot take a header): fx never overwrites a file of the
 /// repository's own (unless <c>--adopt</c>), and removes what it no longer gives. At the same destination, the nearest
@@ -32,15 +32,15 @@ public sealed record ReceivedShares(IReadOnlyDictionary<string, SharedFile> File
 /// </summary>
 public static class WorkspaceShares
 {
-	public const string Missing = "workspace.share-missing";
-	public const string NotVersioned = "workspace.share-not-versioned";
-	public const string Refused = "workspace.share-refused";
+	public const string Missing = "space.share-missing";
+	public const string NotVersioned = "space.share-not-versioned";
+	public const string Refused = "space.share-refused";
 
-	/// <summary>Where a workspace in between keeps the shares it passes on, inside <c>_fx/.inherited/</c>.</summary>
-	public const string Folder = WorkspaceManifest.ModuleName;
+	/// <summary>Where a space in between keeps the shares it passes on, inside <c>_fx/.inherited/</c>.</summary>
+	public const string Folder = "shares";
 
 	/// <summary>
-	/// The shares <paramref name="parent"/> passes down: what it inherited (its <c>_fx/.inherited/workspace/</c>) and then
+	/// The shares <paramref name="parent"/> passes down: what it inherited (its <c>_fx/.inherited/shares/</c>) and then
 	/// its own, the nearest last; an own share replaces an inherited one with the same destination.
 	/// <paramref name="fromOf"/>: where a file of its <c>_fx/.inherited/</c> comes from.
 	/// </summary>
@@ -50,15 +50,13 @@ public static class WorkspaceShares
 		var stored = parent.Full($"{FxLayout.Inherited}/{Folder}");
 		var storedYaml = Path.Combine(stored, $"{Folder}.yaml");
 		if (FxFiles.Exists(storedYaml))
-			foreach (var share in WorkspaceManifest.Read(parent.Root, FxFiles.ReadAllText(storedYaml)).Shares ?? [])
+			foreach (var share in SpaceConfig.Read(FxFiles.ReadAllText(storedYaml), storedYaml, []).Shares ?? [])
 				if (SafeDestination(share.Destination) && share with { Path = share.Destination } is var rebased)
 					flows.Add(new(rebased, Expand(rebased, Path.Combine(stored, rebased.Path), relative => fromOf($"{Folder}/{relative}").LastOrDefault() ?? parentIdentity.FullName)));
-		var ownYaml = parent.Full(WorkspaceManifest.RelativePath);
-		if (parent.IsWorkspace && FxFiles.Exists(ownYaml))
-			foreach (var share in WorkspaceManifest.Read(parent.Root, FxFiles.ReadAllText(ownYaml)).Shares ?? [])
+		foreach (var share in parent.OwnConfig().Shares ?? [])
 			{
 				if (!SafeSource(share.Path) || !SafeDestination(share.Destination))
-					continue; // the manifest of the parent reports it
+					continue; // the space.yaml of the parent reports it
 				var absolute = share with { AppliesTo = share.AppliesTo.Absolute(parentIdentity.FullName) };
 				flows.RemoveAll(f => string.Equals(f.Share.Destination, share.Destination, StringComparison.OrdinalIgnoreCase));
 				flows.Add(new(absolute, Expand(absolute, parent.Full(share.Path), _ => parentIdentity.FullName)));
@@ -81,7 +79,7 @@ public static class WorkspaceShares
 	}
 
 	/// <summary>The source of the file a repository receives at <paramref name="destination"/> from <paramref name="share"/>, relative to the workspace that declares it; null if the share does not give it.</summary>
-	public static string? Source(WorkspaceShare share, string destination)
+	public static string? Source(SpaceShare share, string destination)
 	{
 		if (!share.Path.EndsWith('/'))
 			return string.Equals(destination, share.Destination, StringComparison.OrdinalIgnoreCase) ? share.Path : null;
@@ -92,7 +90,7 @@ public static class WorkspaceShares
 	public static bool Under(string destination, string share)
 		=> share.EndsWith('/') ? destination.StartsWith(share, StringComparison.OrdinalIgnoreCase) : string.Equals(destination, share, StringComparison.OrdinalIgnoreCase);
 
-	/// <summary><c>_fx/.inherited/workspace/workspace.yaml</c> of a workspace in between: the shares, each under its destination there.</summary>
+	/// <summary><c>_fx/.inherited/shares/shares.yaml</c> of a space in between: the shares, each under its destination there.</summary>
 	public static string ToYaml(IReadOnlyList<ShareFlow> flows, string from)
 	{
 		var shares = flows.Select(f =>
@@ -147,21 +145,21 @@ public static class WorkspaceShares
 	/// In the doctor of the workspace that declares them: a share whose source is not there, or not versioned (first it
 	/// is versioned, then shared: so a clone of the workspace has it).
 	/// </summary>
-	public static void Check(FxNode node, WorkspaceManifest manifest, string manifestFile, bool doctor, FxDiagnostics diagnostics)
+	public static void Check(FxNode node, SpaceConfig config, string configFile, bool doctor, FxDiagnostics diagnostics)
 	{
-		foreach (var share in manifest.Shares ?? [])
+		foreach (var share in config.Shares ?? [])
 		{
 			var source = node.Full(share.Path);
 			if (share.Path.EndsWith('/') ? !FxFiles.DirectoryExists(source) : !FxFiles.Exists(source))
-				diagnostics.Add(FxDiagnostic.Warning(Missing, new(Missing, share.Path), manifestFile, share.Line));
-			else if (doctor && !Versioned(manifest, share.Path))
-				diagnostics.Add(FxDiagnostic.Error(NotVersioned, new(NotVersioned, share.Path), manifestFile, share.Line, fix: FxFix.Run($"fx path add {share.Path}")));
+				diagnostics.Add(FxDiagnostic.Warning(Missing, new(Missing, share.Path), configFile, share.Line));
+			else if (doctor && !Versioned(config, share.Path))
+				diagnostics.Add(FxDiagnostic.Error(NotVersioned, new(NotVersioned, share.Path), configFile, share.Line, fix: FxFix.Run($"fx path add {share.Path}")));
 		}
 	}
 
-	/// <summary>Versioned by the workspace: in its <c>paths</c>, or in its <c>_fx/</c> (always versioned, but for what fx writes there).</summary>
-	static bool Versioned(WorkspaceManifest manifest, string path)
-		=> manifest.Versions(path)
+	/// <summary>Versioned by the space: in its <c>paths</c>, or in its <c>_fx/</c> (always versioned, but for what fx writes there).</summary>
+	static bool Versioned(SpaceConfig config, string path)
+		=> config.Versions(path)
 		   || (path.StartsWith(FxLayout.Folder + "/", StringComparison.OrdinalIgnoreCase) && !path.StartsWith(FxLayout.Inherited + "/", StringComparison.OrdinalIgnoreCase)
 		       && !path.Split('/').Any(FxLayout.IsLocal));
 
@@ -184,7 +182,7 @@ public static class WorkspaceShares
 	}
 
 	/// <summary>The files of a share: its file, or every file of its folder (but fx's local ones); none if its source is not there.</summary>
-	static IReadOnlyList<SharedFile>? Expand(WorkspaceShare share, string source, Func<string, string> from)
+	static IReadOnlyList<SharedFile>? Expand(SpaceShare share, string source, Func<string, string> from)
 	{
 		if (!share.Path.EndsWith('/'))
 			return FxFiles.Exists(source) ? [new(share.Destination, FxFiles.ReadAllBytes(source), from(share.Destination))] : null;

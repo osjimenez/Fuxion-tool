@@ -85,8 +85,8 @@ public sealed class UiTest : UiTree
 		Assert.DoesNotContain("<Folder", solution);
 		Assert.DoesNotContain("<Project", solution);
 		Assert.Contains("/acme", Show("repo-w1/repo-c1/_fx/.inherited/dotnet/dotnet.yaml", "CoreFrameworks"));
-		// the catalog of tags, on fx.yaml
-		var tags = Show("_fx/fx.yaml", "library");
+		// the catalog of tags, on space.yaml
+		var tags = Show("_fx/space.yaml", "library");
 		Assert.Contains("library", tags);
 		Assert.Contains("repo-c1", tags);
 	}
@@ -123,7 +123,7 @@ public sealed class UiTest : UiTree
 		// acme shares a note of its docs (a folder loaded only when opened) with repo-c1
 		Directory.CreateDirectory(Path.Combine(acme.Path, "_docs", "guide"));
 		File.WriteAllText(Path.Combine(acme.Path, "_docs", "guide", "notes.txt"), "notes\n");
-		File.AppendAllText(Path.Combine(acme.Path, "_fx", "workspace", "workspace.yaml"),
+		File.AppendAllText(Path.Combine(acme.Path, "_fx", "space.yaml"),
 			"\nshares:\n  - path: _docs/guide/notes.txt\n    destination: notes.txt\n    applies-to:\n      repositories: [repo-w1/repo-c1]\n");
 		Assert.Empty(Errors(Sync(acme.Path)));
 		using var h = Open(acme.Path);

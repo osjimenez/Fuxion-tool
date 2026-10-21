@@ -5,17 +5,19 @@ using System.IO;
 namespace Fuxion.Tool.Core.Layout;
 
 /// <summary>
-/// What fx fixes on disk, in one place (plan P, decision 1): <c>_fx/</c>, the anchor of a root of fx (a repository or
-/// a workspace), with a folder per module (<c>_fx/&lt;module&gt;/&lt;module&gt;.yaml</c>), the general configuration
-/// (<c>_fx/fx.yaml</c>), what a repository receives from its workspace (<c>_fx/.inherited/</c>) and the local files
-/// (<c>~$</c>). Paths relative to a root, with '/'.
+/// What fx fixes on disk, in one place (plan P, decision 1; plan spaces): <c>_fx/</c>, the anchor of a space, with its
+/// descriptor (<c>_fx/space.yaml</c>), a folder per module (<c>_fx/&lt;module&gt;/&lt;module&gt;.yaml</c>), what a
+/// sub-space receives from the space that mounts it (<c>_fx/.inherited/</c>) and the local files (<c>~$</c>). Paths
+/// relative to a root, with '/'.
 /// </summary>
 public static class FxLayout
 {
 	public const string Folder = "_fx";
-	public const string ConfigFile = "_fx/fx.yaml";
+	public const string ConfigName = "space.yaml";
+	public const string ConfigFile = "_fx/space.yaml";
 	public const string Inherited = "_fx/.inherited";
 	public const string InheritedFile = "_fx/.inherited/inherited.yaml";
+	public const string InheritedConfigFile = "_fx/.inherited/space.yaml";
 	public const string LocalPrefix = "~$";
 	public const string Parking = "_fx/~$parking";
 	public const string Worktrees = "_fx/~$worktrees";

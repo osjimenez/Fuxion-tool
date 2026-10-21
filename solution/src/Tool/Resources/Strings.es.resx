@@ -470,22 +470,22 @@
     <value>Invitado: el workspace lo usa, pero hereda de su propio padre (inherits: false).</value>
   </data>
   <data name="path" xml:space="preserve">
-    <value>Lo que versiona el git del workspace (paths: del manifiesto).</value>
+    <value>Lo que versiona el git del space (paths: de _fx/space.yaml).</value>
   </data>
   <data name="path.add" xml:space="preserve">
-    <value>Versiona un fichero o una carpeta (terminada en /) del workspace; no se crea nada.</value>
+    <value>Versiona un fichero o una carpeta (terminada en /) del space; no se crea nada.</value>
   </data>
   <data name="path.remove" xml:space="preserve">
     <value>Deja de versionar una ruta; no se borra nada.</value>
   </data>
   <data name="path.name" xml:space="preserve">
-    <value>La ruta, relativa al workspace (una carpeta termina en /).</value>
+    <value>La ruta, relativa al space (una carpeta termina en /).</value>
   </data>
   <data name="path.exclude" xml:space="preserve">
     <value>Una excepción dentro de algo versionado (exclude: true).</value>
   </data>
   <data name="path.no-worktree" xml:space="preserve">
-    <value>Se queda fuera de los worktrees del workspace (worktree: false).</value>
+    <value>Se queda fuera de los worktrees del space (worktree: false).</value>
   </data>
   <data name="path.ask.add" xml:space="preserve">
     <value>Ruta que versionar</value>

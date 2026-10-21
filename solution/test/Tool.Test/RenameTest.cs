@@ -39,7 +39,7 @@ public sealed class RenameTest : SampleTree
 		// a reference by the old name works, and the doctor says to change it
 		var manifest = Path.Combine(w1, "_fx", "workspace", "workspace.yaml");
 		// (fx clones with the user's git, which may turn the line endings into CRLF)
-		File.WriteAllText(manifest, File.ReadAllText(manifest).Replace("\r\n", "\n").Replace("    tags: [dotnet, mobile]\n", "    depends-on: [repo-c1]\n    tags: [dotnet, mobile]\n"));
+		File.WriteAllText(manifest, File.ReadAllText(manifest).Replace("\r\n", "\n").Replace("    tags: [dotnet, mobile]", "    depends-on: [repo-c1]\n    tags: [dotnet, mobile]"));
 		var doctor = SyncEngine.Doctor(acme.Path, new(Offline: true), cancellationToken: TestContext.Current.CancellationToken).SelectMany(r => r.Diagnostics).ToList();
 		var alias = Assert.Single(doctor, d => d.Code == WorkspaceModule.AliasReference);
 		Assert.Contains("'repo-c1' uses 'repo-c1', an old name of 'app'", alias.Message.English);

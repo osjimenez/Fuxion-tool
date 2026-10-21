@@ -22,7 +22,7 @@ public sealed class HarnessTest : SampleTree
 	static TempGitRepository Solo()
 	{
 		var repo = new TempGitRepository();
-		repo.WriteFile("_fx/fx.yaml", "schema: 1.0.0\nname: solo\n");
+		repo.WriteFile("_fx/space.yaml", "schema: 1.0.0\nname: solo\n");
 		return repo;
 	}
 

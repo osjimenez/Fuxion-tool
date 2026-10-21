@@ -82,8 +82,9 @@ public static class FxTree
 		var file = node.Full(WorkspaceManifest.RelativePath);
 		var manifest = WorkspaceManifest.Read(node.Root, FxFiles.Exists(file) ? FxFiles.ReadAllText(file) : "");
 
-		// what it versions (paths) and what it generates and versions (the .gitignore, its solutions)
-		foreach (var path in (manifest.Paths ?? []).Where(p => !p.Exclude))
+		// what it versions (the paths of its space.yaml) and what it generates and versions (the .gitignore, its solutions)
+		var space = node.OwnConfig();
+		foreach (var path in (space.Paths ?? []).Where(p => !p.Exclude))
 		{
 			var full = node.Full(path.Path);
 			if (path.IsFolder ? FxFiles.DirectoryExists(full) : FxFiles.Exists(full))
@@ -126,7 +127,7 @@ public static class FxTree
 		}
 
 		// what is on disk and nobody declares
-		foreach (var (relative, repository) in WorkspaceModule.Strangers(node.Root, manifest))
+		foreach (var (relative, repository) in WorkspaceModule.Strangers(node.Root, manifest, space))
 			Place(tree, relative.TrimEnd('/'), new FxTreeNode { Kind = FxTreeKind.Unknown, Name = Last(relative), Path = Clean(node.Full(relative)), HasMore = !repository });
 		SortAll(tree);
 		return tree;
@@ -159,7 +160,7 @@ public static class FxTree
 		return tree;
 	}
 
-	/// <summary><c>_fx/</c>: its <c>fx.yaml</c>, its modules (on, off, and the ones fx knows it does not use), what it inherits and what is local.</summary>
+	/// <summary><c>_fx/</c>: its <c>space.yaml</c>, its modules (on, off, and the ones fx knows it does not use), what it inherits and what is local.</summary>
 	static FxTreeNode Fx(FxNode node, FxInherited? inherited)
 	{
 		var folder = node.Full(FxLayout.Folder);
@@ -270,11 +271,9 @@ public static class FxTree
 			=> tree.Descendants().Prepend(tree).FirstOrDefault(n => n.Kind == FxTreeKind.Workspace && n.Identity?.FullName == fullName);
 		void Shared(FxTreeNode workspace, string destination)
 		{
-			var manifest = FxLayout.Full(workspace.Path, WorkspaceManifest.RelativePath);
-			if (FxFiles.Exists(manifest))
-				foreach (var share in WorkspaceManifest.Read(workspace.Path, FxFiles.ReadAllText(manifest)).Shares ?? [])
-					if (WorkspaceShares.Source(share, destination) is { } source)
-						Add(FxLayout.Full(workspace.Path, source));
+			foreach (var share in SpaceConfig.Load(workspace.Path).Shares ?? [])
+				if (WorkspaceShares.Source(share, destination) is { } source)
+					Add(FxLayout.Full(workspace.Path, source));
 		}
 		switch (file.Origin)
 		{
@@ -294,7 +293,8 @@ public static class FxTree
 				foreach (var name in file.From.Reverse())
 					if (Named(name) is { } workspace)
 					{
-						Add(FxLayout.Full(workspace.Path, $"{FxLayout.Folder}/{inside}"));
+						// the shares a space in between passes on: the space.yaml of the one that shares them
+						Add(FxLayout.Full(workspace.Path, inside == $"{WorkspaceShares.Folder}/{WorkspaceShares.Folder}.yaml" ? FxLayout.ConfigFile : $"{FxLayout.Folder}/{inside}"));
 						if (inside.StartsWith($"{WorkspaceShares.Folder}/", StringComparison.Ordinal))
 							Shared(workspace, inside[(WorkspaceShares.Folder.Length + 1)..]);
 					}
@@ -562,7 +562,7 @@ public static class FxTree
 		var node = new FxNode(root.Path);
 		var own = node.OwnConfig();
 		var all = node.Config();
-		var from = node.Inherited()?.Files.FirstOrDefault(f => f.Path == "fx.yaml")?.From ?? [];
+		var from = node.Inherited()?.Files.FirstOrDefault(f => f.Path == FxLayout.ConfigName)?.From ?? [];
 		var repositories = root.Descendants().Where(n => n.Declaration is not null).ToList();
 		return all.Tags.Select(tag =>
 		{

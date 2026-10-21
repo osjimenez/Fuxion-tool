@@ -63,6 +63,9 @@ public static partial class ManifestEditor
 
 	public static string ManifestPath(string root) => FxLayout.Full(root, WorkspaceManifest.RelativePath);
 
+	/// <summary>The descriptor of the space at <paramref name="root"/>: <c>_fx/space.yaml</c>.</summary>
+	public static string SpacePath(string root) => FxLayout.Full(root, FxLayout.ConfigFile);
+
 	/// <summary>The name a repository gets from its URL: the last segment, lowercase, without <c>.git</c> (<c>Fuxion-docs.git</c> → <c>fuxion-docs</c>).</summary>
 	public static string NameFromUrl(string url)
 	{
@@ -255,13 +258,13 @@ public static partial class ManifestEditor
 	}
 
 	/// <summary>
-	/// Something the git of the workspace versions (<c>paths</c>): a file, or a folder ending in '/'; with
-	/// <paramref name="exclude"/>, an exception inside something included; without <paramref name="worktree"/>, left out
-	/// of the worktrees. Only the manifest: nothing is created.
+	/// Something the git of the space versions (<c>paths</c> of its <c>space.yaml</c>, plan spaces, decision 11): a file,
+	/// or a folder ending in '/'; with <paramref name="exclude"/>, an exception inside something included; without
+	/// <paramref name="worktree"/>, left out of the worktrees. Only the descriptor: nothing is created.
 	/// </summary>
 	public static ManifestChange AddPath(string root, string path, bool exclude = false, bool worktree = true)
 	{
-		var s = new Session(root);
+		var s = new SpaceSession(root);
 		path = path.Replace('\\', '/').TrimStart('/');
 		if (s.Current.Resolve($"paths[path={path}]") is not null)
 			return s.Info(new FxText($"{Unchanged}.path-present", path));
@@ -277,7 +280,7 @@ public static partial class ManifestEditor
 	/// <summary>Takes a path out of <c>paths</c>; what is on disk stays.</summary>
 	public static ManifestChange RemovePath(string root, string path)
 	{
-		var s = new Session(root);
+		var s = new SpaceSession(root);
 		path = path.Replace('\\', '/').TrimStart('/');
 		if (s.Current.Resolve($"paths[path={path}]") is null)
 			return s.Info(new FxText($"{Unchanged}.path-absent", path));
@@ -340,7 +343,7 @@ public static partial class ManifestEditor
 
 	/// <summary>
 	/// The text of a configuration file of fx, replaced by hand (<c>fx ui</c>, its raw YAML; plan O, O4.3c), validated
-	/// as fx reads it: the manifest strict, the yaml of the .NET module, <c>fx.yaml</c>; any other file, as YAML. The
+	/// as fx reads it: the manifest strict, the yaml of the .NET module, <c>space.yaml</c>; any other file, as YAML. The
 	/// byte order mark of the file, if it had one, stays.
 	/// </summary>
 	public static ManifestChange Replace(string root, string file, string text)
@@ -374,7 +377,7 @@ public static partial class ManifestEditor
 				else if (file == FxLayout.ModuleFile(Harness.HarnessModule.Name))
 					Harness.HarnessYamlReader.Read(text, file);
 				else if (file == FxLayout.ConfigFile)
-					FxConfig.Read(text, file, diagnostics);
+					SpaceConfig.Read(text, file, diagnostics);
 			}
 			catch (Exception ex) when (ex is DotnetConfigException or WorkspaceManifestException or Harness.HarnessConfigException)
 			{
@@ -491,6 +494,20 @@ public static partial class ManifestEditor
 			{
 				Diagnostics.AddRange(ex.Diagnostics);
 			}
+		}
+	}
+
+	/// <summary>An edit of <c>_fx/space.yaml</c>, the descriptor of the space, created (with its schema) if it does not exist.</summary>
+	sealed class SpaceSession(string root)
+		: Edit(root, FxLayout.ConfigFile, Existing(root) ?? "", YamlEditor.Parse(Existing(root) ?? $"schema: {FxYamlReader.Schema}\n"))
+	{
+		static string? Existing(string root) => FxFiles.Exists(SpacePath(root)) ? FxFiles.ReadAllText(SpacePath(root)) : null;
+
+		protected override void Validate(string text)
+		{
+			var space = SpaceConfig.Read(text, File, Diagnostics);
+			if (FxFiles.Exists(ManifestPath(Root)))
+				Diagnostics.AddRange(WorkspaceModule.PathsInRepositories(space, WorkspaceManifest.Read(Root, FxFiles.ReadAllText(ManifestPath(Root))), File));
 		}
 	}
 

@@ -313,38 +313,44 @@
   <data name="fx.unknown-key" xml:space="preserve">
     <value>Unknown key '{0}' ({1}).</value>
   </data>
-  <data name="fx.invalid-config.name" xml:space="preserve">
+  <data name="space.invalid-config.name" xml:space="preserve">
     <value>Name '{0}': lowercase letters, digits and '-' (like 'acme' or 'my-repo').</value>
   </data>
-  <data name="fx.invalid-config.requires" xml:space="preserve">
+  <data name="space.invalid-config.visibility" xml:space="preserve">
+    <value>visibility '{0}': private or public.</value>
+  </data>
+  <data name="space.invalid-config.requires" xml:space="preserve">
     <value>requires '{0}': a version major.minor.patch, like 1.4.0.</value>
   </data>
-  <data name="fx.invalid-config.tag" xml:space="preserve">
+  <data name="space.invalid-config.tag" xml:space="preserve">
     <value>Each tag needs its name (name, description).</value>
   </data>
-  <data name="fx.invalid-config.tags" xml:space="preserve">
+  <data name="space.invalid-config.tags" xml:space="preserve">
     <value>'tags' must be a list of tags (name, description).</value>
   </data>
-  <data name="fx.invalid-config.applies-to" xml:space="preserve">
+  <data name="space.invalid-config.list" xml:space="preserve">
+    <value>'{0}' must be a list.</value>
+  </data>
+  <data name="space.invalid-config.applies-to" xml:space="preserve">
     <value>'applies-to' takes tags and repositories.</value>
   </data>
-  <data name="fx.invalid-config.bool" xml:space="preserve">
+  <data name="space.invalid-config.bool" xml:space="preserve">
     <value>'{0}' must be true or false.</value>
   </data>
   <data name="fx.invalid-inherited.shape" xml:space="preserve">
     <value>It must say the repository (name, full-name) and its parent.</value>
   </data>
-  <data name="fx.tag-redefined" xml:space="preserve">
+  <data name="space.tag-redefined" xml:space="preserve">
     <value>The tag '{0}' is already defined above: it stays as it was.</value>
   </data>
-  <data name="fx.name-missing" xml:space="preserve">
-    <value>This root has no name: its _fx/fx.yaml needs one ('{0}' is used meanwhile).</value>
+  <data name="space.name-missing" xml:space="preserve">
+    <value>This space has no name: its _fx/space.yaml needs one ('{0}' is used meanwhile).</value>
   </data>
-  <data name="fx.name-missing.fix" xml:space="preserve">
-    <value>Add 'name: &lt;name&gt;' to _fx/fx.yaml.</value>
+  <data name="space.name-missing.fix" xml:space="preserve">
+    <value>Add 'name: &lt;name&gt;' to _fx/space.yaml.</value>
   </data>
-  <data name="fx.not-a-root" xml:space="preserve">
-    <value>'{0}' is not inside a root of fx (no _fx/ nor git repository above it).</value>
+  <data name="space.not-a-space" xml:space="preserve">
+    <value>'{0}' is not inside a space (no _fx/ nor git repository above it).</value>
   </data>
   <data name="fx.requires" xml:space="preserve">
     <value>This tree requires fx {0} and this is {1}: nothing is written.</value>
@@ -364,10 +370,10 @@
   <data name="workspace.outdated" xml:space="preserve">
     <value>Out of date: fx sync would change it.</value>
   </data>
-  <data name="workspace.not-versioned" xml:space="preserve">
-    <value>{0} is not versioned by the workspace (it is not in paths).</value>
+  <data name="space.not-versioned" xml:space="preserve">
+    <value>{0} is not versioned by the space (it is not in paths).</value>
   </data>
-  <data name="workspace.not-versioned.fix" xml:space="preserve">
+  <data name="space.not-versioned.fix" xml:space="preserve">
     <value>If it should be: fx path add {0}</value>
   </data>
   <data name="workspace.local-not-ignored" xml:space="preserve">
@@ -377,10 +383,10 @@
     <value>Add ~$* to its .gitignore.</value>
   </data>
   <data name="workspace.unknown-tag" xml:space="preserve">
-    <value>The tag '{0}' of '{1}' is not in the catalog (_fx/fx.yaml).</value>
+    <value>The tag '{0}' of '{1}' is not in the catalog (_fx/space.yaml).</value>
   </data>
   <data name="workspace.unknown-tag.fix" xml:space="preserve">
-    <value>Add it to the tags of _fx/fx.yaml, or use one that is there.</value>
+    <value>Add it to the tags of _fx/space.yaml, or use one that is there.</value>
   </data>
   <data name="workspace.invalid-parent" xml:space="preserve">
     <value>The configuration of the parent workspace is not valid.</value>
@@ -388,23 +394,23 @@
   <data name="workspace.invalid-manifest.list" xml:space="preserve">
     <value>'{0}' must be a list.</value>
   </data>
-  <data name="workspace.invalid-manifest.path-entry" xml:space="preserve">
+  <data name="space.invalid-config.path-entry" xml:space="preserve">
     <value>Each entry of paths needs its path (path, exclude, worktree).</value>
   </data>
-  <data name="workspace.invalid-manifest.share-entry" xml:space="preserve">
+  <data name="space.invalid-config.path-relative" xml:space="preserve">
+    <value>The path '{0}' must be relative, inside the space, without '.' or '..'.</value>
+  </data>
+  <data name="space.invalid-config.share-entry" xml:space="preserve">
     <value>Each share needs its path (path, destination, applies-to).</value>
   </data>
-  <data name="workspace.invalid-manifest.path-fixed" xml:space="preserve">
+  <data name="space.invalid-config.path-fixed" xml:space="preserve">
     <value>'{0}' is fx's: it is always versioned (or never, if it starts with ~$).</value>
   </data>
-  <data name="workspace.invalid-manifest.path-in-repository" xml:space="preserve">
-    <value>'{0}' is inside the repository '{1}': it is that repository's, not the workspace's.</value>
+  <data name="space.invalid-config.path-in-repository" xml:space="preserve">
+    <value>'{0}' is inside the repository '{1}': it is that repository's, not the space's.</value>
   </data>
-  <data name="workspace.invalid-manifest.duplicate-path-entry" xml:space="preserve">
+  <data name="space.invalid-config.duplicate-path-entry" xml:space="preserve">
     <value>'{0}' is twice in paths.</value>
-  </data>
-  <data name="workspace.invalid-manifest.applies-to" xml:space="preserve">
-    <value>'applies-to' takes tags and repositories.</value>
   </data>
   <data name="workspace.invalid-manifest.bool" xml:space="preserve">
     <value>'{0}' must be true or false.</value>
@@ -517,25 +523,25 @@
   <data name="workspace.action.to-clone" xml:space="preserve">
     <value>fx sync clones it</value>
   </data>
-  <data name="workspace.share-missing" xml:space="preserve">
+  <data name="space.share-missing" xml:space="preserve">
     <value>'{0}' is shared, but it is not there: nothing of it goes down, and the repositories keep what they have of it.</value>
   </data>
-  <data name="workspace.share-not-versioned" xml:space="preserve">
-    <value>'{0}' is shared, but the workspace does not version it: add it to paths, so that a clone of the workspace has it.</value>
+  <data name="space.share-not-versioned" xml:space="preserve">
+    <value>'{0}' is shared, but the space does not version it: add it to paths, so that a clone of the space has it.</value>
   </data>
-  <data name="workspace.share-refused" xml:space="preserve">
+  <data name="space.share-refused" xml:space="preserve">
     <value>{0} is the repository's own: fx does not overwrite it with the share of {1}.</value>
   </data>
-  <data name="workspace.share-refused.fix" xml:space="preserve">
+  <data name="space.share-refused.fix" xml:space="preserve">
     <value>fx sync --adopt takes it over (and overwrites it); to keep yours, leave this repository out of the applies-to of the share.</value>
   </data>
-  <data name="workspace.invalid-manifest.share-path" xml:space="preserve">
-    <value>The share '{0}' has to come from a path inside the workspace, without '.' or '..', out of .git/, _fx/.inherited/ and the local files (~$).</value>
+  <data name="space.invalid-config.share-path" xml:space="preserve">
+    <value>The share '{0}' has to come from a path inside the space, without '.' or '..', out of .git/, _fx/.inherited/ and the local files (~$).</value>
   </data>
-  <data name="workspace.invalid-manifest.share-destination" xml:space="preserve">
+  <data name="space.invalid-config.share-destination" xml:space="preserve">
     <value>The share '{0}' cannot go to '{1}': a destination is relative, inside the repository, without '.' or '..', out of .git/, _fx/ and the local files (~$).</value>
   </data>
-  <data name="workspace.invalid-manifest.duplicate-share" xml:space="preserve">
+  <data name="space.invalid-config.duplicate-share" xml:space="preserve">
     <value>Two shares go to '{0}'.</value>
   </data>
   <data name="worktree.inside-worktree" xml:space="preserve">

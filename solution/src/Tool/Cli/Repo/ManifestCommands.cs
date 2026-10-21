@@ -246,7 +246,7 @@ public static class ManifestCommands
 		var remove = new Command("remove", Texts.Get("path.remove")) { removed };
 		Wire(remove, global, currentDirectory, (result, console, manifest, token) =>
 		{
-			var choices = (manifest.Paths ?? []).Select(p => p.Path).ToList();
+			var choices = (SpaceConfig.Load(manifest.Root).Paths ?? []).Select(p => p.Path).ToList();
 			return Given(result, console, result.GetValue(removed), "<path>", "fx path remove <path>", () => Ask.One(console, Texts.Get("path.ask.remove"), choices, f => f, token),
 				choices.Count > 0) is { } path
 				? ManifestEditor.RemovePath(manifest.Root, path)

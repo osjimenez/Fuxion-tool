@@ -84,8 +84,7 @@ public static class RemoteParent
 	/// <summary>What the cache of a parent has in its working tree: <c>_fx/</c> and the folders of the sources of its shares.</summary>
 	static IReadOnlyList<string> Shares(string folder)
 	{
-		var manifest = Path.Combine(folder, WorkspaceManifest.RelativePath);
-		var shares = FxFiles.Exists(manifest) ? WorkspaceManifest.Read(folder, FxFiles.ReadAllText(manifest)).Shares ?? [] : [];
+		var shares = SpaceConfig.Load(folder).Shares ?? [];
 		return new[] { FxLayout.Folder }
 			.Concat(shares.Where(s => WorkspaceShares.SafeSource(s.Path))
 				.Select(s => s.Path.EndsWith('/') ? s.Path.TrimEnd('/') : Path.GetDirectoryName(s.Path)?.Replace('\\', '/') ?? ""))

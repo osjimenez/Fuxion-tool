@@ -18,7 +18,7 @@ namespace Fuxion.Tool.Core.Sync;
 /// already merged (the nearest wins by name), with the repositories of every <c>applies-to</c> made absolute. Nobody
 /// writes in someone else's repository: each one gets this when its own sync runs.
 /// <list type="bullet">
-/// <item><c>fx.yaml</c>: <c>requires</c> and the catalog of tags.</item>
+/// <item><c>space.yaml</c>: <c>requires</c> and the catalog of tags.</item>
 /// <item><c>dotnet/</c>: the merged <c>dotnet.yaml</c> of what is for it (without the solutions) and the files of those imports.</item>
 /// <item><c>harness/</c>: the merged <c>harness.yaml</c> of what is for it, and the files of those rules and skills (plan Q).</item>
 /// <item><c>workspace/</c>, in a workspace: the shares, to pass them on (<see cref="WorkspaceShares"/>).</item>
@@ -55,16 +55,16 @@ public static class Inheritance
 		var applies = dotnet || harness || child.IsWorkspace || received.Any;
 		if (applies)
 		{
-			// fx.yaml: requires and the catalog, from above and from the parent
-			var inheritedConfig = FxConfig.Load(parent.Root, $"{FxLayout.Inherited}/fx.yaml", []);
+			// space.yaml: requires and the catalog, from above and from the parent
+			var inheritedConfig = SpaceConfig.Load(parent.Root, FxLayout.InheritedConfigFile, []);
 			var ownConfig = parent.OwnConfig();
 			var from = new List<string>();
 			if (inheritedConfig.Requires is not null || inheritedConfig.Tags.Count > 0)
-				from.AddRange(FromOf("fx.yaml"));
+				from.AddRange(FromOf(FxLayout.ConfigName));
 			if (ownConfig.Requires is not null || ownConfig.Tags.Count > 0)
 				from.Add(parentIdentity.FullName);
-			var merged = FxConfig.Merge(inheritedConfig, ownConfig, FxLayout.ConfigFile);
-			expected["fx.yaml"] = (Encoding.UTF8.GetBytes(merged.ToInheritedYaml(Workspaces(from, "_fx/fx.yaml"))), from.Distinct().ToList());
+			var merged = SpaceConfig.Merge(inheritedConfig, ownConfig, FxLayout.ConfigFile);
+			expected[FxLayout.ConfigName] = (Encoding.UTF8.GetBytes(merged.ToInheritedYaml(Workspaces(from, FxLayout.ConfigFile))), from.Distinct().ToList());
 		}
 
 		// the shares in the repository itself, outside _fx/ (also removing what it no longer gets)
@@ -101,7 +101,7 @@ public static class Inheritance
 	}
 
 	/// <summary>
-	/// A workspace passes the shares on (decision 23): in its <c>.inherited/workspace/</c>, the merged entries and their
+	/// A space passes the shares on (decision 23): in its <c>.inherited/shares/</c>, the merged entries and their
 	/// files, under their destination. Of a share whose source is not there, it keeps what it had.
 	/// </summary>
 	static void Conduit(FxNode child, IReadOnlyList<ShareFlow> flows, FxInherited? existing,
@@ -109,7 +109,7 @@ public static class Inheritance
 	{
 		var folder = WorkspaceShares.Folder;
 		var froms = flows.SelectMany(f => f.Files?.Select(file => file.From) ?? []).Distinct().ToList();
-		expected[$"{folder}/{folder}.yaml"] = (Encoding.UTF8.GetBytes(WorkspaceShares.ToYaml(flows, Workspaces(froms, $"_fx/{folder}/{folder}.yaml"))), froms);
+		expected[$"{folder}/{folder}.yaml"] = (Encoding.UTF8.GetBytes(WorkspaceShares.ToYaml(flows, Workspaces(froms, FxLayout.ConfigFile))), froms);
 		foreach (var flow in flows)
 			if (flow.Files is not null)
 				foreach (var file in flow.Files)

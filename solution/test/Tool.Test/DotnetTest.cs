@@ -228,7 +228,7 @@ public sealed class DotnetTest
 
 		public Repo(string yaml = DesignYaml, string frameworks = "$(CoreFrameworks);netstandard2.0", string centralPackages = "")
 		{
-			Git.WriteFile(Path.Combine("_fx", "fx.yaml"), "schema: 1.0.0\nname: lib\n");
+			Git.WriteFile(Path.Combine("_fx", "space.yaml"), "schema: 1.0.0\nname: lib\n");
 			Git.WriteFile(Path.Combine("_fx", "dotnet", "dotnet.yaml"), yaml);
 			Git.WriteFile("global.json", "{\n  // comment\n  \"test\": { \"runner\": \"Microsoft.Testing.Platform\" },\n}\n");
 			Git.WriteFile(Path.Combine("solution", "Directory.Packages.props"), $"""
@@ -609,7 +609,7 @@ public sealed class DotnetTest
 	public void NameMissing()
 	{
 		using var repo = new Repo();
-		File.Delete(repo.At(Path.Combine("_fx", "fx.yaml")));
+		File.Delete(repo.At(Path.Combine("_fx", "space.yaml")));
 		var results = SyncEngine.Sync(repo.Git.Path, new(), cancellationToken: TestContext.Current.CancellationToken);
 		Assert.Contains(results.SelectMany(r => r.Diagnostics), d => d.Code == FxNode.NameMissing);
 	}

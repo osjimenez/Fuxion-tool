@@ -78,7 +78,7 @@ public sealed class SdkFixture : IDisposable
 				</packageSources>
 			</configuration>
 			""");
-		repo.WriteFile(Path.Combine("_fx", "fx.yaml"), "schema: 1.0.0\nname: sample\n");
+		repo.WriteFile(Path.Combine("_fx", "space.yaml"), "schema: 1.0.0\nname: sample\n");
 		repo.WriteFile(Path.Combine("solution", "Directory.Build.props"), directoryBuildProps);
 	}
 

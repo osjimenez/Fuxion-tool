@@ -86,14 +86,9 @@ public static class WorktreeModule
 		return result;
 	}
 
-	/// <summary>The paths of a workspace left out of its worktrees (<c>worktree: false</c>), relative to it.</summary>
+	/// <summary>The paths of a space left out of its worktrees (<c>worktree: false</c>), relative to it.</summary>
 	static List<string> LeftOut(string workspace)
-	{
-		var file = FxLayout.Full(workspace, WorkspaceManifest.RelativePath);
-		return FxFiles.Exists(file)
-			? (WorkspaceManifest.Read(workspace, FxFiles.ReadAllText(file)).Paths ?? []).Where(p => !p.Worktree && !p.Exclude).Select(p => p.Path).ToList()
-			: [];
-	}
+		=> (SpaceConfig.Load(workspace).Paths ?? []).Where(p => !p.Worktree && !p.Exclude).Select(p => p.Path).ToList();
 
 	static WorkspaceManifest? Manifest(string root)
 	{

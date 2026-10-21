@@ -16,8 +16,6 @@ public sealed class ManifestEditorTest
 	const string Manifest = """
 		# The workspace manifest.
 		schema: 1.0.0
-		paths:
-		  - path: _docs/
 		repositories:
 		  - name: oss
 		    url: https://example.org/oss.git  # the public one
@@ -32,14 +30,16 @@ public sealed class ManifestEditorTest
 
 		""";
 
-	/// <summary>A workspace in a temporary folder, with <see cref="Manifest"/> (or another one) and its .NET module.</summary>
+	/// <summary>A workspace in a temporary folder, with <see cref="Manifest"/> (or another one), its <c>space.yaml</c> (if any) and its .NET module.</summary>
 	sealed class Workspace : IDisposable
 	{
-		public Workspace(string manifest = Manifest)
+		public Workspace(string manifest = Manifest, string? space = "schema: 1.0.0\npaths:\n  - path: _docs/\n")
 		{
 			Root = TempGitRepository.TempFolder("fx-test-");
 			Directory.CreateDirectory(Path.Combine(Root, "_fx", "workspace"));
 			File.WriteAllText(ManifestEditor.ManifestPath(Root), manifest.Replace("\r\n", "\n"));
+			if (space is not null)
+				File.WriteAllText(ManifestEditor.SpacePath(Root), space);
 			Directory.CreateDirectory(Path.Combine(Root, "_fx", "dotnet"));
 			File.WriteAllText(Path.Combine(Root, "_fx", "dotnet", "dotnet.yaml"), "schema: 1.0.0\n# the .NET of the workspace\n");
 		}
@@ -105,8 +105,8 @@ public sealed class ManifestEditorTest
 	}
 
 	[Theory(DisplayName = "repo add: into a manifest without repositories; a guest")]
-	[InlineData("schema: 1.0.0\npaths:\n  - path: _docs/\n")]
-	[InlineData("schema: 1.0.0\npaths:\n  - path: _docs/\nrepositories: []\n")]
+	[InlineData("schema: 1.0.0\n")]
+	[InlineData("schema: 1.0.0\nrepositories: []\n")]
 	public void AddRepository_First(string manifest)
 	{
 		using var ws = new Workspace(manifest);
@@ -198,7 +198,7 @@ public sealed class ManifestEditorTest
 
 	// paths
 
-	[Fact(DisplayName = "path add and remove: only the manifest, as objects; exclude and worktree when asked")]
+	[Fact(DisplayName = "path add and remove: only space.yaml (created if it is not there), as objects; exclude and worktree when asked")]
 	public void Paths()
 	{
 		using var ws = new Workspace();
@@ -212,8 +212,8 @@ public sealed class ManifestEditorTest
 		Assert.False(ManifestEditor.AddPath(ws.Root, "oss/repo/docs/").Ok);
 		Assert.False(Directory.Exists(Path.Combine(ws.Root, "_temp")));
 
-		using var none = new Workspace("schema: 1.0.0\nrepositories: []\n");
-		Assert.Contains("paths:\n  - path: README.md\n", After(ManifestEditor.AddPath(none.Root, "README.md")));
+		using var none = new Workspace("schema: 1.0.0\nrepositories: []\n", space: null);
+		Assert.Equal("schema: 1.0.0\npaths:\n  - path: README.md\n", After(ManifestEditor.AddPath(none.Root, "README.md")));
 	}
 
 	// modules

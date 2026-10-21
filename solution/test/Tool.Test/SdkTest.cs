@@ -92,7 +92,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 	{
 		var workspace = Directory.CreateDirectory(Path.Combine(fixture.Root, "ws-" + Guid.NewGuid().ToString("N")[..8])).FullName;
 		Directory.CreateDirectory(Path.Combine(workspace, "_fx", "workspace"));
-		File.WriteAllText(Path.Combine(workspace, "_fx", "fx.yaml"), "schema: 1.0.0\nname: ws\n");
+		File.WriteAllText(Path.Combine(workspace, "_fx", "space.yaml"), "schema: 1.0.0\nname: ws\n");
 		File.WriteAllText(Path.Combine(workspace, "_fx", "workspace", "workspace.yaml"), "schema: 1.0.0\nrepositories:\n"
 			+ string.Concat(repositories.Select(r => $"  - name: {r.Name}\n    path: {r.Path}\n    url: https://example.invalid/{r.Name}.git\n")));
 		return workspace;
@@ -516,7 +516,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 	public void FxReference()
 	{
 		using var workspace = new TempGitRepository(path: Path.Combine(fixture.Root, "ws-" + Guid.NewGuid().ToString("N")[..8]));
-		workspace.WriteFile(Path.Combine("_fx", "fx.yaml"), "schema: 1.0.0\nname: ws\n");
+		workspace.WriteFile(Path.Combine("_fx", "space.yaml"), "schema: 1.0.0\nname: ws\n");
 		workspace.WriteFile(Path.Combine("_fx", "dotnet", "dotnet.yaml"), "schema: 1.0.0\n");
 		workspace.WriteFile(Path.Combine("_fx", "workspace", "workspace.yaml"), """
 			schema: 1.0.0
