@@ -75,6 +75,9 @@ public static partial class DocChecker
 		return documents;
 	}
 
+	/// <summary>The JSON of the sidecar at <paramref name="path"/>; null if it cannot be read.</summary>
+	internal static JsonElement? Json(string path) => ReadSidecar(path).Json;
+
 	/// <summary>A sidecar read: its JSON and its text, or the problem that keeps it from being read.</summary>
 	sealed record Sidecar(JsonElement? Json, string? Text, FxText? Problem, string? Code = null, int? Line = null);
 
@@ -218,8 +221,7 @@ public static partial class DocChecker
 				foreach (var file in files.Where(Selected))
 					Add(FxDiagnostic.Error(DuplicateId, new(DuplicateId, id, string.Join(", ", files.Where(f => f != file).Select(f => f.Path))), display(file.Sidecar!)));
 			// the slugs of the names of the standard (TYPE-slug), not of any file with a dash
-			foreach (var same in catalog.Files.Where(f => f.Stem.IndexOf('-') is var dash and > 0 && DocTypes.FromToken(f.Stem[..dash]) is not null)
-				         .GroupBy(f => (f.Folder, f.Slug)).Where(g => g.Count() > 1))
+			foreach (var same in catalog.Files.Where(f => f.Formal).GroupBy(f => (f.Folder, f.Slug)).Where(g => g.Count() > 1))
 				foreach (var file in same.Where(Selected))
 					Add(FxDiagnostic.Error(InvalidName, new($"{InvalidName}.same-slug", file.Slug, string.Join(", ", same.Where(f => f != file).Select(f => f.Path))),
 						display(file.Markdown ?? file.Sidecar!)));

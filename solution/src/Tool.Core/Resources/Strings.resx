@@ -880,4 +880,64 @@
   <data name="docs.bootstrap-stale" xml:space="preserve">
     <value>{0} is in the bootstrap list, but it is no longer a Markdown without a sidecar: take it out.</value>
   </data>
+  <data name="docs.actor-missing" xml:space="preserve">
+    <value>A change needs its actor: --actor, or the variable {0}.</value>
+  </data>
+  <data name="docs.unknown-actor.write" xml:space="preserve">
+    <value>'{0}' is not one of the actors of docs.yaml ({1}): add it to its actors.</value>
+  </data>
+  <data name="docs.invalid-title" xml:space="preserve">
+    <value>The title is a line, not empty.</value>
+  </data>
+  <data name="docs.views-by-sync" xml:space="preserve">
+    <value>A {0} is generated from its recipe by fx sync; fx doc new does not make one.</value>
+  </data>
+  <data name="docs.invalid-name.new-slug" xml:space="preserve">
+    <value>The slug '{0}' takes lower case ASCII letters, digits and single dashes (--slug).</value>
+  </data>
+  <data name="docs.invalid-folder" xml:space="preserve">
+    <value>The folder '{0}' is not one of the catalog {1}.</value>
+  </data>
+  <data name="docs.invalid-folder.historical" xml:space="preserve">
+    <value>A {0} is historical: it goes to _records/ by its date, without --path.</value>
+  </data>
+  <data name="docs.invalid-folder.records" xml:space="preserve">
+    <value>A {0} is stable: it does not go under _records/.</value>
+  </data>
+  <data name="docs.name-taken" xml:space="preserve">
+    <value>{0} exists already.</value>
+  </data>
+  <data name="docs.name-taken.slug" xml:space="preserve">
+    <value>The slug '{0}' is taken in that folder by {1}.</value>
+  </data>
+  <data name="docs.name-taken.name" xml:space="preserve">
+    <value>The name {0} is taken by {1}: give another slug (--slug).</value>
+  </data>
+  <data name="docs.invalid-transition" xml:space="preserve">
+    <value>{0} cannot go from {1} to {2}: nothing goes back to draft, and a frozen document does not open again.</value>
+  </data>
+  <data name="docs.unchanged.finalized" xml:space="preserve">
+    <value>{0} has not changed since it was finalized.</value>
+  </data>
+  <data name="docs.unchanged.nothing-to-finalize" xml:space="preserve">
+    <value>Nothing to finalize: every document is as it was finalized.</value>
+  </data>
+  <data name="docs.unchanged.status" xml:space="preserve">
+    <value>{0} is already {1}.</value>
+  </data>
+  <data name="docs.unchanged.relation" xml:space="preserve">
+    <value>{0} already has the relation {1} with {2}.</value>
+  </data>
+  <data name="docs.unchanged.no-relation" xml:space="preserve">
+    <value>{0} has no relation {1} with {2}.</value>
+  </data>
+  <data name="docs.correction" xml:space="preserve">
+    <value>Annotated correction ({0}): {1}</value>
+  </data>
+  <data name="docs.correction.not-frozen" xml:space="preserve">
+    <value>{0} is {1}, not frozen: it is finalized without a correction.</value>
+  </data>
+  <data name="docs.changed-on-disk" xml:space="preserve">
+    <value>{0} changed on disk while the change was worked out: nothing was written; run it again.</value>
+  </data>
 </root>

@@ -54,6 +54,16 @@ public sealed record DocType(
 
 	/// <summary>A historical document out of <see cref="DocStatusClass.Open"/> does not change its content.</summary>
 	public bool IsFrozen(string status) => Temporality == DocTemporality.Historical && Classes.TryGetValue(status, out var c) && c != DocStatusClass.Open;
+
+	/// <summary>
+	/// Whether a document of the type may go from <paramref name="from"/> to <paramref name="to"/> (plan U, decision 21):
+	/// to another of its statuses, never back to <c>draft</c>, and a frozen one never back to an open one.
+	/// </summary>
+	public bool CanMove(string from, string to)
+		=> to != from && Statuses.Contains(to) && to != "draft" && !(IsFrozen(from) && ClassOf(to) == DocStatusClass.Open);
+
+	/// <summary>The status a document of the type takes when another supersedes it: <c>superseded</c>, or its first of the class replaced; null if it has none.</summary>
+	public string? SupersededStatus => Statuses.Contains("superseded") ? "superseded" : Statuses.FirstOrDefault(s => Classes[s] == DocStatusClass.Replaced);
 }
 
 /// <summary>The thirteen types of the standard, from their schemas.</summary>

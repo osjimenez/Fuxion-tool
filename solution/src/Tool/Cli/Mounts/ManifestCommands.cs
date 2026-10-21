@@ -416,7 +416,7 @@ public static class ManifestCommands
 		return code;
 	}
 
-	static void WriteDiff(FxConsole console, string file, IReadOnlyList<DiffHunk> hunks)
+	internal static void WriteDiff(FxConsole console, string file, IReadOnlyList<DiffHunk> hunks)
 	{
 		console.Line($"[bold]{FxConsole.Escape(file)}[/]");
 		foreach (var hunk in hunks)

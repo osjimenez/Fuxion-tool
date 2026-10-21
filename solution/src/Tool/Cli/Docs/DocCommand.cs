@@ -13,10 +13,12 @@ namespace Fuxion.Tool.Cli.Docs;
 
 /// <summary>
 /// <c>fx doc</c> (plan U; the SPEC of the module docs, 11.1): the catalog of documents of the space. <c>check</c>,
-/// <c>list</c>, <c>show</c> and <c>schema</c> read it; nothing here writes.
+/// <c>list</c>, <c>show</c> and <c>schema</c> read it; <c>new</c>, <c>finalize</c>, <c>status</c> and <c>relate</c> write
+/// in it, all or nothing.
 /// </summary>
 public static class DocCommand
 {
+	public const string EditSchema = "fx-doc-edit/1";
 	public const string CheckSchema = "fx-doc-check/1";
 	public const string ListSchema = "fx-doc-list/1";
 	public const string ShowSchema = "fx-doc-show/1";
@@ -79,7 +81,138 @@ public static class DocCommand
 			return Schema(console, result.GetValue(schemaType));
 		});
 		command.Add(schema);
+		AddWriters(command, global, currentDirectory);
 		return command;
+	}
+
+	/// <summary>The commands that write (the SPEC of the module, 11.1): each one all or nothing, with <c>--dry-run</c>.</summary>
+	static void AddWriters(Command command, GlobalOptions global, string currentDirectory)
+	{
+		Option<bool> DryRun() => new("--dry-run") { Description = Texts.Get("doc.dry-run") };
+
+		var newType = new Argument<string>("type") { Description = Texts.Get("doc.new.type") };
+		newType.AcceptOnlyFromAmong([.. DocTypes.All.Select(t => t.Name)]);
+		var title = new Argument<string>("title") { Description = Texts.Get("doc.new.title") };
+		var slug = new Option<string?>("--slug") { Description = Texts.Get("doc.new.slug"), HelpName = "slug" };
+		var profile = new Option<string?>("--profile") { Description = Texts.Get("doc.new.profile"), HelpName = "profile" };
+		var path = new Option<string?>("--path") { Description = Texts.Get("doc.new.path"), HelpName = "folder" };
+		var tags = new Option<string[]>("--tag") { Description = Texts.Get("doc.new.tag"), HelpName = "tag" };
+		var actor = new Option<string?>("--actor") { Description = Texts.Get("doc.new.actor", DocEditor.ActorVariable), HelpName = "actor" };
+		var newDryRun = DryRun();
+		var @new = new Command("new", Texts.Get("doc.new")) { newType, title, slug, profile, path, tags, actor, newDryRun }.Describe(EditSchema, writes: true);
+		@new.SetAction(result =>
+		{
+			var console = MountCommand.Console(result, global, currentDirectory);
+			return console.Run(_ => Write(console, result.GetValue(newDryRun), (catalog, display) => DocEditor.New(catalog, display, console.Settings.Directory,
+				result.GetValue(newType)!, result.GetValue(title)!, result.GetValue(slug), result.GetValue(profile), result.GetValue(path), result.GetValue(tags) ?? [],
+				result.GetValue(actor) ?? Environment.GetEnvironmentVariable(DocEditor.ActorVariable), DateTimeOffset.UtcNow)));
+		});
+		command.Add(@new);
+
+		var documents = new Argument<string[]>("documents") { Description = Texts.Get("doc.finalize.documents"), Arity = ArgumentArity.ZeroOrMore };
+		var correction = new Option<string?>("--correction") { Description = Texts.Get("doc.finalize.correction"), HelpName = "note" };
+		var finalizeDryRun = DryRun();
+		var finalize = new Command("finalize", Texts.Get("doc.finalize")) { documents, correction, finalizeDryRun }.Describe(EditSchema, writes: true);
+		finalize.SetAction(result =>
+		{
+			var console = MountCommand.Console(result, global, currentDirectory);
+			var selectors = result.GetValue(documents) ?? [];
+			return console.Run(_ => Write(console, result.GetValue(finalizeDryRun), (catalog, display) =>
+				selectors.Length == 0
+					? DocEditor.Finalize(catalog, display, null, result.GetValue(correction), DateTimeOffset.UtcNow)
+					: Select(console, catalog, selectors) is { } files
+						? DocEditor.Finalize(catalog, display, files, result.GetValue(correction), DateTimeOffset.UtcNow)
+						: null));
+		});
+		command.Add(finalize);
+
+		var statusDocument = new Argument<string>("document") { Description = Texts.Get("doc.show.document") };
+		var status = new Argument<string>("status") { Description = Texts.Get("doc.status.status") };
+		var statusDryRun = DryRun();
+		var setStatus = new Command("status", Texts.Get("doc.status")) { statusDocument, status, statusDryRun }.Describe(EditSchema, writes: true);
+		setStatus.SetAction(result =>
+		{
+			var console = MountCommand.Console(result, global, currentDirectory);
+			return console.Run(_ => Write(console, result.GetValue(statusDryRun), (catalog, display) =>
+				One(console, catalog, result.GetValue(statusDocument)!) is { } file
+					? DocEditor.SetStatus(catalog, display, file, result.GetValue(status)!, DateTimeOffset.UtcNow)
+					: null));
+		});
+		command.Add(setStatus);
+
+		var source = new Argument<string>("document") { Description = Texts.Get("doc.show.document") };
+		var kind = new Argument<string>("kind") { Description = Texts.Get("doc.relate.kind") };
+		kind.AcceptOnlyFromAmong([.. DocRelations.Kinds]);
+		var target = new Argument<string>("target") { Description = Texts.Get("doc.relate.target") };
+		var remove = new Option<bool>("--remove") { Description = Texts.Get("doc.relate.remove") };
+		var relateDryRun = DryRun();
+		var relate = new Command("relate", Texts.Get("doc.relate")) { source, kind, target, remove, relateDryRun }.Describe(EditSchema, writes: true);
+		relate.SetAction(result =>
+		{
+			var console = MountCommand.Console(result, global, currentDirectory);
+			return console.Run(_ => Write(console, result.GetValue(relateDryRun), (catalog, display) =>
+				One(console, catalog, result.GetValue(source)!) is { } from && One(console, catalog, result.GetValue(target)!) is { } to
+					? DocEditor.Relate(catalog, display, from, result.GetValue(kind)!, to, result.GetValue(remove), DateTimeOffset.UtcNow)
+					: null));
+		});
+		command.Add(relate);
+	}
+
+	/// <summary>The one document <paramref name="selector"/> names; null (said on stderr) if it names none or several.</summary>
+	static DocFile? One(FxConsole console, DocCatalog catalog, string selector)
+	{
+		if (Select(console, catalog, [selector]) is not { } files)
+			return null;
+		if (files.Count == 1)
+			return files[0];
+		console.ErrorLine($"[red]{FxConsole.Escape(Texts.Get("doc.many-documents", selector, files.Count))}[/]");
+		return null;
+	}
+
+	/// <summary>
+	/// A change of the catalog: written (unless <c>--dry-run</c> or with errors: all or nothing) and shown, the diff of
+	/// each file or why nothing changes. <paramref name="work"/> gives null if what it names is not there (a usage error,
+	/// said already).
+	/// </summary>
+	static int Write(FxConsole console, bool dryRun, Func<DocCatalog, Func<string, string>, DocChange?> work)
+	{
+		var found = new List<FxDiagnostic>();
+		void Json(DocChange? change, bool written)
+		{
+			var diagnostics = change is null ? found : [.. found, .. change.Diagnostics];
+			var ok = FxConsole.Ok(diagnostics);
+			console.WriteJson(new DocEditDocument(EditSchema, ok, ok && change is { Changed: true }, written, change?.Documents ?? [],
+				ok && change is not null ? change.Files.Select(f => new JsonFileEdit(f.File, Core.Text.LineDiff.Unified(f.Diff))).ToList() : [],
+				JsonDiagnostic.From(diagnostics)), c => c.DocEditDocument);
+		}
+		if (DocsModule.Find(console.Settings.Directory, found) is not { } catalog)
+		{
+			if (console.Settings.IsMachine)
+				Json(null, false);
+			return console.Report(found);
+		}
+		if (work(catalog, Display(catalog)) is not { } change)
+			return FxConsole.UsageError;
+		var written = !dryRun && change.Write();
+		if (console.Settings.IsMachine)
+		{
+			Json(change, written);
+			return FxConsole.ExitCode(change.Diagnostics);
+		}
+		if (change.Ok && !change.Changed)
+		{
+			var reasons = change.Diagnostics.Where(d => d.Severity == FxSeverity.Info).Select(d => d.Message.ToString()).ToList();
+			console.Line($"[gray]{FxConsole.Escape(reasons.Count > 0 ? string.Join(" ", reasons) : Texts.Get("doc.edit.unchanged"))}[/]");
+		}
+		else if (change.Ok)
+		{
+			foreach (var file in change.Files)
+				ManifestCommands.WriteDiff(console, file.File, file.Diff);
+			console.Line(written
+				? $"[green]✓[/] {FxConsole.Escape(Texts.Get("doc.edit.written", string.Join(", ", change.Documents)))}"
+				: $"[yellow]{FxConsole.Escape(Texts.Get("doc.edit.dry-run"))}[/]");
+		}
+		return console.Report(change.Diagnostics.Where(d => d.Severity != FxSeverity.Info).ToList());
 	}
 
 	static string ClassName(DocStatusClass c) => c.ToString().ToLowerInvariant();

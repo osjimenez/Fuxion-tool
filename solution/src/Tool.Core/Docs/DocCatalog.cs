@@ -20,6 +20,9 @@ public sealed record DocFile(string Folder, string Stem, string? Markdown, strin
 
 	/// <summary>Its slug: the stem after the type (<c>ADR-slug</c>); a <c>README</c>, its own name.</summary>
 	public string Slug => Stem.IndexOf('-') is var dash and > 0 ? Stem[(dash + 1)..] : Stem;
+
+	/// <summary>Whether its name is one of the standard, <c>TYPE-slug</c> with a type it has: only those have a slug to compare.</summary>
+	public bool Formal => Stem.IndexOf('-') is var dash and > 0 && DocTypes.FromToken(Stem[..dash]) is not null;
 }
 
 /// <summary>
@@ -86,6 +89,25 @@ public sealed class DocCatalog
 	{
 		var relative = System.IO.Path.GetRelativePath(Folder, full);
 		return relative != ".." && !relative.StartsWith($"..{System.IO.Path.DirectorySeparatorChar}", StringComparison.Ordinal) && !System.IO.Path.IsPathRooted(relative);
+	}
+
+	/// <summary>
+	/// The folder <paramref name="path"/> names, relative to the catalog (empty: its root), as <see cref="Select"/>
+	/// takes paths: from <paramref name="currentDirectory"/>, or from the catalog. Null if it is outside the catalog, or
+	/// in a part that is not of it (a folder that starts with '.' or is local).
+	/// </summary>
+	public string? RelativeFolder(string path, string currentDirectory)
+	{
+		foreach (var full in new[] { FxLayout.Full(currentDirectory, path), Full(path) }.Distinct())
+		{
+			if (!Contains(full))
+				continue;
+			var relative = FxLayout.Relative(Folder, full);
+			if (relative == ".")
+				return "";
+			return relative.Split('/').Any(s => s.StartsWith('.') || FxLayout.IsLocal(s)) ? null : relative;
+		}
+		return null;
 	}
 
 	/// <summary>Whether <paramref name="file"/> is in the bootstrap list of <c>docs.yaml</c>.</summary>

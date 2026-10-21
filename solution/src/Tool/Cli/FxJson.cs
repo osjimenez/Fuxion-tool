@@ -198,6 +198,14 @@ public sealed record JsonDocRelationKind(string Name, IReadOnlyList<string>? Sou
 public sealed record DocSchemasDocument(string Schema, bool Ok, string Version, IReadOnlyList<JsonDocType> Types, IReadOnlyList<JsonDocRelationKind> Relations,
 	IReadOnlyList<JsonDiagnostic> Diagnostics);
 
+/// <summary>
+/// <c>fx-doc-edit/1</c>, of the commands of <c>fx doc</c> that write: whether the catalog changed and was written (not with
+/// <c>--dry-run</c> nor with errors: all or nothing), the documents it touches, by their path in the catalog, and each file
+/// that changes, as <c>diff -u</c> hunks.
+/// </summary>
+public sealed record DocEditDocument(string Schema, bool Ok, bool Changed, bool Written, IReadOnlyList<string> Documents, IReadOnlyList<JsonFileEdit> Files,
+	IReadOnlyList<JsonDiagnostic> Diagnostics);
+
 // The events of --output ndjson (fx-events/1): one per line, "type" first; the last line is the command's document.
 
 public sealed record JsonStartEvent(string Type, string Schema);
@@ -227,6 +235,7 @@ public sealed record JsonDiagnosticEvent(string Type, JsonDiagnostic Diagnostic)
 [JsonSerializable(typeof(DocListDocument))]
 [JsonSerializable(typeof(DocShowDocument))]
 [JsonSerializable(typeof(DocSchemasDocument))]
+[JsonSerializable(typeof(DocEditDocument))]
 [JsonSerializable(typeof(JsonStartEvent))]
 [JsonSerializable(typeof(JsonStepEvent))]
 [JsonSerializable(typeof(JsonDiagnosticEvent))]

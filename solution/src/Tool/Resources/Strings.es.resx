@@ -1321,4 +1321,67 @@
   <data name="doc.many-documents" xml:space="preserve">
     <value>'{0}' nombra {1} documentos; da uno.</value>
   </data>
+  <data name="doc.dry-run" xml:space="preserve">
+    <value>Muestra lo que cambiaría, con su diff, sin escribir.</value>
+  </data>
+  <data name="doc.new" xml:space="preserve">
+    <value>Crea un documento: su Markdown con su título y su sidecar, en el sitio de su tipo.</value>
+  </data>
+  <data name="doc.new.type" xml:space="preserve">
+    <value>Su tipo.</value>
+  </data>
+  <data name="doc.new.title" xml:space="preserve">
+    <value>Su título, su primer H1.</value>
+  </data>
+  <data name="doc.new.slug" xml:space="preserve">
+    <value>Su slug; por defecto, a partir de su título.</value>
+  </data>
+  <data name="doc.new.profile" xml:space="preserve">
+    <value>Su perfil, si su tipo los tiene.</value>
+  </data>
+  <data name="doc.new.path" xml:space="preserve">
+    <value>La carpeta de un documento estable (por defecto, la raíz del catálogo); uno histórico va a _records/ por su fecha.</value>
+  </data>
+  <data name="doc.new.tag" xml:space="preserve">
+    <value>Una etiqueta (una por --tag).</value>
+  </data>
+  <data name="doc.new.actor" xml:space="preserve">
+    <value>Quién hace el cambio, uno de los actores de docs.yaml; por defecto, la variable {0}.</value>
+  </data>
+  <data name="doc.finalize" xml:space="preserve">
+    <value>Finaliza documentos: su integridad de nuevo y updatedAt a ahora, en los que cambiaron.</value>
+  </data>
+  <data name="doc.finalize.documents" xml:space="preserve">
+    <value>Documentos: rutas o identidades; ninguno, todos los que cambiaron.</value>
+  </data>
+  <data name="doc.finalize.correction" xml:space="preserve">
+    <value>Una corrección de un documento congelado: la nota va al final de su Markdown.</value>
+  </data>
+  <data name="doc.status" xml:space="preserve">
+    <value>Cambia el estado de un documento, si su tipo lo permite, y lo finaliza.</value>
+  </data>
+  <data name="doc.status.status" xml:space="preserve">
+    <value>El estado nuevo.</value>
+  </data>
+  <data name="doc.relate" xml:space="preserve">
+    <value>Añade una relación de un documento a otro (o la quita); supersedes también sustituye al destino.</value>
+  </data>
+  <data name="doc.relate.kind" xml:space="preserve">
+    <value>La clase de la relación.</value>
+  </data>
+  <data name="doc.relate.target" xml:space="preserve">
+    <value>El otro documento: su ruta o su identidad.</value>
+  </data>
+  <data name="doc.relate.remove" xml:space="preserve">
+    <value>Quita la relación.</value>
+  </data>
+  <data name="doc.edit.unchanged" xml:space="preserve">
+    <value>No cambia nada.</value>
+  </data>
+  <data name="doc.edit.written" xml:space="preserve">
+    <value>Escrito: {0}.</value>
+  </data>
+  <data name="doc.edit.dry-run" xml:space="preserve">
+    <value>No se ha escrito nada (--dry-run).</value>
+  </data>
 </root>

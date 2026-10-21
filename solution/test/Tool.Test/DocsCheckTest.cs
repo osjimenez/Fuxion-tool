@@ -21,12 +21,12 @@ namespace Fuxion.Tool.Test;
 /// </summary>
 public sealed class DocsCheckTest
 {
-	static readonly DateTimeOffset At = new(2026, 10, 21, 10, 0, 0, TimeSpan.Zero);
+	internal static readonly DateTimeOffset At = new(2026, 10, 21, 10, 0, 0, TimeSpan.Zero);
 
 	static (string Code, string? File, int? Line) P(string code, string? file, int? line = null) => (code, file, line);
 
 	/// <summary>A space with a catalog in <c>_docs</c>, where documents are added valid unless told otherwise.</summary>
-	sealed class Space : IDisposable
+	internal sealed class Space : IDisposable
 	{
 		public Space(string docs = "schema: 1.0.0\n")
 		{
@@ -477,7 +477,7 @@ public sealed class DocsCheckTest
 
 	// the command line
 
-	static (int ExitCode, string Stdout, string Stderr) Fx(string directory, params string[] args)
+	internal static (int ExitCode, string Stdout, string Stderr) Fx(string directory, params string[] args)
 	{
 		var stdout = new StringWriter();
 		var stderr = new StringWriter();
@@ -485,7 +485,7 @@ public sealed class DocsCheckTest
 		return (exitCode, stdout.ToString(), stderr.ToString());
 	}
 
-	static JsonElement Json(string directory, string schema, params string[] args)
+	internal static JsonElement Json(string directory, string schema, params string[] args)
 	{
 		var (_, stdout, _) = Fx(directory, [.. args, "--output", "json"]);
 		var document = JsonDocument.Parse(stdout).RootElement;

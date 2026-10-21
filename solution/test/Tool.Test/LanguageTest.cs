@@ -107,7 +107,7 @@ public sealed partial class LanguageTest
 				typeof(Core.Layout.FxYamlReader), typeof(Core.Layout.FxOutputs), typeof(Core.Layout.FxNode), typeof(Core.Layout.SpaceConfig), typeof(Core.Layout.FxInherited),
 				typeof(Core.Dotnet.DotnetModule), typeof(Core.Dotnet.DotnetYamlReader), typeof(Core.Dotnet.SolutionComposer), typeof(Core.Versioning.VersioningErrorCodes),
 				typeof(Core.Versioning.VersionTagger), typeof(ManifestEditor), typeof(Core.Harness.HarnessModule), typeof(Core.Harness.HarnessYamlReader),
-				typeof(MountCopies), typeof(Core.Sync.SpaceShares), typeof(Core.Sync.RemoteParent), typeof(Core.Worktree.WorktreeModule), typeof(Core.Docs.DocsModule), typeof(Core.Docs.DocChecker),
+				typeof(MountCopies), typeof(Core.Sync.SpaceShares), typeof(Core.Sync.RemoteParent), typeof(Core.Worktree.WorktreeModule), typeof(Core.Docs.DocsModule), typeof(Core.Docs.DocChecker), typeof(Core.Docs.DocEditor), typeof(Core.Docs.DocChange),
 				typeof(Core.Docs.DocsYamlReader) }
 			.SelectMany(t => t.GetFields().Where(f => f.IsLiteral && f.FieldType == typeof(string)).Select(f => (string)f.GetRawConstantValue()!))
 			.Where(c => Regex.IsMatch(c, @"^(fx|space|mounts|worktree|dotnet|version|harness|docs)\.[a-z-]+$"))

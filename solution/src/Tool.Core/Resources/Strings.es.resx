@@ -880,4 +880,64 @@
   <data name="docs.bootstrap-stale" xml:space="preserve">
     <value>{0} está en la lista de arranque, pero ya no es un Markdown sin sidecar: sácalo.</value>
   </data>
+  <data name="docs.actor-missing" xml:space="preserve">
+    <value>Un cambio necesita su actor: --actor, o la variable {0}.</value>
+  </data>
+  <data name="docs.unknown-actor.write" xml:space="preserve">
+    <value>'{0}' no es uno de los actores de docs.yaml ({1}): añádelo a sus actors.</value>
+  </data>
+  <data name="docs.invalid-title" xml:space="preserve">
+    <value>El título es una línea, no vacía.</value>
+  </data>
+  <data name="docs.views-by-sync" xml:space="preserve">
+    <value>Un {0} lo genera fx sync a partir de su receta; fx doc new no lo crea.</value>
+  </data>
+  <data name="docs.invalid-name.new-slug" xml:space="preserve">
+    <value>El slug '{0}' lleva letras ASCII en minúscula, dígitos y guiones sueltos (--slug).</value>
+  </data>
+  <data name="docs.invalid-folder" xml:space="preserve">
+    <value>La carpeta '{0}' no es del catálogo {1}.</value>
+  </data>
+  <data name="docs.invalid-folder.historical" xml:space="preserve">
+    <value>Un {0} es histórico: va a _records/ por su fecha, sin --path.</value>
+  </data>
+  <data name="docs.invalid-folder.records" xml:space="preserve">
+    <value>Un {0} es estable: no va bajo _records/.</value>
+  </data>
+  <data name="docs.name-taken" xml:space="preserve">
+    <value>{0} ya existe.</value>
+  </data>
+  <data name="docs.name-taken.slug" xml:space="preserve">
+    <value>El slug '{0}' lo tiene ya en esa carpeta {1}.</value>
+  </data>
+  <data name="docs.name-taken.name" xml:space="preserve">
+    <value>El nombre {0} lo tiene ya {1}: da otro slug (--slug).</value>
+  </data>
+  <data name="docs.invalid-transition" xml:space="preserve">
+    <value>{0} no puede pasar de {1} a {2}: nada vuelve a draft, y un documento congelado no se vuelve a abrir.</value>
+  </data>
+  <data name="docs.unchanged.finalized" xml:space="preserve">
+    <value>{0} no ha cambiado desde que se finalizó.</value>
+  </data>
+  <data name="docs.unchanged.nothing-to-finalize" xml:space="preserve">
+    <value>Nada que finalizar: cada documento está como se finalizó.</value>
+  </data>
+  <data name="docs.unchanged.status" xml:space="preserve">
+    <value>{0} ya está en {1}.</value>
+  </data>
+  <data name="docs.unchanged.relation" xml:space="preserve">
+    <value>{0} ya tiene la relación {1} con {2}.</value>
+  </data>
+  <data name="docs.unchanged.no-relation" xml:space="preserve">
+    <value>{0} no tiene la relación {1} con {2}.</value>
+  </data>
+  <data name="docs.correction" xml:space="preserve">
+    <value>Corrección anotada ({0}): {1}</value>
+  </data>
+  <data name="docs.correction.not-frozen" xml:space="preserve">
+    <value>{0} está en {1}, sin congelar: se finaliza sin corrección.</value>
+  </data>
+  <data name="docs.changed-on-disk" xml:space="preserve">
+    <value>{0} ha cambiado en disco mientras se preparaba el cambio: no se ha escrito nada; repítelo.</value>
+  </data>
 </root>
