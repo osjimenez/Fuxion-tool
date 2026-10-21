@@ -428,7 +428,7 @@
     <value>'{0}' is standalone, but it references {1} of '{2}', which is not: outside the workspace it cannot be a package.</value>
   </data>
   <data name="dotnet.standalone-reference.fix" xml:space="preserve">
-    <value>Mark the reference WorkspaceOnly="true", or make the referenced repository standalone.</value>
+    <value>Mark the reference SpaceOnly="true", or make the referenced repository standalone.</value>
   </data>
   <data name="dotnet.missing-solution" xml:space="preserve">
     <value>'{0}', in {1}, is not on disk and the generated solution had nothing of it: it is left out for now.</value>

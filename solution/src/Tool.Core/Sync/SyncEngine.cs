@@ -103,8 +103,8 @@ public static class SyncEngine
 		{
 			var diagnostics = new FxDiagnostics(progress);
 			var outputs = new FxOutputs(start.Root, write, options.Adopt, diagnostics);
-			var projects = WorkspacePropsGenerator.Projects(run.Mounted.Select(m => (m.Node, m.Identity)), diagnostics);
-			outputs.Generated(start.Full(WorkspacePropsGenerator.FileName), WorkspacePropsGenerator.Generate(projects));
+			var projects = SpacePropsGenerator.Projects(run.Mounted.Select(m => (m.Node, m.Identity)), diagnostics);
+			outputs.Generated(start.Full(SpacePropsGenerator.FileName), SpacePropsGenerator.Generate(projects));
 			if (doctor)
 				CheckStandalone(run, projects, diagnostics);
 			run.Results.Add(new(DotnetModule.Name, start.Root, null, outputs.Files, [], diagnostics.ToList()) { Node = start.Root });
@@ -309,7 +309,7 @@ public static class SyncEngine
 	/// <summary>
 	/// A standalone repository (it builds without the workspace, design D-2) cannot reference a project of a repository
 	/// that is not: outside the workspace that reference would have to be a package, and that repository publishes
-	/// none (design §6). <c>WorkspaceOnly="true"</c> references only exist in the workspace by definition.
+	/// none (design §6). <c>SpaceOnly="true"</c> references only exist in the workspace by definition.
 	/// </summary>
 	static void CheckStandalone(Run_ run, IReadOnlyDictionary<string, (string Path, string Repository)> projects, FxDiagnostics diagnostics)
 	{
@@ -331,7 +331,7 @@ public static class SyncEngine
 		}
 	}
 
-	/// <summary>The <c>FxReference</c> items of a build file that can be packages (not <c>WorkspaceOnly="true"</c>).</summary>
+	/// <summary>The <c>FxReference</c> items of a build file that can be packages (not <c>SpaceOnly="true"</c>).</summary>
 	static IEnumerable<(string Name, int Line)> FxReferences(string file)
 	{
 		XDocument document;
@@ -345,7 +345,7 @@ public static class SyncEngine
 		}
 		foreach (var item in document.Descendants().Where(e => e.Name.LocalName == "FxReference"))
 		{
-			if (string.Equals((string?)item.Attribute("WorkspaceOnly") ?? (string?)item.Elements().FirstOrDefault(e => e.Name.LocalName == "WorkspaceOnly"), "true", StringComparison.OrdinalIgnoreCase))
+			if (string.Equals((string?)item.Attribute("SpaceOnly") ?? (string?)item.Elements().FirstOrDefault(e => e.Name.LocalName == "SpaceOnly"), "true", StringComparison.OrdinalIgnoreCase))
 				continue;
 			foreach (var name in ((string?)item.Attribute("Include") ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
 				yield return (name, ((IXmlLineInfo)item).LineNumber);

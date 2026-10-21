@@ -38,8 +38,8 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 	const string PublishProps = """
 		<Project>
 			<PropertyGroup>
-				<PackageOutputPath Condition="'$(FxWorkspaceRoot)' != ''">$(FxWorkspaceRoot)~$publish/$(FxRepositoryName)/nupkgs/</PackageOutputPath>
-				<PackageOutputPath Condition="'$(FxWorkspaceRoot)' == ''">$(FxRepositoryRoot)~$publish/nupkgs/</PackageOutputPath>
+				<PackageOutputPath Condition="'$(FxSpaceRoot)' != ''">$(FxSpaceRoot)~$publish/$(FxRepositoryName)/nupkgs/</PackageOutputPath>
+				<PackageOutputPath Condition="'$(FxSpaceRoot)' == ''">$(FxRepositoryRoot)~$publish/nupkgs/</PackageOutputPath>
 			</PropertyGroup>
 		</Project>
 		""";
@@ -181,14 +181,14 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		Assert.True(File.Exists(Path.Combine(workspace, "~$publish", "lib", "nupkgs", "Lib.2.3.1.nupkg")),
 			string.Join(", ", Directory.EnumerateFiles(workspace, "*.nupkg", SearchOption.AllDirectories)));
 		Assert.False(Directory.Exists(Path.Combine(repo.Path, "~$publish")));
-		var properties = Properties(repo, "FxRepositoryName", "FxRepositoryFullName", "FxWorkspaceRoot", "FxRepositoryRoot");
+		var properties = Properties(repo, "FxRepositoryName", "FxRepositoryFullName", "FxSpaceRoot", "FxRepositoryRoot");
 		Assert.Equal("lib", properties.GetProperty("FxRepositoryName").GetString());
 		Assert.Equal("/ws/lib", properties.GetProperty("FxRepositoryFullName").GetString());
-		Assert.Equal(workspace.TrimEnd('\\', '/'), properties.GetProperty("FxWorkspaceRoot").GetString()!.TrimEnd('\\', '/'));
+		Assert.Equal(workspace.TrimEnd('\\', '/'), properties.GetProperty("FxSpaceRoot").GetString()!.TrimEnd('\\', '/'));
 		Assert.Equal(repo.Path.TrimEnd('\\', '/'), properties.GetProperty("FxRepositoryRoot").GetString()!.TrimEnd('\\', '/'));
 	}
 
-	[Fact(DisplayName = "nested workspaces: FxWorkspaceRoot is the highest; the root of a worktree stops the search")]
+	[Fact(DisplayName = "nested workspaces: FxSpaceRoot is the highest; the root of a worktree stops the search")]
 	public void WorkspaceRoot()
 	{
 		var top = Workspace(("w1", "w1"));
@@ -196,7 +196,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		Directory.CreateDirectory(Path.Combine(w1, "_fx", "mounts"));
 		File.WriteAllText(Path.Combine(w1, "_fx", "mounts", "mounts.yaml"), "schema: 1.0.0\nmounts:\n  - name: lib\n    path: lib\n    url: x\n");
 		using var nested = Sample(path: Path.Combine(w1, "lib"), publish: false);
-		Assert.Equal(top.TrimEnd('\\', '/'), Properties(nested, "FxWorkspaceRoot").GetProperty("FxWorkspaceRoot").GetString()!.TrimEnd('\\', '/'));
+		Assert.Equal(top.TrimEnd('\\', '/'), Properties(nested, "FxSpaceRoot").GetProperty("FxSpaceRoot").GetString()!.TrimEnd('\\', '/'));
 
 		// a worktree of w1, inside it: for the code, a closed tree
 		var worktree = Path.Combine(w1, "_fx", "~$worktrees", "feature-x");
@@ -204,7 +204,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		File.WriteAllText(Path.Combine(worktree, "~$worktree.yaml"), "schema: 1.0.0\nbranch: feature/x\n");
 		File.WriteAllText(Path.Combine(worktree, "_fx", "mounts", "mounts.yaml"), "schema: 1.0.0\nmounts:\n  - name: lib\n    path: lib\n    url: x\n");
 		using var inWorktree = Sample(path: Path.Combine(worktree, "lib"), publish: false);
-		Assert.Equal(worktree.TrimEnd('\\', '/'), Properties(inWorktree, "FxWorkspaceRoot").GetProperty("FxWorkspaceRoot").GetString()!.TrimEnd('\\', '/'));
+		Assert.Equal(worktree.TrimEnd('\\', '/'), Properties(inWorktree, "FxSpaceRoot").GetProperty("FxSpaceRoot").GetString()!.TrimEnd('\\', '/'));
 	}
 
 	[Fact(DisplayName = "fx's local files and folders (~$) are not part of a project")]
@@ -545,7 +545,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 				<ItemGroup>
 					<FxReference Include="Lib" />
 					<FxReference Include="Helper" />
-					<FxReference Include="OnlyInTheWorkspace" WorkspaceOnly="true" />
+					<FxReference Include="OnlyInTheWorkspace" SpaceOnly="true" />
 				</ItemGroup>
 			</Project>
 			""");
@@ -583,7 +583,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 
 		// In the workspace: fx sync writes the map, and Lib is a project
 		Assert.Equal(0, InProcess.Run(["sync", "--offline"], new StringWriter(), new StringWriter(), workspace.Path));
-		Assert.Contains("Include=\"Lib\" Repository=\"lib\"", File.ReadAllText(Path.Combine(workspace.Path, "_fx", "dotnet", "~$workspace.props")));
+		Assert.Contains("Include=\"Lib\" Repository=\"lib\"", File.ReadAllText(Path.Combine(workspace.Path, "_fx", "dotnet", "~$space.props")));
 		Assert.Contains("<FxRepositoryProject Include=\"Helper\"", File.ReadAllText(Path.Combine(app.Path, "_fx", "dotnet", "projects.g.props")));
 		Succeeded(fixture.Build(appProject));
 		Assert.Equal("project", LibraryType(app, "Lib"));
@@ -598,10 +598,10 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		Assert.Equal("project", LibraryType(app, "Helper"));
 
 		// A repo that only builds in the workspace says so, instead of NuGet not finding a package
-		var result = fixture.Build(appProject, "-p:FxUsePackages=true", "-p:FxRequiresWorkspace=true");
+		var result = fixture.Build(appProject, "-p:FxUsePackages=true", "-p:FxRequiresSpace=true");
 		Assert.NotEqual(0, result.ExitCode);
 		Assert.Contains("FXTL001", result.StandardOutput);
-		// WorkspaceOnly="true" (the analyzers of oss): only in the workspace; never a package, never the error; nor its own
+		// SpaceOnly="true" (the analyzers of oss): only in the workspace; never a package, never the error; nor its own
 		Assert.DoesNotContain("OnlyInTheWorkspace", result.StandardOutput);
 		Assert.DoesNotContain("Helper is not mounted", result.StandardOutput);
 	}

@@ -348,8 +348,8 @@ public sealed class WorkspaceTest
 
 		Assert.Contains("name: plus\n    parked: false", ws.Read("_fx/mounts/~$state.yaml"));
 
-		var map = ws.Read("_fx/dotnet/~$workspace.props");
-		Assert.Contains("<FxWorkspaceProject Include=\"plus\" Repository=\"plus\"", map);
+		var map = ws.Read("_fx/dotnet/~$space.props");
+		Assert.Contains("<FxSpaceProject Include=\"plus\" Repository=\"plus\"", map);
 		Assert.Contains("<ProjectReference Include=\"@(_FxExternalReference->WithMetadataValue('Identity', 'plus')->'", map);
 		var again = Sync(ws.Root);
 		Assert.All(Files(again), f => Assert.Equal(SyncFileStatus.Unchanged, f.Status));
@@ -486,7 +486,7 @@ public sealed class WorkspaceTest
 		Assert.Equal(before, solution);
 		Assert.Contains("<Project Path=\"lab/repo/solution/src/lab/lab.csproj\" />", solution);
 		Assert.Contains("<Folder Name=\"/lab/src/\">", solution);
-		Assert.DoesNotContain("lab.csproj", ws.Read("_fx/dotnet/~$workspace.props"));
+		Assert.DoesNotContain("lab.csproj", ws.Read("_fx/dotnet/~$space.props"));
 	}
 
 	[Fact(DisplayName = "solutions: the global.json of a workspace that composes them pins its sdks (MSBuild reads it from the folder of the solution)")]
@@ -556,7 +556,7 @@ public sealed class WorkspaceTest
 		Assert.Contains("$(MSBuildThisFileDirectory)../.inherited/dotnet/default.props", props);
 		Assert.Contains("<FxRepositoryFullName>/test/plus</FxRepositoryFullName>", props);
 		// a repository of a workspace that does not say it builds on its own needs it (plan R, proposal 5)
-		Assert.Contains("<FxRequiresWorkspace Condition=\"'$(FxRequiresWorkspace)' == ''\">true</FxRequiresWorkspace>", props);
+		Assert.Contains("<FxRequiresSpace Condition=\"'$(FxRequiresSpace)' == ''\">true</FxRequiresSpace>", props);
 		Assert.False(Directory.Exists(Path.Combine(ws.RepoPath("docs"), "_fx"))); // nothing applies to it
 		Assert.DoesNotContain(Codes(Doctor(ws.Root)), c => c is MountsModule.Outdated or "dotnet.outdated");
 
@@ -570,7 +570,7 @@ public sealed class WorkspaceTest
 		// one that builds on its own does not need it
 		File.WriteAllText(Path.Combine(ws.RepoPath("plus"), "_fx", "dotnet", "dotnet.yaml"), "schema: 1.0.0\nstandalone: true\n");
 		Sync(ws.Root);
-		Assert.DoesNotContain("FxRequiresWorkspace", ws.Read("plus/repo/_fx/dotnet/dotnet.g.props"));
+		Assert.DoesNotContain("FxRequiresSpace", ws.Read("plus/repo/_fx/dotnet/dotnet.g.props"));
 
 		// a repo the module no longer applies to loses all of it
 		ws.WriteManifest(("plus", "mandatory", "    tags: [other]\n"), ("docs", "mandatory", ""));
@@ -625,8 +625,8 @@ public sealed class WorkspaceTest
 		Assert.Contains("<Project Path=\"c1/src/App/C1.App.csproj\" />", Read("products/w1/W1.slnx"));
 		Assert.Contains("<Folder Name=\"/products/w1/C1/src/\">", Read("Acme.slnx"));
 		Assert.Contains("<Project Path=\"products/w1/c1/src/App/C1.App.csproj\" />", Read("Acme.slnx"));
-		Assert.Contains("Include=\"C1.App\" Repository=\"c1\"", Read("_fx/dotnet/~$workspace.props"));
-		Assert.False(File.Exists(Path.Combine(acme.Path, "products", "w1", "_fx", "dotnet", "~$workspace.props")));
+		Assert.Contains("Include=\"C1.App\" Repository=\"c1\"", Read("_fx/dotnet/~$space.props"));
+		Assert.False(File.Exists(Path.Combine(acme.Path, "products", "w1", "_fx", "dotnet", "~$space.props")));
 
 		// the same sync from c1 alone: it reads its parent on disk and finds nothing to change
 		Assert.All(Files(Sync(Path.Combine(acme.Path, "products", "w1", "c1"))), f => Assert.Equal(SyncFileStatus.Unchanged, f.Status));
@@ -689,7 +689,7 @@ public sealed class WorkspaceTest
 			  <ItemGroup>
 			    <FxReference Include="next" />
 			    <FxReference Include="NotMounted;plus" />
-			    <FxReference Include="next" WorkspaceOnly="true" />
+			    <FxReference Include="next" SpaceOnly="true" />
 			  </ItemGroup>
 			</Project>
 			""");
@@ -708,7 +708,7 @@ public sealed class WorkspaceTest
 		Assert.Empty(mount.Diagnostics);
 		Assert.Equal("unparked", Assert.Single(mount.Actions).Action);
 		Assert.Contains(new RepositoryAction("lab", "cloned"), Actions(Sync(ws.Root)));
-		Assert.Contains("lab.csproj", ws.Read("_fx/dotnet/~$workspace.props"));
+		Assert.Contains("lab.csproj", ws.Read("_fx/dotnet/~$space.props"));
 		File.WriteAllText(Path.Combine(ws.RepoPath("lab"), "work.txt"), "not committed");
 
 		// parked in _fx/~$parking/ under its path; the folder it leaves empty goes
@@ -722,7 +722,7 @@ public sealed class WorkspaceTest
 		Assert.False(Directory.Exists(Path.Combine(ws.Root, "lab")));
 		Assert.True(ws.Meta.Git("check-ignore", "_fx/~$parking/lab/repo/").Length > 0);
 		Assert.DoesNotContain(Actions(Sync(ws.Root)), a => a.Repository == "lab");
-		Assert.DoesNotContain("lab.csproj", ws.Read("_fx/dotnet/~$workspace.props"));
+		Assert.DoesNotContain("lab.csproj", ws.Read("_fx/dotnet/~$space.props"));
 		Assert.True(Assert.Single(MountsModule.Repositories(manifest, withStatus: false, cancellationToken: TestContext.Current.CancellationToken), r => r.Repository.Name == "lab").Parked);
 
 		// back, without cloning: the work is there, and the parking goes
@@ -730,7 +730,7 @@ public sealed class WorkspaceTest
 		Assert.True(File.Exists(Path.Combine(ws.RepoPath("lab"), "work.txt")));
 		Assert.False(Directory.Exists(Path.Combine(ws.Root, "_fx", "~$parking")));
 		Sync(ws.Root);
-		Assert.Contains("lab.csproj", ws.Read("_fx/dotnet/~$workspace.props"));
+		Assert.Contains("lab.csproj", ws.Read("_fx/dotnet/~$space.props"));
 
 		// a required one cannot be parked, nor an unknown one unparked: nothing changes
 		Assert.Single(MountsModule.Park(manifest, ["plus", "lab"], parked: true).Diagnostics);

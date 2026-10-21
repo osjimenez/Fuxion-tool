@@ -17,20 +17,20 @@ public static class DotnetGenerator
 	static string Header(string sources) => FxHeader.Xml(sources);
 
 	/// <param name="imports">The props: imports: path relative to <c>_fx/dotnet/</c> and expanded condition (null: always).</param>
-	/// <param name="requiresWorkspace">
-	/// A repository of a workspace that does not build on its own (its <c>dotnet.yaml</c> does not say <c>standalone</c>):
+	/// <param name="requiresSpace">
+	/// A repository mounted by a space that does not build on its own (its <c>dotnet.yaml</c> does not say <c>standalone</c>):
 	/// an <c>FxReference</c> that would be a package is an error (plan R, proposal 5), unless the repository says otherwise.
 	/// </param>
 	public static string Props(DotnetConfig config, FxIdentity identity, IReadOnlyList<(string Path, string? Condition)> imports, string sources,
-		bool requiresWorkspace = false)
+		bool requiresSpace = false)
 	{
 		var b = Start(sources);
 		// who the repository is, before the imports that may use it (plan P, decision 24)
 		b.Append("\t<PropertyGroup>\n");
 		b.Append($"\t\t<FxRepositoryName>{Escape(identity.Name)}</FxRepositoryName>\n");
 		b.Append($"\t\t<FxRepositoryFullName>{Escape(identity.FullName)}</FxRepositoryFullName>\n");
-		if (requiresWorkspace)
-			b.Append("\t\t<FxRequiresWorkspace Condition=\"'$(FxRequiresWorkspace)' == ''\">true</FxRequiresWorkspace>\n");
+		if (requiresSpace)
+			b.Append("\t\t<FxRequiresSpace Condition=\"'$(FxRequiresSpace)' == ''\">true</FxRequiresSpace>\n");
 		b.Append("\t</PropertyGroup>\n");
 		b.Append("\t<PropertyGroup>\n");
 		foreach (var variable in config.Variables.Where(v => !v.IsWhen))
@@ -97,7 +97,7 @@ public static class DotnetGenerator
 	}
 
 	/// <summary>
-	/// <c>projects.g.props</c> (plan R, decision 1): the projects of the repository by name, as the map of the workspace
+	/// <c>projects.g.props</c> (plan R, decision 1): the projects of the repository by name, as the map of the space
 	/// does with the mounted ones, so an <c>FxReference</c> to one of them is a <c>ProjectReference</c> also in a clone on
 	/// its own. Paths relative to <c>_fx/dotnet/</c>.
 	/// </summary>

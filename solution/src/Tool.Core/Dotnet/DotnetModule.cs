@@ -228,8 +228,8 @@ public static partial class DotnetModule
 		var centralFiles = git.ListFiles(":(glob)**/Directory.Packages.props");
 		var centralManagement = centralFiles.Any(f => CentralManagement().IsMatch(Read(root, f)));
 		// a repository of a workspace that does not build on its own needs it (plan R, proposal 5)
-		var requiresWorkspace = !config.Standalone && !node.HasMounts && node.Inherited() is not null;
-		outputs.Generated(Path.Combine(root, Folder, "dotnet.g.props"), DotnetGenerator.Props(config, identity, propsImports, sources, requiresWorkspace));
+		var requiresSpace = !config.Standalone && !node.HasMounts && node.Inherited() is not null;
+		outputs.Generated(Path.Combine(root, Folder, "dotnet.g.props"), DotnetGenerator.Props(config, identity, propsImports, sources, requiresSpace));
 		outputs.Generated(Path.Combine(root, Folder, "dotnet.g.targets"),
 			DotnetGenerator.Targets(config, whenExpanded, targetsImports, centralManagement ? [] : packages, sources));
 		if (centralManagement)
@@ -237,7 +237,7 @@ public static partial class DotnetModule
 		else
 			outputs.Delete(Path.Combine(root, Folder, "packages.g.props"));
 		// its projects by name, for an FxReference inside the repository (plan R, decision 1)
-		var projects = WorkspacePropsGenerator.Projects([(node, identity)], diagnostics)
+		var projects = SpacePropsGenerator.Projects([(node, identity)], diagnostics)
 			.OrderBy(p => p.Key, StringComparer.OrdinalIgnoreCase)
 			.Select(p => (p.Key, Path.GetRelativePath(node.Full(Folder), p.Value.Path).Replace('\\', '/')))
 			.ToList();

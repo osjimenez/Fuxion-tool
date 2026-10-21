@@ -63,7 +63,7 @@ public sealed class ExploreTest : SampleTree
 		Assert.Equal(FxTreeKind.ModuleOff, At(tree, "repo-w1/repo-c1/_fx/mounts").Kind);
 		Assert.Equal(FxTreeKind.Module, At(tree, "_fx/mounts").Kind);
 		Assert.Equal(FxOrigin.Local, At(tree, "_fx/mounts/~$state.yaml").Origin);
-		Assert.Equal(FxOrigin.Local, At(tree, "_fx/dotnet/~$workspace.props").Origin);
+		Assert.Equal(FxOrigin.Local, At(tree, "_fx/dotnet/~$space.props").Origin);
 	}
 
 	[Fact(DisplayName = "where a file comes from: the workspaces it inherits from, the nearest first; the source of a share; the yaml of a generated file")]

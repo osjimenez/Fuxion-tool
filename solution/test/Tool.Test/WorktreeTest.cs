@@ -43,7 +43,7 @@ public sealed class WorktreeTest : SampleTree
 		Assert.All(card.Worktrees, w => Assert.True(w.CreatedBranch));
 
 		// a closed tree: its own map, with its own projects
-		var map = Read(root, "_fx/dotnet/~$workspace.props");
+		var map = Read(root, "_fx/dotnet/~$space.props");
 		Assert.Contains(Project(root, "libs", "shared", "Shared.csproj"), map);
 		Assert.DoesNotContain(Project(acme.Path, "libs", "shared", "Shared.csproj"), map);
 		// fx sync inside: nothing to clone, nothing missing; the doctor, all right; the main tree, as it was
@@ -53,7 +53,7 @@ public sealed class WorktreeTest : SampleTree
 		Assert.Empty(Errors(SyncEngine.Doctor(root, new(Offline: true), cancellationToken: Token)));
 		Assert.DoesNotContain(SyncEngine.Doctor(acme.Path, new(Offline: true), cancellationToken: Token).SelectMany(r => r.Diagnostics),
 			d => d.Severity == FxSeverity.Error || d.Code == WorktreeModule.Outside);
-		Assert.Contains(Project(acme.Path, "libs", "shared", "Shared.csproj"), Read(acme.Path, "_fx/dotnet/~$workspace.props"));
+		Assert.Contains(Project(acme.Path, "libs", "shared", "Shared.csproj"), Read(acme.Path, "_fx/dotnet/~$space.props"));
 	}
 
 	[Fact(DisplayName = "add from a repository: its workspace in worktree mode with that repository alone; mount brings more, with the workspaces on the way, --required, the paths left out")]
@@ -80,7 +80,7 @@ public sealed class WorktreeTest : SampleTree
 		Assert.Equal("guide\n", Read(root, "_docs/guide.md"));
 		Assert.Empty(WorktreeCard.Load(root)!.LeftOut);
 		// the code sees this worktree
-		var map = Read(root, "_fx/dotnet/~$workspace.props");
+		var map = Read(root, "_fx/dotnet/~$space.props");
 		Assert.Contains(Project(root, "libs", "shared", "Shared.csproj"), map);
 		Assert.Contains(Project(root, "repo-w1", "repo-c1", "src", "App", "C1.App.csproj"), map);
 		Assert.DoesNotContain("C2.Lib", map);
@@ -107,7 +107,7 @@ public sealed class WorktreeTest : SampleTree
 		Assert.Contains("Polly", Read(root, "repo-c1/_fx/.inherited/dotnet/dotnet.yaml"));
 		Assert.DoesNotContain("Polly", Read(c1, "_fx/.inherited/dotnet/dotnet.yaml"));
 		// its map: only what is in it (shared and repo-c2, packages)
-		var map = Read(root, "_fx/dotnet/~$workspace.props");
+		var map = Read(root, "_fx/dotnet/~$space.props");
 		Assert.Contains("C1.App", map);
 		Assert.DoesNotContain("Shared", map);
 		Assert.DoesNotContain("C2.Lib", map);

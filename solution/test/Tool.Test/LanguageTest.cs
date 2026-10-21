@@ -103,7 +103,7 @@ public sealed partial class LanguageTest
 	public void CodesHaveTexts()
 	{
 		var english = Texts(Manager("core"), CultureInfo.InvariantCulture);
-		var codes = new[] { typeof(MountsModule), typeof(Core.Dotnet.WorkspacePropsGenerator), typeof(MountsManifest), typeof(Core.Sync.SyncEngine), typeof(Core.Sync.Inheritance),
+		var codes = new[] { typeof(MountsModule), typeof(Core.Dotnet.SpacePropsGenerator), typeof(MountsManifest), typeof(Core.Sync.SyncEngine), typeof(Core.Sync.Inheritance),
 				typeof(Core.Layout.FxYamlReader), typeof(Core.Layout.FxOutputs), typeof(Core.Layout.FxNode), typeof(Core.Layout.SpaceConfig), typeof(Core.Layout.FxInherited),
 				typeof(Core.Dotnet.DotnetModule), typeof(Core.Dotnet.DotnetYamlReader), typeof(Core.Dotnet.SolutionComposer), typeof(Core.Versioning.VersioningErrorCodes),
 				typeof(Core.Versioning.VersionTagger), typeof(ManifestEditor), typeof(Core.Harness.HarnessModule), typeof(Core.Harness.HarnessYamlReader) }

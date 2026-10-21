@@ -18,8 +18,8 @@
 
 		What it gives:
 		  FxRepositoryRoot        the repository: where fx generated its .NET (_fx/dotnet/), or its global.json
-		  FxWorkspaceRoot         the highest workspace above it on disk (empty for a repository on its own)
-		  FxRepositoryName        its name, as its workspace declares it (or its own, for a root)
+		  FxSpaceRoot             the highest space above it on disk that mounts others (empty for a repository on its own)
+		  FxRepositoryName        its name, as the space that mounts it declares it (or its own, for a root)
 		  FxRepositoryFullName    its full name, from the root: /acme/product/app
 		  FxIsCi                  true on a CI server (GITHUB_ACTIONS, CI)
 		  _fx/dotnet/dotnet.g.props    the variables and the props: imports of dotnet.yaml (here, before the project file)
@@ -32,9 +32,9 @@
 		  FxStaticMetadataEnabled the Fuxion.Metadata.<Project> classes (default: as FxVersioningEnabled);
 		                          FxStaticMetadataNamespace (default Fuxion.Metadata)
 		  FxDocumentationLanguages translated XML documentation to pack, from ~$docs/<lang> (for example: es)
-		  FxUsePackages           every FxReference as a package, also in a workspace (CI)
-		  FxRequiresWorkspace     an FxReference that would be a package is an error (FXTL001); fx sets it in a repository
-		                          of a workspace that is not standalone (dotnet.g.props)
+		  FxUsePackages           every FxReference as a package, also in a space (CI)
+		  FxRequiresSpace         an FxReference that would be a package is an error (FXTL001); fx sets it in a repository
+		                          mounted by a space, that is not standalone (dotnet.g.props)
 	-->
 
 	<PropertyGroup>
@@ -48,24 +48,24 @@
 		<_FxRepositoryDirectory Condition="'$(_FxGeneratedDirectory)' != '' And $(_FxGeneratedDirectory.Length) &gt;= $(_FxGlobalJsonDirectory.Length)">$(_FxGeneratedDirectory)</_FxRepositoryDirectory>
 		<FxRepositoryRoot Condition="'$(FxRepositoryRoot)' == '' And '$(_FxRepositoryDirectory)' != ''">$([MSBuild]::NormalizeDirectory('$(_FxRepositoryDirectory)'))</FxRepositoryRoot>
 
-		<!-- The workspace: the highest one on disk, from the repository itself up (a workspace with projects of its own is
-		     its own), up to five levels; the root of a worktree stops it: for the code, a worktree is a closed tree -->
-		<_FxWorkspaceFile>_fx/mounts/mounts.yaml</_FxWorkspaceFile>
-		<_FxW1 Condition="'$(FxWorkspaceRoot)' == '' And '$(FxRepositoryRoot)' != ''">$([MSBuild]::GetDirectoryNameOfFileAbove('$(FxRepositoryRoot)', '$(_FxWorkspaceFile)'))</_FxW1>
-		<_FxStop Condition="'$(_FxW1)' != '' And Exists('$(_FxW1)/~$worktree.yaml')">true</_FxStop>
-		<_FxW2 Condition="'$(_FxW1)' != '' And '$(_FxStop)' != 'true'">$([MSBuild]::GetDirectoryNameOfFileAbove($([MSBuild]::NormalizeDirectory('$(_FxW1)', '..')), '$(_FxWorkspaceFile)'))</_FxW2>
-		<_FxStop Condition="'$(_FxW2)' != '' And Exists('$(_FxW2)/~$worktree.yaml')">true</_FxStop>
-		<_FxW3 Condition="'$(_FxW2)' != '' And '$(_FxStop)' != 'true'">$([MSBuild]::GetDirectoryNameOfFileAbove($([MSBuild]::NormalizeDirectory('$(_FxW2)', '..')), '$(_FxWorkspaceFile)'))</_FxW3>
-		<_FxStop Condition="'$(_FxW3)' != '' And Exists('$(_FxW3)/~$worktree.yaml')">true</_FxStop>
-		<_FxW4 Condition="'$(_FxW3)' != '' And '$(_FxStop)' != 'true'">$([MSBuild]::GetDirectoryNameOfFileAbove($([MSBuild]::NormalizeDirectory('$(_FxW3)', '..')), '$(_FxWorkspaceFile)'))</_FxW4>
-		<_FxStop Condition="'$(_FxW4)' != '' And Exists('$(_FxW4)/~$worktree.yaml')">true</_FxStop>
-		<_FxW5 Condition="'$(_FxW4)' != '' And '$(_FxStop)' != 'true'">$([MSBuild]::GetDirectoryNameOfFileAbove($([MSBuild]::NormalizeDirectory('$(_FxW4)', '..')), '$(_FxWorkspaceFile)'))</_FxW5>
-		<_FxWorkspaceDirectory>$(_FxW1)</_FxWorkspaceDirectory>
-		<_FxWorkspaceDirectory Condition="'$(_FxW2)' != ''">$(_FxW2)</_FxWorkspaceDirectory>
-		<_FxWorkspaceDirectory Condition="'$(_FxW3)' != ''">$(_FxW3)</_FxWorkspaceDirectory>
-		<_FxWorkspaceDirectory Condition="'$(_FxW4)' != ''">$(_FxW4)</_FxWorkspaceDirectory>
-		<_FxWorkspaceDirectory Condition="'$(_FxW5)' != ''">$(_FxW5)</_FxWorkspaceDirectory>
-		<FxWorkspaceRoot Condition="'$(FxWorkspaceRoot)' == '' And '$(_FxWorkspaceDirectory)' != ''">$([MSBuild]::NormalizeDirectory('$(_FxWorkspaceDirectory)'))</FxWorkspaceRoot>
+		<!-- The space: the highest one on disk that mounts others, from the repository itself up (a space with projects of
+		     its own is its own), up to five levels; the root of a worktree stops it: for the code, a worktree is a closed tree -->
+		<_FxSpaceFile>_fx/mounts/mounts.yaml</_FxSpaceFile>
+		<_FxS1 Condition="'$(FxSpaceRoot)' == '' And '$(FxRepositoryRoot)' != ''">$([MSBuild]::GetDirectoryNameOfFileAbove('$(FxRepositoryRoot)', '$(_FxSpaceFile)'))</_FxS1>
+		<_FxStop Condition="'$(_FxS1)' != '' And Exists('$(_FxS1)/~$worktree.yaml')">true</_FxStop>
+		<_FxS2 Condition="'$(_FxS1)' != '' And '$(_FxStop)' != 'true'">$([MSBuild]::GetDirectoryNameOfFileAbove($([MSBuild]::NormalizeDirectory('$(_FxS1)', '..')), '$(_FxSpaceFile)'))</_FxS2>
+		<_FxStop Condition="'$(_FxS2)' != '' And Exists('$(_FxS2)/~$worktree.yaml')">true</_FxStop>
+		<_FxS3 Condition="'$(_FxS2)' != '' And '$(_FxStop)' != 'true'">$([MSBuild]::GetDirectoryNameOfFileAbove($([MSBuild]::NormalizeDirectory('$(_FxS2)', '..')), '$(_FxSpaceFile)'))</_FxS3>
+		<_FxStop Condition="'$(_FxS3)' != '' And Exists('$(_FxS3)/~$worktree.yaml')">true</_FxStop>
+		<_FxS4 Condition="'$(_FxS3)' != '' And '$(_FxStop)' != 'true'">$([MSBuild]::GetDirectoryNameOfFileAbove($([MSBuild]::NormalizeDirectory('$(_FxS3)', '..')), '$(_FxSpaceFile)'))</_FxS4>
+		<_FxStop Condition="'$(_FxS4)' != '' And Exists('$(_FxS4)/~$worktree.yaml')">true</_FxStop>
+		<_FxS5 Condition="'$(_FxS4)' != '' And '$(_FxStop)' != 'true'">$([MSBuild]::GetDirectoryNameOfFileAbove($([MSBuild]::NormalizeDirectory('$(_FxS4)', '..')), '$(_FxSpaceFile)'))</_FxS5>
+		<_FxSpaceDirectory>$(_FxS1)</_FxSpaceDirectory>
+		<_FxSpaceDirectory Condition="'$(_FxS2)' != ''">$(_FxS2)</_FxSpaceDirectory>
+		<_FxSpaceDirectory Condition="'$(_FxS3)' != ''">$(_FxS3)</_FxSpaceDirectory>
+		<_FxSpaceDirectory Condition="'$(_FxS4)' != ''">$(_FxS4)</_FxSpaceDirectory>
+		<_FxSpaceDirectory Condition="'$(_FxS5)' != ''">$(_FxS5)</_FxSpaceDirectory>
+		<FxSpaceRoot Condition="'$(FxSpaceRoot)' == '' And '$(_FxSpaceDirectory)' != ''">$([MSBuild]::NormalizeDirectory('$(_FxSpaceDirectory)'))</FxSpaceRoot>
 
 		<!-- On a CI server (for the repo's own props: ContinuousIntegrationBuild…) -->
 		<FxIsCi Condition="'$(GITHUB_ACTIONS)' == 'true' Or '$(CI)' == 'true' Or '$(CI)' == '1'">true</FxIsCi>

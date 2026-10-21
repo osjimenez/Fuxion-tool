@@ -428,7 +428,7 @@
     <value>'{0}' es standalone, pero referencia {1} de '{2}', que no lo es: fuera del workspace no puede ser un paquete.</value>
   </data>
   <data name="dotnet.standalone-reference.fix" xml:space="preserve">
-    <value>Marca la referencia con WorkspaceOnly="true" o haz standalone el repositorio referenciado.</value>
+    <value>Marca la referencia con SpaceOnly="true" o haz standalone el repositorio referenciado.</value>
   </data>
   <data name="dotnet.missing-solution" xml:space="preserve">
     <value>'{0}', de {1}, no está en disco y la solución generada no tenía nada suyo: de momento se queda fuera.</value>

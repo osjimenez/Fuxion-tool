@@ -44,7 +44,7 @@ public sealed class NestedTest : SampleTree
 		Assert.Contains("<Folder Name=\"/products/w1/C1/src/\">", solution);
 		Assert.Contains("<Project Path=\"repo-w1/repo-c2/C2.Lib/C2.Lib.csproj\" />", solution);
 		Assert.Contains("<Project Path=\"libs/shared/Shared.csproj\" />", solution);
-		var map = Read(acme.Path, "_fx/dotnet/~$workspace.props");
+		var map = Read(acme.Path, "_fx/dotnet/~$space.props");
 		foreach (var project in new[] { "C1.App", "C2.Lib", "Shared" })
 			Assert.Contains($"Include=\"{project}\"", map);
 		// libs/ is versioned and shared, inside it, is not; mobile is in repo-w1's catalog
@@ -83,7 +83,7 @@ public sealed class NestedTest : SampleTree
 			Assert.Empty(Errors(Sync(loose.Path)));
 			Assert.True(FxLayout.IsGitRoot(Path.Combine(loose.Path, "libs", "shared")));
 			Assert.Contains("<Project Path=\"libs/shared/Shared.csproj\" />", Read(loose.Path, "W2.slnx"));
-			Assert.Contains(Project(loose.Path, "libs", "shared", "Shared.csproj"), Read(loose.Path, "_fx/dotnet/~$workspace.props"));
+			Assert.Contains(Project(loose.Path, "libs", "shared", "Shared.csproj"), Read(loose.Path, "_fx/dotnet/~$space.props"));
 			Assert.False(Directory.Exists(Path.Combine(loose.Path, "libs", "shared", "_fx")));
 			// c3 is its own: it inherits through repo-w2
 			Assert.Equal("/acme/repo-w2/c3", FxInherited.Load(Path.Combine(loose.Path, "apps", "c3"))!.Space.FullName);
@@ -96,7 +96,7 @@ public sealed class NestedTest : SampleTree
 	{
 		var acme = Acme();
 		var w2 = Path.Combine(acme.Path, "repo-w2");
-		var map = () => Read(acme.Path, "_fx/dotnet/~$workspace.props");
+		var map = () => Read(acme.Path, "_fx/dotnet/~$space.props");
 
 		// from acme, two copies of shared: acme's is the highest, so repo-w2's is never cloned
 		Assert.True(FxLayout.IsGitRoot(Path.Combine(w2, "apps", "c3")));
