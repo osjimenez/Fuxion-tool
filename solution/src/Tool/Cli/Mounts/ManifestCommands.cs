@@ -190,6 +190,24 @@ public static class ManifestCommands
 		mount.Add(rename);
 	}
 
+	/// <summary><c>fx init</c>: the folder where it runs becomes a space (plan spaces, decision 14).</summary>
+	public static Command CreateInit(GlobalOptions global, string currentDirectory)
+	{
+		var name = new Option<string?>("--name") { Description = Texts.Get("init.name") };
+		var dryRun = new Option<bool>("--dry-run") { Description = Texts.Get("manifest.dry-run-option") };
+		var init = new Command("init", Texts.Get("init")) { name, dryRun }.Describe(Schema, writes: true);
+		init.SetAction((result, cancellationToken) =>
+		{
+			var console = MountCommand.Console(result, global, currentDirectory);
+			return Task.FromResult(console.Run(_ =>
+			{
+				var root = console.Settings.Directory;
+				return Apply(console, root, [ManifestEditor.Init(root, result.GetValue(name))], result.GetValue(dryRun), Sync);
+			}, cancellationToken));
+		});
+		return init;
+	}
+
 	/// <summary><c>fx module enable|disable</c>, in the root of fx where it runs.</summary>
 	public static Command CreateModule(GlobalOptions global, string currentDirectory)
 	{

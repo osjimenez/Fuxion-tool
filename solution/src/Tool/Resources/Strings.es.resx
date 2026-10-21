@@ -322,6 +322,12 @@
   <data name="help.group.space" xml:space="preserve">
     <value>Space</value>
   </data>
+  <data name="init" xml:space="preserve">
+    <value>Hace de esta carpeta un space: su _fx/space.yaml, con su nombre, y nada más.</value>
+  </data>
+  <data name="init.name" xml:space="preserve">
+    <value>Su nombre (por defecto, el de la carpeta, en minúsculas con '-').</value>
+  </data>
   <data name="help.more" xml:space="preserve">
     <value>fx &lt;comando&gt; --help: el detalle de un comando.</value>
   </data>

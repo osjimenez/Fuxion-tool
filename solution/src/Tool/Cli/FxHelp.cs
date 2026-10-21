@@ -19,7 +19,7 @@ static class FxHelp
 	// the commands by what they are about; one not listed goes last, under "other"
 	static readonly (string Group, string[] Commands)[] Groups =
 	[
-		("help.group.space", ["sync", "doctor", "mount", "worktree", "module", "path"]),
+		("help.group.space", ["init", "sync", "doctor", "mount", "worktree", "module", "path"]),
 		("help.group.version", ["version", "self"])
 	];
 

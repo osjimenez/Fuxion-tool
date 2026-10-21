@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using Fuxion.Tool.Cli;
+using Fuxion.Tool.Core.Layout;
 using Fuxion.Tool.Core.Mounts;
 using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Text;
@@ -67,6 +68,10 @@ public sealed class ManifestEditorTest
 		var hunk = Assert.Single(LineDiff.Compute("a\nb\nc\nd\ne\nf\ng\n", "a\nb\nc\nX\ne\nf\ng\n"));
 		Assert.Equal("@@ -2,5 +2,5 @@\n b\n c\n-d\n+X\n e\n f\n", LineDiff.Unified([hunk]));
 	}
+
+	[Fact(DisplayName = "diff: a new file is only additions, from line 0")]
+	public void Diff_NewFile()
+		=> Assert.Equal("@@ -0,0 +1,2 @@\n+schema: 1.0.0\n+name: notes\n", LineDiff.Unified(LineDiff.Compute("", "schema: 1.0.0\nname: notes\n")));
 
 	[Fact(DisplayName = "diff: changes far apart are two hunks; an addition at the end; nothing changed, no hunk")]
 	public void Diff_Hunks()
@@ -194,6 +199,30 @@ public sealed class ManifestEditorTest
 		var moved = ManifestEditor.SetRepository(ws.Root, "oss", "path", ["public/repo"]);
 		Assert.Contains("    path: public/repo\n", After(moved));
 		Assert.Equal(ManifestEditor.CloneNotMoved, Assert.Single(moved.Diagnostics).Code);
+	}
+
+	// init
+
+	[Fact(DisplayName = "fx init: the folder becomes a space, its space.yaml with its name (the folder's, or --name) and nothing more; not twice")]
+	public void Init()
+	{
+		using var folder = new TempGitRepository();
+		var notes = Directory.CreateDirectory(Path.Combine(folder.Path, "My Notes")).FullName;
+		var run = Fx(notes, "init");
+		Assert.Equal(0, run.ExitCode);
+		Assert.Equal("schema: 1.0.0\nname: my-notes\n", File.ReadAllText(Path.Combine(notes, "_fx", "space.yaml")).Replace("\r\n", "\n"));
+		Assert.Equal(["space.yaml"], Directory.EnumerateFileSystemEntries(Path.Combine(notes, "_fx")).Select(Path.GetFileName));
+		var again = Fx(notes, "init", "--name", "notes");
+		Assert.Equal(1, again.ExitCode);
+		Assert.Contains(ManifestEditor.SpaceExists, again.Err);
+
+		// --name, valid; --dry-run writes nothing
+		using var other = new TempGitRepository();
+		Assert.Equal(1, Fx(other.Path, "init", "--name", "Not Valid").ExitCode);
+		Assert.Equal(0, Fx(other.Path, "init", "--name", "notes", "--dry-run").ExitCode);
+		Assert.False(Directory.Exists(Path.Combine(other.Path, "_fx")));
+		Assert.Equal(0, Fx(other.Path, "init", "--name", "notes").ExitCode);
+		Assert.Equal("notes", SpaceConfig.Load(other.Path).Name);
 	}
 
 	// paths

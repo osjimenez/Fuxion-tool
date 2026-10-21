@@ -352,6 +352,9 @@
   <data name="space.not-a-space" xml:space="preserve">
     <value>'{0}' is not inside a space (no _fx/ nor git repository above it).</value>
   </data>
+  <data name="space.exists" xml:space="preserve">
+    <value>This folder is already a space: {0} exists.</value>
+  </data>
   <data name="fx.requires" xml:space="preserve">
     <value>This tree requires fx {0} and this is {1}: nothing is written.</value>
   </data>

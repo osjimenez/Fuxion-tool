@@ -76,6 +76,9 @@ public static class LineDiff
 
 	static string[] Lines(string text)
 	{
+		// an empty text (a new file) has no lines, not an empty one
+		if (text.Length == 0)
+			return [];
 		var lines = text.Replace("\r\n", "\n").Split('\n');
 		return text.EndsWith('\n') ? lines[..^1] : lines;
 	}

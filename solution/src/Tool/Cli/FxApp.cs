@@ -17,6 +17,7 @@ public static class FxApp
 		var global = new GlobalOptions();
 		var root = new RootCommand(Texts.Get("root"))
 		{
+			ManifestCommands.CreateInit(global, currentDirectory),
 			SyncCommand.CreateSync(global, currentDirectory),
 			SyncCommand.CreateDoctor(global, currentDirectory),
 			MountCommand.Create(global, currentDirectory),

@@ -30,7 +30,7 @@ public sealed record ManifestChange(string File, string Before, YamlEditor After
 
 /// <summary>
 /// The commands that edit the configuration of a space (plan O, O3.4; plan P): <c>fx mount add|remove|tag|set|rename</c> edit
-/// <c>_fx/mounts/mounts.yaml</c>, <c>fx path add|remove</c> its <c>_fx/space.yaml</c>; <c>fx module enable|disable</c>,
+/// <c>_fx/mounts/mounts.yaml</c>, <c>fx init</c> and <c>fx path add|remove</c> its <c>_fx/space.yaml</c>; <c>fx module enable|disable</c>,
 /// the yaml of the module (creating its folder, or <c>enabled: false</c>). Each changes only what it must and keeps the rest of
 /// the file, comments included. The result is validated as the file is read (strict): a change that would leave it
 /// invalid has errors and is not written. They never touch the clones nor the folders.
@@ -46,6 +46,7 @@ public static partial class ManifestEditor
 	public const string CloneKept = "mounts.clone-kept";
 	public const string CloneNotMoved = "mounts.clone-not-moved";
 	public const string Unchanged = "fx.unchanged";
+	public const string SpaceExists = "space.exists";
 
 	/// <summary>The modules fx knows: a folder of <c>_fx/</c> each.</summary>
 	public static readonly IReadOnlyList<string> KnownModules = [MountsModule.Name, DotnetModule.Name, Harness.HarnessModule.Name];
@@ -298,6 +299,24 @@ public static partial class ManifestEditor
 		s.Apply(s.Current.Remove($"paths[path={path}]"));
 		return s.Done();
 	}
+
+	/// <summary>
+	/// <c>fx init</c> (plan spaces, decision 14): the folder at <paramref name="root"/> becomes a space, with its
+	/// <c>_fx/space.yaml</c> and its <paramref name="name"/> (by default, the folder's), and nothing more. Not where there
+	/// is one already; inside a space it is a space of its own, and a mounted one declares what is its own.
+	/// </summary>
+	public static ManifestChange Init(string root, string? name = null)
+	{
+		var s = new SpaceSession(root);
+		if (FxFiles.Exists(SpacePath(root)))
+			return s.Error(SpaceExists, new FxText(SpaceExists, FxLayout.ConfigFile));
+		s.Apply(s.Current.AddKey("", "name", name ?? NameOf(root), after: "schema"));
+		return s.Done();
+	}
+
+	/// <summary>The name a space gets from its folder: lowercase, with '-' (<c>My Notes</c> → <c>my-notes</c>).</summary>
+	public static string NameOf(string folder)
+		=> NotNameChars().Replace(Path.GetFileName(Path.TrimEndingDirectorySeparator(folder)).ToLowerInvariant(), "-").Trim('-') is { Length: > 0 } name ? name : "space";
 
 	/// <summary>
 	/// Enables a module (plan P, decision 2): creates its folder with its yaml, or takes out its <c>enabled: false</c>.
