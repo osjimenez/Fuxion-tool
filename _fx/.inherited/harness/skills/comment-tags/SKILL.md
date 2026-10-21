@@ -25,7 +25,7 @@ script in this folder, which reads the tags from the ReSharper settings and matc
 ## Script
 
 Run from anywhere (paths are resolved from the script location; the default search root is the root the skill is in:
-in the workspace, every mounted repo; in a repository, itself; `bin`, `obj`, `.git`, `.vs`, `TestResults` and
+in the space, every mounted repo; in a repository, itself; `bin`, `obj`, `.git`, `.vs`, `TestResults` and
 `archive` are skipped):
 
 ```bash

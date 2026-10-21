@@ -12,7 +12,7 @@
 #                (or up to the first line that is not a comment)
 #   --all        also search excluded folders (archive)
 #   --list-tags  print the tags in use and where they were read from, then exit
-#   path         files or folders to search; default: the root of fx the skill is in (a workspace: every mounted repo)
+#   path         files or folders to search; default: the root of fx the skill is in (a space: every mounted repo)
 use strict; use warnings;
 use File::Find;
 use Cwd qw(abs_path getcwd);
