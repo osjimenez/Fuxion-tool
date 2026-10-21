@@ -617,6 +617,8 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 	public void VisualStudioMSBuild()
 	{
 		Assert.SkipWhen(fixture.MSBuildExe is null, $"Visual Studio {SdkFixture.MinimumVisualStudio} or later (MSBuild.exe) is not installed");
+		Assert.SkipWhen(Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true",
+			"The Visual Studio of the CI runner cannot load the tasks on its .NET task host (idea I-63)");
 		using var repo = Sample();
 		// net10.0 only: the stable Visual Studio of a CI runner uses the stable .NET SDK, which cannot build net11.0
 		Succeeded(fixture.BuildWithVisualStudio(Lib(repo), "-p:TargetFrameworks=net10.0"));
