@@ -8,8 +8,8 @@ using Fuxion.Tool.Core.Layout;
 using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Sync;
 using Fuxion.Tool.Core.Worktree;
-using Xunit;
 using static Fuxion.Tool.Test.Worktrees;
+using Xunit;
 
 namespace Fuxion.Tool.Test;
 
@@ -99,7 +99,7 @@ public sealed class WorktreeTest : SampleTree
 		Assert.Equal([".", "repo-c1"], Paths(root));
 		Assert.Equal(("repo-c1", "repo-w1"), (WorktreeCard.Load(root)!.From, WorktreeCard.Load(root)!.Worktrees[0].Repository));
 		Assert.Equal("/acme", FxInherited.Load(root)!.Parent.FullName);
-		Assert.Equal("/acme/repo-w1/repo-c1", FxInherited.Load(Path.Combine(root, "repo-c1"))!.Repository.FullName);
+		Assert.Equal("/acme/repo-w1/repo-c1", FxInherited.Load(Path.Combine(root, "repo-c1"))!.Space.FullName);
 
 		// a change in the root of the worktree reaches its repo-c1, not the main tree's
 		Append(Path.Combine(root, "_fx", "dotnet", "dotnet.yaml"), "packages:\n", "packages:\n  - ids: [Polly]\n    versions:\n      - version: 8.0.0\n");

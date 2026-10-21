@@ -7,10 +7,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Fuxion.Tool.Cli.Sync;
 using Fuxion.Tool.Core.Layout;
+using Fuxion.Tool.Core.Mounts;
 using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Sync;
 using Fuxion.Tool.Core.Text;
-using Fuxion.Tool.Core.Workspace;
 
 namespace Fuxion.Tool.Cli.Repo;
 
@@ -28,10 +28,10 @@ public static class ManifestCommands
 	const string Sync = "fx sync";
 
 	/// <summary>What a command does once it has its values: the change, or null if something is missing with no one to ask.</summary>
-	delegate ManifestChange? Edit(ParseResult result, FxConsole console, WorkspaceManifest manifest, CancellationToken cancellationToken);
+	delegate ManifestChange? Edit(ParseResult result, FxConsole console, MountsManifest manifest, CancellationToken cancellationToken);
 
 	/// <summary>The same, for a command that changes several files (<c>fx repo rename</c>).</summary>
-	delegate IReadOnlyList<ManifestChange>? EditMany(ParseResult result, FxConsole console, WorkspaceManifest manifest, CancellationToken cancellationToken);
+	delegate IReadOnlyList<ManifestChange>? EditMany(ParseResult result, FxConsole console, MountsManifest manifest, CancellationToken cancellationToken);
 
 	/// <summary>The same, for a command that edits any root of fx (not only a workspace).</summary>
 	delegate ManifestChange? RootEdit(ParseResult result, FxConsole console, string root, CancellationToken cancellationToken);
@@ -97,7 +97,7 @@ public static class ManifestCommands
 			IReadOnlyList<string> values = result.GetValue(tagList) ?? [];
 			if (values.Count == 0)
 			{
-				var current = manifest.Repositories.FirstOrDefault(r => r.Name == n)?.Tags ?? [];
+				var current = manifest.Mounts.FirstOrDefault(r => r.Name == n)?.Tags ?? [];
 				if (!console.Capabilities.CanPrompt || (removing && current.Count == 0))
 				{
 					console.Missing("<tags>", $"fx repo tag {n} <tags>...{(removing ? " --remove" : "")}");
@@ -148,9 +148,9 @@ public static class ManifestCommands
 				var question = Texts.Get("repo.ask.value", k);
 				given = k switch
 				{
-					"mount" => [Ask.One(console, question, ["mandatory", "manual"], v => v, token)],
-					"inherits" => [Ask.One(console, question, ["true", "false"], v => v, token)],
-					"depends-on" => Ask.Many(console, question, manifest.Repositories.Where(r => r.Name != n).Select(r => r.Name).ToList(), r => r, token),
+					"required" or "inherits" => [Ask.One(console, question, ["true", "false"], v => v, token)],
+					"mode" => [Ask.One(console, question, MountsManifest.Modes, v => v, token)],
+					"depends-on" => Ask.Many(console, question, manifest.Mounts.Where(r => r.Name != n).Select(r => r.Name).ToList(), r => r, token),
 					_ => Ask.Text(console, question, token).Split(' ', StringSplitOptions.RemoveEmptyEntries)
 				};
 				asked = true;
@@ -278,9 +278,9 @@ public static class ManifestCommands
 		return answer;
 	}
 
-	static string? Repository(ParseResult result, FxConsole console, WorkspaceManifest manifest, Argument<string?> argument, string usage, string question, CancellationToken cancellationToken)
+	static string? Repository(ParseResult result, FxConsole console, MountsManifest manifest, Argument<string?> argument, string usage, string question, CancellationToken cancellationToken)
 	{
-		var names = manifest.Repositories.Select(r => r.Name).ToList();
+		var names = manifest.Mounts.Select(r => r.Name).ToList();
 		var given = result.GetValue(argument);
 		if (!string.IsNullOrWhiteSpace(given))
 			return given;

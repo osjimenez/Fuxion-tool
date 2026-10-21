@@ -69,18 +69,18 @@ public abstract class SampleTree : IDisposable
 		_w1Origin = Origin(
 			("README.md", "repo-w1\n"),
 			("_fx/space.yaml", "schema: 1.0.0\ntags:\n  - name: mobile\n    description: The mobile part.\npaths:\n  - path: README.md\n"),
-			("_fx/workspace/workspace.yaml", $"""
+			("_fx/mounts/mounts.yaml", $"""
 				schema: 1.0.0
-				repositories:
+				mounts:
 				  - name: repo-c1
 				    url: {Url(c1)}
 				    path: repo-c1
-				    mount: mandatory
+				    required: true
 				    tags: [dotnet, app]
 				  - name: repo-c2
 				    url: {Url(c2)}
 				    path: repo-c2
-				    mount: mandatory
+				    required: true
 				    tags: [dotnet, mobile]
 				"""),
 			("_fx/dotnet/dotnet.yaml", """
@@ -107,18 +107,18 @@ public abstract class SampleTree : IDisposable
 		_w2Origin = Origin(
 			("README.md", "repo-w2\n"),
 			("_fx/space.yaml", "schema: 1.0.0\npaths:\n  - path: README.md\n"),
-			("_fx/workspace/workspace.yaml", $"""
+			("_fx/mounts/mounts.yaml", $"""
 				schema: 1.0.0
-				repositories:
+				mounts:
 				  - name: c3
 				    url: {Url(c3)}
 				    path: apps/c3
-				    mount: mandatory
+				    required: true
 				    tags: [dotnet, app]
 				  - name: shared
 				    url: {Url(shared)}
 				    path: libs/shared
-				    mount: mandatory
+				    required: true
 				    inherits: false
 				    tags: [dotnet]
 				"""),
@@ -150,23 +150,23 @@ public abstract class SampleTree : IDisposable
 				  - path: _docs/
 				    worktree: false
 				"""),
-			("_fx/workspace/workspace.yaml", $"""
+			("_fx/mounts/mounts.yaml", $"""
 				schema: 1.0.0
-				repositories:
+				mounts:
 				  - name: repo-w1
 				    url: {Url(_w1Origin)}
 				    path: repo-w1
-				    mount: mandatory
+				    required: true
 				    tags: [dotnet, product]
 				  - name: repo-w2
 				    url: {Url(_w2Origin)}
 				    path: repo-w2
-				    mount: mandatory
+				    required: true
 				    tags: [dotnet, product]
 				  - name: shared
 				    url: {Url(shared)}
 				    path: libs/shared
-				    mount: mandatory
+				    required: true
 				    tags: [dotnet, library]
 				"""),
 			("_fx/dotnet/default.props", "<Project><PropertyGroup><Nullable>enable</Nullable></PropertyGroup></Project>\n"),

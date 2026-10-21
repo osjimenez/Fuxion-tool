@@ -184,7 +184,7 @@ public static partial class DotnetModule
 		// a workspace without projects of its own generates nothing for itself (only for its repositories, through them),
 		// but the solutions it composes build their projects, and MSBuild reads msbuild-sdks from the folder of the
 		// solution: its global.json pins the same SDKs
-		if (node.IsWorkspace && !buildFiles.Any(f => Path.GetExtension(f) is ".csproj" or ".fsproj" or ".vbproj"))
+		if (node.HasMounts && !buildFiles.Any(f => Path.GetExtension(f) is ".csproj" or ".fsproj" or ".vbproj"))
 		{
 			if (config.Sdks.Count > 0 && config.Solutions.Count > 0)
 				GlobalJson(root, config.Sdks, outputs, diagnostics);
@@ -228,7 +228,7 @@ public static partial class DotnetModule
 		var centralFiles = git.ListFiles(":(glob)**/Directory.Packages.props");
 		var centralManagement = centralFiles.Any(f => CentralManagement().IsMatch(Read(root, f)));
 		// a repository of a workspace that does not build on its own needs it (plan R, proposal 5)
-		var requiresWorkspace = !config.Standalone && !node.IsWorkspace && node.Inherited() is not null;
+		var requiresWorkspace = !config.Standalone && !node.HasMounts && node.Inherited() is not null;
 		outputs.Generated(Path.Combine(root, Folder, "dotnet.g.props"), DotnetGenerator.Props(config, identity, propsImports, sources, requiresWorkspace));
 		outputs.Generated(Path.Combine(root, Folder, "dotnet.g.targets"),
 			DotnetGenerator.Targets(config, whenExpanded, targetsImports, centralManagement ? [] : packages, sources));
@@ -237,7 +237,7 @@ public static partial class DotnetModule
 		else
 			outputs.Delete(Path.Combine(root, Folder, "packages.g.props"));
 		// its projects by name, for an FxReference inside the repository (plan R, decision 1)
-		var projects = Workspace.WorkspacePropsGenerator.Projects([(node, identity)], diagnostics)
+		var projects = WorkspacePropsGenerator.Projects([(node, identity)], diagnostics)
 			.OrderBy(p => p.Key, StringComparer.OrdinalIgnoreCase)
 			.Select(p => (p.Key, Path.GetRelativePath(node.Full(Folder), p.Value.Path).Replace('\\', '/')))
 			.ToList();

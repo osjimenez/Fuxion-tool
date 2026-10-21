@@ -3,9 +3,9 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using Fuxion.Tool.Cli;
+using Fuxion.Tool.Core.Mounts;
 using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Text;
-using Fuxion.Tool.Core.Workspace;
 using Xunit;
 
 namespace Fuxion.Tool.Test;
@@ -16,11 +16,11 @@ public sealed class ManifestEditorTest
 	const string Manifest = """
 		# The workspace manifest.
 		schema: 1.0.0
-		repositories:
+		mounts:
 		  - name: oss
 		    url: https://example.org/oss.git  # the public one
 		    path: oss/repo
-		    mount: mandatory
+		    required: true
 		    tags: [dotnet, public]
 		  # plus needs oss
 		  - name: plus
@@ -36,7 +36,7 @@ public sealed class ManifestEditorTest
 		public Workspace(string manifest = Manifest, string? space = "schema: 1.0.0\npaths:\n  - path: _docs/\n")
 		{
 			Root = TempGitRepository.TempFolder("fx-test-");
-			Directory.CreateDirectory(Path.Combine(Root, "_fx", "workspace"));
+			Directory.CreateDirectory(Path.Combine(Root, "_fx", "mounts"));
 			File.WriteAllText(ManifestEditor.ManifestPath(Root), manifest.Replace("\r\n", "\n"));
 			if (space is not null)
 				File.WriteAllText(ManifestEditor.SpacePath(Root), space);
@@ -106,12 +106,12 @@ public sealed class ManifestEditorTest
 
 	[Theory(DisplayName = "repo add: into a manifest without repositories; a guest")]
 	[InlineData("schema: 1.0.0\n")]
-	[InlineData("schema: 1.0.0\nrepositories: []\n")]
+	[InlineData("schema: 1.0.0\nmounts: []\n")]
 	public void AddRepository_First(string manifest)
 	{
 		using var ws = new Workspace(manifest);
-		var text = After(ManifestEditor.AddRepository(ws.Root, "https://example.org/lab.git", "lab", mandatory: true, inherits: false));
-		Assert.EndsWith("repositories:\n  - name: lab\n    url: https://example.org/lab.git\n    path: lab\n    mount: mandatory\n    inherits: false\n", text);
+		var text = After(ManifestEditor.AddRepository(ws.Root, "https://example.org/lab.git", "lab", required: true, inherits: false));
+		Assert.EndsWith("mounts:\n  - name: lab\n    url: https://example.org/lab.git\n    path: lab\n    required: true\n    inherits: false\n", text);
 	}
 
 	[Fact(DisplayName = "repo add: a name that exists, or a path the manifest rejects, is an error and nothing changes")]
@@ -122,7 +122,7 @@ public sealed class ManifestEditorTest
 		Assert.False(exists.Ok);
 		Assert.Equal(ManifestEditor.RepositoryExists, Assert.Single(exists.Diagnostics).Code);
 		var reserved = ManifestEditor.AddRepository(ws.Root, "https://example.org/x.git", "_fx/x");
-		Assert.Contains(reserved.Diagnostics, d => d.Code == WorkspaceManifest.InvalidManifest && d.Severity == FxSeverity.Error);
+		Assert.Contains(reserved.Diagnostics, d => d.Code == MountsManifest.InvalidManifest && d.Severity == FxSeverity.Error);
 	}
 
 	[Fact(DisplayName = "repo remove: the item and the comment above it; the clone stays, with a warning")]
@@ -145,7 +145,7 @@ public sealed class ManifestEditorTest
 		var needed = ManifestEditor.RemoveRepository(ws.Root, "oss");
 		Assert.Equal(ManifestEditor.RepositoryNeeded, Assert.Single(needed.Diagnostics).Code);
 		Assert.Contains("plus", needed.Diagnostics[0].Message.English);
-		Assert.Equal(WorkspaceModule.UnknownRepository, Assert.Single(ManifestEditor.RemoveRepository(ws.Root, "nope").Diagnostics).Code);
+		Assert.Equal(MountsModule.UnknownRepository, Assert.Single(ManifestEditor.RemoveRepository(ws.Root, "nope").Diagnostics).Code);
 	}
 
 	[Fact(DisplayName = "repo tag: added to the list, or the key where it goes; removed, and the key with the last one")]
@@ -155,7 +155,7 @@ public sealed class ManifestEditorTest
 		Assert.Contains("    tags: [dotnet, public, windows]\n", After(ManifestEditor.TagRepository(ws.Root, "oss", ["windows", "dotnet"])));
 		Assert.EndsWith("    depends-on: [oss]\n    tags: [dotnet]\n", After(ManifestEditor.TagRepository(ws.Root, "plus", ["dotnet"])));
 		Assert.Contains("    tags: [public]\n", After(ManifestEditor.TagRepository(ws.Root, "oss", ["dotnet"], remove: true)));
-		Assert.Contains("    mount: mandatory\n  # plus needs oss\n", After(ManifestEditor.TagRepository(ws.Root, "oss", ["dotnet", "public"], remove: true)));
+		Assert.Contains("    required: true\n  # plus needs oss\n", After(ManifestEditor.TagRepository(ws.Root, "oss", ["dotnet", "public"], remove: true)));
 
 		var already = ManifestEditor.TagRepository(ws.Root, "oss", ["public"]);
 		Assert.False(already.Changed);
@@ -170,10 +170,10 @@ public sealed class ManifestEditorTest
 	{
 		using var ws = new Workspace();
 		Assert.Contains("    url: https://example.org/oss2.git  # the public one\n", After(ManifestEditor.SetRepository(ws.Root, "oss", "url", ["https://example.org/oss2.git"])));
-		Assert.Contains("    path: plus/repo\n    mount: mandatory\n    depends-on: [oss]\n",
-			After(ManifestEditor.SetRepository(ws.Root, "plus", "mount", ["mandatory"])));
-		Assert.Contains("    mount: mandatory\n    inherits: false\n    tags: [dotnet, public]\n", After(ManifestEditor.SetRepository(ws.Root, "oss", "inherits", ["false"])));
-		Assert.Contains("    mount: mandatory\n    depends-on: [plus]\n    tags: [dotnet, public]\n", After(ManifestEditor.SetRepository(ws.Root, "oss", "depends-on", ["plus"])));
+		Assert.Contains("    path: plus/repo\n    required: true\n    depends-on: [oss]\n",
+			After(ManifestEditor.SetRepository(ws.Root, "plus", "required", ["true"])));
+		Assert.Contains("    required: true\n    inherits: false\n    tags: [dotnet, public]\n", After(ManifestEditor.SetRepository(ws.Root, "oss", "inherits", ["false"])));
+		Assert.Contains("    required: true\n    depends-on: [plus]\n    tags: [dotnet, public]\n", After(ManifestEditor.SetRepository(ws.Root, "oss", "depends-on", ["plus"])));
 		Assert.DoesNotContain("depends-on", After(ManifestEditor.SetRepository(ws.Root, "plus", "depends-on", [])));
 
 		// a list, item by item: it keeps its style
@@ -187,9 +187,9 @@ public sealed class ManifestEditorTest
 	{
 		using var ws = new Workspace();
 		Assert.Equal(ManifestEditor.UnknownKey, Assert.Single(ManifestEditor.SetRepository(ws.Root, "oss", "name", ["x"]).Diagnostics).Code);
-		Assert.Equal(ManifestEditor.InvalidValue, Assert.Single(ManifestEditor.SetRepository(ws.Root, "oss", "mount", ["always"]).Diagnostics).Code);
+		Assert.Equal(ManifestEditor.InvalidValue, Assert.Single(ManifestEditor.SetRepository(ws.Root, "oss", "mode", ["always"]).Diagnostics).Code);
 		Assert.Equal(ManifestEditor.InvalidValue, Assert.Single(ManifestEditor.SetRepository(ws.Root, "oss", "url", ["a", "b"]).Diagnostics).Code);
-		Assert.Contains(ManifestEditor.SetRepository(ws.Root, "plus", "depends-on", ["nope"]).Diagnostics, d => d.Code == WorkspaceManifest.InvalidManifest);
+		Assert.Contains(ManifestEditor.SetRepository(ws.Root, "plus", "depends-on", ["nope"]).Diagnostics, d => d.Code == MountsManifest.InvalidManifest);
 		Directory.CreateDirectory(Path.Combine(ws.Root, "oss", "repo"));
 		var moved = ManifestEditor.SetRepository(ws.Root, "oss", "path", ["public/repo"]);
 		Assert.Contains("    path: public/repo\n", After(moved));
@@ -212,7 +212,7 @@ public sealed class ManifestEditorTest
 		Assert.False(ManifestEditor.AddPath(ws.Root, "oss/repo/docs/").Ok);
 		Assert.False(Directory.Exists(Path.Combine(ws.Root, "_temp")));
 
-		using var none = new Workspace("schema: 1.0.0\nrepositories: []\n", space: null);
+		using var none = new Workspace("schema: 1.0.0\nmounts: []\n", space: null);
 		Assert.Equal("schema: 1.0.0\npaths:\n  - path: README.md\n", After(ManifestEditor.AddPath(none.Root, "README.md")));
 	}
 
@@ -238,10 +238,10 @@ public sealed class ManifestEditorTest
 	public void Replace()
 	{
 		using var ws = new Workspace();
-		var ok = ManifestEditor.Replace(ws.Root, WorkspaceManifest.RelativePath, ws.Text.Replace("tags: [dotnet, public]", "tags: [dotnet]"));
+		var ok = ManifestEditor.Replace(ws.Root, MountsManifest.RelativePath, ws.Text.Replace("tags: [dotnet, public]", "tags: [dotnet]"));
 		Assert.Equal("tags: [dotnet]", After(ok).Split('\n').Select(l => l.Trim()).Single(l => l.StartsWith("tags:")));
 		// the manifest, strict: a repository without its path
-		Assert.False(ManifestEditor.Replace(ws.Root, WorkspaceManifest.RelativePath, "schema: 1.0.0\nrepositories:\n  - name: x\n").Ok);
+		Assert.False(ManifestEditor.Replace(ws.Root, MountsManifest.RelativePath, "schema: 1.0.0\nmounts:\n  - name: x\n").Ok);
 		var notYaml = ManifestEditor.Replace(ws.Root, "_fx/dotnet/dotnet.yaml", "schema: 1.0.0\nvariables: [\n");
 		Assert.Equal((ManifestEditor.InvalidYaml, false), (notYaml.Diagnostics.Single().Code, notYaml.Ok));
 		Assert.NotNull(notYaml.Diagnostics.Single().Line);
@@ -283,7 +283,7 @@ public sealed class ManifestEditorTest
 		using var ws = new Workspace();
 		var dry = Fx(ws.Root, "repo", "add", "https://example.org/lab.git", "lab", "--dry-run");
 		Assert.Equal(0, dry.ExitCode);
-		Assert.Contains("_fx/workspace/workspace.yaml", dry.Out);
+		Assert.Contains("_fx/mounts/mounts.yaml", dry.Out);
 		Assert.Contains("+  - name: lab", dry.Out);
 		Assert.Contains("Dry run", dry.Out);
 		Assert.DoesNotContain("lab", ws.Text);
@@ -324,7 +324,7 @@ public sealed class ManifestEditorTest
 	[InlineData("repo remove")]
 	[InlineData("repo tag oss")]
 	[InlineData("repo set oss")]
-	[InlineData("repo set oss mount")]
+	[InlineData("repo set oss mode")]
 	[InlineData("module enable")]
 	[InlineData("path add")]
 	[InlineData("path remove")]

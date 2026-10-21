@@ -5,7 +5,7 @@ using System.Linq;
 using Fuxion.Tool.Core.Layout;
 using Fuxion.Tool.Core.Results;
 
-namespace Fuxion.Tool.Core.Workspace;
+namespace Fuxion.Tool.Core.Mounts;
 
 /// <summary>A mounted declaration of a repository in a tree: its full name, where it goes, how high and who declares it.</summary>
 public sealed record RepositoryCopy(string FullName, string FullPath, int Height, string Workspace, int Line);
@@ -17,9 +17,9 @@ public sealed record RepositoryCopy(string FullName, string FullPath, int Height
 /// top, at the same height, are an error: fx cannot tell which one to use, and parks none of them. Read-only: it reads
 /// manifests and the local state, and looks at what is on disk.
 /// </summary>
-public sealed class WorkspaceCopies
+public sealed class MountCopies
 {
-	public const string SameHeight = "workspace.same-height";
+	public const string SameHeight = "mounts.same-height";
 
 	/// <summary>More workspaces than this, one inside another, are not walked (a loop of junctions, say).</summary>
 	const int MaxHeight = 32;
@@ -31,7 +31,7 @@ public sealed class WorkspaceCopies
 	readonly HashSet<string> _reached = new(StringComparer.OrdinalIgnoreCase);
 	readonly List<IReadOnlyList<RepositoryCopy>> _ties = [];
 
-	public static WorkspaceCopies None { get; } = new();
+	public static MountCopies None { get; } = new();
 
 	/// <summary>
 	/// The copy used instead of the declaration at <paramref name="fullPath"/>: a mounted one higher in the tree. For a
@@ -51,7 +51,7 @@ public sealed class WorkspaceCopies
 		string? top = null;
 		for (var dir = new DirectoryInfo(Path.GetFullPath(directory)); dir is not null; dir = dir.Parent)
 		{
-			if (WorkspaceManifest.IsWorkspace(dir.FullName))
+			if (MountsManifest.HasMounts(dir.FullName))
 				top = FxLayout.Normalize(dir.FullName);
 			if (FxFiles.Exists(Path.Combine(dir.FullName, FxLayout.WorktreeFile)))
 				break;
@@ -64,13 +64,13 @@ public sealed class WorkspaceCopies
 	/// reach it (nobody declares it on the way down), from the nearest workspace around it. It sees what is on disk now:
 	/// a workspace surveys when it mounts, once what is above it is mounted.
 	/// </summary>
-	public static WorkspaceCopies Survey(string directory)
+	public static MountCopies Survey(string directory)
 	{
 		var start = FxLayout.Normalize(directory);
 		if (Top(start) is not { } top)
 			return None;
 		var copies = Walk(top);
-		if (!copies._reached.Contains(start) && WorkspaceManifest.FindRoot(start) is { } nearest && !FxLayout.SameFolder(nearest, top))
+		if (!copies._reached.Contains(start) && MountsManifest.FindRoot(start) is { } nearest && !FxLayout.SameFolder(nearest, top))
 			copies = Walk(nearest);
 		return copies;
 	}
@@ -88,32 +88,32 @@ public sealed class WorkspaceCopies
 		});
 
 	/// <summary>Level by level from <paramref name="top"/>: what a higher level mounts supersedes what a lower one does.</summary>
-	static WorkspaceCopies Walk(string top)
+	static MountCopies Walk(string top)
 	{
-		var copies = new WorkspaceCopies();
+		var copies = new MountCopies();
 		copies._reached.Add(top);
 		var level = new List<(string Root, string FullName)> { (top, new FxNode(top).SelfIdentity().FullName) };
 		for (var height = 1; level.Count > 0 && height <= MaxHeight; height++)
 		{
-			var found = new List<(RepositoryCopy Copy, WorkspaceRepository Repository, bool Present)>();
+			var found = new List<(RepositoryCopy Copy, Mount Repository, bool Present)>();
 			foreach (var (root, fullName) in level)
 			{
-				WorkspaceManifest manifest;
+				MountsManifest manifest;
 				try
 				{
-					manifest = WorkspaceManifest.Load(root);
+					manifest = MountsManifest.Load(root);
 				}
-				catch (WorkspaceManifestException)
+				catch (MountsManifestException)
 				{
 					continue; // its sync reports it
 				}
-				var state = WorkspaceState.Load(root);
-				foreach (var repository in manifest.Repositories)
+				var state = MountsState.Load(root);
+				foreach (var repository in manifest.Mounts)
 				{
 					var path = manifest.FullPath(repository);
 					var present = FxLayout.IsGitRoot(path);
 					// the same repository is the same url; one without url is only itself
-					copies._declared[path] = (repository.Url is { } url ? WorkspaceModule.NormalizeUrl(url) : path, height);
+					copies._declared[path] = (repository.Url is { } url ? MountsModule.NormalizeUrl(url) : path, height);
 					if (state.IsMounted(repository, present))
 						found.Add((new($"{fullName}/{repository.Name}", path, height, root, repository.Line), repository, present));
 				}
@@ -130,7 +130,7 @@ public sealed class WorkspaceCopies
 				{
 					copies._reached.Add(copy.FullPath);
 					// a guest is used, not walked: what it mounts is its own tree's
-					if (present && repository.Inherits && WorkspaceManifest.IsWorkspace(copy.FullPath))
+					if (present && repository.Inherits && MountsManifest.HasMounts(copy.FullPath))
 						next.Add((copy.FullPath, copy.FullName));
 				}
 			}

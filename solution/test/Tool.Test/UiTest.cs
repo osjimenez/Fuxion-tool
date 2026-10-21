@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 using Fuxion.Tool.Cli;
 using Fuxion.Tool.Cli.Ui;
 using Fuxion.Tool.Core.Explore;
+using Fuxion.Tool.Core.Mounts;
 using Fuxion.Tool.Core.Results;
-using Fuxion.Tool.Core.Workspace;
 using Fuxion.Tool.Core.Worktree;
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.Backends;
@@ -49,8 +49,8 @@ public sealed class UiTest : UiTree
 
 		// F2: the list of problems; Enter on one goes to its node
 		h.Key(TerminalKey.F2);
-		h.Shows("workspace.dirty");
-		var index = h.OnUi(() => h.Ui.Problems.Items.ToList().FindIndex(p => p.Diagnostic.Code == WorkspaceModule.Dirty));
+		h.Shows("mounts.dirty");
+		var index = h.OnUi(() => h.Ui.Problems.Items.ToList().FindIndex(p => p.Diagnostic.Code == MountsModule.Dirty));
 		Assert.True(index >= 0);
 		h.OnUi(() =>
 		{
@@ -78,7 +78,7 @@ public sealed class UiTest : UiTree
 		var ghost = Show("repo-w2/libs/shared", "/acme/shared");
 		Assert.Contains("/acme/shared", ghost);
 		Assert.DoesNotContain("fx sync", ghost);
-		Assert.Contains("fx module enable workspace", Show("repo-w1/repo-c1/_fx/workspace", "fx module enable workspace"));
+		Assert.Contains("fx module enable mounts", Show("repo-w1/repo-c1/_fx/mounts", "fx module enable mounts"));
 		Assert.Contains("fx sync", Show("Acme.slnx", "<Solution>"));
 		// the content, a line each
 		var solution = h.LineOf("<Solution>");
@@ -96,7 +96,7 @@ public sealed class UiTest : UiTree
 	{
 		var acme = AcmeCommitted();
 		using var h = Open(acme.Path);
-		var state = h.Node(acme.Path, "_fx/workspace/~$state.yaml");
+		var state = h.Node(acme.Path, "_fx/mounts/~$state.yaml");
 		Assert.False(h.OnUi(() => h.Ui.Select(state)));
 		h.Key(TerminalKey.F3);
 		h.Until(() => h.Ui.Select(state), "F3 shows the local files");
@@ -173,7 +173,7 @@ public sealed class UiTest : UiTree
 		h.Key(TerminalKey.Enter);
 		h.Until(() => h.Ui.Log.Count == 1 && !h.Ui.Busy, "worktree mount");
 		Assert.True(h.OnUi(() => h.Ui.Log[0].Outcome!.Ok));
-		h.Until(() => h.Find(root, "repo-w1")?.Kind == FxTreeKind.Workspace, "the tree, read again: repo-w1 mounted");
+		h.Until(() => h.Find(root, "repo-w1")?.Kind == FxTreeKind.Space, "the tree, read again: repo-w1 mounted");
 		h.Key(TerminalKey.Left, TerminalModifiers.Alt);
 		h.Until(() => Tree(acme.Path) && !h.Screen().Contains("worktree fix/t"), "Alt+← goes back to the main tree");
 

@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Fuxion.Tool.Core.Layout;
+using Fuxion.Tool.Core.Mounts;
 using Fuxion.Tool.Core.Results;
-using Fuxion.Tool.Core.Workspace;
 using Fuxion.Tool.Core.Worktree;
 
 namespace Fuxion.Tool.Core.Explore;
@@ -12,8 +12,8 @@ namespace Fuxion.Tool.Core.Explore;
 /// <summary>What a node of the tree of <c>fx ui</c> is (plan O, decision 14).</summary>
 public enum FxTreeKind
 {
-	/// <summary>A workspace on disk: the root, or one mounted.</summary>
-	Workspace,
+	/// <summary>A space on disk that mounts others: the root, or one mounted.</summary>
+	Space,
 
 	/// <summary>A repository mounted, at its place.</summary>
 	Repository,
@@ -80,7 +80,7 @@ public sealed class FxTreeNode
 	public FxIdentity? Identity { get; init; }
 
 	/// <summary>Of a repository: its declaration in the workspace that mounts it.</summary>
-	public WorkspaceRepository? Declaration { get; init; }
+	public Mount? Declaration { get; init; }
 
 	/// <summary>Of a repository: whether it is mounted (the intent of the developer, or mandatory).</summary>
 	public bool Mounted { get; init; }

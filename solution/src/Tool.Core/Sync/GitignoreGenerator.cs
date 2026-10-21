@@ -4,8 +4,9 @@ using System.Linq;
 using System.Text;
 using Fuxion.Tool.Core.Harness;
 using Fuxion.Tool.Core.Layout;
+using Fuxion.Tool.Core.Mounts;
 
-namespace Fuxion.Tool.Core.Workspace;
+namespace Fuxion.Tool.Core.Sync;
 
 /// <summary>
 /// The <c>.gitignore</c> of a space (plan P, decision 7): a whitelist. Nothing is versioned, at any depth, except
@@ -20,7 +21,7 @@ public static class GitignoreGenerator
 
 	/// <param name="versioned">What the modules generate and version, relative to the workspace (<c>Acme.slnx</c>).</param>
 	/// <param name="shared">The shares it receives from above, relative to it (<c>res/icon.png</c>).</param>
-	public static string Generate(SpaceConfig space, WorkspaceManifest manifest, IEnumerable<string> versioned, IEnumerable<string>? shared = null)
+	public static string Generate(SpaceConfig space, MountsManifest manifest, IEnumerable<string> versioned, IEnumerable<string>? shared = null)
 	{
 		var b = new StringBuilder(FxHeader.Hash(FxLayout.ConfigFile + " and the modules of _fx"));
 		b.Append('\n');
@@ -105,7 +106,7 @@ public static class GitignoreGenerator
 				b.Append($"/{path.Path}\n");
 		}
 
-		var inside = manifest.Repositories.Where(r => space.Versions(r.Path + "/")).ToList();
+		var inside = manifest.Mounts.Where(r => space.Versions(r.Path + "/")).ToList();
 		if (inside.Count > 0)
 		{
 			b.Append('\n');

@@ -161,9 +161,9 @@ public sealed partial record SpaceConfig(
 			yield return Error(duplicate.Last().Line, "duplicate-path-entry", duplicate.Key);
 		foreach (var share in Shares ?? [])
 		{
-			if (!Workspace.WorkspaceShares.SafeSource(share.Path))
+			if (!Sync.SpaceShares.SafeSource(share.Path))
 				yield return Error(share.Line, "share-path", share.Path);
-			if (!Workspace.WorkspaceShares.SafeDestination(share.Destination))
+			if (!Sync.SpaceShares.SafeDestination(share.Destination))
 				yield return Error(share.Line, "share-destination", share.Path, share.Destination);
 		}
 		foreach (var duplicate in (Shares ?? []).GroupBy(s => s.Destination, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1))

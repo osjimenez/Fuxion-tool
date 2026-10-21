@@ -6,9 +6,9 @@ using System.Text.Json;
 using Fuxion.Tool.Cli;
 using Fuxion.Tool.Core.Git;
 using Fuxion.Tool.Core.Layout;
+using Fuxion.Tool.Core.Mounts;
 using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Sync;
-using Fuxion.Tool.Core.Workspace;
 using Xunit;
 
 namespace Fuxion.Tool.Test;
@@ -24,7 +24,7 @@ public sealed class NestedTest : SampleTree
 			Assert.True(FxLayout.IsGitRoot(Path.Combine(acme.Path, path)), path);
 
 		var c1 = FxInherited.Load(Path.Combine(acme.Path, "repo-w1", "repo-c1"))!;
-		Assert.Equal("/acme/repo-w1/repo-c1", c1.Repository.FullName);
+		Assert.Equal("/acme/repo-w1/repo-c1", c1.Space.FullName);
 		Assert.Equal("/acme/repo-w1", c1.Parent.FullName);
 		Assert.Equal(Url(_w1Origin), c1.Parent.Url);
 		Assert.Contains(c1.Files, f => f.Path == "dotnet/dotnet.yaml" && f.From.SequenceEqual(["/acme", "/acme/repo-w1"]));
@@ -36,7 +36,7 @@ public sealed class NestedTest : SampleTree
 		Assert.Contains("Update=\"Serilog\"", Read(acme.Path, "repo-w1/repo-c1/_fx/dotnet/dotnet.g.targets"));
 		Assert.Contains("Update=\"xunit.v3\"", Read(acme.Path, "repo-w1/repo-c1/_fx/dotnet/dotnet.g.targets"));
 		Assert.Contains("<CoreFrameworks>net10.0;net11.0</CoreFrameworks>", Read(acme.Path, "repo-w1/repo-c2/_fx/dotnet/dotnet.g.props"));
-		Assert.Equal("/acme/shared", FxInherited.Load(Path.Combine(acme.Path, "libs", "shared"))!.Repository.FullName);
+		Assert.Equal("/acme/shared", FxInherited.Load(Path.Combine(acme.Path, "libs", "shared"))!.Space.FullName);
 
 		// the solutions from the bottom up; the map of the highest workspace
 		Assert.Contains("<Project Path=\"repo-c1/src/App/C1.App.csproj\" />", Read(acme.Path, "repo-w1/W1.slnx"));
@@ -50,7 +50,7 @@ public sealed class NestedTest : SampleTree
 		// libs/ is versioned and shared, inside it, is not; mobile is in repo-w1's catalog
 		Assert.True(acme.Git("check-ignore", "libs/shared/").Length > 0);
 		var doctor = SyncEngine.Doctor(acme.Path, new(Offline: true), cancellationToken: TestContext.Current.CancellationToken).SelectMany(r => r.Diagnostics).ToList();
-		Assert.DoesNotContain(doctor, d => d.Code is WorkspaceModule.UnknownTag or WorkspaceModule.Outdated or "dotnet.outdated");
+		Assert.DoesNotContain(doctor, d => d.Code is MountsModule.UnknownTag or MountsModule.Outdated or "dotnet.outdated");
 	}
 
 	[Fact(DisplayName = "--only: this level alone; what is below stays until a sync without it")]
@@ -86,7 +86,7 @@ public sealed class NestedTest : SampleTree
 			Assert.Contains(Project(loose.Path, "libs", "shared", "Shared.csproj"), Read(loose.Path, "_fx/dotnet/~$workspace.props"));
 			Assert.False(Directory.Exists(Path.Combine(loose.Path, "libs", "shared", "_fx")));
 			// c3 is its own: it inherits through repo-w2
-			Assert.Equal("/acme/repo-w2/c3", FxInherited.Load(Path.Combine(loose.Path, "apps", "c3"))!.Repository.FullName);
+			Assert.Equal("/acme/repo-w2/c3", FxInherited.Load(Path.Combine(loose.Path, "apps", "c3"))!.Space.FullName);
 			return 0;
 		});
 	}
@@ -110,16 +110,16 @@ public sealed class NestedTest : SampleTree
 		// a clone of it put there by hand: the doctor says it is not used, and sync parks it
 		Clone(_sharedOrigin, Path.Combine(w2, "libs", "shared"));
 		var notParked = Assert.Single(SyncEngine.Doctor(acme.Path, new(Offline: true), cancellationToken: TestContext.Current.CancellationToken).SelectMany(r => r.Diagnostics),
-			d => d.Code == WorkspaceModule.NotParked);
+			d => d.Code == MountsModule.NotParked);
 		Assert.Equal("'shared' at libs/shared is not used: the copy of /acme/shared is higher. fx sync parks this one.", notParked.Message.English);
 		Assert.Contains(Sync(acme.Path).SelectMany(r => r.Actions), a => a is { Repository: "shared", Action: "parked" });
 		Assert.True(FxLayout.IsGitRoot(Path.Combine(w2, "_fx", "~$parking", "libs", "shared")));
 		Assert.Contains(Project(acme.Path, "libs", "shared", "Shared.csproj"), map());
 
 		// acme stops mounting its copy: repo-w2's is the highest now, and comes back, still a guest
-		var manifest = Path.Combine(acme.Path, "_fx", "workspace", "workspace.yaml");
-		File.WriteAllText(manifest, Read(acme.Path, "_fx/workspace/workspace.yaml").Replace("    path: libs/shared\n    mount: mandatory\n", "    path: libs/shared\n    mount: manual\n"));
-		Assert.Empty(WorkspaceModule.SetMount(WorkspaceManifest.Load(acme.Path), ["shared"], mounted: false).Diagnostics);
+		var manifest = Path.Combine(acme.Path, "_fx", "mounts", "mounts.yaml");
+		File.WriteAllText(manifest, Read(acme.Path, "_fx/mounts/mounts.yaml").Replace("    path: libs/shared\n    required: true\n", "    path: libs/shared\n"));
+		Assert.Empty(MountsModule.SetMount(MountsManifest.Load(acme.Path), ["shared"], mounted: false).Diagnostics);
 		var back = Sync(acme.Path);
 		Assert.Empty(Errors(back));
 		Assert.Contains(back.SelectMany(r => r.Actions), a => a is { Repository: "shared", Action: "unparked" });
@@ -128,14 +128,14 @@ public sealed class NestedTest : SampleTree
 		Assert.False(Directory.Exists(Path.Combine(w2, "libs", "shared", "_fx")));
 
 		// repo-w1 mounts it as a guest too: two copies at the same height, an error, and nothing moves
-		var w1Manifest = Path.Combine(acme.Path, "repo-w1", "_fx", "workspace", "workspace.yaml");
-		File.WriteAllText(w1Manifest, Read(acme.Path, "repo-w1/_fx/workspace/workspace.yaml").TrimEnd('\n')
-			+ $"\n  - name: shared\n    url: {Url(_sharedOrigin)}\n    path: libs/shared\n    mount: mandatory\n    inherits: false\n    tags: [dotnet]\n");
+		var w1Manifest = Path.Combine(acme.Path, "repo-w1", "_fx", "mounts", "mounts.yaml");
+		File.WriteAllText(w1Manifest, Read(acme.Path, "repo-w1/_fx/mounts/mounts.yaml").TrimEnd('\n')
+			+ $"\n  - name: shared\n    url: {Url(_sharedOrigin)}\n    path: libs/shared\n    required: true\n    inherits: false\n    tags: [dotnet]\n");
 		var tie = Assert.Single(Errors(Sync(acme.Path)));
-		Assert.Equal(WorkspaceCopies.SameHeight, tie.Code);
+		Assert.Equal(MountCopies.SameHeight, tie.Code);
 		Assert.Equal("'shared' is mounted twice at the same height, as /acme/repo-w1/shared and /acme/repo-w2/shared: fx cannot tell which copy to use, and parks neither.",
 			tie.Message.English);
-		Assert.Equal("repo-w1/_fx/workspace/workspace.yaml", tie.File);
+		Assert.Equal("repo-w1/_fx/mounts/mounts.yaml", tie.File);
 		Assert.True(FxLayout.IsGitRoot(Path.Combine(w2, "libs", "shared")));
 		Assert.True(FxLayout.IsGitRoot(Path.Combine(acme.Path, "repo-w1", "libs", "shared")));
 	}

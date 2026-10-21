@@ -9,9 +9,9 @@ using Fuxion.Tool.Cli.Sync;
 using Fuxion.Tool.Core.Explore;
 using Fuxion.Tool.Core.Git;
 using Fuxion.Tool.Core.Layout;
+using Fuxion.Tool.Core.Mounts;
 using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Sync;
-using Fuxion.Tool.Core.Workspace;
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Controls;
@@ -39,7 +39,7 @@ public sealed partial class UiApp
 	static FxTreeNode? ParentWorkspace(FxTreeNode node)
 	{
 		for (var at = node.Parent; at is not null; at = at.Parent)
-			if (at.Kind == FxTreeKind.Workspace)
+			if (at.Kind == FxTreeKind.Space)
 				return at;
 		return null;
 	}
@@ -81,7 +81,7 @@ public sealed partial class UiApp
 			else
 				yield return Staging(Texts.Get("ui.edit.disable"), new($"fx module disable {module}{root}", () => [ManifestEditor.DisableModule(owned.Path, module)]));
 		}
-		if (node.Kind == FxTreeKind.Workspace)
+		if (node.Kind == FxTreeKind.Space)
 		{
 			var root = UiAction.RootOption(_start, node.Path);
 			yield return Opening(Texts.Get("ui.edit.path-add"), $"fx path add <path>{root}", () => ShowForm(PathForm(node)));
@@ -195,22 +195,22 @@ public sealed partial class UiApp
 	});
 
 	/// <summary>A declaration as the pending changes leave it (by its name, or by an old one if it is being renamed).</summary>
-	WorkspaceRepository AsPending(FxTreeNode owner, WorkspaceRepository declaration)
+	Mount AsPending(FxTreeNode owner, Mount declaration)
 	{
 		try
 		{
 			using (Pending.Overlay())
-				return WorkspaceManifest.Read(owner.Path, FxFiles.ReadAllText(ManifestEditor.ManifestPath(owner.Path))).Repositories
+				return MountsManifest.Read(owner.Path, FxFiles.ReadAllText(ManifestEditor.ManifestPath(owner.Path))).Mounts
 					.FirstOrDefault(r => r.Name == declaration.Name || (r.Aliases ?? []).Contains(declaration.Name)) ?? declaration;
 		}
-		catch (Exception ex) when (ex is IOException or WorkspaceManifestException)
+		catch (Exception ex) when (ex is IOException or MountsManifestException)
 		{
 			return declaration;
 		}
 	}
 
 	/// <summary>The declaration of a repository: what its workspace says of it (14.7, 14.9).</summary>
-	UiForm RepositoryForm(WorkspaceRepository declaration, FxTreeNode owner)
+	UiForm RepositoryForm(Mount declaration, FxTreeNode owner)
 	{
 		var name = declaration.Name;
 		var root = UiAction.RootOption(_start, owner.Path);
@@ -220,7 +220,7 @@ public sealed partial class UiApp
 			new("path", Texts.Get("ui.field.path"), declaration.Path),
 			new("tags", Texts.Get("ui.field.tags"), string.Join(", ", declaration.Tags)),
 			new("depends-on", Texts.Get("ui.field.depends-on"), string.Join(", ", declaration.DependsOn ?? [])),
-			new("mandatory", Texts.Get("ui.field.mandatory"), check: declaration.Mount == MountPolicy.Mandatory),
+			new("mandatory", Texts.Get("ui.field.mandatory"), check: declaration.Required),
 			new("inherits", Texts.Get("ui.field.inherits"), check: declaration.Inherits)
 		], form =>
 		{
@@ -239,8 +239,8 @@ public sealed partial class UiApp
 				Set("url", url.Length == 0 ? [] : [url]);
 			if (form["path"].Value.Trim() is var path && path != declaration.Path)
 				Set("path", [path]);
-			if (form["mandatory"].Check.Value != (declaration.Mount == MountPolicy.Mandatory))
-				Set("mount", [form["mandatory"].Check.Value ? "mandatory" : "manual"]);
+			if (form["mandatory"].Check.Value != (declaration.Required))
+				Set("required", form["mandatory"].Check.Value ? ["true"] : []);
 			if (form["inherits"].Check.Value != declaration.Inherits)
 				Set("inherits", [form["inherits"].Check.Value ? "true" : "false"]);
 			if (!form["depends-on"].Words.SequenceEqual(declaration.DependsOn ?? []))

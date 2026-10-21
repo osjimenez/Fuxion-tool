@@ -50,7 +50,7 @@
 
 		<!-- The workspace: the highest one on disk, from the repository itself up (a workspace with projects of its own is
 		     its own), up to five levels; the root of a worktree stops it: for the code, a worktree is a closed tree -->
-		<_FxWorkspaceFile>_fx/workspace/workspace.yaml</_FxWorkspaceFile>
+		<_FxWorkspaceFile>_fx/mounts/mounts.yaml</_FxWorkspaceFile>
 		<_FxW1 Condition="'$(FxWorkspaceRoot)' == '' And '$(FxRepositoryRoot)' != ''">$([MSBuild]::GetDirectoryNameOfFileAbove('$(FxRepositoryRoot)', '$(_FxWorkspaceFile)'))</_FxW1>
 		<_FxStop Condition="'$(_FxW1)' != '' And Exists('$(_FxW1)/~$worktree.yaml')">true</_FxStop>
 		<_FxW2 Condition="'$(_FxW1)' != '' And '$(_FxStop)' != 'true'">$([MSBuild]::GetDirectoryNameOfFileAbove($([MSBuild]::NormalizeDirectory('$(_FxW1)', '..')), '$(_FxWorkspaceFile)'))</_FxW2>

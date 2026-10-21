@@ -91,9 +91,9 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 	string Workspace(params (string Name, string Path)[] repositories)
 	{
 		var workspace = Directory.CreateDirectory(Path.Combine(fixture.Root, "ws-" + Guid.NewGuid().ToString("N")[..8])).FullName;
-		Directory.CreateDirectory(Path.Combine(workspace, "_fx", "workspace"));
+		Directory.CreateDirectory(Path.Combine(workspace, "_fx", "mounts"));
 		File.WriteAllText(Path.Combine(workspace, "_fx", "space.yaml"), "schema: 1.0.0\nname: ws\n");
-		File.WriteAllText(Path.Combine(workspace, "_fx", "workspace", "workspace.yaml"), "schema: 1.0.0\nrepositories:\n"
+		File.WriteAllText(Path.Combine(workspace, "_fx", "mounts", "mounts.yaml"), "schema: 1.0.0\nmounts:\n"
 			+ string.Concat(repositories.Select(r => $"  - name: {r.Name}\n    path: {r.Path}\n    url: https://example.invalid/{r.Name}.git\n")));
 		return workspace;
 	}
@@ -193,16 +193,16 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 	{
 		var top = Workspace(("w1", "w1"));
 		var w1 = Path.Combine(top, "w1");
-		Directory.CreateDirectory(Path.Combine(w1, "_fx", "workspace"));
-		File.WriteAllText(Path.Combine(w1, "_fx", "workspace", "workspace.yaml"), "schema: 1.0.0\nrepositories:\n  - name: lib\n    path: lib\n    url: x\n");
+		Directory.CreateDirectory(Path.Combine(w1, "_fx", "mounts"));
+		File.WriteAllText(Path.Combine(w1, "_fx", "mounts", "mounts.yaml"), "schema: 1.0.0\nmounts:\n  - name: lib\n    path: lib\n    url: x\n");
 		using var nested = Sample(path: Path.Combine(w1, "lib"), publish: false);
 		Assert.Equal(top.TrimEnd('\\', '/'), Properties(nested, "FxWorkspaceRoot").GetProperty("FxWorkspaceRoot").GetString()!.TrimEnd('\\', '/'));
 
 		// a worktree of w1, inside it: for the code, a closed tree
 		var worktree = Path.Combine(w1, "_fx", "~$worktrees", "feature-x");
-		Directory.CreateDirectory(Path.Combine(worktree, "_fx", "workspace"));
+		Directory.CreateDirectory(Path.Combine(worktree, "_fx", "mounts"));
 		File.WriteAllText(Path.Combine(worktree, "~$worktree.yaml"), "schema: 1.0.0\nbranch: feature/x\n");
-		File.WriteAllText(Path.Combine(worktree, "_fx", "workspace", "workspace.yaml"), "schema: 1.0.0\nrepositories:\n  - name: lib\n    path: lib\n    url: x\n");
+		File.WriteAllText(Path.Combine(worktree, "_fx", "mounts", "mounts.yaml"), "schema: 1.0.0\nmounts:\n  - name: lib\n    path: lib\n    url: x\n");
 		using var inWorktree = Sample(path: Path.Combine(worktree, "lib"), publish: false);
 		Assert.Equal(worktree.TrimEnd('\\', '/'), Properties(inWorktree, "FxWorkspaceRoot").GetProperty("FxWorkspaceRoot").GetString()!.TrimEnd('\\', '/'));
 	}
@@ -518,17 +518,17 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		using var workspace = new TempGitRepository(path: Path.Combine(fixture.Root, "ws-" + Guid.NewGuid().ToString("N")[..8]));
 		workspace.WriteFile(Path.Combine("_fx", "space.yaml"), "schema: 1.0.0\nname: ws\n");
 		workspace.WriteFile(Path.Combine("_fx", "dotnet", "dotnet.yaml"), "schema: 1.0.0\n");
-		workspace.WriteFile(Path.Combine("_fx", "workspace", "workspace.yaml"), """
+		workspace.WriteFile(Path.Combine("_fx", "mounts", "mounts.yaml"), """
 			schema: 1.0.0
-			repositories:
+			mounts:
 			  - name: lib
 			    path: lib/repo
 			    url: https://example.invalid/lib.git
-			    mount: mandatory
+			    required: true
 			  - name: app
 			    path: app/repo
 			    url: https://example.invalid/app.git
-			    mount: mandatory
+			    required: true
 			""");
 		using var lib = Sample(path: Path.Combine(workspace.Path, "lib", "repo"));
 		lib.WriteFile("Lib.slnx", """<Solution><Project Path="solution/src/Lib/Lib.csproj" /></Solution>""");

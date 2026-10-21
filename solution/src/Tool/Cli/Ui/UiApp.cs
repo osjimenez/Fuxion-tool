@@ -13,9 +13,9 @@ using Fuxion.Tool.Core.Explore;
 using Fuxion.Tool.Core.Git;
 using Fuxion.Tool.Core.Harness;
 using Fuxion.Tool.Core.Layout;
+using Fuxion.Tool.Core.Mounts;
 using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Sync;
-using Fuxion.Tool.Core.Workspace;
 using Fuxion.Tool.Core.Worktree;
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
@@ -348,7 +348,7 @@ public sealed partial class UiApp
 	{
 		Stop();
 		_trees[Model.Path] = (Model, DoctorDone);
-		var top = WorkspaceCopies.Top(directory) ?? directory;
+		var top = MountCopies.Top(directory) ?? directory;
 		if (_trees.TryGetValue(top, out var opened))
 			(Model, DoctorDone) = opened;
 		else
@@ -631,7 +631,7 @@ public sealed partial class UiApp
 		_tasks.Add(Task.Run(() =>
 		{
 			var all = model.Descendants().Prepend(model).ToList();
-			var repositories = all.Where(n => n.Kind is FxTreeKind.Repository or FxTreeKind.Workspace).ToList();
+			var repositories = all.Where(n => n.Kind is FxTreeKind.Repository or FxTreeKind.Space).ToList();
 			Parallel.ForEach(repositories, new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = token }, repository =>
 			{
 				if (GitClient.Discover(repository.Path) is not { } git)
@@ -716,7 +716,7 @@ public sealed partial class UiApp
 
 	static char Icon(FxTreeNode node) => node.Kind switch
 	{
-		FxTreeKind.Workspace => '◎',
+		FxTreeKind.Space => '◎',
 		FxTreeKind.Repository => '▣',
 		FxTreeKind.Declared => '░',
 		FxTreeKind.Parked => '▤',
@@ -739,7 +739,7 @@ public sealed partial class UiApp
 		var name = Esc(node.Name);
 		return node.Kind switch
 		{
-			FxTreeKind.Workspace or FxTreeKind.Repository => $"[bold]{name}[/]",
+			FxTreeKind.Space or FxTreeKind.Repository => $"[bold]{name}[/]",
 			FxTreeKind.Unknown => $"[warning]{name}[/]",
 			FxTreeKind.Declared or FxTreeKind.Parked or FxTreeKind.ModuleOff => $"[muted]{name}[/]",
 			FxTreeKind.Module when !node.Enabled => $"[muted]{name}[/]",
@@ -773,7 +773,7 @@ public sealed partial class UiApp
 		var problems = node.Problems;
 		if (problems > 0)
 			parts.Add(node.Worst == FxSeverity.Error ? $"[error]✗{problems}[/]" : $"[warning]!{problems}[/]");
-		else if (DoctorDone && node.IsRepository && node.Kind is FxTreeKind.Repository or FxTreeKind.Workspace)
+		else if (DoctorDone && node.IsRepository && node.Kind is FxTreeKind.Repository or FxTreeKind.Space)
 			parts.Add("[success]✓[/]");
 		return string.Join(' ', parts);
 	}
@@ -783,7 +783,7 @@ public sealed partial class UiApp
 	Visual Panel(FxTreeNode? node) => node?.Kind switch
 	{
 		null => new TextBlock(Texts.Get("ui.select")),
-		FxTreeKind.Workspace => WorkspacePanel(node),
+		FxTreeKind.Space => WorkspacePanel(node),
 		FxTreeKind.Repository => RepositoryPanel(node),
 		FxTreeKind.Declared or FxTreeKind.Parked => AbsentPanel(node),
 		FxTreeKind.Unknown => UnknownPanel(node),
@@ -802,7 +802,7 @@ public sealed partial class UiApp
 	static FxTreeNode WorkspaceOf(FxTreeNode node)
 	{
 		for (var at = node.Parent; at is not null; at = at.Parent)
-			if (at.Kind == FxTreeKind.Workspace)
+			if (at.Kind == FxTreeKind.Space)
 				return at;
 		return node;
 	}
@@ -817,7 +817,7 @@ public sealed partial class UiApp
 		if (node.Declaration is { } declaration)
 		{
 			var tags = declaration.Tags.Count == 0 ? "—" : string.Join(", ", declaration.Tags);
-			lines.Add(Line($"{Esc(Texts.Get("ui.tags"))}: [accent]{Esc(tags)}[/]   {Esc(Texts.Get("ui.mount"))}: {Esc(Texts.Get(declaration.Mount == MountPolicy.Mandatory ? "ui.mount.mandatory" : "ui.mount.manual"))}"));
+			lines.Add(Line($"{Esc(Texts.Get("ui.tags"))}: [accent]{Esc(tags)}[/]   {Esc(Texts.Get("ui.mount"))}: {Esc(Texts.Get(declaration.Required ? "ui.mount.mandatory" : "ui.mount.manual"))}"));
 		}
 		if (node.Guest)
 			lines.Add(Line($"[muted]{Esc(Texts.Get("ui.guest"))}[/]"));
@@ -997,7 +997,7 @@ public sealed partial class UiApp
 			lines.Add(Equivalent($"fx module enable {node.Name}"));
 		// the .NET and the harness of a workspace: whom they reach (14.4, the other way)
 		var root = node.Parent?.Parent;
-		if (node.Name is DotnetModule.Name or HarnessModule.Name && root is { Kind: FxTreeKind.Workspace })
+		if (node.Name is DotnetModule.Name or HarnessModule.Name && root is { Kind: FxTreeKind.Space })
 		{
 			var table = new Table().Headers(new TextBlock(Texts.Get("ui.column.repository")), new TextBlock(Texts.Get("ui.column.reaches")), new TextBlock(Texts.Get("ui.column.why")));
 			foreach (var (repository, applies, reason) in FxTree.Reach(root, node.Name == HarnessModule.Name ? FxTree.HarnessAppliesTo(root) : FxTree.DotnetAppliesTo(root)))

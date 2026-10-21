@@ -9,8 +9,8 @@ using Fuxion.Tool.Core.Dotnet;
 using Fuxion.Tool.Core.Git;
 using Fuxion.Tool.Core.Harness;
 using Fuxion.Tool.Core.Layout;
+using Fuxion.Tool.Core.Mounts;
 using Fuxion.Tool.Core.Results;
-using Fuxion.Tool.Core.Workspace;
 
 namespace Fuxion.Tool.Core.Sync;
 
@@ -36,13 +36,13 @@ public static class SyncEngine
 	public static IReadOnlyList<FxModuleResult> Doctor(string directory, SyncOptions options, IFxProgress? progress = null, CancellationToken cancellationToken = default)
 		=> Run(directory, options with { DryRun = true }, doctor: true, progress, cancellationToken);
 
-	public const string TooDeep = "workspace.too-deep";
+	public const string TooDeep = "space.too-deep";
 
 	/// <summary>How many workspaces above a repository Fuxion.Tool.Sdk looks at (its <c>Sdk.props</c>).</summary>
 	const int MaxDepth = 5;
 
 	/// <summary>The parent of a root: on disk, or read from its remote (then, the branch read).</summary>
-	sealed record Parent(FxNode Node, FxIdentity Identity, WorkspaceRepository Declaration, string? Ref = null);
+	sealed record Parent(FxNode Node, FxIdentity Identity, Mount Declaration, string? Ref = null);
 
 	sealed class Run_(FxNode start, SyncContext context)
 	{
@@ -98,8 +98,8 @@ public static class SyncEngine
 
 		// The map of FxReference: only the highest workspace on disk makes it (decision 19), from all it has mounted; in a
 		// worktree, its root (a closed tree, decision 28)
-		if (!options.OnlyHere && start.IsWorkspace && start.HasModule(DotnetModule.Name) && context.Runs(DotnetModule.Name)
-		    && WorkspaceCopies.Top(start.Root) is { } top && FxLayout.SameFolder(top, start.Root))
+		if (!options.OnlyHere && start.HasMounts && start.HasModule(DotnetModule.Name) && context.Runs(DotnetModule.Name)
+		    && MountCopies.Top(start.Root) is { } top && FxLayout.SameFolder(top, start.Root))
 		{
 			var diagnostics = new FxDiagnostics(progress);
 			var outputs = new FxOutputs(start.Root, write, options.Adopt, diagnostics);
@@ -128,14 +128,14 @@ public static class SyncEngine
 			return onDisk;
 		if (RemoteParent.Read(url, options.ParentRef, options.Offline, progress, diagnostics, cancellationToken) is not { } remote)
 			return onDisk;
-		var file = remote.Node.Full(WorkspaceManifest.RelativePath);
-		var manifest = WorkspaceManifest.Read(remote.Node.Root, FxFiles.Exists(file) ? FxFiles.ReadAllText(file) : "");
+		var file = remote.Node.Full(MountsManifest.RelativePath);
+		var manifest = MountsManifest.Read(remote.Node.Root, FxFiles.Exists(file) ? FxFiles.ReadAllText(file) : "");
 		var origin = GitClient.Discover(start.Root)?.RemoteUrl("origin");
-		var declaration = manifest.Repositories.FirstOrDefault(r => origin is not null && WorkspaceModule.SameUrl(r.Url, origin))
-		                  ?? manifest.Repositories.FirstOrDefault(r => r.Name == inherited.Repository.Name || (r.Aliases ?? []).Contains(inherited.Repository.Name));
+		var declaration = manifest.Mounts.FirstOrDefault(r => origin is not null && MountsModule.SameUrl(r.Url, origin))
+		                  ?? manifest.Mounts.FirstOrDefault(r => r.Name == inherited.Space.Name || (r.Aliases ?? []).Contains(inherited.Space.Name));
 		if (declaration is null)
 		{
-			diagnostics.Add(FxDiagnostic.Warning(RemoteParent.NotDeclared, new(RemoteParent.NotDeclared, inherited.Parent.FullName, inherited.Repository.Name)));
+			diagnostics.Add(FxDiagnostic.Warning(RemoteParent.NotDeclared, new(RemoteParent.NotDeclared, inherited.Parent.FullName, inherited.Space.Name)));
 			return null;
 		}
 		return new(remote.Node, remote.Node.SelfIdentity(), declaration, remote.Branch);
@@ -193,7 +193,7 @@ public static class SyncEngine
 				.ToList();
 			identity = new(parent.Declaration.Name, fullName, parent.Declaration.Tags, aliases);
 		}
-		var label = isStart && node.IsWorkspace ? null : identity.Name;
+		var label = isStart && node.HasMounts ? null : identity.Name;
 		var diagnostics = first ?? new FxDiagnostics(context.Progress, label);
 		diagnostics.AddRange(found);
 		var outputs = new FxOutputs(context.DisplayRoot, context.Write, context.Adopt, diagnostics);
@@ -211,22 +211,22 @@ public static class SyncEngine
 			: node.Inherited()?.Shares.Select(s => s.Destination).ToList() ?? [];
 
 		// 2. A workspace: its repositories, each with the same sync
-		WorkspaceManifest? manifest = null;
-		if (node.IsWorkspace)
+		MountsManifest? manifest = null;
+		if (node.HasMounts)
 		{
 			try
 			{
-				manifest = WorkspaceManifest.Load(node.Root);
+				manifest = MountsManifest.Load(node.Root);
 			}
-			catch (WorkspaceManifestException ex)
+			catch (MountsManifestException ex)
 			{
 				diagnostics.AddRange(ex.Diagnostics.Select(d => d with { File = d.File is null ? null : outputs.Display(node.Full(d.File)) }));
 			}
 			if (manifest is not null)
 			{
-				var mounted = context.Runs(WorkspaceModule.Name)
-					? WorkspaceModule.Mount(manifest, context, diagnostics, actions)
-					: WorkspaceModule.Repositories(manifest, withStatus: false, copies: WorkspaceCopies.Survey(manifest.Root))
+				var mounted = context.Runs(MountsModule.Name)
+					? MountsModule.Apply(manifest, context, diagnostics, actions)
+					: MountsModule.Repositories(manifest, withStatus: false, copies: MountCopies.Survey(manifest.Root))
 						.Where(r => r.Mounted && r.Present && r.SupersededBy is null)
 						.Select(r => r.Repository)
 						.ToList();
@@ -263,16 +263,25 @@ public static class SyncEngine
 		if (context.Runs(HarnessModule.Name) && HarnessModule.Run(node, identity, label, context) is { } harness)
 			run.Results.Add(harness);
 
-		// 5. What the workspace generates: its .gitignore, which versions the solutions and the shares it receives (and the files of the agents, always)
-		if (manifest is not null && context.Runs(WorkspaceModule.Name))
-			WorkspaceModule.Outputs(node, identity, manifest, node.Config(), (own?.Solutions ?? []).Select(s => s.Path), shared, context, outputs, diagnostics);
+		// 5. What the space generates, if it mounts others or declares paths (plan spaces): its .gitignore, a whitelist of
+		// what it versions (its paths, its solutions, the shares it receives, and the files of the agents, always); its own
+		// shares, checked; and what only the module of the mounts checks
+		if (context.Runs(MountsModule.Name) && (manifest is not null || (!node.HasMounts && node.OwnConfig().Paths is { Count: > 0 })))
+		{
+			var config = node.Config();
+			outputs.Generated(node.Full(GitignoreGenerator.FileName),
+				GitignoreGenerator.Generate(config, manifest ?? new(node.Root, []), (own?.Solutions ?? []).Select(s => s.Path), shared));
+			SpaceShares.Check(node, config, outputs.Display(node.Full(FxLayout.ConfigFile)), context.Doctor, diagnostics);
+			if (manifest is not null)
+				MountsModule.Outputs(node, identity, manifest, config, context, diagnostics);
+		}
 
 		// in the doctor, what sync would change is out of date
 		if (context.Doctor)
 			foreach (var file in outputs.Files.Where(f => f.Status == SyncFileStatus.WouldWrite))
-				diagnostics.Add(FxDiagnostic.Error(WorkspaceModule.Outdated, new(WorkspaceModule.Outdated), file.Path, fix: FxFix.Run(FxHeader.Sync)));
-		if (parent is not null || node.IsWorkspace || diagnostics.Count > 0)
-			run.Results[at] = new(WorkspaceModule.Name, context.DisplayRoot, label, outputs.Files, actions, diagnostics.ToList()) { Node = node.Root };
+				diagnostics.Add(FxDiagnostic.Error(MountsModule.Outdated, new(MountsModule.Outdated), file.Path, fix: FxFix.Run(FxHeader.Sync)));
+		if (parent is not null || node.HasMounts || diagnostics.Count > 0 || outputs.Files.Count > 0)
+			run.Results[at] = new(MountsModule.Name, context.DisplayRoot, label, outputs.Files, actions, diagnostics.ToList()) { Node = node.Root };
 		else
 			run.Results.RemoveAt(at);
 	}
@@ -281,7 +290,7 @@ public static class SyncEngine
 	/// A guest (decision 18): the workspace uses it, so its projects go into the map, but it inherits from its own parent
 	/// and nothing of it is processed here. Its own .NET configuration is read, for the doctor.
 	/// </summary>
-	static void Guest(Run_ run, WorkspaceManifest manifest, FxIdentity workspace, WorkspaceRepository repository)
+	static void Guest(Run_ run, MountsManifest manifest, FxIdentity workspace, Mount repository)
 	{
 		var node = new FxNode(manifest.FullPath(repository));
 		var identity = new FxIdentity(repository.Name, $"{workspace.FullName}/{repository.Name}", repository.Tags);

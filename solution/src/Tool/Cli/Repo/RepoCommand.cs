@@ -4,8 +4,8 @@ using System.CommandLine;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Fuxion.Tool.Core.Mounts;
 using Fuxion.Tool.Core.Results;
-using Fuxion.Tool.Core.Workspace;
 using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Controls;
 using XenoAtom.Terminal.UI.Styling;
@@ -65,9 +65,9 @@ public static class RepoCommand
 	}
 
 	/// <summary>The manifest, or the error written as the command's document.</summary>
-	internal static WorkspaceManifest? Manifest(FxConsole console, Action<IReadOnlyList<FxDiagnostic>> writeJson)
+	internal static MountsManifest? Manifest(FxConsole console, Action<IReadOnlyList<FxDiagnostic>> writeJson)
 	{
-		var (manifest, error) = WorkspaceModule.Find(console.Settings.Directory);
+		var (manifest, error) = MountsModule.Find(console.Settings.Directory);
 		if (manifest is not null)
 			return manifest;
 		FxDiagnostic[] errors = [error!];
@@ -109,7 +109,7 @@ public static class RepoCommand
 			=> console.WriteJson(new RepositoriesDocument(schema, FxConsole.Ok(diagnostics), repositories, JsonDiagnostic.From(diagnostics)), c => c.RepositoriesDocument);
 		if (Manifest(console, errors => Json([], errors)) is not { } manifest)
 			return 1;
-		var repositories = console.WithProgress((progress, cancel) => WorkspaceModule.Repositories(manifest, withStatus, progress, cancel, WorkspaceCopies.Survey(manifest.Root)), cancellationToken)
+		var repositories = console.WithProgress((progress, cancel) => MountsModule.Repositories(manifest, withStatus, progress, cancel, MountCopies.Survey(manifest.Root)), cancellationToken)
 			.Where(r => !withStatus || r.Mounted)
 			.ToList();
 		if (console.Settings.IsMachine)
@@ -117,7 +117,7 @@ public static class RepoCommand
 			Json(repositories.Select(r => new JsonRepository(
 				r.Repository.Name,
 				r.Repository.Path,
-				r.Repository.Mount == MountPolicy.Mandatory ? "mandatory" : "manual",
+				r.Repository.Required ? "mandatory" : "manual",
 				r.Mounted,
 				r.Present,
 				r.Parked,
@@ -162,7 +162,7 @@ public static class RepoCommand
 			repoTable.AddRow(
 				Cell(console, r.Repository.Name),
 				Cell(console, r.Repository.Path),
-				Cell(console, r.Repository.Mount == MountPolicy.Mandatory ? "mandatory" : "manual"),
+				Cell(console, r.Repository.Required ? "mandatory" : "manual"),
 				Cell(console, Texts.Get(r.Mounted ? "yes" : "no"), r.Mounted ? "green" : "gray"),
 				Cell(console, Texts.Get(r.Present ? "yes" : r.Parked || r.SupersededBy is not null ? Where(r) : "no"), r.Present ? "green" : NeedsAttention(r) && r.Mounted ? "red" : "gray"));
 		console.Write(repoTable);
@@ -185,8 +185,8 @@ public static class RepoCommand
 			var verb = mounted ? "mount" : "unmount";
 			if (!console.Capabilities.CanPrompt)
 				return console.Missing("<names>", $"fx repo {verb} <names>");
-			var candidates = WorkspaceModule.Repositories(manifest, withStatus: false)
-				.Where(r => mounted ? !r.Mounted : r.Mounted && r.Repository.Mount != MountPolicy.Mandatory)
+			var candidates = MountsModule.Repositories(manifest, withStatus: false)
+				.Where(r => mounted ? !r.Mounted : r.Mounted && !r.Repository.Required)
 				.ToList();
 			if (candidates.Count == 0)
 			{
@@ -198,7 +198,7 @@ public static class RepoCommand
 				.ToList();
 			Ask.Equivalent(console, $"fx repo {verb} {string.Join(' ', names)}");
 		}
-		var result = WorkspaceModule.SetMount(manifest, names, mounted);
+		var result = MountsModule.SetMount(manifest, names, mounted);
 		if (console.Settings.IsMachine)
 			Json(result.Actions, result.Diagnostics);
 		else
@@ -218,7 +218,7 @@ public static class RepoCommand
 				actions.Select(a => new JsonRepositoryAction(a.Repository, a.Action, a.Detail?.English)).ToList(), JsonDiagnostic.From(diagnostics)), c => c.PullDocument);
 		if (Manifest(console, errors => Json([], errors)) is not { } manifest)
 			return 1;
-		var result = console.WithProgress((progress, cancel) => WorkspaceModule.Pull(manifest, only, progress, cancel), cancellationToken);
+		var result = console.WithProgress((progress, cancel) => MountsModule.Pull(manifest, only, progress, cancel), cancellationToken);
 		if (console.Settings.IsMachine)
 			Json(result.Actions, result.Diagnostics);
 		else

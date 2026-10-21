@@ -123,7 +123,7 @@ public static class HarnessModule
 			outputs.Generated(node.Full(relative), content);
 		}
 		var rules = config.Rules.Where(r => FxFiles.Exists(node.Full(r.File))).Select(r => (Rule: r, Text: FxFiles.ReadAllText(node.Full(r.File)))).ToList();
-		var fxRule = HarnessGenerator.FxRule(identity, node.IsWorkspace, node.Inherited()?.Parent);
+		var fxRule = HarnessGenerator.FxRule(identity, node.HasMounts, node.Inherited()?.Parent);
 		Write(AgentsFile, HarnessGenerator.Agents(from, fxRule, rules));
 		Write(ClaudeFile, HarnessGenerator.Claude(from));
 		foreach (var (rule, text) in rules.Where(r => r.Rule.ByPath))

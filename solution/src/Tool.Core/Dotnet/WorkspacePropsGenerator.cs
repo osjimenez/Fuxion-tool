@@ -8,7 +8,7 @@ using Fuxion.Tool.Core.Git;
 using Fuxion.Tool.Core.Layout;
 using Fuxion.Tool.Core.Results;
 
-namespace Fuxion.Tool.Core.Workspace;
+namespace Fuxion.Tool.Core.Dotnet;
 
 /// <summary>
 /// <c>_fx/dotnet/~$workspace.props</c> of the highest workspace on disk (plan P, decision 19 and proposal C): the map
@@ -20,7 +20,7 @@ namespace Fuxion.Tool.Core.Workspace;
 public static class WorkspacePropsGenerator
 {
 	public const string FileName = "_fx/dotnet/~$workspace.props";
-	public const string DuplicateProject = "workspace.duplicate-project";
+	public const string DuplicateProject = "dotnet.duplicate-project";
 
 	public static string Generate(IReadOnlyDictionary<string, (string Path, string Repository)> projects)
 	{

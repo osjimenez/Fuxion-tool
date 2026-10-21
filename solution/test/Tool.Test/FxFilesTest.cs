@@ -27,7 +27,7 @@ public sealed class FxFilesTest : IDisposable
 	public async Task Overlay()
 	{
 		var yaml = P("_fx", "dotnet", "dotnet.yaml");
-		var added = P("_fx", "workspace", "workspace.yaml");
+		var added = P("_fx", "mounts", "mounts.yaml");
 		Assert.Equal("disk\n", FxFiles.ReadAllText(yaml));
 		Assert.False(FxFiles.Exists(added));
 		Assert.False(FxFiles.Overlaid);
@@ -38,14 +38,14 @@ public sealed class FxFilesTest : IDisposable
 			Assert.Equal("pending\n", FxFiles.ReadAllText(yaml));
 			Assert.Equal("pending\n"u8.ToArray(), FxFiles.ReadAllBytes(yaml));
 			Assert.True(FxFiles.Exists(added));
-			Assert.True(FxFiles.DirectoryExists(P("_fx", "workspace")));
+			Assert.True(FxFiles.DirectoryExists(P("_fx", "mounts")));
 			// its folder lists it, and its parent lists the folder; the disk, untouched
-			Assert.Equal([added], FxFiles.EnumerateFiles(P("_fx", "workspace")));
+			Assert.Equal([added], FxFiles.EnumerateFiles(P("_fx", "mounts")));
 			Assert.Equal(2, FxFiles.EnumerateFiles(P("_fx"), "*.yaml", SearchOption.AllDirectories).Count());
 			Assert.Empty(FxFiles.EnumerateFiles(P("_fx"), "*.yaml"));
-			Assert.Equal(["dotnet", "workspace"], FxFiles.EnumerateDirectories(P("_fx")).Select(Path.GetFileName).Order());
+			Assert.Equal(["dotnet", "mounts"], FxFiles.EnumerateDirectories(P("_fx")).Select(Path.GetFileName).Order());
 			Assert.Equal("disk\n", File.ReadAllText(yaml));
-			Assert.False(Directory.Exists(P("_fx", "workspace")));
+			Assert.False(Directory.Exists(P("_fx", "mounts")));
 
 			// over it, another one wins; disposing it brings back the first
 			using (FxFiles.Overlay([KeyValuePair.Create(yaml, "inner\n")]))
@@ -64,6 +64,6 @@ public sealed class FxFilesTest : IDisposable
 		}
 		Assert.False(FxFiles.Overlaid);
 		Assert.Equal("disk\n", FxFiles.ReadAllText(yaml));
-		Assert.False(FxFiles.DirectoryExists(P("_fx", "workspace")));
+		Assert.False(FxFiles.DirectoryExists(P("_fx", "mounts")));
 	}
 }

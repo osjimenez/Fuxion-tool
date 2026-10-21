@@ -12,13 +12,13 @@ using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Sync;
 using Fuxion.Tool.Core.Worktree;
 
-namespace Fuxion.Tool.Core.Workspace;
+namespace Fuxion.Tool.Core.Mounts;
 
 /// <summary>
 /// A repository of the manifest and its state here: whether it is mounted (the intent), at its place or parked, and
 /// the copy used instead of it, if a higher one supersedes it (plan P, decisions 19 and 20).
 /// </summary>
-public sealed record RepositoryState(WorkspaceRepository Repository, string FullPath, bool Mounted, bool Present, GitStatus? Status, bool Parked = false,
+public sealed record RepositoryState(Mount Repository, string FullPath, bool Mounted, bool Present, GitStatus? Status, bool Parked = false,
 	RepositoryCopy? SupersededBy = null);
 
 /// <summary>
@@ -30,47 +30,47 @@ public sealed record RepositoryState(WorkspaceRepository Repository, string Full
 /// pulls implicitly, never deletes: unmounting is parking, a move. What it does on each repository goes to the
 /// progress channel as a step (<c>clone</c>, <c>fetch</c>, <c>status</c>, <c>remote</c>, <c>pull</c>).
 /// </summary>
-public static class WorkspaceModule
+public static class MountsModule
 {
-	public const string Name = WorkspaceManifest.ModuleName;
-	public const string NotAWorkspace = "workspace.not-a-workspace";
-	public const string Missing = "workspace.missing";
-	public const string CloneFailed = "workspace.clone-failed";
-	public const string FetchFailed = "workspace.fetch-failed";
-	public const string NotARepository = "workspace.not-a-repository";
-	public const string OriginMismatch = "workspace.origin-mismatch";
-	public const string Orphan = "workspace.orphan";
+	public const string Name = MountsManifest.ModuleName;
+	public const string NotFound = "mounts.not-found";
+	public const string Missing = "mounts.missing";
+	public const string CloneFailed = "mounts.clone-failed";
+	public const string FetchFailed = "mounts.fetch-failed";
+	public const string NotARepository = "mounts.not-a-repository";
+	public const string OriginMismatch = "mounts.origin-mismatch";
+	public const string Orphan = "mounts.orphan";
 	public const string NotVersioned = "space.not-versioned";
-	public const string NotIgnored = "workspace.not-ignored";
-	public const string LocalNotIgnored = "workspace.local-not-ignored";
-	public const string Outdated = "workspace.outdated";
-	public const string Dirty = "workspace.dirty";
-	public const string Detached = "workspace.detached";
-	public const string NoUpstream = "workspace.no-upstream";
-	public const string Unpushed = "workspace.unpushed";
-	public const string Unreachable = "workspace.unreachable";
-	public const string UnknownRepository = "workspace.unknown-repository";
-	public const string UnknownTag = "workspace.unknown-tag";
-	public const string AliasReference = "workspace.alias-reference";
-	public const string PullFailed = "workspace.pull-failed";
-	public const string NotParked = "workspace.not-parked";
-	public const string MoveFailed = "workspace.move-failed";
+	public const string NotIgnored = "space.not-ignored";
+	public const string LocalNotIgnored = "space.local-not-ignored";
+	public const string Outdated = "fx.outdated";
+	public const string Dirty = "mounts.dirty";
+	public const string Detached = "mounts.detached";
+	public const string NoUpstream = "mounts.no-upstream";
+	public const string Unpushed = "mounts.unpushed";
+	public const string Unreachable = "mounts.unreachable";
+	public const string UnknownRepository = "mounts.unknown";
+	public const string UnknownTag = "mounts.unknown-tag";
+	public const string AliasReference = "space.alias-reference";
+	public const string PullFailed = "mounts.pull-failed";
+	public const string NotParked = "mounts.not-parked";
+	public const string MoveFailed = "mounts.move-failed";
 
 	static readonly TimeSpan CloneTimeout = TimeSpan.FromMinutes(10);
 	static readonly TimeSpan FetchTimeout = TimeSpan.FromSeconds(60);
 	static readonly TimeSpan RemoteTimeout = TimeSpan.FromSeconds(30);
 
 	/// <summary>Loads the manifest of the nearest workspace around <paramref name="directory"/>, or a diagnostic.</summary>
-	public static (WorkspaceManifest? Manifest, FxDiagnostic? Error) Find(string directory)
+	public static (MountsManifest? Manifest, FxDiagnostic? Error) Find(string directory)
 	{
-		var root = WorkspaceManifest.FindRoot(directory);
+		var root = MountsManifest.FindRoot(directory);
 		if (root is null)
-			return (null, FxDiagnostic.Error(NotAWorkspace, new(NotAWorkspace, directory)));
+			return (null, FxDiagnostic.Error(NotFound, new(NotFound, directory)));
 		try
 		{
-			return (WorkspaceManifest.Load(root), null);
+			return (MountsManifest.Load(root), null);
 		}
-		catch (WorkspaceManifestException ex)
+		catch (MountsManifestException ex)
 		{
 			return (null, ex.Diagnostics.First(d => d.Severity == FxSeverity.Error));
 		}
@@ -80,14 +80,14 @@ public static class WorkspaceModule
 	/// The repositories of the manifest and their state; with <paramref name="withStatus"/>, their git status (in
 	/// parallel); with <paramref name="copies"/>, the copy that supersedes each one.
 	/// </summary>
-	public static IReadOnlyList<RepositoryState> Repositories(WorkspaceManifest manifest, bool withStatus, IFxProgress? progress = null, CancellationToken cancellationToken = default,
-		WorkspaceCopies? copies = null)
+	public static IReadOnlyList<RepositoryState> Repositories(MountsManifest manifest, bool withStatus, IFxProgress? progress = null, CancellationToken cancellationToken = default,
+		MountCopies? copies = null)
 	{
-		var state = WorkspaceState.Load(manifest.Root);
-		var result = new RepositoryState[manifest.Repositories.Count];
+		var state = MountsState.Load(manifest.Root);
+		var result = new RepositoryState[manifest.Mounts.Count];
 		Parallel.For(0, result.Length, new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = cancellationToken }, i =>
 		{
-			var r = manifest.Repositories[i];
+			var r = manifest.Mounts[i];
 			var full = manifest.FullPath(r);
 			var present = FxLayout.IsGitRoot(full);
 			var status = present && withStatus ? progress.Step(Name, r.Name, "status", () => GitClient.Discover(full)?.Status(), s => s is not null) : null;
@@ -99,7 +99,7 @@ public static class WorkspaceModule
 	}
 
 	/// <summary>Where a repository of the workspace is parked (plan P, decision 20): its path, under <c>_fx/~$parking/</c>.</summary>
-	public static string ParkingPath(WorkspaceManifest manifest, WorkspaceRepository repository)
+	public static string ParkingPath(MountsManifest manifest, Mount repository)
 		=> FxLayout.Normalize(FxLayout.Full(manifest.Root, $"{FxLayout.Parking}/{repository.Path}"));
 
 	/// <summary>
@@ -109,25 +109,25 @@ public static class WorkspaceModule
 	/// 20): an unmounted repository, or a copy a higher one supersedes (the intent stays: if the higher copy goes, this
 	/// one comes back). The local state is saved. Returns the repositories used, on disk, in the order of the manifest.
 	/// </summary>
-	public static IReadOnlyList<WorkspaceRepository> Mount(WorkspaceManifest manifest, SyncContext context, FxDiagnostics diagnostics, List<RepositoryAction> actions)
+	public static IReadOnlyList<Mount> Apply(MountsManifest manifest, SyncContext context, FxDiagnostics diagnostics, List<RepositoryAction> actions)
 	{
 		var root = manifest.Root;
 		// inside a worktree nothing is mandatory: mounted is what is there (fx worktree mounts it), and sync neither
 		// clones, nor parks, nor fetches, nor keeps a state (plan P, decisions 27 and 28)
 		if (WorktreeCard.FindRoot(root) is not null)
-			return manifest.Repositories.Where(r => FxLayout.IsGitRoot(manifest.FullPath(r))).ToList();
+			return manifest.Mounts.Where(r => FxLayout.IsGitRoot(manifest.FullPath(r))).ToList();
 		var cancellationToken = context.CancellationToken;
 		var progress = context.Progress;
-		var state = WorkspaceState.Load(root);
+		var state = MountsState.Load(root);
 		// which copy of each repository is used: the highest in the tree (decision 19), now that what is above is mounted
-		var copies = WorkspaceCopies.Survey(root);
-		var manifestFile = Display(context, root, WorkspaceManifest.RelativePath);
+		var copies = MountCopies.Survey(root);
+		var manifestFile = Display(context, root, MountsManifest.RelativePath);
 		diagnostics.AddRange(copies.Ties(root, manifestFile));
 		var repositories = Repositories(manifest, withStatus: false, cancellationToken: cancellationToken, copies: copies);
-		foreach (var repo in repositories.Where(r => r.Present && !state.Mount.ContainsKey(r.Repository.Name)))
+		foreach (var repo in repositories.Where(r => r.Present && !state.Parked.ContainsKey(r.Repository.Name)))
 			state = state.With(repo.Repository.Name, true);
 
-		var mounted = new List<WorkspaceRepository>();
+		var mounted = new List<Mount>();
 		var toFetch = new List<(RepositoryState Info, GitClient Git)>();
 		// sync --dry-run says what sync would do with the repositories; the doctor, what is not as it should be
 		var preview = !context.Write && !context.Doctor;
@@ -140,23 +140,23 @@ public static class WorkspaceModule
 			{
 				if (preview)
 					actions.Add(new(name, "would-park", repo.SupersededBy is { } higherCopy
-						? new("workspace.action.superseded", higherCopy.FullName)
-						: new("workspace.action.parked-in", FxLayout.Relative(root, parking).TrimEnd('/'))));
+						? new("mounts.action.superseded", higherCopy.FullName)
+						: new("mounts.action.parked-in", FxLayout.Relative(root, parking).TrimEnd('/'))));
 				else if (!context.Write)
 					diagnostics.Add(FxDiagnostic.Warning(NotParked, repo.SupersededBy is { } higher
 						? new($"{NotParked}.superseded", name, repo.Repository.Path, higher.FullName)
 						: new(NotParked, name, repo.Repository.Path), manifestFile, repo.Repository.Line, name, FxFix.Run(FxHeader.Sync)));
 				else if (Move(name, repo.FullPath, parking, root, diagnostics.Add))
 					actions.Add(new(name, "parked", repo.SupersededBy is { } used
-						? new("workspace.action.superseded", used.FullName)
-						: new("workspace.action.parked-in", FxLayout.Relative(root, parking).TrimEnd('/'))));
+						? new("mounts.action.superseded", used.FullName)
+						: new("mounts.action.parked-in", FxLayout.Relative(root, parking).TrimEnd('/'))));
 				continue;
 			}
 			if (!repo.Mounted)
 				continue;
 			if (repo.SupersededBy is { } superseding)
 			{
-				actions.Add(new(name, "superseded", new("workspace.action.superseded", superseding.FullName)));
+				actions.Add(new(name, "superseded", new("mounts.action.superseded", superseding.FullName)));
 				continue;
 			}
 			var present = repo.Present;
@@ -248,27 +248,23 @@ public static class WorkspaceModule
 			}
 		}
 		if (context.Write)
-			Save(FxLayout.Full(root, WorkspaceState.RelativePath), state.ToYaml());
-		return manifest.Repositories.Where(mounted.Contains).ToList();
+			Save(FxLayout.Full(root, MountsState.RelativePath), state.ToYaml());
+		return manifest.Mounts.Where(mounted.Contains).ToList();
 	}
 
 	/// <summary>
-	/// What the workspace generates (its <c>.gitignore</c>, with <paramref name="versioned"/>, what its modules
-	/// generate and version, and <paramref name="shared"/>, the shares it receives) and, in the doctor, what only it
-	/// checks. Its own shares, in both.
+	/// What only this module checks, once the space has generated its <c>.gitignore</c>: the paths of the space inside a
+	/// mount and, in the doctor, the tags, the old names, what is on disk and the state of each mount.
 	/// </summary>
-	public static void Outputs(FxNode node, FxIdentity identity, WorkspaceManifest manifest, SpaceConfig config, IEnumerable<string> versioned, IEnumerable<string> shared,
-		SyncContext context, FxOutputs outputs, FxDiagnostics diagnostics)
+	public static void Outputs(FxNode node, FxIdentity identity, MountsManifest manifest, SpaceConfig config, SyncContext context, FxDiagnostics diagnostics)
 	{
-		outputs.Generated(node.Full(GitignoreGenerator.FileName), GitignoreGenerator.Generate(config, manifest, versioned, shared));
-		var manifestFile = Display(context, node.Root, WorkspaceManifest.RelativePath);
+		var manifestFile = Display(context, node.Root, MountsManifest.RelativePath);
 		var configFile = Display(context, node.Root, FxLayout.ConfigFile);
-		WorkspaceShares.Check(node, config, configFile, context.Doctor, diagnostics);
 		foreach (var diagnostic in PathsInRepositories(config, manifest, configFile))
 			diagnostics.Add(diagnostic);
 		if (!context.Doctor)
 			return;
-		foreach (var repo in manifest.Repositories)
+		foreach (var repo in manifest.Mounts)
 			foreach (var tag in repo.Tags.Where(t => !config.Knows(t)))
 				diagnostics.Add(FxDiagnostic.Warning(UnknownTag, new(UnknownTag, tag, repo.Name), manifestFile, repo.Line, repo.Name, FxFix.Do($"{UnknownTag}.fix")));
 		AliasReferences(node, identity, manifest, config, context, diagnostics);
@@ -277,9 +273,9 @@ public static class WorkspaceModule
 	}
 
 	/// <summary>The paths of the space inside one of its repositories: they are that repository's, not the space's (an error each).</summary>
-	public static IEnumerable<FxDiagnostic> PathsInRepositories(SpaceConfig config, WorkspaceManifest manifest, string configFile)
+	public static IEnumerable<FxDiagnostic> PathsInRepositories(SpaceConfig config, MountsManifest manifest, string configFile)
 		=> from path in config.Paths ?? []
-		   let inside = manifest.Repositories.FirstOrDefault(r => path.Path.StartsWith(r.Path + "/", StringComparison.OrdinalIgnoreCase))
+		   let inside = manifest.Mounts.FirstOrDefault(r => path.Path.StartsWith(r.Path + "/", StringComparison.OrdinalIgnoreCase))
 		   where inside is not null
 		   select FxDiagnostic.Error(SpaceConfig.Invalid, new($"{SpaceConfig.Invalid}.path-in-repository", path.Path, inside.Name), configFile, path.Line);
 
@@ -288,9 +284,9 @@ public static class WorkspaceModule
 	/// decision 12): they still work, but they should change. In <c>depends-on</c> and in the <c>applies-to</c> of the
 	/// shares and of the .NET module.
 	/// </summary>
-	static void AliasReferences(FxNode node, FxIdentity identity, WorkspaceManifest manifest, SpaceConfig config, SyncContext context, FxDiagnostics diagnostics)
+	static void AliasReferences(FxNode node, FxIdentity identity, MountsManifest manifest, SpaceConfig config, SyncContext context, FxDiagnostics diagnostics)
 	{
-		var aliases = manifest.Repositories.SelectMany(r => (r.Aliases ?? []).Select(a => (Alias: a, r.Name))).ToList();
+		var aliases = manifest.Mounts.SelectMany(r => (r.Aliases ?? []).Select(a => (Alias: a, r.Name))).ToList();
 		if (aliases.Count == 0)
 			return;
 		void Check(string reference, string file, int line)
@@ -302,8 +298,8 @@ public static class WorkspaceModule
 			foreach (var (alias, name) in aliases.Where(a => a.Alias == first))
 				diagnostics.Add(FxDiagnostic.Warning(AliasReference, new(AliasReference, reference, alias, name), file, line, name, FxFix.Do($"{AliasReference}.fix")));
 		}
-		var manifestFile = Display(context, node.Root, WorkspaceManifest.RelativePath);
-		foreach (var repo in manifest.Repositories)
+		var manifestFile = Display(context, node.Root, MountsManifest.RelativePath);
+		foreach (var repo in manifest.Mounts)
 			foreach (var dependency in repo.DependsOn ?? [])
 				Check(dependency, manifestFile, repo.Line);
 		var configFile = Display(context, node.Root, FxLayout.ConfigFile);
@@ -337,7 +333,7 @@ public static class WorkspaceModule
 	/// not version (an info). It does not go into the repositories, <c>_fx/</c>, the local files nor what is versioned; a
 	/// folder with only folders is walked, one with files is reported and left.
 	/// </summary>
-	static void Walk(string root, WorkspaceManifest manifest, SpaceConfig config, SyncContext context, FxDiagnostics diagnostics)
+	static void Walk(string root, MountsManifest manifest, SpaceConfig config, SyncContext context, FxDiagnostics diagnostics)
 	{
 		foreach (var (relative, repository) in Strangers(root, manifest, config))
 			if (repository)
@@ -350,9 +346,9 @@ public static class WorkspaceModule
 	/// What is on disk in the workspace at <paramref name="root"/> that nobody declared (plan P, P1, detail 6): repositories
 	/// (<c>repository</c>), and folders with files of their own that it does not version; relative, ending in '/'.
 	/// </summary>
-	public static IEnumerable<(string Relative, bool Repository)> Strangers(string root, WorkspaceManifest manifest, SpaceConfig config)
+	public static IEnumerable<(string Relative, bool Repository)> Strangers(string root, MountsManifest manifest, SpaceConfig config)
 	{
-		var repositories = manifest.Repositories.Select(r => manifest.FullPath(r)).ToList();
+		var repositories = manifest.Mounts.Select(r => manifest.FullPath(r)).ToList();
 		// the folders of the coding agents (plan Q): fx's, as _fx/
 		var skills = Harness.HarnessModule.Folders.Select(f => f + "/").ToList();
 		var found = new List<(string, bool)>();
@@ -388,12 +384,12 @@ public static class WorkspaceModule
 	}
 
 	// The state of each mounted repository
-	static void Check(WorkspaceManifest manifest, SyncContext context, FxDiagnostics diagnostics)
+	static void Check(MountsManifest manifest, SyncContext context, FxDiagnostics diagnostics)
 	{
 		var progress = context.Progress;
 		var cancellationToken = context.CancellationToken;
 		// a copy a higher one supersedes is not used: sync parks it
-		var repositories = Repositories(manifest, withStatus: false, cancellationToken: cancellationToken, copies: WorkspaceCopies.Survey(manifest.Root))
+		var repositories = Repositories(manifest, withStatus: false, cancellationToken: cancellationToken, copies: MountCopies.Survey(manifest.Root))
 			.Where(r => r.SupersededBy is null)
 			.ToList();
 		var metarepo = GitClient.Discover(manifest.Root);
@@ -537,18 +533,18 @@ public static class WorkspaceModule
 	/// there). It never clones (<c>fx sync</c> does) and never deletes. With an unknown name, or a mandatory repository
 	/// to unmount, nothing changes; a clone that cannot move keeps its state.
 	/// </summary>
-	public static FxModuleResult SetMount(WorkspaceManifest manifest, IEnumerable<string> names, bool mounted)
+	public static FxModuleResult SetMount(MountsManifest manifest, IEnumerable<string> names, bool mounted)
 	{
 		var actions = new List<RepositoryAction>();
 		var diagnostics = new List<FxDiagnostic>();
-		var repositories = new List<WorkspaceRepository>();
+		var repositories = new List<Mount>();
 		foreach (var name in names)
 		{
-			var repo = manifest.Repositories.FirstOrDefault(r => string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase));
+			var repo = manifest.Mounts.FirstOrDefault(r => string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase));
 			if (repo is null)
 				diagnostics.Add(FxDiagnostic.Error(UnknownRepository, new(UnknownRepository, name), repository: name));
-			else if (!mounted && repo.Mount == MountPolicy.Mandatory)
-				diagnostics.Add(FxDiagnostic.Error(UnknownRepository, new($"{UnknownRepository}.mandatory", repo.Name), repository: repo.Name));
+			else if (!mounted && repo.Required)
+				diagnostics.Add(FxDiagnostic.Error(UnknownRepository, new($"{UnknownRepository}.required", repo.Name), repository: repo.Name));
 			else
 				repositories.Add(repo);
 		}
@@ -556,8 +552,8 @@ public static class WorkspaceModule
 			return new(Name, manifest.Root, null, [], actions, diagnostics);
 
 		var root = manifest.Root;
-		var state = WorkspaceState.Load(root);
-		var copies = mounted ? WorkspaceCopies.Survey(root) : WorkspaceCopies.None;
+		var state = MountsState.Load(root);
+		var copies = mounted ? MountCopies.Survey(root) : MountCopies.None;
 		foreach (var repo in repositories)
 		{
 			var full = manifest.FullPath(repo);
@@ -567,7 +563,7 @@ public static class WorkspaceModule
 				if (FxLayout.IsGitRoot(full))
 					actions.Add(new(repo.Name, "mounted"));
 				else if (copies.SupersededBy(full) is { } higher)
-					actions.Add(new(repo.Name, "superseded", new("workspace.action.superseded", higher.FullName)));
+					actions.Add(new(repo.Name, "superseded", new("mounts.action.superseded", higher.FullName)));
 				else if (FxLayout.IsGitRoot(parking))
 				{
 					if (!Move(repo.Name, parking, full, root, diagnostics.Add))
@@ -575,24 +571,24 @@ public static class WorkspaceModule
 					actions.Add(new(repo.Name, "unparked"));
 				}
 				else
-					actions.Add(new(repo.Name, "mounted", new("workspace.action.to-clone")));
+					actions.Add(new(repo.Name, "mounted", new("mounts.action.to-clone")));
 			}
 			else if (FxLayout.IsGitRoot(full))
 			{
 				if (!Move(repo.Name, full, parking, root, diagnostics.Add))
 					continue;
-				actions.Add(new(repo.Name, "parked", new("workspace.action.parked-in", FxLayout.Relative(root, parking).TrimEnd('/'))));
+				actions.Add(new(repo.Name, "parked", new("mounts.action.parked-in", FxLayout.Relative(root, parking).TrimEnd('/'))));
 			}
 			else
 				actions.Add(new(repo.Name, "unmounted"));
 			state = state.With(repo.Name, mounted);
 		}
-		Save(FxLayout.Full(root, WorkspaceState.RelativePath), state.ToYaml());
+		Save(FxLayout.Full(root, MountsState.RelativePath), state.ToYaml());
 		return new(Name, root, null, [], actions, diagnostics);
 	}
 
 	/// <summary><c>fx repo pull</c>: fast-forward only, and only with a clean working tree.</summary>
-	public static FxModuleResult Pull(WorkspaceManifest manifest, IReadOnlyCollection<string> only, IFxProgress? progress = null, CancellationToken cancellationToken = default)
+	public static FxModuleResult Pull(MountsManifest manifest, IReadOnlyCollection<string> only, IFxProgress? progress = null, CancellationToken cancellationToken = default)
 	{
 		var actions = new List<RepositoryAction>();
 		var diagnostics = new FxDiagnostics(progress);
@@ -603,12 +599,12 @@ public static class WorkspaceModule
 			var name = repo.Repository.Name;
 			if (repo.Status is { Changes: > 0 })
 			{
-				actions.Add(new(name, "skipped", new("workspace.action.uncommitted-changes")));
+				actions.Add(new(name, "skipped", new("mounts.action.uncommitted-changes")));
 				continue;
 			}
 			if (repo.Status is { Detached: true } or { Upstream: null })
 			{
-				actions.Add(new(name, "skipped", new("workspace.action.no-upstream")));
+				actions.Add(new(name, "skipped", new("mounts.action.no-upstream")));
 				continue;
 			}
 			var pull = progress.Step(Name, name, "pull", () => GitClient.Discover(repo.FullPath)!.PullFastForward(TimeSpan.FromMinutes(2), cancellationToken), p => p.ExitCode == 0);

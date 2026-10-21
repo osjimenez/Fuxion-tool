@@ -5,7 +5,7 @@ using Fuxion.Tool.Cli;
 using Fuxion.Tool.Cli.Describe;
 using Fuxion.Tool.Core.Harness;
 using Fuxion.Tool.Core.Layout;
-using Fuxion.Tool.Core.Workspace;
+using Fuxion.Tool.Core.Mounts;
 using Xunit;
 
 namespace Fuxion.Tool.Test;

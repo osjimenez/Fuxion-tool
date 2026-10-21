@@ -7,7 +7,7 @@ using Fuxion.Tool.Core.Layout;
 using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Yaml;
 
-namespace Fuxion.Tool.Core.Workspace;
+namespace Fuxion.Tool.Core.Sync;
 
 /// <summary>A file a share gives: where it goes in the repository that receives it, its content and the workspace it comes from.</summary>
 public sealed record SharedFile(string Destination, byte[] Content, string From);
@@ -30,7 +30,7 @@ public sealed record ReceivedShares(IReadOnlyDictionary<string, SharedFile> File
 /// repository's own (unless <c>--adopt</c>), and removes what it no longer gives. At the same destination, the nearest
 /// wins. A folder (<c>path</c> ending in '/') shares its content.
 /// </summary>
-public static class WorkspaceShares
+public static class SpaceShares
 {
 	public const string Missing = "space.share-missing";
 	public const string NotVersioned = "space.share-not-versioned";

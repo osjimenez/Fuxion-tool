@@ -3,9 +3,9 @@ using System.IO;
 using System.Linq;
 using Fuxion.Tool.Core.Explore;
 using Fuxion.Tool.Core.Layout;
+using Fuxion.Tool.Core.Mounts;
 using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Sync;
-using Fuxion.Tool.Core.Workspace;
 using Fuxion.Tool.Core.Worktree;
 using Xunit;
 
@@ -25,9 +25,9 @@ public sealed class ExploreTest : SampleTree
 		var acme = Acme();
 		// from anywhere inside, the highest workspace
 		var tree = FxTree.Build(Path.Combine(acme.Path, "repo-w1", "repo-c1", "src"))!;
-		Assert.Equal((FxTreeKind.Workspace, "acme", "/acme"), (tree.Kind, tree.Name, tree.Identity!.FullName));
+		Assert.Equal((FxTreeKind.Space, "acme", "/acme"), (tree.Kind, tree.Name, tree.Identity!.FullName));
 		Assert.Equal("_fx", tree.Children[0].Name);
-		Assert.Equal(FxTreeKind.Workspace, At(tree, "repo-w1").Kind);
+		Assert.Equal(FxTreeKind.Space, At(tree, "repo-w1").Kind);
 		Assert.Equal("/acme/repo-w1/repo-c1", At(tree, "repo-w1/repo-c1").Identity!.FullName);
 		Assert.Equal(FxTreeKind.Repository, At(tree, "libs/shared").Kind);
 		Assert.True(At(tree, "libs").HasMore);
@@ -60,9 +60,9 @@ public sealed class ExploreTest : SampleTree
 		Assert.Equal(FxOrigin.Generated, At(tree, "repo-w1/repo-c1/_fx/dotnet/dotnet.g.props").Origin);
 		Assert.Equal(FxOrigin.Hand, At(tree, "repo-w1/repo-c1/_fx/dotnet/dotnet.yaml").Origin);
 		Assert.Equal(FxTreeKind.Module, At(tree, "repo-w1/repo-c1/_fx/dotnet").Kind);
-		Assert.Equal(FxTreeKind.ModuleOff, At(tree, "repo-w1/repo-c1/_fx/workspace").Kind);
-		Assert.Equal(FxTreeKind.Module, At(tree, "_fx/workspace").Kind);
-		Assert.Equal(FxOrigin.Local, At(tree, "_fx/workspace/~$state.yaml").Origin);
+		Assert.Equal(FxTreeKind.ModuleOff, At(tree, "repo-w1/repo-c1/_fx/mounts").Kind);
+		Assert.Equal(FxTreeKind.Module, At(tree, "_fx/mounts").Kind);
+		Assert.Equal(FxOrigin.Local, At(tree, "_fx/mounts/~$state.yaml").Origin);
 		Assert.Equal(FxOrigin.Local, At(tree, "_fx/dotnet/~$workspace.props").Origin);
 	}
 
@@ -82,7 +82,7 @@ public sealed class ExploreTest : SampleTree
 
 		Assert.Equal(["repo-w1/_fx/dotnet/dotnet.yaml", "_fx/dotnet/dotnet.yaml"], Origins("repo-w1/repo-c1/_fx/.inherited/dotnet/dotnet.yaml"));
 		Assert.Equal(["_fx/dotnet/default.props"], Origins("repo-w1/repo-c1/_fx/.inherited/dotnet/default.props"));
-		Assert.Equal(["repo-w1/_fx/workspace/workspace.yaml"], Origins("repo-w1/repo-c1/_fx/.inherited/inherited.yaml"));
+		Assert.Equal(["repo-w1/_fx/mounts/mounts.yaml"], Origins("repo-w1/repo-c1/_fx/.inherited/inherited.yaml"));
 		// a share: its source; on its way down, too
 		Assert.Equal(["cfg/sub/b.txt"], Origins("repo-w1/repo-c1/build/sub/b.txt"));
 		Assert.Equal(["cfg/sub/b.txt"], Origins("repo-w1/_fx/.inherited/shares/build/sub/b.txt"));
@@ -90,7 +90,7 @@ public sealed class ExploreTest : SampleTree
 		// generated: the yaml it is made of
 		Assert.Equal(["repo-w1/repo-c1/_fx/dotnet/dotnet.yaml", "repo-w1/repo-c1/_fx/.inherited/dotnet/dotnet.yaml"], Origins("repo-w1/repo-c1/_fx/dotnet/dotnet.g.props"));
 		Assert.Equal(["_fx/dotnet/dotnet.yaml"], Origins("Acme.slnx"));
-		Assert.Equal(["_fx/workspace/workspace.yaml"], Origins(".gitignore"));
+		Assert.Equal(["_fx/mounts/mounts.yaml"], Origins(".gitignore"));
 		Assert.Empty(Origins("README.md"));
 	}
 
@@ -103,8 +103,8 @@ public sealed class ExploreTest : SampleTree
 		new TempGitRepository(path: Path.Combine(acme.Path, "stray")).Dispose();
 		Directory.CreateDirectory(Path.Combine(acme.Path, "stray", ".git"));
 		// shared, manual and unmounted: parked; then repo-w2's guest is the only copy, mounted and not cloned
-		Append(Path.Combine(acme.Path, "_fx", "workspace", "workspace.yaml"), "    path: libs/shared\n    mount: mandatory\n", "    path: libs/shared\n    mount: manual\n");
-		Assert.Empty(WorkspaceModule.SetMount(WorkspaceManifest.Load(acme.Path), ["shared"], mounted: false).Diagnostics);
+		Append(Path.Combine(acme.Path, "_fx", "mounts", "mounts.yaml"), "    path: libs/shared\n    required: true\n", "    path: libs/shared\n");
+		Assert.Empty(MountsModule.SetMount(MountsManifest.Load(acme.Path), ["shared"], mounted: false).Diagnostics);
 
 		var tree = FxTree.Build(acme.Path)!;
 		Assert.Equal(FxTreeKind.Unknown, At(tree, "notes").Kind);
@@ -187,8 +187,8 @@ public sealed class ExploreTest : SampleTree
 		var tree = FxTree.Build(acme.Path)!;
 		FxTree.Attach(tree, SyncEngine.Doctor(acme.Path, new(Offline: true), cancellationToken: TestContext.Current.CancellationToken));
 		var c2 = At(tree, "repo-w1/repo-c2");
-		Assert.Contains(c2.Diagnostics, d => d.Code == WorkspaceModule.Dirty);
-		Assert.DoesNotContain(At(tree, "repo-w1/repo-c1").Diagnostics, d => d.Code == WorkspaceModule.Dirty);
+		Assert.Contains(c2.Diagnostics, d => d.Code == MountsModule.Dirty);
+		Assert.DoesNotContain(At(tree, "repo-w1/repo-c1").Diagnostics, d => d.Code == MountsModule.Dirty);
 		Assert.Equal(FxSeverity.Warning, At(tree, "repo-w1").Worst);
 		Assert.Contains(At(tree, "repo-w1/repo-c1").Diagnostics, d => d.Code == "dotnet.unverifiable");
 		Assert.True(At(tree, "repo-w1").Problems >= At(tree, "repo-w1/repo-c1").Problems + At(tree, "repo-w1/repo-c2").Problems);

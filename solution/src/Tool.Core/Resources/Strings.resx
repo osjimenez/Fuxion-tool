@@ -7,97 +7,97 @@
   <data name="fx.not-generated" xml:space="preserve">
     <value>Not written: the file has no GENERATED header, so it is not fx's.</value>
   </data>
-  <data name="workspace.not-a-workspace" xml:space="preserve">
-    <value>'{0}' is not inside a workspace (no _fx/workspace/ above it).</value>
+  <data name="mounts.not-found" xml:space="preserve">
+    <value>'{0}' is not inside a space that mounts others (no _fx/mounts/ above it).</value>
   </data>
-  <data name="workspace.missing" xml:space="preserve">
+  <data name="mounts.missing" xml:space="preserve">
     <value>'{0}' is mounted but not cloned at {1}.</value>
   </data>
-  <data name="workspace.clone-failed" xml:space="preserve">
+  <data name="mounts.clone-failed" xml:space="preserve">
     <value>'{0}' could not be cloned from {1}: {2}</value>
   </data>
-  <data name="workspace.not-a-repository" xml:space="preserve">
+  <data name="mounts.not-a-repository" xml:space="preserve">
     <value>'{0}': {1} is not a git repository.</value>
   </data>
-  <data name="workspace.origin-mismatch" xml:space="preserve">
+  <data name="mounts.origin-mismatch" xml:space="preserve">
     <value>'{0}': origin is '{1}', the manifest says '{2}'; not fetched.</value>
   </data>
-  <data name="workspace.fetch-failed" xml:space="preserve">
+  <data name="mounts.fetch-failed" xml:space="preserve">
     <value>'{0}' could not be fetched: {1}</value>
   </data>
-  <data name="workspace.orphan" xml:space="preserve">
+  <data name="mounts.orphan" xml:space="preserve">
     <value>{0} is a repository the workspace does not declare.</value>
   </data>
-  <data name="workspace.orphan.fix" xml:space="preserve">
+  <data name="mounts.orphan.fix" xml:space="preserve">
     <value>Declare it (fx repo add), or move it out of the workspace.</value>
   </data>
-  <data name="workspace.not-ignored" xml:space="preserve">
+  <data name="space.not-ignored" xml:space="preserve">
     <value>'{0}': the metarepo does not ignore {1}; a git add would take it in.</value>
   </data>
-  <data name="workspace.dirty" xml:space="preserve">
+  <data name="mounts.dirty" xml:space="preserve">
     <value>'{0}' has {1} uncommitted change(s).</value>
   </data>
-  <data name="workspace.detached" xml:space="preserve">
+  <data name="mounts.detached" xml:space="preserve">
     <value>'{0}' has a detached HEAD.</value>
   </data>
-  <data name="workspace.no-upstream" xml:space="preserve">
+  <data name="mounts.no-upstream" xml:space="preserve">
     <value>'{0}': branch '{1}' has no upstream.</value>
   </data>
-  <data name="workspace.unpushed" xml:space="preserve">
+  <data name="mounts.unpushed" xml:space="preserve">
     <value>'{0}': {1} commit(s) of '{2}' not pushed.</value>
   </data>
-  <data name="workspace.unreachable" xml:space="preserve">
+  <data name="mounts.unreachable" xml:space="preserve">
     <value>'{0}': {1} does not answer (network, VPN or access).</value>
   </data>
-  <data name="workspace.unknown-repository" xml:space="preserve">
+  <data name="mounts.unknown" xml:space="preserve">
     <value>The manifest has no repository '{0}'.</value>
   </data>
-  <data name="workspace.unknown-repository.mandatory" xml:space="preserve">
-    <value>'{0}' is mandatory: it is always mounted.</value>
+  <data name="mounts.unknown.required" xml:space="preserve">
+    <value>'{0}' is required: it cannot be parked.</value>
   </data>
-  <data name="workspace.pull-failed" xml:space="preserve">
+  <data name="mounts.pull-failed" xml:space="preserve">
     <value>'{0}': {1}</value>
   </data>
-  <data name="workspace.duplicate-project" xml:space="preserve">
+  <data name="dotnet.duplicate-project" xml:space="preserve">
     <value>Project '{0}' is in '{1}' and in '{2}': FxReference uses the one of '{1}'.</value>
   </data>
-  <data name="workspace.action.uncommitted-changes" xml:space="preserve">
+  <data name="mounts.action.uncommitted-changes" xml:space="preserve">
     <value>uncommitted changes</value>
   </data>
-  <data name="workspace.action.no-upstream" xml:space="preserve">
+  <data name="mounts.action.no-upstream" xml:space="preserve">
     <value>no branch with an upstream</value>
   </data>
-  <data name="workspace.invalid-manifest.repository-mapping" xml:space="preserve">
+  <data name="mounts.invalid-manifest.mount-mapping" xml:space="preserve">
     <value>A repository is a mapping: name, path, url…</value>
   </data>
-  <data name="workspace.invalid-manifest.name-and-path" xml:space="preserve">
+  <data name="mounts.invalid-manifest.name-and-path" xml:space="preserve">
     <value>Every repository needs 'name' and 'path'.</value>
   </data>
-  <data name="workspace.invalid-manifest.mount" xml:space="preserve">
-    <value>Repository '{0}': mount is 'mandatory' or 'manual', not '{1}'.</value>
+  <data name="mounts.invalid-manifest.mode" xml:space="preserve">
+    <value>Mount '{0}': mode is 'write', 'read-only' or 'propose-only', not '{1}'.</value>
   </data>
-  <data name="workspace.invalid-manifest.name" xml:space="preserve">
+  <data name="mounts.invalid-manifest.name" xml:space="preserve">
     <value>Repository name '{0}': lowercase letters, digits and '-' (like 'plus' or 'my-repo').</value>
   </data>
-  <data name="workspace.invalid-manifest.path-relative" xml:space="preserve">
+  <data name="mounts.invalid-manifest.path-relative" xml:space="preserve">
     <value>Repository '{0}': the path '{1}' must be relative, inside the workspace, without '.' or '..'.</value>
   </data>
-  <data name="workspace.invalid-manifest.path-reserved" xml:space="preserve">
+  <data name="mounts.invalid-manifest.path-reserved" xml:space="preserve">
     <value>Repository '{0}': '{1}' is fx's or git's.</value>
   </data>
-  <data name="workspace.invalid-manifest.url" xml:space="preserve">
+  <data name="mounts.invalid-manifest.url" xml:space="preserve">
     <value>Repository '{0}' needs 'url'.</value>
   </data>
-  <data name="workspace.invalid-manifest.depends-on" xml:space="preserve">
+  <data name="mounts.invalid-manifest.depends-on" xml:space="preserve">
     <value>Repository '{0}' depends on '{1}', which the manifest does not list.</value>
   </data>
-  <data name="workspace.invalid-manifest.duplicate-name" xml:space="preserve">
+  <data name="mounts.invalid-manifest.duplicate-name" xml:space="preserve">
     <value>Repository name '{0}' is used more than once.</value>
   </data>
-  <data name="workspace.invalid-manifest.duplicate-path" xml:space="preserve">
+  <data name="mounts.invalid-manifest.duplicate-path" xml:space="preserve">
     <value>Path '{0}' is used more than once.</value>
   </data>
-  <data name="workspace.invalid-manifest.nested" xml:space="preserve">
+  <data name="mounts.invalid-manifest.nested" xml:space="preserve">
     <value>Repository '{0}' is mounted inside '{1}'.</value>
   </data>
   <data name="dotnet.invalid-json" xml:space="preserve">
@@ -250,43 +250,43 @@
   <data name="fx.nothing-to-do" xml:space="preserve">
     <value>Nothing to do here: no root of fx (no _fx/ nor git repository above it).</value>
   </data>
-  <data name="workspace.repository-exists" xml:space="preserve">
+  <data name="mounts.exists" xml:space="preserve">
     <value>The manifest already has a repository '{0}'.</value>
   </data>
-  <data name="workspace.repository-needed" xml:space="preserve">
+  <data name="mounts.needed" xml:space="preserve">
     <value>{1} depend(s) on '{0}': change their dependsOn first (fx repo set &lt;repo&gt; dependsOn ...).</value>
   </data>
-  <data name="workspace.unknown-key" xml:space="preserve">
+  <data name="mounts.unknown-key" xml:space="preserve">
     <value>fx repo set does not change '{0}'; it changes {1}.</value>
   </data>
-  <data name="workspace.invalid-value" xml:space="preserve">
+  <data name="mounts.invalid-value" xml:space="preserve">
     <value>'{0}' takes {2}, not '{1}'.</value>
   </data>
-  <data name="workspace.invalid-value.single" xml:space="preserve">
+  <data name="mounts.invalid-value.single" xml:space="preserve">
     <value>'{0}' takes one value, not '{1}'.</value>
   </data>
-  <data name="workspace.unknown-module" xml:space="preserve">
+  <data name="fx.unknown-module" xml:space="preserve">
     <value>Unknown module '{0}' (there are: {1}).</value>
   </data>
-  <data name="workspace.not-tagged" xml:space="preserve">
+  <data name="mounts.not-tagged" xml:space="preserve">
     <value>'{0}' has no tag '{1}'.</value>
   </data>
-  <data name="workspace.clone-kept" xml:space="preserve">
+  <data name="mounts.clone-kept" xml:space="preserve">
     <value>The clone of '{0}' stays at {1}: fx never deletes clones; delete or move it when you want.</value>
   </data>
-  <data name="workspace.clone-not-moved" xml:space="preserve">
+  <data name="mounts.clone-not-moved" xml:space="preserve">
     <value>'{0}' is cloned at {1}: move the clone to {2} yourself (fx does not move clones).</value>
   </data>
-  <data name="workspace.unchanged.tagged" xml:space="preserve">
+  <data name="fx.unchanged.tagged" xml:space="preserve">
     <value>'{0}' already has {1}.</value>
   </data>
-  <data name="workspace.unchanged.no-key" xml:space="preserve">
+  <data name="fx.unchanged.no-key" xml:space="preserve">
     <value>'{0}' has no '{1}'.</value>
   </data>
-  <data name="workspace.unchanged.module-enabled" xml:space="preserve">
+  <data name="fx.unchanged.module-enabled" xml:space="preserve">
     <value>The module '{0}' is already enabled.</value>
   </data>
-  <data name="workspace.unchanged.module-disabled" xml:space="preserve">
+  <data name="fx.unchanged.module-disabled" xml:space="preserve">
     <value>The module '{0}' is not enabled.</value>
   </data>
   <data name="fx.not-generated.fix" xml:space="preserve">
@@ -367,7 +367,7 @@
   <data name="fx.sdk-older.fix-above" xml:space="preserve">
     <value>It comes from above: raise it there to {0} and run fx sync.</value>
   </data>
-  <data name="workspace.outdated" xml:space="preserve">
+  <data name="fx.outdated" xml:space="preserve">
     <value>Out of date: fx sync would change it.</value>
   </data>
   <data name="space.not-versioned" xml:space="preserve">
@@ -376,22 +376,22 @@
   <data name="space.not-versioned.fix" xml:space="preserve">
     <value>If it should be: fx path add {0}</value>
   </data>
-  <data name="workspace.local-not-ignored" xml:space="preserve">
+  <data name="space.local-not-ignored" xml:space="preserve">
     <value>'{0}' does not ignore ~$*: fx writes local files there that git would take.</value>
   </data>
-  <data name="workspace.local-not-ignored.fix" xml:space="preserve">
+  <data name="space.local-not-ignored.fix" xml:space="preserve">
     <value>Add ~$* to its .gitignore.</value>
   </data>
-  <data name="workspace.unknown-tag" xml:space="preserve">
+  <data name="mounts.unknown-tag" xml:space="preserve">
     <value>The tag '{0}' of '{1}' is not in the catalog (_fx/space.yaml).</value>
   </data>
-  <data name="workspace.unknown-tag.fix" xml:space="preserve">
+  <data name="mounts.unknown-tag.fix" xml:space="preserve">
     <value>Add it to the tags of _fx/space.yaml, or use one that is there.</value>
   </data>
-  <data name="workspace.invalid-parent" xml:space="preserve">
+  <data name="space.invalid-parent" xml:space="preserve">
     <value>The configuration of the parent workspace is not valid.</value>
   </data>
-  <data name="workspace.invalid-manifest.list" xml:space="preserve">
+  <data name="mounts.invalid-manifest.list" xml:space="preserve">
     <value>'{0}' must be a list.</value>
   </data>
   <data name="space.invalid-config.path-entry" xml:space="preserve">
@@ -412,16 +412,16 @@
   <data name="space.invalid-config.duplicate-path-entry" xml:space="preserve">
     <value>'{0}' is twice in paths.</value>
   </data>
-  <data name="workspace.invalid-manifest.bool" xml:space="preserve">
+  <data name="mounts.invalid-manifest.bool" xml:space="preserve">
     <value>'{0}' must be true or false.</value>
   </data>
-  <data name="workspace.invalid-manifest.enabled" xml:space="preserve">
+  <data name="mounts.invalid-manifest.enabled" xml:space="preserve">
     <value>'enabled' must be true or false.</value>
   </data>
-  <data name="workspace.unchanged.path-present" xml:space="preserve">
+  <data name="fx.unchanged.path-present" xml:space="preserve">
     <value>'{0}' is already in paths.</value>
   </data>
-  <data name="workspace.unchanged.path-absent" xml:space="preserve">
+  <data name="fx.unchanged.path-absent" xml:space="preserve">
     <value>'{0}' is not in paths.</value>
   </data>
   <data name="dotnet.standalone-reference" xml:space="preserve">
@@ -466,61 +466,61 @@
   <data name="dotnet.invalid-yaml.enabled" xml:space="preserve">
     <value>'enabled' must be true or false.</value>
   </data>
-  <data name="workspace.parent-unavailable" xml:space="preserve">
+  <data name="space.parent-unavailable" xml:space="preserve">
     <value>The parent {0} cannot be read from its remote: what this repository inherits stays as it is.</value>
   </data>
-  <data name="workspace.parent-unavailable.offline" xml:space="preserve">
+  <data name="space.parent-unavailable.offline" xml:space="preserve">
     <value>Without network, and the parent {0} is not in the cache yet: what this repository inherits stays as it is.</value>
   </data>
-  <data name="workspace.parent-unavailable.git" xml:space="preserve">
+  <data name="space.parent-unavailable.git" xml:space="preserve">
     <value>The parent {0} ({1}) cannot be read: {2}</value>
   </data>
-  <data name="workspace.parent-not-declared" xml:space="preserve">
+  <data name="space.parent-not-declared" xml:space="preserve">
     <value>The parent {0} no longer declares '{1}': what it inherits stays as it is.</value>
   </data>
-  <data name="workspace.too-deep" xml:space="preserve">
+  <data name="space.too-deep" xml:space="preserve">
     <value>'{0}' is more than {1} workspaces deep: Fuxion.Tool.Sdk does not look further up.</value>
   </data>
-  <data name="workspace.alias-reference" xml:space="preserve">
+  <data name="space.alias-reference" xml:space="preserve">
     <value>'{0}' uses '{1}', an old name of '{2}': it still works, but change it.</value>
   </data>
-  <data name="workspace.alias-reference.fix" xml:space="preserve">
+  <data name="space.alias-reference.fix" xml:space="preserve">
     <value>Use the current name; when nothing uses the old one, take it out of aliases.</value>
   </data>
-  <data name="workspace.unchanged.renamed" xml:space="preserve">
+  <data name="fx.unchanged.renamed" xml:space="preserve">
     <value>'{0}' already has that name.</value>
   </data>
-  <data name="workspace.missing.parked" xml:space="preserve">
+  <data name="mounts.missing.parked" xml:space="preserve">
     <value>'{0}' is mounted but parked in {2}: fx sync brings it back to {1}.</value>
   </data>
-  <data name="workspace.not-parked" xml:space="preserve">
+  <data name="mounts.not-parked" xml:space="preserve">
     <value>'{0}' is unmounted but still at {1}: fx sync parks it.</value>
   </data>
-  <data name="workspace.not-parked.superseded" xml:space="preserve">
+  <data name="mounts.not-parked.superseded" xml:space="preserve">
     <value>'{0}' at {1} is not used: the copy of {2} is higher. fx sync parks this one.</value>
   </data>
-  <data name="workspace.move-failed" xml:space="preserve">
+  <data name="mounts.move-failed" xml:space="preserve">
     <value>Cannot move '{0}' from {1} to {2}: {3}</value>
   </data>
-  <data name="workspace.move-failed.fix" xml:space="preserve">
+  <data name="mounts.move-failed.fix" xml:space="preserve">
     <value>Close what has it open (Visual Studio, a terminal inside it) and run it again: nothing moved.</value>
   </data>
-  <data name="workspace.move-failed.occupied" xml:space="preserve">
+  <data name="mounts.move-failed.occupied" xml:space="preserve">
     <value>Cannot move '{0}' from {1} to {2}: there is already something there. Move it or remove it first.</value>
   </data>
-  <data name="workspace.same-height" xml:space="preserve">
+  <data name="mounts.same-height" xml:space="preserve">
     <value>'{0}' is mounted twice at the same height, as {1} and {2}: fx cannot tell which copy to use, and parks neither.</value>
   </data>
-  <data name="workspace.same-height.fix" xml:space="preserve">
+  <data name="mounts.same-height.fix" xml:space="preserve">
     <value>Mount it higher, in a workspace above both, or in only one of them.</value>
   </data>
-  <data name="workspace.action.superseded" xml:space="preserve">
+  <data name="mounts.action.superseded" xml:space="preserve">
     <value>the copy of {0} is used</value>
   </data>
-  <data name="workspace.action.parked-in" xml:space="preserve">
+  <data name="mounts.action.parked-in" xml:space="preserve">
     <value>in {0}</value>
   </data>
-  <data name="workspace.action.to-clone" xml:space="preserve">
+  <data name="mounts.action.to-clone" xml:space="preserve">
     <value>fx sync clones it</value>
   </data>
   <data name="space.share-missing" xml:space="preserve">
@@ -592,13 +592,13 @@
   <data name="worktree.invalid-card.shape" xml:space="preserve">
     <value>The card of the worktree has no branch.</value>
   </data>
-  <data name="workspace.worktree-outside" xml:space="preserve">
+  <data name="worktree.outside" xml:space="preserve">
     <value>'{0}' has a worktree at {1} (branch {2}), out of the worktrees of its workspaces.</value>
   </data>
-  <data name="workspace.worktree-outside.fix" xml:space="preserve">
+  <data name="worktree.outside.fix" xml:space="preserve">
     <value>fx worktree add makes them where they go; when you finish with this one, git worktree remove.</value>
   </data>
-  <data name="workspace.worktree-prunable" xml:space="preserve">
+  <data name="worktree.prunable" xml:space="preserve">
     <value>'{0}' has a worktree at {1} whose folder is gone.</value>
   </data>
   <data name="fx.invalid-yaml" xml:space="preserve">

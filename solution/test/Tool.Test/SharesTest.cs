@@ -6,9 +6,9 @@ using System.Text.Json;
 using Fuxion.Tool.Cli;
 using Fuxion.Tool.Core.Git;
 using Fuxion.Tool.Core.Layout;
+using Fuxion.Tool.Core.Mounts;
 using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Sync;
-using Fuxion.Tool.Core.Workspace;
 using Xunit;
 
 namespace Fuxion.Tool.Test;
@@ -58,7 +58,7 @@ public sealed class SharesTest : SampleTree
 		Append(acmeSpace, "paths:\n", "paths:\n  - path: NOTICE\n");
 		File.AppendAllText(acmeSpace, "  - path: NOTICE\n");
 		var refused = Assert.Single(Errors(Sync(acme.Path)));
-		Assert.Equal(WorkspaceShares.Refused, refused.Code);
+		Assert.Equal(SpaceShares.Refused, refused.Code);
 		Assert.Equal("repo-w1/repo-c2/NOTICE is the repository's own: fx does not overwrite it with the share of /acme.", refused.Message.English);
 		Assert.Equal("c2's own\n", File.ReadAllText(c2Notice));
 		Assert.Equal("acme notice\n", Read(shared, "NOTICE"));
@@ -77,10 +77,10 @@ public sealed class SharesTest : SampleTree
 		File.WriteAllText(Path.Combine(acme.Path, "notes.txt"), "notes\n");
 		File.AppendAllText(acmeSpace, "  - path: notes.txt\n  - path: missing.txt\n");
 		var doctor = SyncEngine.Doctor(acme.Path, new(Offline: true), cancellationToken: TestContext.Current.CancellationToken).SelectMany(r => r.Diagnostics).ToList();
-		var notVersioned = Assert.Single(doctor, d => d.Code == WorkspaceShares.NotVersioned);
+		var notVersioned = Assert.Single(doctor, d => d.Code == SpaceShares.NotVersioned);
 		Assert.Equal("fx path add notes.txt", notVersioned.Fix!.Command);
 		Assert.Equal("'missing.txt' is shared, but it is not there: nothing of it goes down, and the repositories keep what they have of it.",
-			Assert.Single(doctor, d => d.Code == WorkspaceShares.Missing).Message.English);
+			Assert.Single(doctor, d => d.Code == SpaceShares.Missing).Message.English);
 	}
 
 	[Fact(DisplayName = "shares: a folder shares its content, a file to a folder keeps its name, references by name are absolute on their way down")]

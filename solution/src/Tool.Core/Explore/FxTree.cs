@@ -5,8 +5,9 @@ using System.Linq;
 using Fuxion.Tool.Core.Dotnet;
 using Fuxion.Tool.Core.Harness;
 using Fuxion.Tool.Core.Layout;
+using Fuxion.Tool.Core.Mounts;
 using Fuxion.Tool.Core.Results;
-using Fuxion.Tool.Core.Workspace;
+using Fuxion.Tool.Core.Sync;
 using Fuxion.Tool.Core.Worktree;
 using Fuxion.Tool.Core.Yaml;
 
@@ -52,23 +53,23 @@ public static class FxTree
 	/// <summary>The tree that <paramref name="directory"/> is in; null outside any root of fx.</summary>
 	public static FxTreeNode? Build(string directory)
 	{
-		var top = WorkspaceCopies.Top(directory) ?? FxNode.Find(directory)?.Root;
+		var top = MountCopies.Top(directory) ?? FxNode.Find(directory)?.Root;
 		if (top is null)
 			return null;
 		var node = new FxNode(top);
 		var identity = node.SelfIdentity();
-		return node.IsWorkspace
-			? Workspace(node, identity, null, WorkspaceCopies.Survey(top), null)
+		return node.HasMounts
+			? Workspace(node, identity, null, MountCopies.Survey(top), null)
 			: Repository(node, identity, null, true, null);
 	}
 
 	static string Clean(string path) => Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
 
-	static FxTreeNode Workspace(FxNode node, FxIdentity identity, WorkspaceRepository? declaration, WorkspaceCopies copies, RepositoryCopy? superseded)
+	static FxTreeNode Workspace(FxNode node, FxIdentity identity, Mount? declaration, MountCopies copies, RepositoryCopy? superseded)
 	{
 		var tree = new FxTreeNode
 		{
-			Kind = FxTreeKind.Workspace,
+			Kind = FxTreeKind.Space,
 			Name = declaration?.Name ?? identity.Name,
 			Path = Clean(node.Root),
 			Identity = identity,
@@ -79,8 +80,8 @@ public static class FxTree
 		};
 		var inherited = node.Inherited();
 		tree.Add(Fx(node, inherited));
-		var file = node.Full(WorkspaceManifest.RelativePath);
-		var manifest = WorkspaceManifest.Read(node.Root, FxFiles.Exists(file) ? FxFiles.ReadAllText(file) : "");
+		var file = node.Full(MountsManifest.RelativePath);
+		var manifest = MountsManifest.Read(node.Root, FxFiles.Exists(file) ? FxFiles.ReadAllText(file) : "");
 
 		// what it versions (the paths of its space.yaml) and what it generates and versions (the .gitignore, its solutions)
 		var space = node.OwnConfig();
@@ -100,7 +101,7 @@ public static class FxTree
 			Place(tree, FxLayout.Relative(node.Root, agent), FileNode(agent, inherited));
 
 		// its repositories, where they go
-		foreach (var state in WorkspaceModule.Repositories(manifest, withStatus: false, copies: copies))
+		foreach (var state in MountsModule.Repositories(manifest, withStatus: false, copies: copies))
 		{
 			var repo = state.Repository;
 			var childIdentity = new FxIdentity(repo.Name, $"{identity.FullName}/{repo.Name}", repo.Tags, repo.Aliases);
@@ -108,7 +109,7 @@ public static class FxTree
 			if (state.Present)
 			{
 				var sub = new FxNode(state.FullPath);
-				child = repo.Inherits && sub.IsWorkspace
+				child = repo.Inherits && sub.HasMounts
 					? Workspace(sub, childIdentity, repo, copies, state.SupersededBy)
 					: Repository(sub, childIdentity, repo, state.Mounted, state.SupersededBy);
 			}
@@ -127,13 +128,13 @@ public static class FxTree
 		}
 
 		// what is on disk and nobody declares
-		foreach (var (relative, repository) in WorkspaceModule.Strangers(node.Root, manifest, space))
+		foreach (var (relative, repository) in MountsModule.Strangers(node.Root, manifest, space))
 			Place(tree, relative.TrimEnd('/'), new FxTreeNode { Kind = FxTreeKind.Unknown, Name = Last(relative), Path = Clean(node.Full(relative)), HasMore = !repository });
 		SortAll(tree);
 		return tree;
 	}
 
-	static FxTreeNode Repository(FxNode node, FxIdentity identity, WorkspaceRepository? declaration, bool mounted, RepositoryCopy? superseded)
+	static FxTreeNode Repository(FxNode node, FxIdentity identity, Mount? declaration, bool mounted, RepositoryCopy? superseded)
 	{
 		var tree = new FxTreeNode
 		{
@@ -183,7 +184,7 @@ public static class FxTree
 				Kind = FxTreeKind.Module,
 				Name = name,
 				Path = Clean(path),
-				Enabled = name == WorkspaceManifest.ModuleName ? WorkspaceManifest.IsWorkspace(node.Root) : Enabled(node.Full(FxLayout.ModuleFile(name)))
+				Enabled = name == MountsManifest.ModuleName ? MountsManifest.HasMounts(node.Root) : Enabled(node.Full(FxLayout.ModuleFile(name)))
 			});
 			AddFolder(module, path, inherited, FxOrigin.Hand);
 		}
@@ -268,11 +269,11 @@ public static class FxTree
 				result.Add(Clean(path));
 		}
 		FxTreeNode? Named(string fullName)
-			=> tree.Descendants().Prepend(tree).FirstOrDefault(n => n.Kind == FxTreeKind.Workspace && n.Identity?.FullName == fullName);
+			=> tree.Descendants().Prepend(tree).FirstOrDefault(n => n.Kind == FxTreeKind.Space && n.Identity?.FullName == fullName);
 		void Shared(FxTreeNode workspace, string destination)
 		{
 			foreach (var share in SpaceConfig.Load(workspace.Path).Shares ?? [])
-				if (WorkspaceShares.Source(share, destination) is { } source)
+				if (SpaceShares.Source(share, destination) is { } source)
 					Add(FxLayout.Full(workspace.Path, source));
 		}
 		switch (file.Origin)
@@ -283,9 +284,9 @@ public static class FxTree
 				if (relative == FxLayout.InheritedFile)
 				{
 					for (var at = tree.Find(root)?.Parent; at is not null; at = at.Parent)
-						if (at.Kind == FxTreeKind.Workspace)
+						if (at.Kind == FxTreeKind.Space)
 						{
-							Add(FxLayout.Full(at.Path, WorkspaceManifest.RelativePath));
+							Add(FxLayout.Full(at.Path, MountsManifest.RelativePath));
 							break;
 						}
 					break;
@@ -294,9 +295,9 @@ public static class FxTree
 					if (Named(name) is { } workspace)
 					{
 						// the shares a space in between passes on: the space.yaml of the one that shares them
-						Add(FxLayout.Full(workspace.Path, inside == $"{WorkspaceShares.Folder}/{WorkspaceShares.Folder}.yaml" ? FxLayout.ConfigFile : $"{FxLayout.Folder}/{inside}"));
-						if (inside.StartsWith($"{WorkspaceShares.Folder}/", StringComparison.Ordinal))
-							Shared(workspace, inside[(WorkspaceShares.Folder.Length + 1)..]);
+						Add(FxLayout.Full(workspace.Path, inside == $"{SpaceShares.Folder}/{SpaceShares.Folder}.yaml" ? FxLayout.ConfigFile : $"{FxLayout.Folder}/{inside}"));
+						if (inside.StartsWith($"{SpaceShares.Folder}/", StringComparison.Ordinal))
+							Shared(workspace, inside[(SpaceShares.Folder.Length + 1)..]);
 					}
 				break;
 			case FxOrigin.Share:
@@ -312,7 +313,7 @@ public static class FxTree
 					Add(FxLayout.Full(root, $"{FxLayout.InheritedModuleFolder(parts[1])}/{parts[1]}.yaml"));
 				}
 				else if (relative == ".gitignore")
-					Add(FxLayout.Full(root, WorkspaceManifest.RelativePath));
+					Add(FxLayout.Full(root, MountsManifest.RelativePath));
 				// the files of the coding agents: the harness of the root, and what it inherits
 				else if (HarnessModule.Files.Contains(relative) || HarnessModule.Folders.Any(f => relative.StartsWith(f + "/", StringComparison.Ordinal)))
 				{
@@ -455,11 +456,11 @@ public static class FxTree
 	public static IReadOnlyList<FxApplied> Applies(FxTreeNode repository)
 	{
 		var result = new List<FxApplied>();
-		if (repository.Identity is not { } identity || repository.Kind is not (FxTreeKind.Repository or FxTreeKind.Workspace))
+		if (repository.Identity is not { } identity || repository.Kind is not (FxTreeKind.Repository or FxTreeKind.Space))
 			return result;
 		var node = new FxNode(repository.Path);
 		var inherited = node.Inherited();
-		var conduit = repository.Kind == FxTreeKind.Workspace;
+		var conduit = repository.Kind == FxTreeKind.Space;
 		if (Dotnet(node, identity) is { } dotnet)
 		{
 			var from = inherited?.Files.FirstOrDefault(f => f.Path == $"{DotnetModule.Name}/{DotnetModule.Name}.yaml")?.From ?? [];
@@ -547,7 +548,7 @@ public static class FxTree
 	/// </summary>
 	public static IReadOnlyList<(FxTreeNode Repository, bool Applies, FxReason Reason)> Reach(FxTreeNode workspace, FxAppliesTo appliesTo)
 		=> workspace.Descendants().Where(n => n.Declaration is not null && n.Identity is not null && !n.Guest)
-			.Select(n => n.Kind == FxTreeKind.Workspace && !appliesTo.Matches(n.Identity!)
+			.Select(n => n.Kind == FxTreeKind.Space && !appliesTo.Matches(n.Identity!)
 				? (n, true, new FxReason(FxReasonKind.Conduit, []))
 				: (n, appliesTo.Matches(n.Identity!), Explain(appliesTo, n.Identity!)))
 			.ToList();
@@ -588,7 +589,7 @@ public static class FxTree
 				var target = at;
 				if (diagnostic.File is { } file)
 					target = tree.Find(Path.Combine(result.Root, file)) ?? at;
-				else if (diagnostic.Repository is { } name && at.Kind == FxTreeKind.Workspace)
+				else if (diagnostic.Repository is { } name && at.Kind == FxTreeKind.Space)
 					target = at.Descendants().FirstOrDefault(n => n.Declaration?.Name == name && n.Identity?.FullName == $"{at.Identity?.FullName}/{name}") ?? at;
 				target.Diagnostics.Add(diagnostic);
 			}

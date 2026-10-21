@@ -7,9 +7,9 @@ using System.Text;
 using System.Threading;
 using Fuxion.Tool.Core.Git;
 using Fuxion.Tool.Core.Layout;
+using Fuxion.Tool.Core.Mounts;
 using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Sync;
-using Fuxion.Tool.Core.Workspace;
 
 namespace Fuxion.Tool.Core.Worktree;
 
@@ -50,8 +50,8 @@ public static class WorktreeModule
 	public const string RemoveFailed = "worktree.remove-failed";
 	public const string BranchKept = "worktree.branch-kept";
 	public const string RootUnmount = "worktree.root";
-	public const string Outside = "workspace.worktree-outside";
-	public const string Prunable = "workspace.worktree-prunable";
+	public const string Outside = "worktree.outside";
+	public const string Prunable = "worktree.prunable";
 
 	static readonly TimeSpan CloneTimeout = TimeSpan.FromMinutes(10);
 
@@ -81,7 +81,7 @@ public static class WorktreeModule
 	{
 		var result = new List<string>();
 		for (var dir = new DirectoryInfo(Path.GetFullPath(directory)); dir is not null; dir = dir.Parent)
-			if (WorkspaceManifest.IsWorkspace(dir.FullName))
+			if (MountsManifest.HasMounts(dir.FullName))
 				result.Add(FxLayout.Normalize(dir.FullName));
 		return result;
 	}
@@ -90,10 +90,10 @@ public static class WorktreeModule
 	static List<string> LeftOut(string workspace)
 		=> (SpaceConfig.Load(workspace).Paths ?? []).Where(p => !p.Worktree && !p.Exclude).Select(p => p.Path).ToList();
 
-	static WorkspaceManifest? Manifest(string root)
+	static MountsManifest? Manifest(string root)
 	{
-		var file = FxLayout.Full(root, WorkspaceManifest.RelativePath);
-		return WorkspaceManifest.IsWorkspace(root) && FxFiles.Exists(file) ? WorkspaceManifest.Read(root, FxFiles.ReadAllText(file)) : null;
+		var file = FxLayout.Full(root, MountsManifest.RelativePath);
+		return MountsManifest.HasMounts(root) && FxFiles.Exists(file) ? MountsManifest.Read(root, FxFiles.ReadAllText(file)) : null;
 	}
 
 	static string Join(string a, string b) => a is "" or "." ? b : $"{a}/{b}";
@@ -164,7 +164,7 @@ public static class WorktreeModule
 	}
 
 	/// <summary>A repository declared below a workspace: its path from there, its full name and its declaration.</summary>
-	sealed record Declared(string Path, string FullName, WorkspaceRepository Repository);
+	sealed record Declared(string Path, string FullName, Mount Repository);
 
 	/// <summary>
 	/// The repositories declared below the workspace at <paramref name="root"/> (named <paramref name="fullName"/>), at
@@ -177,12 +177,12 @@ public static class WorktreeModule
 		{
 			if (depth > 32 || Manifest(workspace) is not { } manifest)
 				return;
-			foreach (var repository in manifest.Repositories)
+			foreach (var repository in manifest.Mounts)
 			{
 				var path = Join(relative, repository.Path);
 				result.Add(new(path, $"{name}/{repository.Name}", repository));
 				var at = manifest.FullPath(repository);
-				var parked = WorkspaceModule.ParkingPath(manifest, repository);
+				var parked = MountsModule.ParkingPath(manifest, repository);
 				var clone = FxLayout.IsGitRoot(at) ? at : FxLayout.IsGitRoot(parked) ? parked : null;
 				if (clone is not null && repository.Inherits)
 					Walk(clone, path, $"{name}/{repository.Name}", depth + 1);
@@ -211,7 +211,7 @@ public static class WorktreeModule
 			var remaining = path;
 			while (true)
 			{
-				var declaration = Manifest(Full(workspace))?.Repositories
+				var declaration = Manifest(Full(workspace))?.Mounts
 					.FirstOrDefault(r => remaining == r.Path || remaining.StartsWith(r.Path + "/", StringComparison.OrdinalIgnoreCase));
 				if (declaration is null)
 				{
@@ -232,10 +232,10 @@ public static class WorktreeModule
 		{
 			var next = new List<string>();
 			foreach (var workspace in workspaces)
-				foreach (var repository in Manifest(Full(workspace))?.Repositories.Where(r => r.Mount == MountPolicy.Mandatory) ?? [])
+				foreach (var repository in Manifest(Full(workspace))?.Mounts.Where(r => r.Required) ?? [])
 				{
 					var path = Join(workspace, repository.Path);
-					if (MountOne(workspace, repository) && repository.Inherits && WorkspaceManifest.IsWorkspace(Full(path)))
+					if (MountOne(workspace, repository) && repository.Inherits && MountsManifest.HasMounts(Full(path)))
 						next.Add(path);
 				}
 			if (next.Count > 0)
@@ -246,7 +246,7 @@ public static class WorktreeModule
 		/// <paramref name="repository"/>, declared by the workspace at <paramref name="workspace"/>, in worktree mode: a
 		/// <c>git worktree add</c> from its main clone. Whether it is mounted (also if it already was).
 		/// </summary>
-		public bool MountOne(string workspace, WorkspaceRepository repository)
+		public bool MountOne(string workspace, Mount repository)
 		{
 			cancellationToken.ThrowIfCancellationRequested();
 			var path = Join(workspace, repository.Path);
@@ -259,10 +259,10 @@ public static class WorktreeModule
 			{
 				var height = Height(path);
 				var higher = Card.Worktrees.Where(w => w.Path != "." && Height(w.Path) <= height)
-					.FirstOrDefault(w => GitClient.Discover(Full(w.Path))?.RemoteUrl("origin") is { } other && WorkspaceModule.SameUrl(other, url));
+					.FirstOrDefault(w => GitClient.Discover(Full(w.Path))?.RemoteUrl("origin") is { } other && MountsModule.SameUrl(other, url));
 				if (higher is not null)
 				{
-					actions.Add(new(name, "superseded", new("workspace.action.superseded", higher.Path)));
+					actions.Add(new(name, "superseded", new("mounts.action.superseded", higher.Path)));
 					return false;
 				}
 			}
@@ -275,7 +275,7 @@ public static class WorktreeModule
 			var main = manifest.FullPath(repository);
 			if (!FxLayout.IsGitRoot(main))
 			{
-				main = WorkspaceModule.ParkingPath(manifest, repository);
+				main = MountsModule.ParkingPath(manifest, repository);
 				if (!FxLayout.IsGitRoot(main))
 				{
 					if (repository.Url is null)
@@ -292,7 +292,7 @@ public static class WorktreeModule
 					actions.Add(new(name, "cloned", new("worktree.action.parked")));
 				}
 			}
-			var leftOut = WorkspaceManifest.IsWorkspace(main) ? LeftOut(main) : [];
+			var leftOut = MountsManifest.HasMounts(main) ? LeftOut(main) : [];
 			var (added, created) = progress.Step(Name, name, "worktree",
 				() => GitClient.Discover(main)!.AddWorktree(destination, Card.Branch, checkout: leftOut.Count == 0, cancellationToken), r => r.Result.ExitCode == 0);
 			if (added.ExitCode != 0)
@@ -435,7 +435,7 @@ public static class WorktreeModule
 				mounted.Add(path);
 		}
 		if (mandatory)
-			session.Mandatory(mounted.Where(p => WorkspaceManifest.IsWorkspace(FxLayout.Full(worktree.Root, p))).ToList());
+			session.Mandatory(mounted.Where(p => MountsManifest.HasMounts(FxLayout.Full(worktree.Root, p))).ToList());
 		session.Save();
 		return new(worktree.Root, branch, actions, diagnostics, SyncEngine.Sync(worktree.Root, new(FxVersion: fxVersion), progress, cancellationToken));
 	}

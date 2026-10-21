@@ -6,9 +6,9 @@ using Fuxion.Tool.Cli.Describe;
 using Fuxion.Tool.Cli.Sync;
 using Fuxion.Tool.Core.Explore;
 using Fuxion.Tool.Core.Layout;
+using Fuxion.Tool.Core.Mounts;
 using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Sync;
-using Fuxion.Tool.Core.Workspace;
 using Fuxion.Tool.Core.Worktree;
 
 namespace Fuxion.Tool.Cli.Ui;
@@ -86,12 +86,12 @@ public sealed record UiAction(string Label, string Command, string Description, 
 			return actions;
 		}
 		var root = node;
-		while (root.Kind is not (FxTreeKind.Workspace or FxTreeKind.Repository) && root.Parent is not null)
+		while (root.Kind is not (FxTreeKind.Space or FxTreeKind.Repository) && root.Parent is not null)
 			root = root.Parent;
-		if (root.Kind is not (FxTreeKind.Workspace or FxTreeKind.Repository))
+		if (root.Kind is not (FxTreeKind.Space or FxTreeKind.Repository))
 			return actions;
 		actions.Add(Sync(root, Root(root.Path)));
-		if (root.Kind == FxTreeKind.Workspace)
+		if (root.Kind == FxTreeKind.Space)
 			actions.Add(Pull(root, null, Root(root.Path)));
 		else if (workspace is not null && root.Declaration is not null)
 			actions.Add(Pull(workspace, root, Root(workspace.Path)));
@@ -99,7 +99,7 @@ public sealed record UiAction(string Label, string Command, string Description, 
 		if (root == node && workspace is not null && root.Declaration is { } declaration && root.SupersededBy is null)
 			if (card is not null)
 				actions.Add(WorktreeUnmount(root, card));
-			else if (declaration.Mount == MountPolicy.Manual)
+			else if (!declaration.Required)
 				actions.Add(Mount(root, workspace, mounted: false, Root(workspace.Path)));
 		return actions;
 	}
@@ -107,7 +107,7 @@ public sealed record UiAction(string Label, string Command, string Description, 
 	static FxTreeNode? WorkspaceOf(FxTreeNode node)
 	{
 		for (var at = node.Parent; at is not null; at = at.Parent)
-			if (at.Kind == FxTreeKind.Workspace)
+			if (at.Kind == FxTreeKind.Space)
 				return at;
 		return null;
 	}
@@ -121,7 +121,7 @@ public sealed record UiAction(string Label, string Command, string Description, 
 	{
 		var name = repository?.Declaration?.Name;
 		return new(Texts.Get("ui.action.pull"), $"fx repo pull{(name is null ? "" : $" --repo {name}")}{option}", Texts.Get("ui.action.pull.description"),
-			(progress, token) => UiOutcome.From([WorkspaceModule.Pull(WorkspaceManifest.Load(workspace.Path), name is null ? [] : [name], progress, token)]));
+			(progress, token) => UiOutcome.From([MountsModule.Pull(MountsManifest.Load(workspace.Path), name is null ? [] : [name], progress, token)]));
 	}
 
 	static UiAction Mount(FxTreeNode node, FxTreeNode workspace, bool mounted, string option)
@@ -132,7 +132,7 @@ public sealed record UiAction(string Label, string Command, string Description, 
 			? Texts.Get(node.Kind == FxTreeKind.Parked ? "ui.action.unpark.description" : "ui.action.mount.description")
 			: Texts.Get("ui.action.unmount.description", $"{FxLayout.Parking}/{FxLayout.Relative(workspace.Path, node.Path)}");
 		return new(Texts.Get($"ui.action.{verb}"), $"fx repo {verb} {name}{option}", description,
-			(_, _) => UiOutcome.From([WorkspaceModule.SetMount(WorkspaceManifest.Load(workspace.Path), [name], mounted)]));
+			(_, _) => UiOutcome.From([MountsModule.SetMount(MountsManifest.Load(workspace.Path), [name], mounted)]));
 	}
 
 	static UiAction WorktreeMount(FxTreeNode node, WorktreeCard card)

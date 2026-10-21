@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text.Json;
 using Fuxion.Tool.Cli;
 using Fuxion.Tool.Core.Layout;
+using Fuxion.Tool.Core.Mounts;
 using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Sync;
-using Fuxion.Tool.Core.Workspace;
 using Xunit;
 
 namespace Fuxion.Tool.Test;
@@ -56,21 +56,21 @@ public sealed class PreviewTest : SampleTree
 	public void WouldDo()
 	{
 		var acme = Acme();
-		var manifest = Path.Combine(acme.Path, "_fx", "workspace", "workspace.yaml");
-		var added = ManifestEditor.AddRepository(acme.Path, "https://example.invalid/extra.git", "extra", mandatory: true);
+		var manifest = Path.Combine(acme.Path, "_fx", "mounts", "mounts.yaml");
+		var added = ManifestEditor.AddRepository(acme.Path, "https://example.invalid/extra.git", "extra", required: true);
 		var results = DryRun(acme.Path, manifest, added.After.Text);
 		Assert.Contains(results.SelectMany(r => r.Actions), a => a is { Repository: "extra", Action: "would-clone" });
 		Assert.DoesNotContain(results.SelectMany(r => r.Diagnostics), d => d.Severity == FxSeverity.Error);
 
 		// shared, manual and unmounted (both pending): sync would park it; the doctor, that it is not parked
-		var manual = ManifestEditor.SetRepository(acme.Path, "shared", "mount", ["manual"]);
-		var state = Path.Combine(acme.Path, "_fx", "workspace", "~$state.yaml");
-		using (FxFiles.Overlay([KeyValuePair.Create(manifest, manual.After.Text), KeyValuePair.Create(state, WorkspaceState.Load(acme.Path).With("shared", false).ToYaml())]))
+		var manual = ManifestEditor.SetRepository(acme.Path, "shared", "required", []);
+		var state = Path.Combine(acme.Path, "_fx", "mounts", "~$state.yaml");
+		using (FxFiles.Overlay([KeyValuePair.Create(manifest, manual.After.Text), KeyValuePair.Create(state, MountsState.Load(acme.Path).With("shared", false).ToYaml())]))
 		{
 			Assert.Contains(SyncEngine.Sync(acme.Path, new(DryRun: true), cancellationToken: TestContext.Current.CancellationToken).SelectMany(r => r.Actions),
 				a => a is { Repository: "shared", Action: "would-park" });
 			Assert.Contains(SyncEngine.Doctor(acme.Path, new(Offline: true), cancellationToken: TestContext.Current.CancellationToken).SelectMany(r => r.Diagnostics),
-				d => d.Code == WorkspaceModule.NotParked);
+				d => d.Code == MountsModule.NotParked);
 		}
 		Assert.True(Directory.Exists(Path.Combine(acme.Path, "libs", "shared")));
 	}
@@ -79,7 +79,7 @@ public sealed class PreviewTest : SampleTree
 	public void Chained()
 	{
 		var acme = Acme();
-		var manifest = Path.Combine(acme.Path, "_fx", "workspace", "workspace.yaml");
+		var manifest = Path.Combine(acme.Path, "_fx", "mounts", "mounts.yaml");
 		var first = ManifestEditor.TagRepository(acme.Path, "repo-w1", ["library"]);
 		Assert.True(first.Changed);
 		using (FxFiles.Overlay([KeyValuePair.Create(manifest, first.After.Text)]))

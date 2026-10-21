@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 using Fuxion.Tool.Cli;
 using Fuxion.Tool.Cli.Ui;
 using Fuxion.Tool.Core.Explore;
+using Fuxion.Tool.Core.Mounts;
 using Fuxion.Tool.Core.Results;
-using Fuxion.Tool.Core.Workspace;
 using Fuxion.Tool.Core.Worktree;
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.Backends;
@@ -71,7 +71,7 @@ public sealed class UiActionTest : UiTree
 	public void MountActions()
 	{
 		var acme = AcmeCommitted();
-		Append(Path.Combine(acme.Path, "repo-w1", "_fx", "workspace", "workspace.yaml"), "path: repo-c2\n    mount: mandatory", "path: repo-c2\n    mount: manual");
+		Append(Path.Combine(acme.Path, "repo-w1", "_fx", "mounts", "mounts.yaml"), "path: repo-c2\n    required: true", "path: repo-c2");
 		var c2 = Path.Combine(acme.Path, "repo-w1", "repo-c2");
 		using var h = Open(acme.Path);
 
@@ -116,7 +116,7 @@ public sealed class UiActionTest : UiTree
 	public void EditRepository()
 	{
 		var acme = AcmeCommitted();
-		var manifest = Path.Combine(acme.Path, "repo-w1", "_fx", "workspace", "workspace.yaml");
+		var manifest = Path.Combine(acme.Path, "repo-w1", "_fx", "mounts", "mounts.yaml");
 		var before = File.ReadAllText(manifest);
 		using var h = Open(acme.Path);
 		// F9: its actions, the edits after the ones that act
@@ -133,21 +133,21 @@ public sealed class UiActionTest : UiTree
 		// Ctrl+S, as a terminal sends it
 		h.Ctrl(TerminalChar.CtrlS);
 		h.Until(() => h.Ui.Form is null, "the form closes with its edits");
-		Assert.Equal(["fx repo tag repo-c2 app --root repo-w1", "fx repo set repo-c2 mount manual --root repo-w1"],
+		Assert.Equal(["fx repo tag repo-c2 app --root repo-w1", "fx repo set repo-c2 required --unset --root repo-w1"],
 			h.OnUi(() => h.Ui.Pending.Edits.Select(e => e.Command).ToArray()));
 		Assert.Equal(before, File.ReadAllText(manifest));
 		h.Shows("[F10]");
 
 		// F10: the edits and the diff; Enter writes them, and the sync of the tree is offered
 		h.Key(TerminalKey.F10);
-		h.Shows("+    mount: manual");
+		h.Shows("-    required: true");
 		Assert.Contains("fx repo tag repo-c2 app --root repo-w1", h.Screen());
 		h.Key(TerminalKey.Enter);
 		h.Until(() => !h.Ui.Pending.Any, "the edits, written");
-		var after = File.ReadAllText(manifest);
+		var after = File.ReadAllText(manifest).Replace("\r\n", "\n");
 		Assert.Contains("tags: [dotnet, mobile, app]", after);
-		Assert.Contains("mount: manual", after);
-		Assert.Equal(["fx repo set repo-c2 mount manual --root repo-w1", "fx repo tag repo-c2 app --root repo-w1"],
+		Assert.Contains("    path: repo-c2\n    tags:", after);
+		Assert.Equal(["fx repo set repo-c2 required --unset --root repo-w1", "fx repo tag repo-c2 app --root repo-w1"],
 			h.OnUi(() => h.Ui.Log.Select(l => l.Action.Command).ToArray()));
 		Assert.Contains("fx sync", h.Focused(Texts.Get("ui.action.sync")));
 		h.Key(TerminalKey.Escape);
@@ -165,11 +165,11 @@ public sealed class UiActionTest : UiTree
 		using var h = Open(acme.Path);
 
 		// a module not used: Enter turns it on, pending
-		Assert.True(h.OnUi(() => h.Ui.Select(h.Node(acme.Path, "repo-w1/repo-c1/_fx/workspace"))));
+		Assert.True(h.OnUi(() => h.Ui.Select(h.Node(acme.Path, "repo-w1/repo-c1/_fx/mounts"))));
 		h.Key(TerminalKey.Enter);
 		h.Until(() => h.Ui.Pending.Any, "the module, turned on (pending)");
-		Assert.Equal(["fx module enable workspace --root repo-w1/repo-c1"], h.OnUi(() => h.Ui.Pending.Edits.Select(e => e.Command).ToArray()));
-		Assert.False(Directory.Exists(Path.Combine(acme.Path, "repo-w1", "repo-c1", "_fx", "workspace")));
+		Assert.Equal(["fx module enable mounts --root repo-w1/repo-c1"], h.OnUi(() => h.Ui.Pending.Edits.Select(e => e.Command).ToArray()));
+		Assert.False(Directory.Exists(Path.Combine(acme.Path, "repo-w1", "repo-c1", "_fx", "mounts")));
 
 		// a repository nobody declares: Enter opens its form, with its place; Ctrl+S adds it
 		Assert.True(h.OnUi(() => h.Ui.Select(h.Node(acme.Path, "extras/tool"))));
@@ -193,26 +193,26 @@ public sealed class UiActionTest : UiTree
 		h.Focused(Texts.Get("ui.pending.title", 2));
 		h.Ctrl(TerminalChar.CtrlZ);
 		h.Until(() => h.Ui.Pending.Edits.Count == 1, "Ctrl+Z takes back the last");
-		Assert.Equal(["fx module enable workspace --root repo-w1/repo-c1"], h.OnUi(() => h.Ui.Pending.Edits.Select(e => e.Command).ToArray()));
+		Assert.Equal(["fx module enable mounts --root repo-w1/repo-c1"], h.OnUi(() => h.Ui.Pending.Edits.Select(e => e.Command).ToArray()));
 		h.Key(TerminalKey.Delete);
 		h.Until(() => !h.Ui.Pending.Any, "Delete throws all away");
-		Assert.DoesNotContain("extras/tool", File.ReadAllText(Path.Combine(acme.Path, "_fx", "workspace", "workspace.yaml")));
+		Assert.DoesNotContain("extras/tool", File.ReadAllText(Path.Combine(acme.Path, "_fx", "mounts", "mounts.yaml")));
 	}
 
 	[Fact(DisplayName = "the raw YAML of a file of fx: not valid, it says where and nothing is pending; valid, it is pending and written with its line endings; F4 from a form")]
 	public void EditYaml()
 	{
 		var acme = AcmeCommitted();
-		var manifest = Path.Combine(acme.Path, "repo-w1", "_fx", "workspace", "workspace.yaml");
+		var manifest = Path.Combine(acme.Path, "repo-w1", "_fx", "mounts", "mounts.yaml");
 		var original = File.ReadAllText(manifest);
 		using var h = Open(acme.Path);
 		// its actions: syncing its root, pulling, and its YAML by hand
-		Assert.Equal(3, h.OnUi(() => h.Ui.Actions(h.Node(acme.Path, "repo-w1/_fx/workspace/workspace.yaml")).Count));
-		Choose(h, acme.Path, "repo-w1/_fx/workspace/workspace.yaml", 2);
+		Assert.Equal(3, h.OnUi(() => h.Ui.Actions(h.Node(acme.Path, "repo-w1/_fx/mounts/mounts.yaml")).Count));
+		Choose(h, acme.Path, "repo-w1/_fx/mounts/mounts.yaml", 2);
 		Assert.Contains("name: repo-c2", h.OnUi(() => h.Ui.Editor!.Text));
 
 		// not valid: where, and nothing pending
-		h.OnUi(() => h.Ui.Editor!.Text = "schema: 1.0.0\nrepositories: [\n");
+		h.OnUi(() => h.Ui.Editor!.Text = "schema: 1.0.0\nmounts: [\n");
 		h.Ctrl(TerminalChar.CtrlS);
 		h.Until(() => h.Ui.EditorError is not null, "the editor says what is wrong");
 		Assert.False(h.OnUi(() => h.Ui.Pending.Any));
@@ -222,7 +222,7 @@ public sealed class UiActionTest : UiTree
 		h.OnUi(() => h.Ui.Editor!.Text = original.Replace("\r\n", "\n") + "# by hand\n");
 		h.Ctrl(TerminalChar.CtrlS);
 		h.Until(() => h.Ui.Editor is null, "the editor closes with a valid YAML");
-		Assert.EndsWith("_fx/workspace/workspace.yaml", h.OnUi(() => h.Ui.Pending.Edits.Single().Command));
+		Assert.EndsWith("_fx/mounts/mounts.yaml", h.OnUi(() => h.Ui.Pending.Edits.Single().Command));
 		Assert.True(h.OnUi(() => h.Ui.ApplyPending()));
 		var written = File.ReadAllText(manifest);
 		Assert.EndsWith("# by hand" + (original.Contains("\r\n") ? "\r\n" : "\n"), written);

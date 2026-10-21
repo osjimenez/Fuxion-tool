@@ -12,7 +12,7 @@ namespace Fuxion.Tool.Cli.Sync;
 /// </summary>
 static class DoctorView
 {
-	static readonly string[] Order = ["fx", "workspace", "dotnet", "harness", "version"];
+	static readonly string[] Order = ["fx", "mounts", "dotnet", "harness", "version"];
 
 	public static void Write(FxConsole console, IReadOnlyList<FxModuleResult> modules, IReadOnlyList<FxDiagnostic> diagnostics)
 	{

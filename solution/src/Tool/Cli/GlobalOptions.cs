@@ -103,7 +103,7 @@ public sealed class GlobalOptions
 		var root = result.GetValue(Root);
 		// real (without symbolic links), as git names its folders: on macOS /var and /tmp are links
 		var directory = Fuxion.Tool.Core.Layout.FxLayout.Real(string.IsNullOrWhiteSpace(root) ? currentDirectory : Path.GetFullPath(root, currentDirectory));
-		if (result.GetValue(Workspace) && Fuxion.Tool.Core.Workspace.WorkspaceManifest.FindRoot(directory) is { } workspace)
+		if (result.GetValue(Workspace) && Fuxion.Tool.Core.Mounts.MountsManifest.FindRoot(directory) is { } workspace)
 			directory = workspace;
 		return new(
 			directory,

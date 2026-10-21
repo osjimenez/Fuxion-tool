@@ -7,8 +7,8 @@ using System.Text;
 using System.Threading;
 using Fuxion.Tool.Core.Git;
 using Fuxion.Tool.Core.Layout;
+using Fuxion.Tool.Core.Mounts;
 using Fuxion.Tool.Core.Results;
-using Fuxion.Tool.Core.Workspace;
 
 namespace Fuxion.Tool.Core.Sync;
 
@@ -20,8 +20,8 @@ namespace Fuxion.Tool.Core.Sync;
 /// </summary>
 public static class RemoteParent
 {
-	public const string Unavailable = "workspace.parent-unavailable";
-	public const string NotDeclared = "workspace.parent-not-declared";
+	public const string Unavailable = "space.parent-unavailable";
+	public const string NotDeclared = "space.parent-not-declared";
 
 	static readonly TimeSpan Timeout = TimeSpan.FromMinutes(2);
 
@@ -58,7 +58,7 @@ public static class RemoteParent
 			diagnostics.Add(FxDiagnostic.Warning(Unavailable, new($"{Unavailable}.offline", url), fix: FxFix.Run(FxHeader.Sync)));
 			return null;
 		}
-		return progress.Step(WorkspaceModuleName, null, "parent", () =>
+		return progress.Step(Mounts.MountsManifest.ModuleName, null, "parent", () =>
 		{
 			branch ??= GitClient.DefaultBranch(url, Timeout, cancellationToken);
 			if (branch is null)
@@ -86,12 +86,10 @@ public static class RemoteParent
 	{
 		var shares = SpaceConfig.Load(folder).Shares ?? [];
 		return new[] { FxLayout.Folder }
-			.Concat(shares.Where(s => WorkspaceShares.SafeSource(s.Path))
+			.Concat(shares.Where(s => SpaceShares.SafeSource(s.Path))
 				.Select(s => s.Path.EndsWith('/') ? s.Path.TrimEnd('/') : Path.GetDirectoryName(s.Path)?.Replace('\\', '/') ?? ""))
 			.Where(f => f.Length > 0)
 			.Distinct(StringComparer.OrdinalIgnoreCase)
 			.ToList();
 	}
-
-	const string WorkspaceModuleName = "workspace";
 }

@@ -59,13 +59,13 @@ public sealed class OutputTest
 		origin.WriteFile("FxPlus.slnx", "<Solution />\n");
 		origin.Commit("c1");
 		meta.WriteFile(Path.Combine("_fx", "space.yaml"), "schema: 1.0.0\nname: test\n");
-		meta.WriteFile(Path.Combine("_fx", "workspace", "workspace.yaml"), $"""
+		meta.WriteFile(Path.Combine("_fx", "mounts", "mounts.yaml"), $"""
 			schema: 1.0.0
-			repositories:
+			mounts:
 			  - name: plus
 			    path: plus/repo
 			    url: {origin.Path.Replace('\\', '/')}
-			    mount: mandatory
+			    required: true
 			    tags: [dotnet]
 			""");
 		meta.Commit("manifest");
@@ -88,13 +88,13 @@ public sealed class OutputTest
 	public void Cancelled()
 	{
 		using var meta = new TempGitRepository();
-		meta.WriteFile(Path.Combine("_fx", "workspace", "workspace.yaml"), "schema: 1.0.0\nrepositories: []\n");
+		meta.WriteFile(Path.Combine("_fx", "mounts", "mounts.yaml"), "schema: 1.0.0\nmounts: []\n");
 		meta.Commit("manifest");
 		using var cancelled = new CancellationTokenSource();
 		cancelled.Cancel();
 		var stderr = new StringWriter();
 		var settings = new GlobalSettings(meta.Path, OutputFormat.Human, false, false);
-		Assert.Equal(FxConsole.Cancelled, SyncCommand.Run(new(settings, "workspace", DryRun: false), new(new StringWriter(), stderr, settings), doctor: false, cancelled.Token));
+		Assert.Equal(FxConsole.Cancelled, SyncCommand.Run(new(settings, "mounts", DryRun: false), new(new StringWriter(), stderr, settings), doctor: false, cancelled.Token));
 		Assert.Contains("Cancelled.", stderr.ToString());
 	}
 

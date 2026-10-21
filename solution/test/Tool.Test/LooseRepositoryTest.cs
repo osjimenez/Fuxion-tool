@@ -1,17 +1,17 @@
-using Fuxion.Tool.Cli;
-using Fuxion.Tool.Core.Git;
-using Fuxion.Tool.Core.Layout;
-using Fuxion.Tool.Core.Results;
-using Fuxion.Tool.Core.Sync;
-using Fuxion.Tool.Core.Workspace;
-using Fuxion.Tool.Core.Worktree;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
-using System;
-using Xunit;
+using Fuxion.Tool.Cli;
+using Fuxion.Tool.Core.Git;
+using Fuxion.Tool.Core.Layout;
+using Fuxion.Tool.Core.Mounts;
+using Fuxion.Tool.Core.Results;
+using Fuxion.Tool.Core.Sync;
+using Fuxion.Tool.Core.Worktree;
 using static Fuxion.Tool.Test.Worktrees;
+using Xunit;
 
 namespace Fuxion.Tool.Test;
 

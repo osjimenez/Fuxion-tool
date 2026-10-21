@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Fuxion.Tool.Core.Mounts;
 using Fuxion.Tool.Core.Results;
-using Fuxion.Tool.Core.Workspace;
 
 namespace Fuxion.Tool.Core.Layout;
 
@@ -23,7 +23,7 @@ public sealed class FxNode(string root)
 
 	public bool Exists => FxLayout.IsGitRoot(Root) || FxFiles.DirectoryExists(FxLayout.Full(Root, FxLayout.Folder));
 
-	public bool IsWorkspace => WorkspaceManifest.IsWorkspace(Root);
+	public bool HasMounts => MountsManifest.HasMounts(Root);
 
 	/// <summary>The name of its folder (what a root without a name falls back to).</summary>
 	public string FolderName => Path.GetFileName(Path.TrimEndingDirectorySeparator(Root));
@@ -49,7 +49,7 @@ public sealed class FxNode(string root)
 	public FxIdentity SelfIdentity(ICollection<FxDiagnostic>? diagnostics = null)
 	{
 		if (Inherited() is { } inherited)
-			return inherited.Repository;
+			return inherited.Space;
 		if (OwnConfig().Name is { } name)
 			return FxIdentity.Root(name);
 		// a repository without _fx/ is not a root of fx: nothing to ask of it
@@ -63,17 +63,17 @@ public sealed class FxNode(string root)
 	/// that does. A guest declaration is skipped: its parent is further up. The root of a worktree is its main clone in
 	/// worktree mode: its parent is that one's, in the main tree (plan P, decision 28).
 	/// </summary>
-	public (FxNode Workspace, WorkspaceManifest Manifest, WorkspaceRepository Declaration)? FindParent()
+	public (FxNode Workspace, MountsManifest Manifest, Mount Declaration)? FindParent()
 	{
 		if (FxFiles.Exists(Full(FxLayout.WorktreeFile)) && Git.GitClient.Discover(Root)?.MainRoot() is { } main && !FxLayout.SameFolder(main, Root))
 			return new FxNode(main).FindParent();
 		for (var dir = Directory.GetParent(Path.TrimEndingDirectorySeparator(Root)); dir is not null; dir = dir.Parent)
 		{
-			if (!WorkspaceManifest.IsWorkspace(dir.FullName))
+			if (!MountsManifest.HasMounts(dir.FullName))
 				continue;
-			var file = FxLayout.Full(dir.FullName, WorkspaceManifest.RelativePath);
-			var manifest = WorkspaceManifest.Read(FxLayout.Normalize(dir.FullName), FxFiles.Exists(file) ? FxFiles.ReadAllText(file) : "");
-			if (manifest.RepositoryAt(Root) is { Inherits: true } declaration)
+			var file = FxLayout.Full(dir.FullName, MountsManifest.RelativePath);
+			var manifest = MountsManifest.Read(FxLayout.Normalize(dir.FullName), FxFiles.Exists(file) ? FxFiles.ReadAllText(file) : "");
+			if (manifest.MountAt(Root) is { Inherits: true } declaration)
 				return (new FxNode(dir.FullName), manifest, declaration);
 		}
 		return null;

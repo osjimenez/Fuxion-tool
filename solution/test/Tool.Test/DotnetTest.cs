@@ -490,7 +490,7 @@ public sealed class DotnetTest
 		File.Delete(repo.At(Path.Combine("_fx", "dotnet", "dotnet.yaml")));
 		repo.Git.WriteFile(Path.Combine("_fx", ".inherited", "dotnet", "dotnet.yaml"), ImportsYaml);
 		repo.Git.WriteFile(Path.Combine("_fx", ".inherited", "inherited.yaml"),
-			"schema: 1.0.0\nrepository:\n  name: plus\n  full-name: /fuxion/plus\n  tags: [dotnet, windows]\nparent:\n  full-name: /fuxion\n");
+			"schema: 1.0.0\nspace:\n  name: plus\n  full-name: /fuxion/plus\n  tags: [dotnet, windows]\nparent:\n  full-name: /fuxion\n");
 		foreach (var file in new[] { "default.props", "packable.props", "packable.targets", "test.targets", "old.targets" })
 			repo.Git.WriteFile(Path.Combine("_fx", ".inherited", "dotnet", file), "<Project />");
 		Assert.Empty(Sync(repo.Git.Path).Diagnostics);

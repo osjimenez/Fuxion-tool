@@ -7,8 +7,8 @@ using Fuxion.Tool.Core.Dotnet;
 using Fuxion.Tool.Core.Git;
 using Fuxion.Tool.Core.Harness;
 using Fuxion.Tool.Core.Layout;
+using Fuxion.Tool.Core.Mounts;
 using Fuxion.Tool.Core.Results;
-using Fuxion.Tool.Core.Workspace;
 
 namespace Fuxion.Tool.Core.Sync;
 
@@ -21,7 +21,7 @@ namespace Fuxion.Tool.Core.Sync;
 /// <item><c>space.yaml</c>: <c>requires</c> and the catalog of tags.</item>
 /// <item><c>dotnet/</c>: the merged <c>dotnet.yaml</c> of what is for it (without the solutions) and the files of those imports.</item>
 /// <item><c>harness/</c>: the merged <c>harness.yaml</c> of what is for it, and the files of those rules and skills (plan Q).</item>
-/// <item><c>workspace/</c>, in a workspace: the shares, to pass them on (<see cref="WorkspaceShares"/>).</item>
+/// <item><c>workspace/</c>, in a workspace: the shares, to pass them on (<see cref="SpaceShares"/>).</item>
 /// <item><c>inherited.yaml</c>: who the repository is for its parent, whose it is and where each file comes from,
 /// also the shares it receives, written outside <c>_fx/</c>.</item>
 /// </list>
@@ -30,7 +30,7 @@ namespace Fuxion.Tool.Core.Sync;
 /// </summary>
 public static class Inheritance
 {
-	public const string InvalidParent = "workspace.invalid-parent";
+	public const string InvalidParent = "space.invalid-parent";
 
 	/// <summary>
 	/// What <paramref name="child"/> (declared by <paramref name="parent"/> as <paramref name="identity"/>) receives,
@@ -46,13 +46,13 @@ public static class Inheritance
 			=> parentInherited?.Files.FirstOrDefault(f => string.Equals(f.Path, relative, StringComparison.OrdinalIgnoreCase))?.From ?? [parentInherited?.Parent.FullName ?? parentIdentity.FullName];
 		var existingInherited = child.Inherited();
 
-		var dotnet = Dotnet(parent, parentIdentity, identity, child.IsWorkspace, expected, FromOf, diagnostics);
-		var harness = Harness(parent, parentIdentity, identity, child.IsWorkspace, expected, FromOf, diagnostics);
-		var flows = WorkspaceShares.Of(parent, parentIdentity, FromOf);
-		var received = WorkspaceShares.For(flows, identity);
-		if (child.IsWorkspace && flows.Count > 0)
+		var dotnet = Dotnet(parent, parentIdentity, identity, child.HasMounts, expected, FromOf, diagnostics);
+		var harness = Harness(parent, parentIdentity, identity, child.HasMounts, expected, FromOf, diagnostics);
+		var flows = SpaceShares.Of(parent, parentIdentity, FromOf);
+		var received = SpaceShares.For(flows, identity);
+		if (child.HasMounts && flows.Count > 0)
 			Conduit(child, flows, existingInherited, expected);
-		var applies = dotnet || harness || child.IsWorkspace || received.Any;
+		var applies = dotnet || harness || child.HasMounts || received.Any;
 		if (applies)
 		{
 			// space.yaml: requires and the catalog, from above and from the parent
@@ -68,7 +68,7 @@ public static class Inheritance
 		}
 
 		// the shares in the repository itself, outside _fx/ (also removing what it no longer gets)
-		var shares = WorkspaceShares.Apply(child, received, existingInherited, outputs, diagnostics);
+		var shares = SpaceShares.Apply(child, received, existingInherited, outputs, diagnostics);
 
 		var folder = child.Full(FxLayout.Inherited);
 		if (applies)
@@ -107,16 +107,16 @@ public static class Inheritance
 	static void Conduit(FxNode child, IReadOnlyList<ShareFlow> flows, FxInherited? existing,
 		SortedDictionary<string, (byte[] Content, IReadOnlyList<string> From)> expected)
 	{
-		var folder = WorkspaceShares.Folder;
+		var folder = SpaceShares.Folder;
 		var froms = flows.SelectMany(f => f.Files?.Select(file => file.From) ?? []).Distinct().ToList();
-		expected[$"{folder}/{folder}.yaml"] = (Encoding.UTF8.GetBytes(WorkspaceShares.ToYaml(flows, Workspaces(froms, FxLayout.ConfigFile))), froms);
+		expected[$"{folder}/{folder}.yaml"] = (Encoding.UTF8.GetBytes(SpaceShares.ToYaml(flows, Workspaces(froms, FxLayout.ConfigFile))), froms);
 		foreach (var flow in flows)
 			if (flow.Files is not null)
 				foreach (var file in flow.Files)
 					expected[$"{folder}/{file.Destination}"] = (file.Content, [file.From]);
 			else
 				foreach (var kept in (existing?.Files ?? []).Where(f => f.Path.StartsWith(folder + "/", StringComparison.Ordinal)
-				                                                     && WorkspaceShares.Under(f.Path[(folder.Length + 1)..], flow.Share.Destination)))
+				                                                     && SpaceShares.Under(f.Path[(folder.Length + 1)..], flow.Share.Destination)))
 					if (FxFiles.Exists(child.Full($"{FxLayout.Inherited}/{kept.Path}")))
 						expected[kept.Path] = (FxFiles.ReadAllBytes(child.Full($"{FxLayout.Inherited}/{kept.Path}")), kept.From);
 	}

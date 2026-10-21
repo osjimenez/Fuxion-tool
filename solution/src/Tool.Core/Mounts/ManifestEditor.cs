@@ -9,7 +9,7 @@ using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Text;
 using Fuxion.Tool.Core.Yaml;
 
-namespace Fuxion.Tool.Core.Workspace;
+namespace Fuxion.Tool.Core.Mounts;
 
 /// <summary>
 /// A change to a configuration file of fx (<see cref="File"/>, relative to the root): the text before, the editor
@@ -29,39 +29,39 @@ public sealed record ManifestChange(string File, string Before, YamlEditor After
 }
 
 /// <summary>
-/// The commands that edit the configuration of a workspace (plan O, O3.4; plan P): <c>fx repo add|remove|tag|set</c>
-/// and <c>fx path add|remove</c> edit <c>_fx/workspace/workspace.yaml</c>; <c>fx module enable|disable</c>, the yaml
-/// of the module (creating its folder, or <c>enabled: false</c>). Each changes only what it must and keeps the rest of
+/// The commands that edit the configuration of a space (plan O, O3.4; plan P): <c>fx repo add|remove|tag|set</c> edit
+/// <c>_fx/mounts/mounts.yaml</c>, <c>fx path add|remove</c> its <c>_fx/space.yaml</c>; <c>fx module enable|disable</c>,
+/// the yaml of the module (creating its folder, or <c>enabled: false</c>). Each changes only what it must and keeps the rest of
 /// the file, comments included. The result is validated as the file is read (strict): a change that would leave it
 /// invalid has errors and is not written. They never touch the clones nor the folders.
 /// </summary>
 public static partial class ManifestEditor
 {
-	public const string RepositoryExists = "workspace.repository-exists";
-	public const string RepositoryNeeded = "workspace.repository-needed";
-	public const string UnknownKey = "workspace.unknown-key";
-	public const string InvalidValue = "workspace.invalid-value";
-	public const string UnknownModule = "workspace.unknown-module";
-	public const string NotTagged = "workspace.not-tagged";
-	public const string CloneKept = "workspace.clone-kept";
-	public const string CloneNotMoved = "workspace.clone-not-moved";
-	public const string Unchanged = "workspace.unchanged";
+	public const string RepositoryExists = "mounts.exists";
+	public const string RepositoryNeeded = "mounts.needed";
+	public const string UnknownKey = "mounts.unknown-key";
+	public const string InvalidValue = "mounts.invalid-value";
+	public const string UnknownModule = "fx.unknown-module";
+	public const string NotTagged = "mounts.not-tagged";
+	public const string CloneKept = "mounts.clone-kept";
+	public const string CloneNotMoved = "mounts.clone-not-moved";
+	public const string Unchanged = "fx.unchanged";
 
 	/// <summary>The modules fx knows: a folder of <c>_fx/</c> each.</summary>
-	public static readonly IReadOnlyList<string> KnownModules = [WorkspaceModule.Name, DotnetModule.Name, Harness.HarnessModule.Name];
+	public static readonly IReadOnlyList<string> KnownModules = [MountsModule.Name, DotnetModule.Name, Harness.HarnessModule.Name];
 
-	/// <summary>The keys of a repository, in the order fx writes them.</summary>
-	public static readonly IReadOnlyList<string> RepositoryKeys = ["name", "aliases", "url", "path", "mount", "inherits", "depends-on", "tags"];
+	/// <summary>The keys of a mount, in the order fx writes them.</summary>
+	public static readonly IReadOnlyList<string> MountKeys = ["name", "aliases", "url", "path", "required", "mode", "inherits", "depends-on", "tags"];
 
 	/// <summary>What <see cref="SetRepository"/> changes (the name is the identity; the tags, <see cref="TagRepository"/>).</summary>
-	public static readonly IReadOnlyList<string> SettableKeys = ["url", "path", "mount", "inherits", "depends-on"];
+	public static readonly IReadOnlyList<string> SettableKeys = ["url", "path", "required", "mode", "inherits", "depends-on"];
 
 	static readonly IReadOnlyList<string> ListKeys = ["depends-on"];
 
 	[GeneratedRegex("[^a-z0-9]+")]
 	private static partial Regex NotNameChars();
 
-	public static string ManifestPath(string root) => FxLayout.Full(root, WorkspaceManifest.RelativePath);
+	public static string ManifestPath(string root) => FxLayout.Full(root, MountsManifest.RelativePath);
 
 	/// <summary>The descriptor of the space at <paramref name="root"/>: <c>_fx/space.yaml</c>.</summary>
 	public static string SpacePath(string root) => FxLayout.Full(root, FxLayout.ConfigFile);
@@ -84,41 +84,43 @@ public static partial class ManifestEditor
 	}
 
 	/// <summary>
-	/// A new repository at the end of <c>repositories</c>, mounted at <paramref name="path"/> (the layout of the
-	/// workspace is the user's: fx has no default for it); the name, by default from the URL. Only what differs from
-	/// the defaults is written (manual, inherits).
+	/// A new mount at the end of <c>mounts</c>, at <paramref name="path"/> (the layout of the space is the user's: fx
+	/// has no default for it); the name, by default from the URL. Only what differs from the defaults is written (not
+	/// required, write, inherits).
 	/// </summary>
-	public static ManifestChange AddRepository(string root, string url, string path, string? name = null, bool mandatory = false,
-		IReadOnlyList<string>? dependsOn = null, IReadOnlyList<string>? tags = null, bool inherits = true)
+	public static ManifestChange AddRepository(string root, string url, string path, string? name = null, bool required = false,
+		IReadOnlyList<string>? dependsOn = null, IReadOnlyList<string>? tags = null, bool inherits = true, MountMode mode = MountMode.Write)
 	{
 		var s = new Session(root);
 		name ??= NameFromUrl(url);
 		path = path.Replace('\\', '/').Trim('/');
-		if (s.Current.Resolve($"repositories[name={name}]") is not null)
+		if (s.Current.Resolve($"mounts[name={name}]") is not null)
 			return s.Error(RepositoryExists, new FxText(RepositoryExists, name), name);
 		var entries = new List<(string, YamlValue)> { ("name", name), ("url", url), ("path", path) };
-		if (mandatory)
-			entries.Add(("mount", "mandatory"));
+		if (required)
+			entries.Add(("required", new YamlValue.Raw("true")));
+		if (mode != MountMode.Write)
+			entries.Add(("mode", MountsManifest.ModeText(mode)));
 		if (!inherits)
 			entries.Add(("inherits", new YamlValue.Raw("false")));
 		if (dependsOn is { Count: > 0 })
 			entries.Add(("depends-on", Flow(dependsOn)));
 		if (tags is { Count: > 0 })
 			entries.Add(("tags", Flow(tags)));
-		s.AppendItem("repositories", new YamlValue.Map(entries.ToArray()));
+		s.AppendItem("mounts", new YamlValue.Map(entries.ToArray()));
 		return s.Done();
 	}
 
-	/// <summary>Takes a repository out of the manifest; its clone stays (and a warning says where).</summary>
+	/// <summary>Takes a mount out of <c>mounts.yaml</c>; its clone stays (and a warning says where).</summary>
 	public static ManifestChange RemoveRepository(string root, string name)
 	{
 		var s = new Session(root);
 		if (s.Repository(name) is not { } repository)
-			return s.Error(WorkspaceModule.UnknownRepository, new FxText(WorkspaceModule.UnknownRepository, name), name);
-		var dependents = s.Manifest.Repositories.Where(r => (r.DependsOn ?? []).Any(d => d == name || (repository.Aliases ?? []).Contains(d))).Select(r => r.Name).ToList();
+			return s.Error(MountsModule.UnknownRepository, new FxText(MountsModule.UnknownRepository, name), name);
+		var dependents = s.Manifest.Mounts.Where(r => (r.DependsOn ?? []).Any(d => d == name || (repository.Aliases ?? []).Contains(d))).Select(r => r.Name).ToList();
 		if (dependents.Count > 0)
 			return s.Error(RepositoryNeeded, new FxText(RepositoryNeeded, name, string.Join(", ", dependents)), name);
-		s.Apply(s.Current.Remove($"repositories[name={name}]"));
+		s.Apply(s.Current.Remove($"mounts[name={name}]"));
 		if (FxFiles.DirectoryExists(s.Manifest.FullPath(repository)))
 			s.Diagnostics.Add(FxDiagnostic.Warning(CloneKept, new FxText(CloneKept, name, repository.Path), repository: name));
 		return s.Done();
@@ -129,8 +131,8 @@ public static partial class ManifestEditor
 	{
 		var s = new Session(root);
 		if (s.Repository(name) is null)
-			return s.Error(WorkspaceModule.UnknownRepository, new FxText(WorkspaceModule.UnknownRepository, name), name);
-		var at = $"repositories[name={name}]";
+			return s.Error(MountsModule.UnknownRepository, new FxText(MountsModule.UnknownRepository, name), name);
+		var at = $"mounts[name={name}]";
 		var current = (s.Current.Resolve($"{at}.tags") as YamlSequence)?.Items.OfType<YamlScalar>().Select(i => i.Value).ToList() ?? [];
 		if (!remove)
 		{
@@ -155,8 +157,9 @@ public static partial class ManifestEditor
 	}
 
 	/// <summary>
-	/// Sets a key of a repository (<see cref="SettableKeys"/>); without values, removes it. <c>mount</c> takes
-	/// <c>mandatory</c> or <c>manual</c>, <c>inherits</c> <c>true</c> or <c>false</c>; the lists, several values.
+	/// Sets a key of a mount (<see cref="SettableKeys"/>); without values, removes it. <c>required</c> and
+	/// <c>inherits</c> take <c>true</c> or <c>false</c>, <c>mode</c> one of <see cref="MountsManifest.Modes"/>; the lists,
+	/// several values.
 	/// </summary>
 	public static ManifestChange SetRepository(string root, string name, string key, IReadOnlyList<string> values)
 	{
@@ -164,8 +167,8 @@ public static partial class ManifestEditor
 		if (!SettableKeys.Contains(key))
 			return s.Error(UnknownKey, new FxText(UnknownKey, key, string.Join(", ", SettableKeys)), name);
 		if (s.Repository(name) is not { } repository)
-			return s.Error(WorkspaceModule.UnknownRepository, new FxText(WorkspaceModule.UnknownRepository, name), name);
-		var at = $"repositories[name={name}]";
+			return s.Error(MountsModule.UnknownRepository, new FxText(MountsModule.UnknownRepository, name), name);
+		var at = $"mounts[name={name}]";
 		if (values.Count == 0)
 		{
 			if (s.Current.Resolve($"{at}.{key}") is null)
@@ -175,15 +178,15 @@ public static partial class ManifestEditor
 		}
 		string[]? allowed = key switch
 		{
-			"mount" => ["mandatory", "manual"],
-			"inherits" => ["true", "false"],
+			"required" or "inherits" => ["true", "false"],
+			"mode" => [.. MountsManifest.Modes],
 			_ => null
 		};
 		if ((!ListKeys.Contains(key) && values.Count > 1) || (allowed is not null && !allowed.Contains(values[0])))
 			return s.Error(InvalidValue, allowed is null
 				? new FxText($"{InvalidValue}.single", key, string.Join(" ", values))
 				: new FxText(InvalidValue, key, string.Join(" ", values), string.Join(", ", allowed)), name);
-		YamlValue value = ListKeys.Contains(key) ? Flow(values) : key == "inherits" ? new YamlValue.Raw(values[0]) : values[0];
+		YamlValue value = ListKeys.Contains(key) ? Flow(values) : key is "required" or "inherits" ? new YamlValue.Raw(values[0]) : values[0];
 		if (value is not YamlValue.Flow && s.Current.Resolve($"{at}.{key}") is YamlScalar)
 			s.Apply(s.Current.SetScalar($"{at}.{key}", value));
 		else if (value is YamlValue.Flow && s.Current.Resolve($"{at}.{key}") is YamlSequence)
@@ -210,8 +213,8 @@ public static partial class ManifestEditor
 	{
 		var s = new Session(root);
 		if (s.Repository(name) is null)
-			return [s.Error(WorkspaceModule.UnknownRepository, new FxText(WorkspaceModule.UnknownRepository, name), name)];
-		if (s.Manifest.Repositories.Any(r => r.Name != name && (r.Name == newName || (r.Aliases ?? []).Contains(newName))))
+			return [s.Error(MountsModule.UnknownRepository, new FxText(MountsModule.UnknownRepository, name), name)];
+		if (s.Manifest.Mounts.Any(r => r.Name != name && (r.Name == newName || (r.Aliases ?? []).Contains(newName))))
 			return [s.Error(RepositoryExists, new FxText(RepositoryExists, newName), name)];
 		if (name == newName)
 			return [s.Info(new FxText($"{Unchanged}.renamed", name), name)];
@@ -224,8 +227,8 @@ public static partial class ManifestEditor
 			return reference;
 		}
 
-		var at = $"repositories[name={newName}]";
-		s.Apply(s.Current.SetScalar($"repositories[name={name}].name", newName));
+		var at = $"mounts[name={newName}]";
+		s.Apply(s.Current.SetScalar($"mounts[name={name}].name", newName));
 		var aliases = (s.Current.Resolve($"{at}.aliases") as YamlSequence)?.Items.OfType<YamlScalar>().Select(i => i.Value).ToList();
 		if (aliases is null)
 			s.Set(at, "aliases", Flow([name]));
@@ -237,14 +240,22 @@ public static partial class ManifestEditor
 			if (aliases.Contains(newName))
 				s.Apply(s.Current.Remove($"{at}.aliases[={newName}]"));
 		}
-		foreach (var other in s.Manifest.Repositories.Where(r => r.Name != name && (r.DependsOn ?? []).Contains(name)))
-			s.Apply(s.Current.SetScalar($"repositories[name={other.Name}].depends-on[={name}]", newName));
-		for (var i = 0; s.Current.Resolve($"shares[{i}]") is not null; i++)
-			s.RewriteList($"shares[{i}].applies-to.repositories", Rewrite);
+		foreach (var other in s.Manifest.Mounts.Where(r => r.Name != name && (r.DependsOn ?? []).Contains(name)))
+			s.Apply(s.Current.SetScalar($"mounts[name={other.Name}].depends-on[={name}]", newName));
 		var changes = new List<ManifestChange> { s.Done() };
 
+		// the references of the shares of this space
+		if (FxFiles.Exists(SpacePath(root)))
+		{
+			var space = new SpaceSession(root);
+			for (var i = 0; space.Current.Resolve($"shares[{i}]") is not null; i++)
+				space.RewriteList($"shares[{i}].applies-to.repositories", Rewrite);
+			if (space.Edits.Count > 0)
+				changes.Add(space.Done());
+		}
+
 		// the references of the modules of this workspace
-		foreach (var module in KnownModules.Where(m => m != WorkspaceModule.Name && FxFiles.Exists(FxLayout.Full(root, FxLayout.ModuleFile(m)))))
+		foreach (var module in KnownModules.Where(m => m != MountsModule.Name && FxFiles.Exists(FxLayout.Full(root, FxLayout.ModuleFile(m)))))
 		{
 			var m = new ModuleSession(root, module);
 			m.RewriteList("applies-to.repositories", Rewrite);
@@ -370,8 +381,8 @@ public static partial class ManifestEditor
 		if (text != before)
 			try
 			{
-				if (file == WorkspaceManifest.RelativePath)
-					WorkspaceManifest.Read(root, text, strict: true);
+				if (file == MountsManifest.RelativePath)
+					MountsManifest.Read(root, text, strict: true);
 				else if (file == FxLayout.ModuleFile(DotnetModule.Name))
 					DotnetYamlReader.Read(text, file);
 				else if (file == FxLayout.ModuleFile(Harness.HarnessModule.Name))
@@ -379,9 +390,9 @@ public static partial class ManifestEditor
 				else if (file == FxLayout.ConfigFile)
 					SpaceConfig.Read(text, file, diagnostics);
 			}
-			catch (Exception ex) when (ex is DotnetConfigException or WorkspaceManifestException or Harness.HarnessConfigException)
+			catch (Exception ex) when (ex is DotnetConfigException or MountsManifestException or Harness.HarnessConfigException)
 			{
-				diagnostics.AddRange(ex switch { DotnetConfigException d => d.Diagnostics, Harness.HarnessConfigException h => h.Diagnostics, _ => ((WorkspaceManifestException)ex).Diagnostics });
+				diagnostics.AddRange(ex switch { DotnetConfigException d => d.Diagnostics, Harness.HarnessConfigException h => h.Diagnostics, _ => ((MountsManifestException)ex).Diagnostics });
 			}
 		return new(file, before, after, text == before ? [] : ["by hand"], diagnostics) { Root = root };
 	}
@@ -467,20 +478,20 @@ public static partial class ManifestEditor
 		}
 	}
 
-	/// <summary>An edit of <c>_fx/workspace/workspace.yaml</c>.</summary>
-	sealed class Session(string root) : Edit(root, WorkspaceManifest.RelativePath, Text(root), YamlEditor.ReadFile(ManifestPath(root)))
+	/// <summary>An edit of <c>_fx/mounts/mounts.yaml</c>.</summary>
+	sealed class Session(string root) : Edit(root, MountsManifest.RelativePath, Text(root), YamlEditor.ReadFile(ManifestPath(root)))
 	{
-		public WorkspaceManifest Manifest { get; } = WorkspaceManifest.Read(root, FxFiles.ReadAllText(ManifestPath(root)));
+		public MountsManifest Manifest { get; } = MountsManifest.Read(root, FxFiles.ReadAllText(ManifestPath(root)));
 
 		static string Text(string root) => FxFiles.ReadAllText(ManifestPath(root));
 
-		public WorkspaceRepository? Repository(string name) => Manifest.Repositories.FirstOrDefault(r => r.Name == name);
+		public Mount? Repository(string name) => Manifest.Mounts.FirstOrDefault(r => r.Name == name);
 
-		/// <summary>Adds a key to a repository after the last one that goes before it (<see cref="RepositoryKeys"/>).</summary>
+		/// <summary>Adds a key to a repository after the last one that goes before it (<see cref="MountKeys"/>).</summary>
 		public void Set(string at, string key, YamlValue value)
 		{
 			var mapping = (YamlMapping)Current.Resolve(at)!;
-			var before = RepositoryKeys.TakeWhile(k => k != key).LastOrDefault(k => mapping[k] is not null);
+			var before = MountKeys.TakeWhile(k => k != key).LastOrDefault(k => mapping[k] is not null);
 			Apply(Current.AddKey(at, key, value, after: before));
 		}
 
@@ -488,9 +499,9 @@ public static partial class ManifestEditor
 		{
 			try
 			{
-				WorkspaceManifest.Read(Root, text, strict: true);
+				MountsManifest.Read(Root, text, strict: true);
 			}
-			catch (WorkspaceManifestException ex)
+			catch (MountsManifestException ex)
 			{
 				Diagnostics.AddRange(ex.Diagnostics);
 			}
@@ -507,7 +518,7 @@ public static partial class ManifestEditor
 		{
 			var space = SpaceConfig.Read(text, File, Diagnostics);
 			if (FxFiles.Exists(ManifestPath(Root)))
-				Diagnostics.AddRange(WorkspaceModule.PathsInRepositories(space, WorkspaceManifest.Read(Root, FxFiles.ReadAllText(ManifestPath(Root))), File));
+				Diagnostics.AddRange(MountsModule.PathsInRepositories(space, MountsManifest.Read(Root, FxFiles.ReadAllText(ManifestPath(Root))), File));
 		}
 	}
 
@@ -551,12 +562,12 @@ public static partial class ManifestEditor
 					DotnetYamlReader.Read(text, File);
 				else if (Module == Harness.HarnessModule.Name)
 					Harness.HarnessYamlReader.Read(text, File);
-				else if (Module == WorkspaceModule.Name)
-					WorkspaceManifest.Read(_root, text, strict: true);
+				else if (Module == MountsModule.Name)
+					MountsManifest.Read(_root, text, strict: true);
 			}
-			catch (Exception ex) when (ex is DotnetConfigException or WorkspaceManifestException or Harness.HarnessConfigException)
+			catch (Exception ex) when (ex is DotnetConfigException or MountsManifestException or Harness.HarnessConfigException)
 			{
-				Diagnostics.AddRange(ex switch { DotnetConfigException d => d.Diagnostics, Harness.HarnessConfigException h => h.Diagnostics, _ => ((WorkspaceManifestException)ex).Diagnostics });
+				Diagnostics.AddRange(ex switch { DotnetConfigException d => d.Diagnostics, Harness.HarnessConfigException h => h.Diagnostics, _ => ((MountsManifestException)ex).Diagnostics });
 			}
 		}
 	}
