@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.fuxion.invalid/document/v1.0/types/spec.schema.json",
+  "title": "Document specification metadata 1.0",
+  "x-docs-temporality": "stable",
+  "x-docs-status-classes": { "approved": "current", "cancelled": "void", "draft": "open", "implemented": "current", "implementing": "current", "review": "open", "superseded": "replaced", "verified": "current" },
+  "allOf": [
+    { "$ref": "../base.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "spec" },
+        "status": { "enum": ["approved", "cancelled", "draft", "implemented", "implementing", "review", "superseded", "verified"] },
+        "profile": { "enum": ["data", "infrastructure", "integration", "procedure", "software"] }
+      },
+      "required": ["profile"]
+    }
+  ],
+  "unevaluatedProperties": false
+}

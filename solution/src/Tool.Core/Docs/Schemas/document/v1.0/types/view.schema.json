@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.fuxion.invalid/document/v1.0/types/view.schema.json",
+  "title": "Document view metadata 1.0",
+  "x-docs-temporality": "stable",
+  "x-docs-status-classes": { "active": "current", "retired": "void" },
+  "allOf": [
+    { "$ref": "../base.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "view" },
+        "status": { "enum": ["active", "retired"] },
+        "profile": { "enum": ["catalog", "graph", "query", "status"] },
+        "generation": { "$ref": "../common.schema.json#/$defs/generation" }
+      },
+      "required": ["profile", "generation"]
+    }
+  ],
+  "unevaluatedProperties": false
+}

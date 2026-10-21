@@ -724,4 +724,40 @@
   <data name="self.replace-failed" xml:space="preserve">
     <value>No se pudo sustituir fx: {0}</value>
   </data>
+  <data name="docs.invalid-yaml" xml:space="preserve">
+    <value>docs.yaml no es válido.</value>
+  </data>
+  <data name="docs.invalid-yaml.catalog" xml:space="preserve">
+    <value>El catálogo ('{0}') tiene que ser una carpeta relativa del espacio, fuera de _fx/ y no local.</value>
+  </data>
+  <data name="docs.invalid-yaml.actor" xml:space="preserve">
+    <value>El actor '{0}' tiene que ir en minúsculas: letras y dígitos, separados por '.', '-' o '_' (como mucho 64).</value>
+  </data>
+  <data name="docs.invalid-yaml.duplicate-actor" xml:space="preserve">
+    <value>El actor '{0}' está declarado dos veces.</value>
+  </data>
+  <data name="docs.invalid-yaml.register-entry" xml:space="preserve">
+    <value>Un registro es un mapa con su ruta (y prefix, provider).</value>
+  </data>
+  <data name="docs.invalid-yaml.prefix" xml:space="preserve">
+    <value>El prefijo del registro '{0}' ('{1}') tiene que ir en mayúsculas: una letra y luego letras y dígitos.</value>
+  </data>
+  <data name="docs.invalid-yaml.provider" xml:space="preserve">
+    <value>El proveedor del registro '{0}' ('{1}') tiene que ser uno de: {2}.</value>
+  </data>
+  <data name="docs.invalid-yaml.list" xml:space="preserve">
+    <value>'{0}' tiene que ser una lista.</value>
+  </data>
+  <data name="docs.invalid-yaml.duplicate-register" xml:space="preserve">
+    <value>El registro '{0}' está declarado dos veces.</value>
+  </data>
+  <data name="docs.invalid-yaml.duplicate-prefix" xml:space="preserve">
+    <value>El prefijo '{0}' lo usan dos registros.</value>
+  </data>
+  <data name="docs.invalid-yaml.enabled" xml:space="preserve">
+    <value>'enabled' tiene que ser true o false.</value>
+  </data>
+  <data name="docs.invalid-yaml.register-path" xml:space="preserve">
+    <value>La ruta de un registro ('{0}') tiene que ser una carpeta relativa al catálogo, no local.</value>
+  </data>
 </root>

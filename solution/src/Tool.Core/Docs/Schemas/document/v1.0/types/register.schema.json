@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.fuxion.invalid/document/v1.0/types/register.schema.json",
+  "title": "Document register metadata 1.0",
+  "x-docs-temporality": "stable",
+  "x-docs-status-classes": { "active": "current", "retired": "void", "stale": "current" },
+  "allOf": [
+    { "$ref": "../base.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "register" },
+        "status": { "enum": ["active", "retired", "stale"] },
+        "profile": { "enum": ["backlog", "debt", "exception", "incident", "inventory", "risk"] },
+        "generation": { "$ref": "../common.schema.json#/$defs/generation" }
+      },
+      "required": ["profile"]
+    }
+  ],
+  "unevaluatedProperties": false
+}

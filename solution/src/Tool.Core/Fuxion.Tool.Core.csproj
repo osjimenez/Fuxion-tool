@@ -11,6 +11,13 @@
 		<PackageReference Include="Fuxion" />
 		<!-- only its parser, read into fx's own tree with positions (Yaml/YamlDocument.cs): no reflection, so AOT-compatible -->
 		<PackageReference Include="SharpYaml" />
+		<!-- the validator of the sidecars of the module docs, against the schemas of the standard (it works with native AOT) -->
+		<PackageReference Include="JsonSchema.Net" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- the schemas of the documentation standard, inside fx (plan U, ADR "esquemas cerrados, con costuras") -->
+		<EmbeddedResource Include="Docs\Schemas\**\*.json" LogicalName="docs/schemas/%(RecursiveDir)%(Filename)%(Extension)" />
 	</ItemGroup>
 
 </Project>

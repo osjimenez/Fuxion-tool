@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.fuxion.invalid/document/v1.0/types/runbook.schema.json",
+  "title": "Document runbook metadata 1.0",
+  "x-docs-temporality": "stable",
+  "x-docs-status-classes": { "active": "current", "draft": "open", "needs-review": "current", "retired": "void" },
+  "allOf": [
+    { "$ref": "../base.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "runbook" },
+        "status": { "enum": ["active", "draft", "needs-review", "retired"] }
+      }
+    }
+  ],
+  "unevaluatedProperties": false
+}

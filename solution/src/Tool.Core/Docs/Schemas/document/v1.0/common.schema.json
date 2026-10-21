@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.fuxion.invalid/document/v1.0/common.schema.json",
+  "title": "Document document metadata common definitions 1.0",
+  "$defs": {
+    "uuid": { "type": "string", "format": "uuid" },
+    "utcInstant": { "type": "string", "format": "date-time", "pattern": "Z$" },
+    "actorId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$"
+    },
+    "tag": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*\\\\).+$",
+      "not": { "pattern": "(^|/)\\.\\.(/|$)" }
+    },
+    "relationKind": {
+      "type": "string",
+      "enum": [
+        "amends",
+        "constrains",
+        "decided-by",
+        "depends-on",
+        "derived-from",
+        "governs",
+        "implemented-by",
+        "indexes",
+        "informs",
+        "operated-by",
+        "realized-by",
+        "related-to",
+        "summarizes",
+        "supersedes",
+        "verified-by"
+      ]
+    },
+    "relation": {
+      "type": "object",
+      "properties": {
+        "kind": { "$ref": "#/$defs/relationKind" },
+        "targetId": { "$ref": "#/$defs/uuid" }
+      },
+      "required": ["kind", "targetId"],
+      "additionalProperties": false
+    },
+    "generation": {
+      "type": "object",
+      "properties": {
+        "recipe": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-z][a-z0-9]*(?:[._/-][a-z0-9]+)*$"
+        },
+        "scope": { "$ref": "#/$defs/relativePath" }
+      },
+      "required": ["recipe", "scope"],
+      "additionalProperties": false
+    },
+    "integrity": {
+      "type": "object",
+      "properties": {
+        "content": { "$ref": "#/$defs/digest" },
+        "metadata": { "$ref": "#/$defs/digest" }
+      },
+      "required": ["content", "metadata"],
+      "additionalProperties": false
+    }
+  }
+}

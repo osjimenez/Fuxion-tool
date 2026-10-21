@@ -49,7 +49,7 @@ public static partial class ManifestEditor
 	public const string SpaceExists = "space.exists";
 
 	/// <summary>The modules fx knows: a folder of <c>_fx/</c> each.</summary>
-	public static readonly IReadOnlyList<string> KnownModules = [MountsModule.Name, DotnetModule.Name, Harness.HarnessModule.Name];
+	public static readonly IReadOnlyList<string> KnownModules = [MountsModule.Name, DotnetModule.Name, Harness.HarnessModule.Name, Docs.DocsModule.Name];
 
 	/// <summary>The keys of a mount, in the order fx writes them.</summary>
 	public static readonly IReadOnlyList<string> MountKeys = ["name", "aliases", "url", "path", "required", "mode", "inherits", "depends-on", "tags"];
@@ -406,12 +406,14 @@ public static partial class ManifestEditor
 					DotnetYamlReader.Read(text, file);
 				else if (file == FxLayout.ModuleFile(Harness.HarnessModule.Name))
 					Harness.HarnessYamlReader.Read(text, file);
+				else if (file == FxLayout.ModuleFile(Docs.DocsModule.Name))
+					Docs.DocsYamlReader.Read(text, file);
 				else if (file == FxLayout.ConfigFile)
 					SpaceConfig.Read(text, file, diagnostics);
 			}
-			catch (Exception ex) when (ex is DotnetConfigException or MountsManifestException or Harness.HarnessConfigException)
+			catch (Exception ex) when (ex is DotnetConfigException or MountsManifestException or Harness.HarnessConfigException or Docs.DocsConfigException)
 			{
-				diagnostics.AddRange(ex switch { DotnetConfigException d => d.Diagnostics, Harness.HarnessConfigException h => h.Diagnostics, _ => ((MountsManifestException)ex).Diagnostics });
+				diagnostics.AddRange(ex switch { DotnetConfigException d => d.Diagnostics, Harness.HarnessConfigException h => h.Diagnostics, Docs.DocsConfigException c => c.Diagnostics, _ => ((MountsManifestException)ex).Diagnostics });
 			}
 		return new(file, before, after, text == before ? [] : ["by hand"], diagnostics) { Root = root };
 	}
@@ -583,10 +585,12 @@ public static partial class ManifestEditor
 					Harness.HarnessYamlReader.Read(text, File);
 				else if (Module == MountsModule.Name)
 					MountsManifest.Read(_root, text, strict: true);
+				else if (Module == Docs.DocsModule.Name)
+					Docs.DocsYamlReader.Read(text, File);
 			}
-			catch (Exception ex) when (ex is DotnetConfigException or MountsManifestException or Harness.HarnessConfigException)
+			catch (Exception ex) when (ex is DotnetConfigException or MountsManifestException or Harness.HarnessConfigException or Docs.DocsConfigException)
 			{
-				Diagnostics.AddRange(ex switch { DotnetConfigException d => d.Diagnostics, Harness.HarnessConfigException h => h.Diagnostics, _ => ((MountsManifestException)ex).Diagnostics });
+				Diagnostics.AddRange(ex switch { DotnetConfigException d => d.Diagnostics, Harness.HarnessConfigException h => h.Diagnostics, Docs.DocsConfigException c => c.Diagnostics, _ => ((MountsManifestException)ex).Diagnostics });
 			}
 		}
 	}

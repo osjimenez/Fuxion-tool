@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.fuxion.invalid/document/v1.0/types/reference.schema.json",
+  "title": "Document reference metadata 1.0",
+  "x-docs-temporality": "stable",
+  "x-docs-status-classes": { "active": "current", "deprecated": "replaced", "draft": "open", "retired": "void" },
+  "allOf": [
+    { "$ref": "../base.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "reference" },
+        "status": { "enum": ["active", "deprecated", "draft", "retired"] },
+        "profile": { "enum": ["concept", "glossary", "model", "overview"] }
+      },
+      "required": ["profile"]
+    }
+  ],
+  "unevaluatedProperties": false
+}

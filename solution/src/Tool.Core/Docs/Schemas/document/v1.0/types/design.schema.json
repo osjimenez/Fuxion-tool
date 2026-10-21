@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.fuxion.invalid/document/v1.0/types/design.schema.json",
+  "title": "Document design metadata 1.0",
+  "x-docs-temporality": "stable",
+  "x-docs-status-classes": { "active": "current", "deprecated": "replaced", "draft": "open", "retired": "void", "review": "open" },
+  "allOf": [
+    { "$ref": "../base.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "design" },
+        "status": { "enum": ["active", "deprecated", "draft", "retired", "review"] },
+        "profile": { "enum": ["data", "infrastructure", "integration", "software"] }
+      },
+      "required": ["profile"]
+    }
+  ],
+  "unevaluatedProperties": false
+}

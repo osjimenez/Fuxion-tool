@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.fuxion.invalid/document/v1.0/document.schema.json",
+  "title": "Document document metadata 1.0",
+  "$comment": "Sidecars omit $schema. The validator selects this version from schemaVersion and the specialization from type.",
+  "oneOf": [
+    { "$ref": "types/adr.schema.json" },
+    { "$ref": "types/design.schema.json" },
+    { "$ref": "types/plan.schema.json" },
+    { "$ref": "types/readme.schema.json" },
+    { "$ref": "types/reference.schema.json" },
+    { "$ref": "types/register.schema.json" },
+    { "$ref": "types/report.schema.json" },
+    { "$ref": "types/research.schema.json" },
+    { "$ref": "types/rfc.schema.json" },
+    { "$ref": "types/rule.schema.json" },
+    { "$ref": "types/runbook.schema.json" },
+    { "$ref": "types/spec.schema.json" },
+    { "$ref": "types/view.schema.json" }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.fuxion.invalid/document/v1.0/types/rule.schema.json",
+  "title": "Document rule metadata 1.0",
+  "x-docs-temporality": "stable",
+  "x-docs-status-classes": { "active": "current", "deprecated": "replaced", "draft": "open", "retired": "void", "review": "open", "superseded": "replaced" },
+  "allOf": [
+    { "$ref": "../base.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "rule" },
+        "status": { "enum": ["active", "deprecated", "draft", "retired", "review", "superseded"] },
+        "profile": { "enum": ["policy", "standard"] }
+      },
+      "required": ["profile"]
+    }
+  ],
+  "unevaluatedProperties": false
+}

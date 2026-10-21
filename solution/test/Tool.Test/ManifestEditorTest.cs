@@ -263,6 +263,17 @@ public sealed class ManifestEditorTest
 		Assert.Equal(ManifestEditor.UnknownModule, Assert.Single(ManifestEditor.EnableModule(ws.Root, "python", []).Diagnostics).Code);
 	}
 
+	[Fact(DisplayName = "module enable docs (plan U): its folder with docs.yaml; it does not go down, so no tags; by hand, validated as fx reads it")]
+	public void EnableDocs()
+	{
+		using var ws = new Space();
+		var created = ManifestEditor.EnableModule(ws.Root, "docs", []);
+		Assert.Equal(("_fx/docs/docs.yaml", "schema: 1.0.0\n"), (created.File, After(created)));
+		Assert.False(ManifestEditor.EnableModule(ws.Root, "docs", ["public"]).Ok);
+		var invalid = ManifestEditor.Replace(ws.Root, "_fx/docs/docs.yaml", "schema: 1.0.0\nregisters:\n  - path: ideas\n    prefix: i\n");
+		Assert.Equal((Core.Docs.DocsYamlReader.InvalidYaml, 4, false), (invalid.Diagnostics.Single().Code, invalid.Diagnostics.Single().Line, invalid.Ok));
+	}
+
 	[Fact(DisplayName = "by hand (fx ui, O4.3c): validated as fx reads the file; not YAML, its code and line; the line endings of the file stay")]
 	public void Replace()
 	{

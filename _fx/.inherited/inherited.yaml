@@ -10,7 +10,7 @@ parent:
   full-name: /fuxion
   url: https://github.com/osjimenez/Fuxion-space.git
   ref: main
-  commit: ce26204
+  commit: 71ff537
 files:
   - path: dotnet/default.props
     from: /fuxion

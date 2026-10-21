@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.fuxion.invalid/document/v1.0/types/report.schema.json",
+  "title": "Document report metadata 1.0",
+  "x-docs-temporality": "historical",
+  "x-docs-status-classes": { "amended": "current", "draft": "open", "final": "current", "superseded": "replaced" },
+  "allOf": [
+    { "$ref": "../base.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "report" },
+        "status": { "enum": ["amended", "draft", "final", "superseded"] },
+        "profile": { "enum": ["audit", "incident", "maintenance", "migration", "review", "test", "verification"] },
+        "generation": { "$ref": "../common.schema.json#/$defs/generation" }
+      },
+      "required": ["profile"]
+    }
+  ],
+  "unevaluatedProperties": false
+}

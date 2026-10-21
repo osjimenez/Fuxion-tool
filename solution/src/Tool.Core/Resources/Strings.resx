@@ -724,4 +724,40 @@
   <data name="self.replace-failed" xml:space="preserve">
     <value>Could not replace fx: {0}</value>
   </data>
+  <data name="docs.invalid-yaml" xml:space="preserve">
+    <value>Invalid docs.yaml.</value>
+  </data>
+  <data name="docs.invalid-yaml.catalog" xml:space="preserve">
+    <value>The catalog ('{0}') must be a relative folder of the space, outside _fx/ and not local.</value>
+  </data>
+  <data name="docs.invalid-yaml.actor" xml:space="preserve">
+    <value>The actor '{0}' must be lower case: letters and digits, separated by '.', '-' or '_' (at most 64).</value>
+  </data>
+  <data name="docs.invalid-yaml.duplicate-actor" xml:space="preserve">
+    <value>The actor '{0}' is declared twice.</value>
+  </data>
+  <data name="docs.invalid-yaml.register-entry" xml:space="preserve">
+    <value>A register is a mapping with its path (and prefix, provider).</value>
+  </data>
+  <data name="docs.invalid-yaml.prefix" xml:space="preserve">
+    <value>The prefix of the register '{0}' ('{1}') must be upper case: a letter, then letters and digits.</value>
+  </data>
+  <data name="docs.invalid-yaml.provider" xml:space="preserve">
+    <value>The provider of the register '{0}' ('{1}') must be one of: {2}.</value>
+  </data>
+  <data name="docs.invalid-yaml.list" xml:space="preserve">
+    <value>'{0}' must be a list.</value>
+  </data>
+  <data name="docs.invalid-yaml.duplicate-register" xml:space="preserve">
+    <value>The register '{0}' is declared twice.</value>
+  </data>
+  <data name="docs.invalid-yaml.duplicate-prefix" xml:space="preserve">
+    <value>The prefix '{0}' is used by two registers.</value>
+  </data>
+  <data name="docs.invalid-yaml.enabled" xml:space="preserve">
+    <value>'enabled' must be true or false.</value>
+  </data>
+  <data name="docs.invalid-yaml.register-path" xml:space="preserve">
+    <value>The path of a register ('{0}') must be a folder relative to the catalog, not local.</value>
+  </data>
 </root>

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.fuxion.invalid/document/v1.0/types/plan.schema.json",
+  "title": "Document plan metadata 1.0",
+  "x-docs-temporality": "historical",
+  "x-docs-status-classes": { "blocked": "open", "cancelled": "void", "completed": "closed", "draft": "open", "in-progress": "open", "ready": "open" },
+  "allOf": [
+    { "$ref": "../base.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "plan" },
+        "status": { "enum": ["blocked", "cancelled", "completed", "draft", "in-progress", "ready"] },
+        "profile": { "enum": ["contingency", "decommission", "implementation", "migration", "remediation", "rollout", "verification"] }
+      },
+      "required": ["profile"]
+    }
+  ],
+  "unevaluatedProperties": false
+}

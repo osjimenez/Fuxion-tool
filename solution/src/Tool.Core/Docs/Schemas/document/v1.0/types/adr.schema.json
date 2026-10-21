@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.fuxion.invalid/document/v1.0/types/adr.schema.json",
+  "title": "Document ADR metadata 1.0",
+  "x-docs-temporality": "historical",
+  "x-docs-status-classes": { "accepted": "current", "draft": "open", "rescinded": "void", "superseded": "replaced" },
+  "allOf": [
+    { "$ref": "../base.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "adr" },
+        "status": { "enum": ["accepted", "draft", "rescinded", "superseded"] }
+      }
+    }
+  ],
+  "unevaluatedProperties": false
+}

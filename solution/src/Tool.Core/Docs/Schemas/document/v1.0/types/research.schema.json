@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.fuxion.invalid/document/v1.0/types/research.schema.json",
+  "title": "Document research metadata 1.0",
+  "x-docs-temporality": "historical",
+  "x-docs-status-classes": { "abandoned": "void", "active": "open", "closed": "closed", "draft": "open", "superseded": "replaced" },
+  "allOf": [
+    { "$ref": "../base.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "research" },
+        "status": { "enum": ["abandoned", "active", "closed", "draft", "superseded"] }
+      }
+    }
+  ],
+  "unevaluatedProperties": false
+}
