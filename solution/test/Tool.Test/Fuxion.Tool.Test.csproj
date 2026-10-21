@@ -6,7 +6,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<!-- the YAML edit engine checks run on copies of the workspace files (YamlEditorTest) -->
+		<!-- the YAML edit engine checks run on copies of real configuration files of fx, in their old format (YamlEditorTest) -->
 		<None Include="YamlFixtures\*.yaml" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>
 

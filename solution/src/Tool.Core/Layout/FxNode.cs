@@ -7,8 +7,8 @@ using Fuxion.Tool.Core.Results;
 namespace Fuxion.Tool.Core.Layout;
 
 /// <summary>
-/// A root of fx on disk: a repository or a workspace (plan P, decision 1). It knows itself by its
-/// <c>_fx/.inherited/inherited.yaml</c> (what its workspace said last time) or, if nobody declares it, by the
+/// A root of fx on disk: a repository or a space (plan P, decision 1). It knows itself by its
+/// <c>_fx/.inherited/inherited.yaml</c> (what its space said last time) or, if nobody declares it, by the
 /// <c>name</c> of its <c>_fx/space.yaml</c>.
 /// </summary>
 public sealed class FxNode(string root)
@@ -43,7 +43,7 @@ public sealed class FxNode(string root)
 		=> SpaceConfig.Merge(SpaceConfig.Load(Root, FxLayout.InheritedConfigFile, diagnostics ?? []), OwnConfig(diagnostics), FxLayout.ConfigFile, diagnostics);
 
 	/// <summary>
-	/// Who it is when nobody on disk declares it: what its workspace said last time, or its own name as a root. A root
+	/// Who it is when nobody on disk declares it: what its space said last time, or its own name as a root. A root
 	/// without a name gets its folder's, and an error in <paramref name="diagnostics"/>: a root needs one (decision 4).
 	/// </summary>
 	public FxIdentity SelfIdentity(ICollection<FxDiagnostic>? diagnostics = null)
@@ -59,11 +59,11 @@ public sealed class FxNode(string root)
 	}
 
 	/// <summary>
-	/// The workspace on disk that declares it as its own (not as a guest), with that declaration: the nearest above
+	/// The space on disk that declares it as its own (not as a guest), with that declaration: the nearest above
 	/// that does. A guest declaration is skipped: its parent is further up. The root of a worktree is its main clone in
 	/// worktree mode: its parent is that one's, in the main tree (plan P, decision 28).
 	/// </summary>
-	public (FxNode Workspace, MountsManifest Manifest, Mount Declaration)? FindParent()
+	public (FxNode Space, MountsManifest Manifest, Mount Declaration)? FindParent()
 	{
 		if (FxFiles.Exists(Full(FxLayout.WorktreeFile)) && Git.GitClient.Discover(Root)?.MainRoot() is { } main && !FxLayout.SameFolder(main, Root))
 			return new FxNode(main).FindParent();

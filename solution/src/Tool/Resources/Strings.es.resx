@@ -5,7 +5,7 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <data name="root" xml:space="preserve">
-    <value>Tus repositorios como un solo workspace: para personas, para el CI y para agentes.</value>
+    <value>Tus repositorios como un solo space: para personas, para el CI y para agentes.</value>
   </data>
   <data name="option.root" xml:space="preserve">
     <value>Carpeta sobre la que actuar (por defecto, la actual).</value>
@@ -545,16 +545,16 @@
     <value>Worktrees: una rama para trabajar aparte, sin tocar el árbol principal.</value>
   </data>
   <data name="worktree.add" xml:space="preserve">
-    <value>Crea un worktree de una rama en el workspace más cercano (o --in), con lo de donde estás montado en él.</value>
+    <value>Crea un worktree de una rama en el space más cercano (o --in), con lo de donde estás montado en él.</value>
   </data>
   <data name="worktree.mount" xml:space="preserve">
-    <value>Monta más del árbol en un worktree: repositorios (con los workspaces del camino) o rutas que se dejaron fuera.</value>
+    <value>Monta más del árbol en un worktree: repositorios (con los spaces del camino) o rutas que se dejaron fuera.</value>
   </data>
   <data name="worktree.unmount" xml:space="preserve">
     <value>Saca repositorios de un worktree (no con cambios sin comitear).</value>
   </data>
   <data name="worktree.list" xml:space="preserve">
-    <value>Los worktrees de los workspaces de por aquí.</value>
+    <value>Los worktrees de los spaces de por aquí.</value>
   </data>
   <data name="worktree.remove" xml:space="preserve">
     <value>Quita un worktree (no con cambios sin comitear); las ramas que creó fx se van si git las borra sin forzar.</value>
@@ -563,7 +563,7 @@
     <value>La rama.</value>
   </data>
   <data name="worktree.in" xml:space="preserve">
-    <value>El workspace donde va: uno de los de encima, por nombre, nombre completo o ruta.</value>
+    <value>El space donde va: uno de los de encima, por nombre, nombre completo o ruta.</value>
   </data>
   <data name="worktree.required" xml:space="preserve">
     <value>También los montajes obligatorios de lo que se monta, hacia abajo.</value>
@@ -650,13 +650,13 @@
     <value>Códigos de salida: 0 hecho, 1 errores, 2 uso incorrecto, 130 cancelado. fx describe: todos los comandos, para agentes.</value>
   </data>
   <data name="ui" xml:space="preserve">
-    <value>El workspace a pantalla completa: su árbol, qué es cada nodo y qué le llega, el doctor, y actuar y editar con el comando de cada cosa (en una terminal).</value>
+    <value>El space a pantalla completa: su árbol, qué es cada nodo y qué le llega, el doctor, y actuar y editar con el comando de cada cosa (en una terminal).</value>
   </data>
   <data name="ui.no-terminal" xml:space="preserve">
     <value>fx ui necesita una terminal con una persona delante: aquí no la hay (CI, una tubería, un agente o --output json).</value>
   </data>
   <data name="help.ui" xml:space="preserve">
-    <value>el workspace a pantalla completa (en una terminal; Ctrl+Q lo cierra)</value>
+    <value>el space a pantalla completa (en una terminal; Ctrl+Q lo cierra)</value>
   </data>
   <data name="ui.problems" xml:space="preserve">
     <value>Problemas</value>
@@ -728,7 +728,7 @@
     <value>Modo</value>
   </data>
   <data name="ui.guest" xml:space="preserve">
-    <value>Invitado: este workspace lo usa, pero hereda de su propio padre.</value>
+    <value>Invitado: este space lo usa, pero hereda de su propio padre.</value>
   </data>
   <data name="ui.superseded" xml:space="preserve">
     <value>No se usa: la copia de {0} está más arriba.</value>
@@ -824,7 +824,7 @@
     <value>por su nombre</value>
   </data>
   <data name="ui.why.conduit" xml:space="preserve">
-    <value>de paso (un workspace intermedio)</value>
+    <value>de paso (un space intermedio)</value>
   </data>
   <data name="ui.why.not" xml:space="preserve">
     <value>es para: {0}</value>
@@ -842,10 +842,10 @@
     <value>Declarado y no montado.</value>
   </data>
   <data name="ui.unknown.repository" xml:space="preserve">
-    <value>Un repositorio en disco que el workspace no declara: añádelo, o sácalo de aquí.</value>
+    <value>Un repositorio en disco que el space no monta: móntalo, o sácalo de aquí.</value>
   </data>
   <data name="ui.unknown.folder" xml:space="preserve">
-    <value>Una carpeta con ficheros que el workspace no versiona: versiónala, o déjala local.</value>
+    <value>Una carpeta con ficheros que el space no versiona: versiónala, o déjala local.</value>
   </data>
   <data name="ui.module.unused" xml:space="preserve">
     <value>no se usa aquí</value>
@@ -893,7 +893,7 @@
     <value>Una carpeta local (~$): no se versiona.</value>
   </data>
   <data name="ui.folder.inherited" xml:space="preserve">
-    <value>Lo que hereda de su workspace (_fx/.inherited/).</value>
+    <value>Lo que hereda de su padre (_fx/.inherited/).</value>
   </data>
   <data name="ui.more" xml:space="preserve">
     <value>El resto no le importa a fx: F3 lo enseña.</value>
@@ -1058,10 +1058,10 @@
     <value>Quitar del manifiesto</value>
   </data>
   <data name="ui.edit.add" xml:space="preserve">
-    <value>Añadir al workspace…</value>
+    <value>Añadir al space…</value>
   </data>
   <data name="ui.edit.version" xml:space="preserve">
-    <value>Versionarlo en el workspace</value>
+    <value>Versionarlo en el space</value>
   </data>
   <data name="ui.edit.enable" xml:space="preserve">
     <value>Activar</value>
@@ -1100,7 +1100,7 @@
     <value>Obligatorio: no se puede aparcar</value>
   </data>
   <data name="ui.field.inherits" xml:space="preserve">
-    <value>Hereda de este workspace (no es invitado)</value>
+    <value>Hereda de este space (no es invitado)</value>
   </data>
   <data name="ui.field.exclude" xml:space="preserve">
     <value>Una excepción dentro de algo versionado (exclude)</value>

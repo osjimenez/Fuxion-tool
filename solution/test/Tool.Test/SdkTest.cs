@@ -46,7 +46,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 
 	/// <summary>
 	/// A repository with a packable library (net10.0 and net11.0) that uses the SDK and, with <paramref name="publish"/>,
-	/// publishes locally (its dotnet.yaml imports <see cref="PublishProps"/>; fx sync generates it, in its workspace if
+	/// publishes locally (its dotnet.yaml imports <see cref="PublishProps"/>; fx sync generates it, in its space if
 	/// it is in one); tagged version/2.3.0 on its first commit and with one more commit, so its version is 2.3.1.
 	/// </summary>
 	TempGitRepository Sample(string? path = null, bool tag = true, string properties = "", string code = UsesMetadata, bool publish = true)
@@ -87,15 +87,15 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		return repo;
 	}
 
-	/// <summary>A folder with <c>_fx/</c> that makes it a workspace named ws, declaring <paramref name="repositories"/> (name and path).</summary>
-	string Workspace(params (string Name, string Path)[] repositories)
+	/// <summary>A folder with <c>_fx/</c> that makes it a space named ws, declaring <paramref name="repositories"/> (name and path).</summary>
+	string Space(params (string Name, string Path)[] repositories)
 	{
-		var workspace = Directory.CreateDirectory(Path.Combine(fixture.Root, "ws-" + Guid.NewGuid().ToString("N")[..8])).FullName;
-		Directory.CreateDirectory(Path.Combine(workspace, "_fx", "mounts"));
-		File.WriteAllText(Path.Combine(workspace, "_fx", "space.yaml"), "schema: 1.0.0\nname: ws\n");
-		File.WriteAllText(Path.Combine(workspace, "_fx", "mounts", "mounts.yaml"), "schema: 1.0.0\nmounts:\n"
+		var space = Directory.CreateDirectory(Path.Combine(fixture.Root, "ws-" + Guid.NewGuid().ToString("N")[..8])).FullName;
+		Directory.CreateDirectory(Path.Combine(space, "_fx", "mounts"));
+		File.WriteAllText(Path.Combine(space, "_fx", "space.yaml"), "schema: 1.0.0\nname: ws\n");
+		File.WriteAllText(Path.Combine(space, "_fx", "mounts", "mounts.yaml"), "schema: 1.0.0\nmounts:\n"
 			+ string.Concat(repositories.Select(r => $"  - name: {r.Name}\n    path: {r.Path}\n    url: https://example.invalid/{r.Name}.git\n")));
-		return workspace;
+		return space;
 	}
 
 	/// <summary>The value of MSBuild properties of the library, as MSBuild evaluates them (with two or more, msbuild writes JSON).</summary>
@@ -146,7 +146,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		Assert.Equal(written, File.GetLastWriteTimeUtc(MetadataFile(repo)));
 	}
 
-	[Fact(DisplayName = "a publish props of the repo: outside a workspace, <repo>/~$publish/nupkgs, with the version and the docs")]
+	[Fact(DisplayName = "a publish props of the repo: outside a space, <repo>/~$publish/nupkgs, with the version and the docs")]
 	public void Pack()
 	{
 		using var repo = Sample();
@@ -171,27 +171,27 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		Assert.False(Directory.Exists(Path.Combine(repo.Path, "~$publish")));
 	}
 
-	[Fact(DisplayName = "in a workspace, at any path: <workspace>/~$publish/<name>/nupkgs, the name its workspace gives it")]
-	public void Pack_Workspace()
+	[Fact(DisplayName = "in a space, at any path: <space>/~$publish/<name>/nupkgs, the name its space gives it")]
+	public void Pack_Space()
 	{
-		var workspace = Workspace(("lib", "apps/library"));
-		using var repo = Sample(path: Path.Combine(workspace, "apps", "library"));
+		var space = Space(("lib", "apps/library"));
+		using var repo = Sample(path: Path.Combine(space, "apps", "library"));
 		Succeeded(fixture.Build(Lib(repo), "-t:Pack"));
 
-		Assert.True(File.Exists(Path.Combine(workspace, "~$publish", "lib", "nupkgs", "Lib.2.3.1.nupkg")),
-			string.Join(", ", Directory.EnumerateFiles(workspace, "*.nupkg", SearchOption.AllDirectories)));
+		Assert.True(File.Exists(Path.Combine(space, "~$publish", "lib", "nupkgs", "Lib.2.3.1.nupkg")),
+			string.Join(", ", Directory.EnumerateFiles(space, "*.nupkg", SearchOption.AllDirectories)));
 		Assert.False(Directory.Exists(Path.Combine(repo.Path, "~$publish")));
 		var properties = Properties(repo, "FxRepositoryName", "FxRepositoryFullName", "FxSpaceRoot", "FxRepositoryRoot");
 		Assert.Equal("lib", properties.GetProperty("FxRepositoryName").GetString());
 		Assert.Equal("/ws/lib", properties.GetProperty("FxRepositoryFullName").GetString());
-		Assert.Equal(workspace.TrimEnd('\\', '/'), properties.GetProperty("FxSpaceRoot").GetString()!.TrimEnd('\\', '/'));
+		Assert.Equal(space.TrimEnd('\\', '/'), properties.GetProperty("FxSpaceRoot").GetString()!.TrimEnd('\\', '/'));
 		Assert.Equal(repo.Path.TrimEnd('\\', '/'), properties.GetProperty("FxRepositoryRoot").GetString()!.TrimEnd('\\', '/'));
 	}
 
-	[Fact(DisplayName = "nested workspaces: FxSpaceRoot is the highest; the root of a worktree stops the search")]
-	public void WorkspaceRoot()
+	[Fact(DisplayName = "nested spaces: FxSpaceRoot is the highest; the root of a worktree stops the search")]
+	public void SpaceRoot()
 	{
-		var top = Workspace(("w1", "w1"));
+		var top = Space(("w1", "w1"));
 		var w1 = Path.Combine(top, "w1");
 		Directory.CreateDirectory(Path.Combine(w1, "_fx", "mounts"));
 		File.WriteAllText(Path.Combine(w1, "_fx", "mounts", "mounts.yaml"), "schema: 1.0.0\nmounts:\n  - name: lib\n    path: lib\n    url: x\n");
@@ -512,13 +512,13 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		Assert.Equal(0, InProcess.Run(["doctor", "dotnet"], new StringWriter(), new StringWriter(), repo.Path));
 	}
 
-	[Fact(DisplayName = "FxReference: a project in the workspace, a package outside it, and a clear error when it needs the workspace")]
+	[Fact(DisplayName = "FxReference: a project in the space, a package outside it, and a clear error when it needs the space")]
 	public void FxReference()
 	{
-		using var workspace = new TempGitRepository(path: Path.Combine(fixture.Root, "ws-" + Guid.NewGuid().ToString("N")[..8]));
-		workspace.WriteFile(Path.Combine("_fx", "space.yaml"), "schema: 1.0.0\nname: ws\n");
-		workspace.WriteFile(Path.Combine("_fx", "dotnet", "dotnet.yaml"), "schema: 1.0.0\n");
-		workspace.WriteFile(Path.Combine("_fx", "mounts", "mounts.yaml"), """
+		using var space = new TempGitRepository(path: Path.Combine(fixture.Root, "ws-" + Guid.NewGuid().ToString("N")[..8]));
+		space.WriteFile(Path.Combine("_fx", "space.yaml"), "schema: 1.0.0\nname: ws\n");
+		space.WriteFile(Path.Combine("_fx", "dotnet", "dotnet.yaml"), "schema: 1.0.0\n");
+		space.WriteFile(Path.Combine("_fx", "mounts", "mounts.yaml"), """
 			schema: 1.0.0
 			mounts:
 			  - name: lib
@@ -530,11 +530,11 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 			    url: https://example.invalid/app.git
 			    required: true
 			""");
-		using var lib = Sample(path: Path.Combine(workspace.Path, "lib", "repo"));
+		using var lib = Sample(path: Path.Combine(space.Path, "lib", "repo"));
 		lib.WriteFile("Lib.slnx", """<Solution><Project Path="solution/src/Lib/Lib.csproj" /></Solution>""");
 		File.AppendAllText(Path.Combine(lib.Path, "_fx", "dotnet", "dotnet.yaml"), "standalone: true\n");
-		using var app = CentralPackages("", Path.Combine(workspace.Path, "app", "repo"), """<PackageVersion Include="Lib" Version="2.3.1" />""");
-		// it builds outside the workspace too, with the package of Lib (without it, it would need the workspace: FXTL001)
+		using var app = CentralPackages("", Path.Combine(space.Path, "app", "repo"), """<PackageVersion Include="Lib" Version="2.3.1" />""");
+		// it builds outside the space too, with the package of Lib (without it, it would need the space: FXTL001)
 		app.WriteFile(Path.Combine("_fx", "dotnet", "dotnet.yaml"), "schema: 1.0.0\nstandalone: true\n");
 		app.WriteFile("App.slnx", """<Solution><Project Path="solution/src/App/App.csproj" /><Project Path="solution/src/Helper/Helper.csproj" /></Solution>""");
 		app.WriteFile(Path.Combine("solution", "src", "App", "App.csproj"), """
@@ -545,7 +545,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 				<ItemGroup>
 					<FxReference Include="Lib" />
 					<FxReference Include="Helper" />
-					<FxReference Include="OnlyInTheWorkspace" SpaceOnly="true" />
+					<FxReference Include="OnlyInTheSpace" SpaceOnly="true" />
 				</ItemGroup>
 			</Project>
 			""");
@@ -581,13 +581,13 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		app.Tag("version/1.0.0");
 		var appProject = Path.Combine(app.Path, "solution", "src", "App");
 
-		// In the workspace: fx sync writes the map, and Lib is a project
-		Assert.Equal(0, InProcess.Run(["sync", "--offline"], new StringWriter(), new StringWriter(), workspace.Path));
-		Assert.Contains("Include=\"Lib\" Repository=\"lib\"", File.ReadAllText(Path.Combine(workspace.Path, "_fx", "dotnet", "~$space.props")));
+		// In the space: fx sync writes the map, and Lib is a project
+		Assert.Equal(0, InProcess.Run(["sync", "--offline"], new StringWriter(), new StringWriter(), space.Path));
+		Assert.Contains("Include=\"Lib\" Repository=\"lib\"", File.ReadAllText(Path.Combine(space.Path, "_fx", "dotnet", "~$space.props")));
 		Assert.Contains("<FxRepositoryProject Include=\"Helper\"", File.ReadAllText(Path.Combine(app.Path, "_fx", "dotnet", "projects.g.props")));
 		Succeeded(fixture.Build(appProject));
 		Assert.Equal("project", LibraryType(app, "Lib"));
-		// its own project, through the map of the repository, once (the map of the workspace leaves it out)
+		// its own project, through the map of the repository, once (the map of the space leaves it out)
 		Assert.Equal("project", LibraryType(app, "Helper"));
 		Assert.True(File.Exists(Path.Combine(appProject, "bin", "Debug", "net10.0", "Lib.dll")));
 
@@ -597,12 +597,12 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		Assert.Equal("package", LibraryType(app, "Lib"));
 		Assert.Equal("project", LibraryType(app, "Helper"));
 
-		// A repo that only builds in the workspace says so, instead of NuGet not finding a package
+		// A repo that only builds in the space says so, instead of NuGet not finding a package
 		var result = fixture.Build(appProject, "-p:FxUsePackages=true", "-p:FxRequiresSpace=true");
 		Assert.NotEqual(0, result.ExitCode);
 		Assert.Contains("FXTL001", result.StandardOutput);
-		// SpaceOnly="true" (the analyzers of oss): only in the workspace; never a package, never the error; nor its own
-		Assert.DoesNotContain("OnlyInTheWorkspace", result.StandardOutput);
+		// SpaceOnly="true" (the analyzers of oss): only in the space; never a package, never the error; nor its own
+		Assert.DoesNotContain("OnlyInTheSpace", result.StandardOutput);
 		Assert.DoesNotContain("Helper is not mounted", result.StandardOutput);
 	}
 

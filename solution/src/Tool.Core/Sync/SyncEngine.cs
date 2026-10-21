@@ -17,7 +17,7 @@ namespace Fuxion.Tool.Core.Sync;
 /// <summary>
 /// <c>fx sync</c> and <c>fx doctor</c> (plan P, decision 17): on the root of fx where they run and everything mounted
 /// below, never above. Each root first gets what it inherits from its parent (one level up, read-only), then the
-/// workspace mounts its repositories and each one does the same; the solutions are composed on the way back, from the
+/// space mounts its repositories and each one does the same; the solutions are composed on the way back, from the
 /// bottom up. It never commits, never pushes, never overwrites a file without the header.
 /// </summary>
 public static class SyncEngine
@@ -38,7 +38,7 @@ public static class SyncEngine
 
 	public const string TooDeep = "space.too-deep";
 
-	/// <summary>How many workspaces above a repository Fuxion.Tool.Sdk looks at (its <c>Sdk.props</c>).</summary>
+	/// <summary>How many spaces above a repository Fuxion.Tool.Sdk looks at (its <c>Sdk.props</c>).</summary>
 	const int MaxDepth = 5;
 
 	/// <summary>The parent of a root: on disk, or read from its remote (then, the branch read).</summary>
@@ -96,7 +96,7 @@ public static class SyncEngine
 		var run = new Run_(start, context);
 		Process(run, start, parent, first);
 
-		// The map of FxReference: only the highest workspace on disk makes it (decision 19), from all it has mounted; in a
+		// The map of FxReference: only the highest space on disk makes it (decision 19), from all it has mounted; in a
 		// worktree, its root (a closed tree, decision 28)
 		if (!options.OnlyHere && start.HasMounts && start.HasModule(DotnetModule.Name) && context.Runs(DotnetModule.Name)
 		    && MountCopies.Top(start.Root) is { } top && FxLayout.SameFolder(top, start.Root))
@@ -113,14 +113,14 @@ public static class SyncEngine
 	}
 
 	/// <summary>
-	/// The parent of the root where the run starts: the workspace on disk that declares it; if there is none (a clone on
+	/// The parent of the root where the run starts: the space on disk that declares it; if there is none (a clone on
 	/// its own) or <c>--parent-ref</c> asks for a branch, the one its <c>inherited.yaml</c> names, read from its remote.
 	/// Its declaration there is found by the URL of the repository (or by its name, or an old one).
 	/// </summary>
 	static Parent? FindParent(FxNode start, SyncOptions options, IFxProgress? progress, FxDiagnostics diagnostics, CancellationToken cancellationToken)
 	{
 		var found = start.FindParent();
-		Parent? onDisk = found is { } f ? new(f.Workspace, f.Workspace.SelfIdentity(), f.Declaration) : null;
+		Parent? onDisk = found is { } f ? new(f.Space, f.Space.SelfIdentity(), f.Declaration) : null;
 		if (options.ParentRef is null && onDisk is not null)
 			return onDisk;
 		// from its remote: its main branch, or the one asked for
@@ -199,9 +199,9 @@ public static class SyncEngine
 		var outputs = new FxOutputs(context.DisplayRoot, context.Write, context.Adopt, diagnostics);
 		var actions = new List<RepositoryAction>();
 		var at = run.Results.Count;
-		run.Results.Add(null!); // the workspace result goes before the results of what is below
+		run.Results.Add(null!); // the space result goes before the results of what is below
 
-		// Fuxion.Tool.Sdk looks for the highest workspace up to five levels above a repository
+		// Fuxion.Tool.Sdk looks for the highest space up to five levels above a repository
 		if (context.Doctor && identity.FullName.Count(c => c == '/') - 1 > MaxDepth)
 			diagnostics.Add(FxDiagnostic.Error(TooDeep, new(TooDeep, identity.FullName, MaxDepth)));
 
@@ -210,7 +210,7 @@ public static class SyncEngine
 			? Inheritance.Run(parent.Node, parent.Identity, node, identity, outputs, diagnostics, parent.Ref)
 			: node.Inherited()?.Shares.Select(s => s.Destination).ToList() ?? [];
 
-		// 2. A workspace: its repositories, each with the same sync
+		// 2. A space: its repositories, each with the same sync
 		MountsManifest? manifest = null;
 		if (node.HasMounts)
 		{
@@ -287,13 +287,13 @@ public static class SyncEngine
 	}
 
 	/// <summary>
-	/// A guest (decision 18): the workspace uses it, so its projects go into the map, but it inherits from its own parent
+	/// A guest (decision 18): the space uses it, so its projects go into the map, but it inherits from its own parent
 	/// and nothing of it is processed here. Its own .NET configuration is read, for the doctor.
 	/// </summary>
-	static void Guest(Run_ run, MountsManifest manifest, FxIdentity workspace, Mount repository)
+	static void Guest(Run_ run, MountsManifest manifest, FxIdentity space, Mount repository)
 	{
 		var node = new FxNode(manifest.FullPath(repository));
-		var identity = new FxIdentity(repository.Name, $"{workspace.FullName}/{repository.Name}", repository.Tags);
+		var identity = new FxIdentity(repository.Name, $"{space.FullName}/{repository.Name}", repository.Tags);
 		DotnetConfig? own = null;
 		try
 		{
@@ -307,9 +307,9 @@ public static class SyncEngine
 	}
 
 	/// <summary>
-	/// A standalone repository (it builds without the workspace, design D-2) cannot reference a project of a repository
-	/// that is not: outside the workspace that reference would have to be a package, and that repository publishes
-	/// none (design §6). <c>SpaceOnly="true"</c> references only exist in the workspace by definition.
+	/// A standalone repository (it builds without the space, design D-2) cannot reference a project of a repository
+	/// that is not: outside the space that reference would have to be a package, and that repository publishes
+	/// none (design §6). <c>SpaceOnly="true"</c> references only exist in the space by definition.
 	/// </summary>
 	static void CheckStandalone(Run_ run, IReadOnlyDictionary<string, (string Path, string Repository)> projects, FxDiagnostics diagnostics)
 	{

@@ -11,7 +11,7 @@ namespace Fuxion.Tool.Test;
 
 /// <summary>
 /// The sample tree of plan P, with real git repositories under the temp folder: acme, the root, mounts the products
-/// repo-w1 (a workspace with repo-c1 and repo-c2) and repo-w2 (with c3, and shared as a guest), and the library shared.
+/// repo-w1 (a space with repo-c1 and repo-c2) and repo-w2 (with c3, and shared as a guest), and the library shared.
 /// Every repository has a bare origin, so a clone of a product on its own reads acme from its remote.
 /// </summary>
 public abstract class SampleTree : IDisposable

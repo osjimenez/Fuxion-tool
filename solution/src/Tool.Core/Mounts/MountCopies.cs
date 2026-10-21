@@ -8,12 +8,12 @@ using Fuxion.Tool.Core.Results;
 namespace Fuxion.Tool.Core.Mounts;
 
 /// <summary>A mounted declaration of a repository in a tree: its full name, where it goes, how high and who declares it.</summary>
-public sealed record RepositoryCopy(string FullName, string FullPath, int Height, string Workspace, int Line);
+public sealed record RepositoryCopy(string FullName, string FullPath, int Height, string Space, int Line);
 
 /// <summary>
-/// The copies of the same repository in a tree (plan P, decision 19): the declarations mounted in the workspaces on
-/// disk, from the highest workspace down, and the same repository is the same <c>url</c>. The highest copy is the one
-/// used, guest or not; the others are superseded, and the workspace that declares them parks them. Two copies at the
+/// The copies of the same repository in a tree (plan P, decision 19): the declarations mounted in the spaces on
+/// disk, from the highest space down, and the same repository is the same <c>url</c>. The highest copy is the one
+/// used, guest or not; the others are superseded, and the space that declares them parks them. Two copies at the
 /// top, at the same height, are an error: fx cannot tell which one to use, and parks none of them. Read-only: it reads
 /// manifests and the local state, and looks at what is on disk.
 /// </summary>
@@ -21,10 +21,10 @@ public sealed class MountCopies
 {
 	public const string SameHeight = "mounts.same-height";
 
-	/// <summary>More workspaces than this, one inside another, are not walked (a loop of junctions, say).</summary>
+	/// <summary>More spaces than this, one inside another, are not walked (a loop of junctions, say).</summary>
 	const int MaxHeight = 32;
 
-	// every declaration of the workspaces reached (mounted or not), by its full path: the repository (its url) and how high
+	// every declaration of the spaces reached (mounted or not), by its full path: the repository (its url) and how high
 	readonly Dictionary<string, (string Key, int Height)> _declared = new(StringComparer.OrdinalIgnoreCase);
 	// the copy used of each repository: the highest mounted one
 	readonly Dictionary<string, RepositoryCopy> _used = new(StringComparer.OrdinalIgnoreCase);
@@ -43,7 +43,7 @@ public sealed class MountCopies
 			: null;
 
 	/// <summary>
-	/// The highest workspace on disk that contains <paramref name="directory"/> (itself included), as Fuxion.Tool.Sdk
+	/// The highest space on disk that contains <paramref name="directory"/> (itself included), as Fuxion.Tool.Sdk
 	/// finds it: the root of a worktree stops the search.
 	/// </summary>
 	public static string? Top(string directory)
@@ -60,9 +60,9 @@ public sealed class MountCopies
 	}
 
 	/// <summary>
-	/// The copies of the tree <paramref name="directory"/> is in, from its highest workspace on disk; if that one does not
-	/// reach it (nobody declares it on the way down), from the nearest workspace around it. It sees what is on disk now:
-	/// a workspace surveys when it mounts, once what is above it is mounted.
+	/// The copies of the tree <paramref name="directory"/> is in, from its highest space on disk; if that one does not
+	/// reach it (nobody declares it on the way down), from the nearest space around it. It sees what is on disk now:
+	/// a space surveys when it mounts, once what is above it is mounted.
 	/// </summary>
 	public static MountCopies Survey(string directory)
 	{
@@ -76,12 +76,12 @@ public sealed class MountCopies
 	}
 
 	/// <summary>
-	/// The ties where <paramref name="workspace"/> declares the first copy, so that each one is reported once: two copies
+	/// The ties where <paramref name="space"/> declares the first copy, so that each one is reported once: two copies
 	/// or more of a repository at the same height, the highest it is mounted at. <paramref name="manifestFile"/>: its
 	/// manifest, as shown.
 	/// </summary>
-	public IEnumerable<FxDiagnostic> Ties(string workspace, string manifestFile)
-		=> _ties.Where(t => FxLayout.SameFolder(t[0].Workspace, workspace)).Select(tie =>
+	public IEnumerable<FxDiagnostic> Ties(string space, string manifestFile)
+		=> _ties.Where(t => FxLayout.SameFolder(t[0].Space, space)).Select(tie =>
 		{
 			var name = tie[0].FullName[(tie[0].FullName.LastIndexOf('/') + 1)..];
 			return FxDiagnostic.Error(SameHeight, new(SameHeight, name, tie[0].FullName, tie[1].FullName), manifestFile, tie[0].Line, name, FxFix.Do($"{SameHeight}.fix"));

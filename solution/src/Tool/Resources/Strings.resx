@@ -5,7 +5,7 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <data name="root" xml:space="preserve">
-    <value>Your repositories as one workspace: for people, for CI and for agents.</value>
+    <value>Your repositories as one space: for people, for CI and for agents.</value>
   </data>
   <data name="option.root" xml:space="preserve">
     <value>Folder to act on (the current one by default).</value>
@@ -545,16 +545,16 @@
     <value>Worktrees: a branch to work on apart, without touching the main tree.</value>
   </data>
   <data name="worktree.add" xml:space="preserve">
-    <value>Create a worktree of a branch in the nearest workspace (or --in), with where you are mounted in it.</value>
+    <value>Create a worktree of a branch in the nearest space (or --in), with where you are mounted in it.</value>
   </data>
   <data name="worktree.mount" xml:space="preserve">
-    <value>Mount more of the tree in a worktree: repositories (with the workspaces on the way) or paths left out.</value>
+    <value>Mount more of the tree in a worktree: repositories (with the spaces on the way) or paths left out.</value>
   </data>
   <data name="worktree.unmount" xml:space="preserve">
     <value>Take repositories out of a worktree (not with uncommitted changes).</value>
   </data>
   <data name="worktree.list" xml:space="preserve">
-    <value>The worktrees of the workspaces around here.</value>
+    <value>The worktrees of the spaces around here.</value>
   </data>
   <data name="worktree.remove" xml:space="preserve">
     <value>Remove a worktree (not with uncommitted changes); the branches fx created go if git deletes them safely.</value>
@@ -563,7 +563,7 @@
     <value>The branch.</value>
   </data>
   <data name="worktree.in" xml:space="preserve">
-    <value>The workspace where it goes: one of those above, by name, full name or path.</value>
+    <value>The space where it goes: one of those above, by name, full name or path.</value>
   </data>
   <data name="worktree.required" xml:space="preserve">
     <value>Also the required mounts of what is mounted, down.</value>
@@ -650,13 +650,13 @@
     <value>Exit codes: 0 done, 1 errors, 2 wrong usage, 130 cancelled. fx describe: every command, for agents.</value>
   </data>
   <data name="ui" xml:space="preserve">
-    <value>The workspace in full screen: its tree, what each node is and what reaches it, the doctor, and acting and editing with the command of each (in a terminal).</value>
+    <value>The space in full screen: its tree, what each node is and what reaches it, the doctor, and acting and editing with the command of each (in a terminal).</value>
   </data>
   <data name="ui.no-terminal" xml:space="preserve">
     <value>fx ui needs a terminal with a person in front: here there is none (CI, a pipe, an agent or --output json).</value>
   </data>
   <data name="help.ui" xml:space="preserve">
-    <value>the workspace in full screen (in a terminal; Ctrl+Q closes it)</value>
+    <value>the space in full screen (in a terminal; Ctrl+Q closes it)</value>
   </data>
   <data name="ui.problems" xml:space="preserve">
     <value>Problems</value>
@@ -728,7 +728,7 @@
     <value>Mode</value>
   </data>
   <data name="ui.guest" xml:space="preserve">
-    <value>A guest: this workspace uses it, but it inherits from its own parent.</value>
+    <value>A guest: this space uses it, but it inherits from its own parent.</value>
   </data>
   <data name="ui.superseded" xml:space="preserve">
     <value>Not used: the copy of {0} is higher.</value>
@@ -824,7 +824,7 @@
     <value>by its name</value>
   </data>
   <data name="ui.why.conduit" xml:space="preserve">
-    <value>passing through (a workspace in between)</value>
+    <value>passing through (a space in between)</value>
   </data>
   <data name="ui.why.not" xml:space="preserve">
     <value>it is for: {0}</value>
@@ -842,10 +842,10 @@
     <value>Declared and not mounted.</value>
   </data>
   <data name="ui.unknown.repository" xml:space="preserve">
-    <value>A repository on disk that the workspace does not declare: add it, or move it out.</value>
+    <value>A repository on disk that the space does not mount: mount it, or move it out.</value>
   </data>
   <data name="ui.unknown.folder" xml:space="preserve">
-    <value>A folder with files that the workspace does not version: version it, or leave it local.</value>
+    <value>A folder with files that the space does not version: version it, or leave it local.</value>
   </data>
   <data name="ui.module.unused" xml:space="preserve">
     <value>not used here</value>
@@ -893,7 +893,7 @@
     <value>A local folder (~$): not versioned.</value>
   </data>
   <data name="ui.folder.inherited" xml:space="preserve">
-    <value>What it inherits from its workspace (_fx/.inherited/).</value>
+    <value>What it inherits from its parent (_fx/.inherited/).</value>
   </data>
   <data name="ui.more" xml:space="preserve">
     <value>The rest of it does not matter to fx: F3 shows it.</value>
@@ -1058,10 +1058,10 @@
     <value>Remove from the manifest</value>
   </data>
   <data name="ui.edit.add" xml:space="preserve">
-    <value>Add to the workspace…</value>
+    <value>Add to the space…</value>
   </data>
   <data name="ui.edit.version" xml:space="preserve">
-    <value>Version it in the workspace</value>
+    <value>Version it in the space</value>
   </data>
   <data name="ui.edit.enable" xml:space="preserve">
     <value>Turn on</value>
@@ -1100,7 +1100,7 @@
     <value>Required: it cannot be parked</value>
   </data>
   <data name="ui.field.inherits" xml:space="preserve">
-    <value>Inherits from this workspace (not a guest)</value>
+    <value>Inherits from this space (not a guest)</value>
   </data>
   <data name="ui.field.exclude" xml:space="preserve">
     <value>An exception inside something versioned (exclude)</value>

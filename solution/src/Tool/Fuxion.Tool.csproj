@@ -8,7 +8,7 @@
 		<!-- the executable is fx (fx.exe), as the command (design D-24) -->
 		<AssemblyName>fx</AssemblyName>
 		<PackageId>Fuxion.Tool</PackageId>
-		<Description>fx, the tool of the Fuxion workspace: its repositories, the shared build of .NET (with Fuxion.Tool.Sdk), the instructions for the coding agents and the versions, from the configuration in _fx/. A native executable for each platform.</Description>
+		<Description>fx, the tool of Fuxion's spaces: what they mount, the shared build of .NET (with Fuxion.Tool.Sdk), the instructions for the coding agents and the versions, from the configuration in _fx/. A native executable for each platform.</Description>
 		<!-- native AOT, a single file (design §11) -->
 		<PublishAot>true</PublishAot>
 		<!-- a dotnet tool per platform (plan S, decision 2): `dotnet pack` makes the main package, which points to the

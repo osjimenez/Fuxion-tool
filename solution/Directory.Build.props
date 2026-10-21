@@ -1,12 +1,12 @@
 <Project>
 
 	<!--
-		This repo builds with its own SDK, like the other repos of the workspace (design §7.1): the version it published
-		before, pinned in global.json (fx sync, from the sdks: of the workspace's _fx/dotnet/dotnet.yaml). The conventions
+		This repo builds with its own SDK, like the other repos of its space (design §7.1): the version it published
+		before, pinned in global.json (fx sync, from the sdks: of its parent's _fx/dotnet/dotnet.yaml). The conventions
 		(frameworks, language, warnings, tests, packages) come from that dotnet.yaml (_fx/.inherited/, _fx/dotnet/*.g.*).
 	-->
 
-	<!-- Its packages: the SDK and fx as a dotnet tool (plan S), open source (their license, from the workspace's
+	<!-- Its packages: the SDK and fx as a dotnet tool (plan S), open source (their license, from its parent's
 	     package-oss.targets); before the SDK, so that packable.props applies -->
 	<PropertyGroup>
 		<IsPackable Condition="'$(MSBuildProjectName)' == 'Fuxion.Tool.Sdk' Or '$(MSBuildProjectName)' == 'Fuxion.Tool'">true</IsPackable>

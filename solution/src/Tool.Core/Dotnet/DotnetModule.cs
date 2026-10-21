@@ -18,7 +18,7 @@ namespace Fuxion.Tool.Core.Dotnet;
 /// (<c>_fx/.inherited/dotnet/dotnet.yaml</c>, if it is for this root) and its own <c>_fx/dotnet/dotnet.yaml</c> on
 /// top, it generates <c>_fx/dotnet/dotnet.g.props</c>, <c>dotnet.g.targets</c> and <c>packages.g.props</c>, the
 /// <c>msbuild-sdks</c> of <c>global.json</c> and the solutions the root declares. <c>fx doctor</c> checks the same with
-/// the same code, plus the single owner of each package (D-16) and the coverage of the conditions (D-32). A workspace
+/// the same code, plus the single owner of each package (D-16) and the coverage of the conditions (D-32). A space
 /// generates its <c>.g.*</c> only if it has projects of its own (plan P, P1, detail 3).
 /// </summary>
 public static partial class DotnetModule
@@ -83,7 +83,7 @@ public static partial class DotnetModule
 		var own = FxFiles.Exists(ownFile) ? DotnetYamlReader.ReadFile(ownFile, warnings).Absolute(identity.FullName) : HasOwnFiles(node) ? DotnetConfig.Empty : null;
 		if (own is { Enabled: false })
 			own = null;
-		// a workspace receives what comes from above to pass it on; it only uses it if it is for it
+		// a space receives what comes from above to pass it on; it only uses it if it is for it
 		if (inherited is not null && !(inherited.AppliesTo ?? FxAppliesTo.All).Matches(identity))
 			inherited = null;
 		if (inherited is null && own is null)
@@ -181,7 +181,7 @@ public static partial class DotnetModule
 		var buildFiles = git.ListFiles(":(glob)**/*.csproj", ":(glob)**/*.fsproj", ":(glob)**/*.vbproj", ":(glob)**/*.props", ":(glob)**/*.targets")
 			.Where(f => !(f.StartsWith("_fx/", StringComparison.OrdinalIgnoreCase) && Path.GetFileName(f).Contains(".g.", StringComparison.OrdinalIgnoreCase)))
 			.ToList();
-		// a workspace without projects of its own generates nothing for itself (only for its repositories, through them),
+		// a space without projects of its own generates nothing for itself (only for its repositories, through them),
 		// but the solutions it composes build their projects, and MSBuild reads msbuild-sdks from the folder of the
 		// solution: its global.json pins the same SDKs
 		if (node.HasMounts && !buildFiles.Any(f => Path.GetExtension(f) is ".csproj" or ".fsproj" or ".vbproj"))
@@ -213,7 +213,7 @@ public static partial class DotnetModule
 		}
 
 		// 2. Only the packages the repo uses (design §7.3): in its projects and in what dotnet.yaml imports, directly or
-		// through FxReference (a package outside the workspace)
+		// through FxReference (a package outside the space)
 		var used = buildFiles
 			.SelectMany(f => { var text = Read(root, f); return PackageReference().Matches(text).Concat(FxReference().Matches(text)); })
 			.SelectMany(m => m.Groups["id"].Value.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
@@ -227,7 +227,7 @@ public static partial class DotnetModule
 		// packages.g.props; without it, PackageReference Update items in dotnet.g.targets, right after the project file
 		var centralFiles = git.ListFiles(":(glob)**/Directory.Packages.props");
 		var centralManagement = centralFiles.Any(f => CentralManagement().IsMatch(Read(root, f)));
-		// a repository of a workspace that does not build on its own needs it (plan R, proposal 5)
+		// a repository of a space that does not build on its own needs it (plan R, proposal 5)
 		var requiresSpace = !config.Standalone && !node.HasMounts && node.Inherited() is not null;
 		outputs.Generated(Path.Combine(root, Folder, "dotnet.g.props"), DotnetGenerator.Props(config, identity, propsImports, sources, requiresSpace));
 		outputs.Generated(Path.Combine(root, Folder, "dotnet.g.targets"),

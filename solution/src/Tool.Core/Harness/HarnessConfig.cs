@@ -66,7 +66,7 @@ public sealed record HarnessConfig(IReadOnlyList<HarnessRule> Rules, IReadOnlyLi
 	};
 
 	/// <summary>
-	/// What may be for the workspace <paramref name="who"/> or for something below it (proposal 1): by tags (its
+	/// What may be for the space <paramref name="who"/> or for something below it (proposal 1): by tags (its
 	/// repositories have tags its parent does not know), for everyone, or naming it or a repository below it.
 	/// </summary>
 	public HarnessConfig ForBelow(FxIdentity who) => this with

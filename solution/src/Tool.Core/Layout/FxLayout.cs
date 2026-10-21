@@ -37,7 +37,7 @@ public static class FxLayout
 
 	/// <summary>
 	/// The root of fx that contains <paramref name="directory"/>: the first folder above (itself included) with an
-	/// <c>_fx/</c> folder or a git repository (a repository without <c>_fx/</c> can still be one, if a workspace declares it).
+	/// <c>_fx/</c> folder or a git repository (a repository without <c>_fx/</c> can still be one, if a space declares it).
 	/// </summary>
 	public static string? FindRoot(string directory)
 	{

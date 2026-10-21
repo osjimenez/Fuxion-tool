@@ -22,7 +22,7 @@ public sealed record RepositoryState(Mount Repository, string FullPath, bool Mou
 	RepositoryCopy? SupersededBy = null);
 
 /// <summary>
-/// The workspace module of fx (plan P, decision 3): what a workspace mounts and what its git versions. In
+/// The space module of fx (plan P, decision 3): what a space mounts and what its git versions. In
 /// <c>fx sync</c> it clones the mounted repositories that are missing (or brings them back from the parking) and
 /// fetches the others, parks what it does not use, keeps the local state and generates the <c>.gitignore</c>;
 /// <c>fx doctor</c> checks the same without touching anything, plus the state of each repository and what is on disk
@@ -60,7 +60,7 @@ public static class MountsModule
 	static readonly TimeSpan FetchTimeout = TimeSpan.FromSeconds(60);
 	static readonly TimeSpan RemoteTimeout = TimeSpan.FromSeconds(30);
 
-	/// <summary>Loads the manifest of the nearest workspace around <paramref name="directory"/>, or a diagnostic.</summary>
+	/// <summary>Loads the manifest of the nearest space around <paramref name="directory"/>, or a diagnostic.</summary>
 	public static (MountsManifest? Manifest, FxDiagnostic? Error) Find(string directory)
 	{
 		var root = MountsManifest.FindRoot(directory);
@@ -98,12 +98,12 @@ public static class MountsModule
 		return result;
 	}
 
-	/// <summary>Where a repository of the workspace is parked (plan P, decision 20): its path, under <c>_fx/~$parking/</c>.</summary>
+	/// <summary>Where a repository of the space is parked (plan P, decision 20): its path, under <c>_fx/~$parking/</c>.</summary>
 	public static string ParkingPath(MountsManifest manifest, Mount repository)
 		=> FxLayout.Normalize(FxLayout.Full(manifest.Root, $"{FxLayout.Parking}/{repository.Path}"));
 
 	/// <summary>
-	/// The mounted repositories of the workspace at <paramref name="node"/>: a clone already there is adopted; what is
+	/// The mounted repositories of the space at <paramref name="node"/>: a clone already there is adopted; what is
 	/// mounted and missing comes back from the parking, or is cloned (not in a dry run, <c>--offline</c> or the doctor);
 	/// what is there is checked and fetched. What is there and not used goes to the parking (plan P, decisions 19 and
 	/// 20): an unmounted repository, or a copy a higher one supersedes (the intent stays: if the higher copy goes, this
@@ -280,7 +280,7 @@ public static class MountsModule
 		   select FxDiagnostic.Error(SpaceConfig.Invalid, new($"{SpaceConfig.Invalid}.path-in-repository", path.Path, inside.Name), configFile, path.Line);
 
 	/// <summary>
-	/// The references of this workspace that use an old name of one of its repositories (<c>aliases</c>, plan P,
+	/// The references of this space that use an old name of one of its repositories (<c>aliases</c>, plan P,
 	/// decision 12): they still work, but they should change. In <c>depends-on</c> and in the <c>applies-to</c> of the
 	/// shares and of the .NET module.
 	/// </summary>
@@ -329,7 +329,7 @@ public static class MountsModule
 	}
 
 	/// <summary>
-	/// What is on disk that nobody declared (plan P, P1, detail 6): repositories (a warning) and folders the workspace does
+	/// What is on disk that nobody declared (plan P, P1, detail 6): repositories (a warning) and folders the space does
 	/// not version (an info). It does not go into the repositories, <c>_fx/</c>, the local files nor what is versioned; a
 	/// folder with only folders is walked, one with files is reported and left.
 	/// </summary>
@@ -343,7 +343,7 @@ public static class MountsModule
 	}
 
 	/// <summary>
-	/// What is on disk in the workspace at <paramref name="root"/> that nobody declared (plan P, P1, detail 6): repositories
+	/// What is on disk in the space at <paramref name="root"/> that nobody declared (plan P, P1, detail 6): repositories
 	/// (<c>repository</c>), and folders with files of their own that it does not version; relative, ending in '/'.
 	/// </summary>
 	public static IEnumerable<(string Relative, bool Repository)> Strangers(string root, MountsManifest manifest, SpaceConfig config)
@@ -400,7 +400,7 @@ public static class MountsModule
 		Parallel.ForEach(mounted, new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = cancellationToken }, repo =>
 		{
 			var name = repo.Repository.Name;
-			// a mounted repository the workspace does not ignore would be added to it by the next git add
+			// a mounted repository the space does not ignore would be added to it by the next git add
 			if (metarepo is not null && !metarepo.Ignores(repo.Repository.Path + "/"))
 				diagnostics.Add(FxDiagnostic.Error(NotIgnored, new(NotIgnored, name, repo.Repository.Path), Display(context, manifest.Root, GitignoreGenerator.FileName),
 					repository: name, fix: FxFix.Run(FxHeader.Sync)));
@@ -471,7 +471,7 @@ public static class MountsModule
 	// fx mount
 
 	/// <summary>
-	/// Moves a clone between its place and the parking of its workspace (plan P, decision 20): a rename on the same
+	/// Moves a clone between its place and the parking of its space (plan P, decision 20): a rename on the same
 	/// disk, instant whatever it holds. If something has it open, nothing moves and a diagnostic says so. Then git's
 	/// links with its worktrees are repaired, and the empty folders it leaves behind go.
 	/// </summary>

@@ -25,11 +25,11 @@ public sealed record WorktreeInfo(string Root, WorktreeCard Card, IReadOnlyDicti
 
 /// <summary>
 /// The worktrees of fx (plan P, decisions 25-29): a branch to work on apart, without touching the main tree. A worktree
-/// is created in a workspace (the nearest, or <c>--in</c>), in its <c>_fx/~$worktrees/&lt;branch&gt;/</c>, and its root
-/// is always that workspace mounted in worktree mode: a <c>git worktree</c> of its main clone, sparse (without the
+/// is created in a space (the nearest, or <c>--in</c>), in its <c>_fx/~$worktrees/&lt;branch&gt;/</c>, and its root
+/// is always that space mounted in worktree mode: a <c>git worktree</c> of its main clone, sparse (without the
 /// <c>paths</c> marked <c>worktree: false</c>). Mounting in it is a <c>git worktree add</c> of each repository from its
 /// main clone (cloned once, parked, if there is none), in the same branch and at the same path. Nothing is required in
-/// a worktree: it starts with its workspace and the node where it was created, and <c>--required</c> brings the
+/// a worktree: it starts with its space and the node where it was created, and <c>--required</c> brings the
 /// required mounts down. For the code it is a closed tree (its own map of <c>FxReference</c>; what is inherited, read
 /// inside, but its root, from the main tree). A repository on its own has them in a folder of the user. fx never
 /// removes a worktree with uncommitted changes, and only deletes the branches it created that git deletes safely.
@@ -39,7 +39,7 @@ public static class WorktreeModule
 	public const string Name = "worktree";
 	public const string InsideWorktree = "worktree.inside-worktree";
 	public const string Exists = "worktree.exists";
-	public const string UnknownWorkspace = "worktree.unknown-workspace";
+	public const string UnknownSpace = "worktree.unknown-space";
 	public const string NotFound = "worktree.not-found";
 	public const string UnknownTarget = "worktree.unknown-target";
 	public const string NotDeclared = "worktree.not-declared";
@@ -76,8 +76,8 @@ public static class WorktreeModule
 		       || normalized.StartsWith(FxLayout.Normalize(UserFolder).Replace('\\', '/'), StringComparison.OrdinalIgnoreCase);
 	}
 
-	/// <summary>The workspaces that contain <paramref name="directory"/>, the nearest first.</summary>
-	static List<string> Workspaces(string directory)
+	/// <summary>The spaces that contain <paramref name="directory"/>, the nearest first.</summary>
+	static List<string> Spaces(string directory)
 	{
 		var result = new List<string>();
 		for (var dir = new DirectoryInfo(Path.GetFullPath(directory)); dir is not null; dir = dir.Parent)
@@ -87,8 +87,8 @@ public static class WorktreeModule
 	}
 
 	/// <summary>The paths of a space left out of its worktrees (<c>worktree: false</c>), relative to it.</summary>
-	static List<string> LeftOut(string workspace)
-		=> (SpaceConfig.Load(workspace).Paths ?? []).Where(p => !p.Worktree && !p.Exclude).Select(p => p.Path).ToList();
+	static List<string> LeftOut(string space)
+		=> (SpaceConfig.Load(space).Paths ?? []).Where(p => !p.Worktree && !p.Exclude).Select(p => p.Path).ToList();
 
 	static MountsManifest? Manifest(string root)
 	{
@@ -101,9 +101,9 @@ public static class WorktreeModule
 	// fx worktree add
 
 	/// <summary>
-	/// <c>fx worktree add &lt;branch&gt; [--in &lt;workspace&gt;] [--required]</c>: a worktree of <paramref name="branch"/>
-	/// in the nearest workspace around <paramref name="directory"/> (or <paramref name="in"/>, one of those above),
-	/// with the node of <paramref name="directory"/> mounted, and the workspaces on the way to it.
+	/// <c>fx worktree add &lt;branch&gt; [--in &lt;space&gt;] [--required]</c>: a worktree of <paramref name="branch"/>
+	/// in the nearest space around <paramref name="directory"/> (or <paramref name="in"/>, one of those above),
+	/// with the node of <paramref name="directory"/> mounted, and the spaces on the way to it.
 	/// </summary>
 	public static WorktreeResult Add(string directory, string branch, string? @in, bool required, string? fxVersion = null,
 		IFxProgress? progress = null, CancellationToken cancellationToken = default)
@@ -116,28 +116,28 @@ public static class WorktreeModule
 		if (FxNode.Find(directory) is not { } node || GitClient.Discover(node.Root) is null)
 			return Fail(FxDiagnostic.Error(NotARepository, new(NotARepository, directory)));
 
-		// where: the nearest workspace, or the one asked for; a repository on its own, in the folder of the user
-		var workspaces = Workspaces(node.Root);
-		var workspace = @in is null ? workspaces.FirstOrDefault() : workspaces.FirstOrDefault(w => Is(w, @in));
-		if (@in is not null && workspace is null)
-			return Fail(FxDiagnostic.Error(UnknownWorkspace, new(UnknownWorkspace, @in, string.Join(", ", workspaces.Select(w => new FxNode(w).SelfIdentity().FullName)))));
-		var main = workspace ?? node.Root;
+		// where: the nearest space, or the one asked for; a repository on its own, in the folder of the user
+		var spaces = Spaces(node.Root);
+		var space = @in is null ? spaces.FirstOrDefault() : spaces.FirstOrDefault(w => Is(w, @in));
+		if (@in is not null && space is null)
+			return Fail(FxDiagnostic.Error(UnknownSpace, new(UnknownSpace, @in, string.Join(", ", spaces.Select(w => new FxNode(w).SelfIdentity().FullName)))));
+		var main = space ?? node.Root;
 		var mainIdentity = new FxNode(main).SelfIdentity();
-		var root = FxLayout.Normalize(workspace is null
+		var root = FxLayout.Normalize(space is null
 			? Path.Combine(UserFolderOf(main, mainIdentity.Name), WorktreeCard.Folder(branch))
-			: FxLayout.Full(workspace, $"{FxLayout.Worktrees}/{WorktreeCard.Folder(branch)}"));
+			: FxLayout.Full(space, $"{FxLayout.Worktrees}/{WorktreeCard.Folder(branch)}"));
 		if (FxFiles.DirectoryExists(root))
 			return Fail(FxDiagnostic.Error(Exists, new(Exists, branch, root)));
 
 		// the way down to where you are, before anything is created
-		var target = workspace is null ? "" : FxLayout.Relative(workspace, node.Root).TrimEnd('/');
+		var target = space is null ? "" : FxLayout.Relative(space, node.Root).TrimEnd('/');
 		if (target == ".")
 			target = "";
 		if (target.Length > 0 && Declarations(main, mainIdentity.FullName).All(d => d.Path != target))
 			return Fail(FxDiagnostic.Error(NotDeclared, new(NotDeclared, target, mainIdentity.FullName)));
 
-		// the root: the workspace (or the repository) in worktree mode
-		var leftOut = workspace is null ? [] : LeftOut(main);
+		// the root: the space (or the repository) in worktree mode
+		var leftOut = space is null ? [] : LeftOut(main);
 		var (added, created) = progress.Step(Name, mainIdentity.Name, "worktree", () => GitClient.Discover(main)!.AddWorktree(root, branch, checkout: leftOut.Count == 0, cancellationToken),
 			r => r.Result.ExitCode == 0);
 		if (added.ExitCode != 0)
@@ -156,26 +156,26 @@ public static class WorktreeModule
 		return new(root, branch, actions, diagnostics, SyncEngine.Sync(root, new(FxVersion: fxVersion), progress, cancellationToken));
 	}
 
-	/// <summary>Whether the workspace at <paramref name="workspace"/> is <paramref name="name"/>: its name, its full name or its path.</summary>
-	static bool Is(string workspace, string name)
+	/// <summary>Whether the space at <paramref name="space"/> is <paramref name="name"/>: its name, its full name or its path.</summary>
+	static bool Is(string space, string name)
 	{
-		var identity = new FxNode(workspace).SelfIdentity();
-		return identity.Name == name || identity.Is(name) || (FxFiles.DirectoryExists(name) && FxLayout.SameFolder(name, workspace));
+		var identity = new FxNode(space).SelfIdentity();
+		return identity.Name == name || identity.Is(name) || (FxFiles.DirectoryExists(name) && FxLayout.SameFolder(name, space));
 	}
 
-	/// <summary>A repository declared below a workspace: its path from there, its full name and its declaration.</summary>
+	/// <summary>A repository declared below a space: its path from there, its full name and its declaration.</summary>
 	sealed record Declared(string Path, string FullName, Mount Repository);
 
 	/// <summary>
-	/// The repositories declared below the workspace at <paramref name="root"/> (named <paramref name="fullName"/>), at
-	/// any depth: through the workspaces on disk, at their place or parked.
+	/// The repositories declared below the space at <paramref name="root"/> (named <paramref name="fullName"/>), at
+	/// any depth: through the spaces on disk, at their place or parked.
 	/// </summary>
 	static List<Declared> Declarations(string root, string fullName)
 	{
 		var result = new List<Declared>();
-		void Walk(string workspace, string relative, string name, int depth)
+		void Walk(string space, string relative, string name, int depth)
 		{
-			if (depth > 32 || Manifest(workspace) is not { } manifest)
+			if (depth > 32 || Manifest(space) is not { } manifest)
 				return;
 			foreach (var repository in manifest.Mounts)
 			{
@@ -204,38 +204,38 @@ public static class WorktreeModule
 		/// <summary>How high a path of the worktree is mounted: the repositories mounted on the way to it, and it.</summary>
 		int Height(string path) => Card.Worktrees.Count(w => w.Path != "." && (path == w.Path || path.StartsWith(w.Path + "/", StringComparison.OrdinalIgnoreCase))) + 1;
 
-		/// <summary>Mounts the repository at <paramref name="path"/> (relative to the root) and the workspaces on the way to it.</summary>
+		/// <summary>Mounts the repository at <paramref name="path"/> (relative to the root) and the spaces on the way to it.</summary>
 		public bool MountPath(string path)
 		{
-			var workspace = "";
+			var space = "";
 			var remaining = path;
 			while (true)
 			{
-				var declaration = Manifest(Full(workspace))?.Mounts
+				var declaration = Manifest(Full(space))?.Mounts
 					.FirstOrDefault(r => remaining == r.Path || remaining.StartsWith(r.Path + "/", StringComparison.OrdinalIgnoreCase));
 				if (declaration is null)
 				{
 					diagnostics.Add(FxDiagnostic.Error(NotDeclared, new(NotDeclared, path, Card.Worktrees[0].Repository)));
 					return false;
 				}
-				if (!MountOne(workspace, declaration))
+				if (!MountOne(space, declaration))
 					return false;
 				if (remaining == declaration.Path)
 					return true;
-				workspace = Join(workspace, declaration.Path);
+				space = Join(space, declaration.Path);
 				remaining = remaining[(declaration.Path.Length + 1)..];
 			}
 		}
 
-		/// <summary>The required mounts of the spaces at <paramref name="workspaces"/>, level by level down (the highest copies first).</summary>
-		public void Required(IReadOnlyList<string> workspaces)
+		/// <summary>The required mounts of the spaces at <paramref name="spaces"/>, level by level down (the highest copies first).</summary>
+		public void Required(IReadOnlyList<string> spaces)
 		{
 			var next = new List<string>();
-			foreach (var workspace in workspaces)
-				foreach (var repository in Manifest(Full(workspace))?.Mounts.Where(r => r.Required) ?? [])
+			foreach (var space in spaces)
+				foreach (var repository in Manifest(Full(space))?.Mounts.Where(r => r.Required) ?? [])
 				{
-					var path = Join(workspace, repository.Path);
-					if (MountOne(workspace, repository) && repository.Inherits && MountsManifest.HasMounts(Full(path)))
+					var path = Join(space, repository.Path);
+					if (MountOne(space, repository) && repository.Inherits && MountsManifest.HasMounts(Full(path)))
 						next.Add(path);
 				}
 			if (next.Count > 0)
@@ -243,13 +243,13 @@ public static class WorktreeModule
 		}
 
 		/// <summary>
-		/// <paramref name="repository"/>, declared by the workspace at <paramref name="workspace"/>, in worktree mode: a
+		/// <paramref name="repository"/>, declared by the space at <paramref name="space"/>, in worktree mode: a
 		/// <c>git worktree add</c> from its main clone. Whether it is mounted (also if it already was).
 		/// </summary>
-		public bool MountOne(string workspace, Mount repository)
+		public bool MountOne(string space, Mount repository)
 		{
 			cancellationToken.ThrowIfCancellationRequested();
-			var path = Join(workspace, repository.Path);
+			var path = Join(space, repository.Path);
 			var destination = Full(path);
 			if (FxLayout.IsGitRoot(destination))
 				return true;
@@ -267,7 +267,7 @@ public static class WorktreeModule
 				}
 			}
 			// its main clone: in the main tree, at its place or parked; if there is none, cloned once, parked
-			if (GitClient.Discover(Full(workspace))?.MainRoot() is not { } mainWorkspace || Manifest(mainWorkspace) is not { } manifest)
+			if (GitClient.Discover(Full(space))?.MainRoot() is not { } mainSpace || Manifest(mainSpace) is not { } manifest)
 			{
 				diagnostics.Add(FxDiagnostic.Error(NotDeclared, new(NotDeclared, path, Card.Worktrees[0].Repository)));
 				return false;
@@ -311,7 +311,7 @@ public static class WorktreeModule
 			return true;
 		}
 
-		/// <summary>Brings back a path left out of the worktree (<c>worktree: false</c>), in the workspace mounted that has it.</summary>
+		/// <summary>Brings back a path left out of the worktree (<c>worktree: false</c>), in the space mounted that has it.</summary>
 		public void BringBack(string path)
 		{
 			var owner = Card.Worktrees.Where(w => w.Path == "." || path.StartsWith(w.Path + "/", StringComparison.OrdinalIgnoreCase)).MaxBy(w => w.Path == "." ? 0 : w.Path.Length)!;
@@ -373,21 +373,21 @@ public static class WorktreeModule
 
 	// fx worktree mount, unmount, remove, list
 
-	/// <summary>The worktree of <paramref name="branch"/> for <paramref name="directory"/>: in the workspaces around it, or in the folder of the user of its repository.</summary>
+	/// <summary>The worktree of <paramref name="branch"/> for <paramref name="directory"/>: in the spaces around it, or in the folder of the user of its repository.</summary>
 	public static WorktreeInfo? Find(string directory, string branch)
 		=> List(directory).FirstOrDefault(w => w.Card.Branch == branch);
 
-	/// <summary>The worktrees of the workspaces around <paramref name="directory"/> (the nearest first) or of its repository on its own; with <paramref name="withStatus"/>, their changes.</summary>
+	/// <summary>The worktrees of the spaces around <paramref name="directory"/> (the nearest first) or of its repository on its own; with <paramref name="withStatus"/>, their changes.</summary>
 	public static IReadOnlyList<WorktreeInfo> List(string directory, bool withStatus = false)
 	{
-		var folders = Workspaces(directory).Select(w => FxLayout.Full(w, FxLayout.Worktrees)).ToList();
+		var folders = Spaces(directory).Select(w => FxLayout.Full(w, FxLayout.Worktrees)).ToList();
 		if (folders.Count == 0 && GitClient.Discover(directory) is { } git && (git.MainRoot() ?? git.Root) is { } main)
 			folders.Add(UserFolderOf(main, new FxNode(main).SelfIdentity().Name));
 		return folders.SelectMany(f => In(f, withStatus)).ToList();
 	}
 
-	/// <summary>The worktrees of the workspace at <paramref name="workspace"/> (its <c>_fx/~$worktrees/</c>); with <paramref name="withStatus"/>, their changes.</summary>
-	public static IReadOnlyList<WorktreeInfo> Of(string workspace, bool withStatus = false) => In(FxLayout.Full(workspace, FxLayout.Worktrees), withStatus);
+	/// <summary>The worktrees of the space at <paramref name="space"/> (its <c>_fx/~$worktrees/</c>); with <paramref name="withStatus"/>, their changes.</summary>
+	public static IReadOnlyList<WorktreeInfo> Of(string space, bool withStatus = false) => In(FxLayout.Full(space, FxLayout.Worktrees), withStatus);
 
 	static IReadOnlyList<WorktreeInfo> In(string folder, bool withStatus)
 	{
@@ -407,7 +407,7 @@ public static class WorktreeModule
 
 	/// <summary>
 	/// <c>fx worktree mount &lt;branch&gt; &lt;repositories or paths…&gt; [--required]</c>: more of the tree in the
-	/// worktree. A repository by its name, its path or its full name (with the workspaces on the way to it); a path left
+	/// worktree. A repository by its name, its path or its full name (with the spaces on the way to it); a path left
 	/// out (<c>worktree: false</c>), brought back.
 	/// </summary>
 	public static WorktreeResult Mount(string directory, string branch, IReadOnlyList<string> targets, bool required, string? fxVersion = null,

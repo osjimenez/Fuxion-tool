@@ -8,7 +8,7 @@ using XenoAtom.Terminal.UI;
 namespace Fuxion.Tool.Cli.Ui;
 
 /// <summary>
-/// <c>fx ui</c> (plan O, O4): the workspace in full screen. Only in a terminal with a person: without one (CI, a pipe,
+/// <c>fx ui</c> (plan O, O4): the space in full screen. Only in a terminal with a person: without one (CI, a pipe,
 /// an agent, <c>--output json</c>) it says so and ends with wrong usage. Ctrl+Q closes it.
 /// </summary>
 public static class UiCommand

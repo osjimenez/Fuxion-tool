@@ -34,7 +34,7 @@ public sealed class SdkFixture : IDisposable
 		MSBuildExe = FindVisualStudioMSBuild();
 	}
 
-	/// <summary>Temporary folder of the fixture: feed, packages and workspaces.</summary>
+	/// <summary>Temporary folder of the fixture: feed, packages and spaces.</summary>
 	public string Root { get; }
 
 	public string Feed { get; }

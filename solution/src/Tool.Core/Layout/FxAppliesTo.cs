@@ -6,7 +6,7 @@ using Fuxion.Tool.Core.Yaml;
 namespace Fuxion.Tool.Core.Layout;
 
 /// <summary>
-/// Who a repository (or a workspace) is: its name, given by whoever declares it; its full name, the chain of names from
+/// Who a repository (or a space) is: its name, given by whoever declares it; its full name, the chain of names from
 /// the root (<c>/acme/repo-w1/repo-c1</c>, plan P, decision 11); its tags (decision 21) and its old names (decision 12).
 /// </summary>
 public sealed record FxIdentity(string Name, string FullName, IReadOnlyList<string> Tags, IReadOnlyList<string>? Aliases = null)
@@ -21,7 +21,7 @@ public sealed record FxIdentity(string Name, string FullName, IReadOnlyList<stri
 
 	/// <summary>
 	/// A reference to a repository written by <paramref name="writer"/> (its full name), made absolute: with '/' in
-	/// front it already is; without it, it is relative to the workspace that wrote it (decision 11).
+	/// front it already is; without it, it is relative to the space that wrote it (decision 11).
 	/// </summary>
 	public static string Resolve(string reference, string writer)
 		=> reference.StartsWith('/') ? reference.TrimEnd('/') : $"{writer.TrimEnd('/')}/{reference.Trim('/')}";
@@ -29,8 +29,8 @@ public sealed record FxIdentity(string Name, string FullName, IReadOnlyList<stri
 
 /// <summary>
 /// Who something is for (plan P, decision 22): a module, an import, a variable, a package, a share. By tags or by
-/// repositories (names: absolute with '/', relative to the workspace that writes them without it); without both, for
-/// everyone. A workspace in between always receives what comes from above, to pass it on: <c>applies-to</c> says who
+/// repositories (names: absolute with '/', relative to the space that writes them without it); without both, for
+/// everyone. A space in between always receives what comes from above, to pass it on: <c>applies-to</c> says who
 /// uses something, never who lets it through.
 /// </summary>
 public sealed record FxAppliesTo(IReadOnlyList<string> Tags, IReadOnlyList<string> Repositories)
@@ -46,7 +46,7 @@ public sealed record FxAppliesTo(IReadOnlyList<string> Tags, IReadOnlyList<strin
 		   || Repositories.Any(who.Is);
 
 	/// <summary>
-	/// Whether it may be for the workspace <paramref name="who"/> or for something below it, so the workspace passes it
+	/// Whether it may be for the space <paramref name="who"/> or for something below it, so the space passes it
 	/// on: by tags (its repositories have tags its parent does not know), for everyone, or naming it or a repository
 	/// below it (plan Q, proposal 1; plan R, decision 2).
 	/// </summary>

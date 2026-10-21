@@ -12,7 +12,7 @@
 	<PropertyGroup>
 		<TargetFramework>$(LatestCoreFramework)</TargetFramework>
 		<PackageId>Fuxion.Tool.Sdk</PackageId>
-		<Description>MSBuild SDK of the Fuxion workspace tool (fx): versioning from git, static metadata, references between repositories and what fx generates from dotnet.yaml. It adds its own Fx* settings and leaves the rest of the build to the repository.</Description>
+		<Description>MSBuild SDK of fx, the tool of Fuxion's spaces: versioning from git, static metadata, references between repositories and what fx generates from dotnet.yaml. It adds its own Fx* settings and leaves the rest of the build to the repository.</Description>
 		<PackageType>MSBuildSdk</PackageType>
 		<!-- the tasks and everything they need go to tasks/net11.0; the package has no dependencies -->
 		<BuildOutputTargetFolder>tasks</BuildOutputTargetFolder>

@@ -26,7 +26,7 @@
     <value>No se pudo hacer fetch de '{0}': {1}</value>
   </data>
   <data name="mounts.orphan" xml:space="preserve">
-    <value>{0} es un repositorio que el workspace no declara.</value>
+    <value>{0} es un repositorio que el space no monta.</value>
   </data>
   <data name="mounts.orphan.fix" xml:space="preserve">
     <value>Móntalo (fx mount add), o sácalo del space.</value>
@@ -50,7 +50,7 @@
     <value>'{0}': {1} no responde (red, VPN o acceso).</value>
   </data>
   <data name="mounts.unknown" xml:space="preserve">
-    <value>El manifiesto no tiene ningún repositorio '{0}'.</value>
+    <value>mounts.yaml no tiene ningún montaje '{0}'.</value>
   </data>
   <data name="mounts.unknown.required" xml:space="preserve">
     <value>'{0}' es obligatorio (required): no se puede aparcar.</value>
@@ -68,37 +68,37 @@
     <value>ninguna rama con upstream</value>
   </data>
   <data name="mounts.invalid-manifest.mount-mapping" xml:space="preserve">
-    <value>Un repositorio es un mapa: name, path, url…</value>
+    <value>Un montaje es un mapa: name, path, url…</value>
   </data>
   <data name="mounts.invalid-manifest.name-and-path" xml:space="preserve">
-    <value>Todo repositorio necesita 'name' y 'path'.</value>
+    <value>Todo montaje necesita 'name' y 'path'.</value>
   </data>
   <data name="mounts.invalid-manifest.mode" xml:space="preserve">
     <value>Montaje '{0}': mode es 'write', 'read-only' o 'propose-only', no '{1}'.</value>
   </data>
   <data name="mounts.invalid-manifest.name" xml:space="preserve">
-    <value>Nombre de repositorio '{0}': minúsculas, dígitos y '-' (como 'plus' o 'my-repo').</value>
+    <value>Nombre de montaje '{0}': minúsculas, dígitos y '-' (como 'plus' o 'my-repo').</value>
   </data>
   <data name="mounts.invalid-manifest.path-relative" xml:space="preserve">
-    <value>Repositorio '{0}': la ruta '{1}' tiene que ser relativa, dentro del workspace, sin '.' ni '..'.</value>
+    <value>Montaje '{0}': la ruta '{1}' tiene que ser relativa, dentro del space, sin '.' ni '..'.</value>
   </data>
   <data name="mounts.invalid-manifest.path-reserved" xml:space="preserve">
-    <value>Repositorio '{0}': '{1}' es de fx o de git.</value>
+    <value>Montaje '{0}': '{1}' es de fx o de git.</value>
   </data>
   <data name="mounts.invalid-manifest.url" xml:space="preserve">
-    <value>El repositorio '{0}' necesita 'url'.</value>
+    <value>El montaje '{0}' necesita 'url'.</value>
   </data>
   <data name="mounts.invalid-manifest.depends-on" xml:space="preserve">
-    <value>El repositorio '{0}' depende de '{1}', que el manifiesto no recoge.</value>
+    <value>El montaje '{0}' depende de '{1}', que mounts.yaml no recoge.</value>
   </data>
   <data name="mounts.invalid-manifest.duplicate-name" xml:space="preserve">
-    <value>El nombre de repositorio '{0}' se usa más de una vez.</value>
+    <value>El nombre de montaje '{0}' se usa más de una vez.</value>
   </data>
   <data name="mounts.invalid-manifest.duplicate-path" xml:space="preserve">
     <value>La ruta '{0}' se usa más de una vez.</value>
   </data>
   <data name="mounts.invalid-manifest.nested" xml:space="preserve">
-    <value>El repositorio '{0}' está montado dentro de '{1}'.</value>
+    <value>El montaje '{0}' está montado dentro de '{1}'.</value>
   </data>
   <data name="dotnet.invalid-json" xml:space="preserve">
     <value>global.json no es JSON válido: {0}</value>
@@ -251,7 +251,7 @@
     <value>Nada que hacer aquí: no hay raíz de fx (ni _fx/ ni repositorio de git por encima).</value>
   </data>
   <data name="mounts.exists" xml:space="preserve">
-    <value>El manifiesto ya tiene un repositorio '{0}'.</value>
+    <value>mounts.yaml ya tiene un montaje '{0}'.</value>
   </data>
   <data name="mounts.needed" xml:space="preserve">
     <value>{1} depende(n) de '{0}': cambia antes su depends-on (fx mount set &lt;nombre&gt; depends-on ...).</value>
@@ -392,7 +392,7 @@
     <value>Añádela a las tags de _fx/space.yaml, o usa una que esté.</value>
   </data>
   <data name="space.invalid-parent" xml:space="preserve">
-    <value>La configuración del workspace padre no es válida.</value>
+    <value>La configuración del space padre no es válida.</value>
   </data>
   <data name="mounts.invalid-manifest.list" xml:space="preserve">
     <value>'{0}' tiene que ser una lista.</value>
@@ -428,7 +428,7 @@
     <value>'{0}' no está en paths.</value>
   </data>
   <data name="dotnet.standalone-reference" xml:space="preserve">
-    <value>'{0}' es standalone, pero referencia {1} de '{2}', que no lo es: fuera del workspace no puede ser un paquete.</value>
+    <value>'{0}' es standalone, pero referencia {1} de '{2}', que no lo es: fuera del space no puede ser un paquete.</value>
   </data>
   <data name="dotnet.standalone-reference.fix" xml:space="preserve">
     <value>Marca la referencia con SpaceOnly="true" o haz standalone el repositorio referenciado.</value>
@@ -482,7 +482,7 @@
     <value>El padre {0} ya no declara '{1}': lo que hereda se queda como está.</value>
   </data>
   <data name="space.too-deep" xml:space="preserve">
-    <value>'{0}' está a más de {1} workspaces de profundidad: Fuxion.Tool.Sdk no mira más arriba.</value>
+    <value>'{0}' está a más de {1} spaces de profundidad: Fuxion.Tool.Sdk no mira más arriba.</value>
   </data>
   <data name="space.alias-reference" xml:space="preserve">
     <value>'{0}' usa '{1}', un nombre viejo de '{2}': aún funciona, pero cámbialo.</value>
@@ -515,7 +515,7 @@
     <value>'{0}' está montado dos veces a la misma altura, como {1} y {2}: fx no sabe qué copia usar y no aparca ninguna.</value>
   </data>
   <data name="mounts.same-height.fix" xml:space="preserve">
-    <value>Móntalo más arriba, en un workspace por encima de los dos, o solo en uno.</value>
+    <value>Móntalo más arriba, en un space por encima de los dos, o solo en uno.</value>
   </data>
   <data name="mounts.action.superseded" xml:space="preserve">
     <value>se usa la copia de {0}</value>
@@ -553,8 +553,8 @@
   <data name="worktree.exists" xml:space="preserve">
     <value>Ya hay un worktree de '{0}' en {1}.</value>
   </data>
-  <data name="worktree.unknown-workspace" xml:space="preserve">
-    <value>'{0}' no es uno de los workspaces de por aquí ({1}).</value>
+  <data name="worktree.unknown-space" xml:space="preserve">
+    <value>'{0}' no es uno de los spaces de por aquí ({1}).</value>
   </data>
   <data name="worktree.not-found" xml:space="preserve">
     <value>No hay ningún worktree de '{0}' por aquí.</value>
@@ -569,7 +569,7 @@
     <value>'{0}' no está declarado en el camino desde '{1}': fx no puede montarlo en un worktree.</value>
   </data>
   <data name="worktree.not-a-repository" xml:space="preserve">
-    <value>{0} no está en un repositorio ni en un workspace.</value>
+    <value>{0} no está en un repositorio ni en un space.</value>
   </data>
   <data name="worktree.add-failed" xml:space="preserve">
     <value>'{0}': git no ha hecho su worktree: {1}</value>
@@ -596,7 +596,7 @@
     <value>La ficha del worktree no tiene rama.</value>
   </data>
   <data name="worktree.outside" xml:space="preserve">
-    <value>'{0}' tiene un worktree en {1} (rama {2}), fuera de los worktrees de sus workspaces.</value>
+    <value>'{0}' tiene un worktree en {1} (rama {2}), fuera de los worktrees de sus spaces.</value>
   </data>
   <data name="worktree.outside.fix" xml:space="preserve">
     <value>fx worktree add los hace donde van; cuando acabes con este, git worktree remove.</value>

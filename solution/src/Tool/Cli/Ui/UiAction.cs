@@ -71,18 +71,18 @@ public sealed record UiAction(string Label, string Command, string Description, 
 	public static IReadOnlyList<UiAction> For(FxTreeNode node, string start, WorktreeCard? card)
 	{
 		var actions = new List<UiAction>();
-		var workspace = WorkspaceOf(node);
+		var space = SpaceOf(node);
 		string Root(string path) => RootOption(start, path);
 		if (node.Kind is FxTreeKind.Declared or FxTreeKind.Parked)
 		{
-			if (node.SupersededBy is not null || workspace is null)
+			if (node.SupersededBy is not null || space is null)
 				return actions;
 			if (card is not null)
 				actions.Add(WorktreeMount(node, card));
 			else if (node.Kind == FxTreeKind.Parked || !node.Mounted)
-				actions.Add(Park(node, workspace, parked: false, Root(workspace.Path)));
+				actions.Add(Park(node, space, parked: false, Root(space.Path)));
 			// mounted and not cloned: sync clones it
-			actions.Add(Sync(workspace, Root(workspace.Path)));
+			actions.Add(Sync(space, Root(space.Path)));
 			return actions;
 		}
 		var root = node;
@@ -93,18 +93,18 @@ public sealed record UiAction(string Label, string Command, string Description, 
 		actions.Add(Sync(root, Root(root.Path)));
 		if (root.Kind == FxTreeKind.Space)
 			actions.Add(Pull(root, null, Root(root.Path)));
-		else if (workspace is not null && root.Declaration is not null)
-			actions.Add(Pull(workspace, root, Root(workspace.Path)));
+		else if (space is not null && root.Declaration is not null)
+			actions.Add(Pull(space, root, Root(space.Path)));
 		// parking: what its space mounts, if it is not required (in a worktree, nothing is)
-		if (root == node && workspace is not null && root.Declaration is { } declaration && root.SupersededBy is null)
+		if (root == node && space is not null && root.Declaration is { } declaration && root.SupersededBy is null)
 			if (card is not null)
 				actions.Add(WorktreeUnmount(root, card));
 			else if (!declaration.Required)
-				actions.Add(Park(root, workspace, parked: true, Root(workspace.Path)));
+				actions.Add(Park(root, space, parked: true, Root(space.Path)));
 		return actions;
 	}
 
-	static FxTreeNode? WorkspaceOf(FxTreeNode node)
+	static FxTreeNode? SpaceOf(FxTreeNode node)
 	{
 		for (var at = node.Parent; at is not null; at = at.Parent)
 			if (at.Kind == FxTreeKind.Space)
@@ -117,22 +117,22 @@ public sealed record UiAction(string Label, string Command, string Description, 
 			(progress, token) => UiOutcome.From(SyncEngine.Sync(root.Path, new(FxVersion: SyncCommand.Informational, Skill: FxSkill.Text), progress, token)),
 			token => UiOutcome.From(SyncEngine.Sync(root.Path, new(DryRun: true, FxVersion: SyncCommand.Informational, Skill: FxSkill.Text), cancellationToken: token)));
 
-	static UiAction Pull(FxTreeNode workspace, FxTreeNode? repository, string option)
+	static UiAction Pull(FxTreeNode space, FxTreeNode? repository, string option)
 	{
 		var name = repository?.Declaration?.Name;
 		return new(Texts.Get("ui.action.pull"), $"fx mount pull{(name is null ? "" : $" {name}")}{option}", Texts.Get("ui.action.pull.description"),
-			(progress, token) => UiOutcome.From([MountsModule.Pull(MountsManifest.Load(workspace.Path), name is null ? [] : [name], progress, token)]));
+			(progress, token) => UiOutcome.From([MountsModule.Pull(MountsManifest.Load(space.Path), name is null ? [] : [name], progress, token)]));
 	}
 
-	static UiAction Park(FxTreeNode node, FxTreeNode workspace, bool parked, string option)
+	static UiAction Park(FxTreeNode node, FxTreeNode space, bool parked, string option)
 	{
 		var name = node.Declaration!.Name;
 		var verb = parked ? "park" : "unpark";
 		var description = parked
-			? Texts.Get("ui.action.park.description", $"{FxLayout.Parking}/{FxLayout.Relative(workspace.Path, node.Path)}")
+			? Texts.Get("ui.action.park.description", $"{FxLayout.Parking}/{FxLayout.Relative(space.Path, node.Path)}")
 			: Texts.Get(node.Kind == FxTreeKind.Parked ? "ui.action.unpark.description" : "ui.action.unpark.clone.description");
 		return new(Texts.Get($"ui.action.{verb}"), $"fx mount {verb} {name}{option}", description,
-			(_, _) => UiOutcome.From([MountsModule.Park(MountsManifest.Load(workspace.Path), [name], parked)]));
+			(_, _) => UiOutcome.From([MountsModule.Park(MountsManifest.Load(space.Path), [name], parked)]));
 	}
 
 	static UiAction WorktreeMount(FxTreeNode node, WorktreeCard card)

@@ -33,7 +33,7 @@ public sealed record UiProblem(FxTreeNode Node, FxDiagnostic Diagnostic)
 	public override string ToString() => $"{(Diagnostic.Severity == FxSeverity.Error ? "✗" : "!")} {Node.Name} · {Diagnostic.Code} · {Diagnostic.Message}";
 }
 
-/// <summary>A line of the worktrees of a workspace (decision 14.12): the worktree and its changes, once git says them.</summary>
+/// <summary>A line of the worktrees of a space (decision 14.12): the worktree and its changes, once git says them.</summary>
 public sealed record UiWorktree(WorktreeInfo Info, int? Changes)
 {
 	public override string ToString()
@@ -42,7 +42,7 @@ public sealed record UiWorktree(WorktreeInfo Info, int? Changes)
 }
 
 /// <summary>
-/// <c>fx ui</c>, the layer to see (plan O, O4.1, decision 14): the tree of the workspace on the left (<see cref="FxTree"/>),
+/// <c>fx ui</c>, the layer to see (plan O, O4.1, decision 14): the tree of the space on the left (<see cref="FxTree"/>),
 /// a panel per kind of node on the right, the marks of the doctor in the tree and its list of problems, and a bar with
 /// the keys. The doctor and git run in the background; what they find reaches the screen on its thread
 /// (<see cref="OnUpdate"/>). From a file it goes to where it comes from (14.3), and a worktree opens as its own tree
@@ -56,7 +56,7 @@ public sealed partial class UiApp
 	readonly State<bool> _all = new(false);
 	readonly State<bool> _problemsVisible = new(false);
 	readonly State<string> _doctor = new("");
-	readonly State<int> _workspaceTab = new(0);
+	readonly State<int> _spaceTab = new(0);
 	readonly State<int> _repositoryTab = new(0);
 	readonly Dictionary<string, GitStatus> _status = new(StringComparer.OrdinalIgnoreCase);
 	readonly Dictionary<string, IReadOnlyList<string>> _commits = new(StringComparer.OrdinalIgnoreCase);
@@ -645,8 +645,8 @@ public sealed partial class UiApp
 				});
 			});
 			// the changes of each worktree (14.12)
-			foreach (var workspace in all.Where(n => n.Worktrees.Count > 0))
-				foreach (var worktree in WorktreeModule.Of(workspace.Path, withStatus: true))
+			foreach (var space in all.Where(n => n.Worktrees.Count > 0))
+				foreach (var worktree in WorktreeModule.Of(space.Path, withStatus: true))
 				{
 					token.ThrowIfCancellationRequested();
 					var changes = worktree.Changes?.Values.Sum() ?? 0;
@@ -783,7 +783,7 @@ public sealed partial class UiApp
 	Visual Panel(FxTreeNode? node) => node?.Kind switch
 	{
 		null => new TextBlock(Texts.Get("ui.select")),
-		FxTreeKind.Space => WorkspacePanel(node),
+		FxTreeKind.Space => SpacePanel(node),
 		FxTreeKind.Repository => RepositoryPanel(node),
 		FxTreeKind.Declared or FxTreeKind.Parked => AbsentPanel(node),
 		FxTreeKind.Unknown => UnknownPanel(node),
@@ -799,7 +799,7 @@ public sealed partial class UiApp
 
 	static string Relative(FxTreeNode from, FxTreeNode node) => FxLayout.Relative(from.Path, node.Path);
 
-	static FxTreeNode WorkspaceOf(FxTreeNode node)
+	static FxTreeNode SpaceOf(FxTreeNode node)
 	{
 		for (var at = node.Parent; at is not null; at = at.Parent)
 			if (at.Kind == FxTreeKind.Space)
@@ -807,9 +807,9 @@ public sealed partial class UiApp
 		return node;
 	}
 
-	/// <summary>The repositories a workspace declares itself (not those of the workspaces below it).</summary>
-	static IEnumerable<FxTreeNode> Declared(FxTreeNode workspace)
-		=> workspace.Descendants().Where(n => n.Declaration is not null && WorkspaceOf(n) == workspace);
+	/// <summary>The repositories a space declares itself (not those of the spaces below it).</summary>
+	static IEnumerable<FxTreeNode> Declared(FxTreeNode space)
+		=> space.Descendants().Where(n => n.Declaration is not null && SpaceOf(n) == space);
 
 	Visual Title(FxTreeNode node)
 	{
@@ -826,7 +826,7 @@ public sealed partial class UiApp
 		return new VStack(lines.ToArray()).Spacing(0);
 	}
 
-	Visual WorkspacePanel(FxTreeNode node)
+	Visual SpacePanel(FxTreeNode node)
 	{
 		var repos = new Table().Headers(new TextBlock(Texts.Get("ui.column.repository")), new TextBlock(Texts.Get("ui.column.state")),
 			new TextBlock(Texts.Get("ui.column.branch")), new TextBlock(Texts.Get("ui.column.doctor")));
@@ -834,13 +834,13 @@ public sealed partial class UiApp
 			repos.AddRow(new Markup(Label(repo)) { Wrap = false }, new TextBlock(State(repo)),
 				new TextBlock(_status.TryGetValue(repo.Path, out var s) ? s.Branch ?? "—" : ""), new Markup(Badge(repo)) { Wrap = false });
 
-		// the tab chosen stays when the panel is drawn again (the background brings news) or another workspace is selected
+		// the tab chosen stays when the panel is drawn again (the background brings news) or another space is selected
 		return new VStack(Title(node), new TabControl(
 			new TabPage(Texts.Get("ui.tab.repositories"), repos),
 			new TabPage(Texts.Get("ui.tab.problems"), ProblemsOf(node)),
 			new TabPage(Texts.Get("ui.tab.versions"), Versions(node)),
 			new TabPage(Texts.Get("ui.tab.worktrees"), Worktrees(node)),
-			new TabPage(Texts.Get("ui.tab.applies"), Applies(node))).SelectedIndex(_workspaceTab)).Spacing(1);
+			new TabPage(Texts.Get("ui.tab.applies"), Applies(node))).SelectedIndex(_spaceTab)).Spacing(1);
 	}
 
 	string State(FxTreeNode repo) => Texts.Get(repo.Kind switch
@@ -851,7 +851,7 @@ public sealed partial class UiApp
 		_ => "ui.state.mounted"
 	});
 
-	/// <summary>What a workspace versions (its paths) and what it shares, and whom (14.5).</summary>
+	/// <summary>What a space versions (its paths) and what it shares, and whom (14.5).</summary>
 	static Visual Versions(FxTreeNode node)
 	{
 		var space = SpaceConfig.Load(node.Path);
@@ -871,7 +871,7 @@ public sealed partial class UiApp
 		return new ScrollViewer(new Markup(text.ToString().TrimEnd()) { Wrap = false });
 	}
 
-	/// <summary>The worktrees of a workspace, with their changes; Enter opens one (14.12).</summary>
+	/// <summary>The worktrees of a space, with their changes; Enter opens one (14.12).</summary>
 	Visual Worktrees(FxTreeNode node)
 	{
 		if (node.Worktrees.Count == 0)
@@ -955,7 +955,7 @@ public sealed partial class UiApp
 	{
 		var lines = new List<Visual> { Title(node) };
 		if (node.Kind == FxTreeKind.Parked)
-			lines.Add(Line(Esc(Texts.Get("ui.parked", $"{FxLayout.Parking}/{Relative(WorkspaceOf(node), node)}"))));
+			lines.Add(Line(Esc(Texts.Get("ui.parked", $"{FxLayout.Parking}/{Relative(SpaceOf(node), node)}"))));
 		// in a worktree, fx sync neither clones nor parks: what is not in it is mounted with fx worktree mount
 		else if (node.SupersededBy is null && _card is not null)
 			lines.Add(Line(Esc(Texts.Get("ui.not-in-worktree"))));
@@ -972,8 +972,8 @@ public sealed partial class UiApp
 
 	static Visual UnknownPanel(FxTreeNode node)
 	{
-		var workspace = WorkspaceOf(node);
-		var relative = Relative(workspace, node);
+		var space = SpaceOf(node);
+		var relative = Relative(space, node);
 		var repository = FxLayout.IsGitRoot(node.Path);
 		var url = repository ? GitClient.Discover(node.Path)?.RemoteUrl("origin") ?? "<url>" : null;
 		return new VStack(
@@ -995,7 +995,7 @@ public sealed partial class UiApp
 		};
 		if (!node.Enabled)
 			lines.Add(Equivalent($"fx module enable {node.Name}"));
-		// the .NET and the harness of a workspace: whom they reach (14.4, the other way)
+		// the .NET and the harness of a space: whom they reach (14.4, the other way)
 		var root = node.Parent?.Parent;
 		if (node.Name is DotnetModule.Name or HarnessModule.Name && root is { Kind: FxTreeKind.Space })
 		{

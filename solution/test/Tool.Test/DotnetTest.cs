@@ -220,7 +220,7 @@ public sealed class DotnetTest
 		Assert.Null(MSBuildConditions.Frameworks("$(Unknown)", values));
 	}
 
-	// Module, on a repository with fx and no workspace
+	// Module, on a repository with fx and no space
 
 	internal sealed class Repo : IDisposable
 	{
@@ -525,7 +525,7 @@ public sealed class DotnetTest
 		Assert.Empty(Doctor(repo.Git.Path));
 	}
 
-	[Fact(DisplayName = "a package used only through FxReference gets its version: outside the workspace it is a package")]
+	[Fact(DisplayName = "a package used only through FxReference gets its version: outside the space it is a package")]
 	public void FxReferenceVersion()
 	{
 		using var repo = new Repo("schema: 1.0.0\npackages:\n  - ids: [Fuxion]\n    versions:\n      - version: 11.0.0\n");

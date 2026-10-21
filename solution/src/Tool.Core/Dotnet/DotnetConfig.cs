@@ -112,7 +112,7 @@ public sealed record DotnetConfig(
 		};
 	}
 
-	/// <summary>What may be for the workspace <paramref name="who"/> or for something below it, to pass it on (plan R, decision 2).</summary>
+	/// <summary>What may be for the space <paramref name="who"/> or for something below it, to pass it on (plan R, decision 2).</summary>
 	public DotnetConfig ForBelow(FxIdentity who) => this with
 	{
 		Variables = Variables.Where(v => v.AppliesTo.MayApplyBelow(who)).ToList(),

@@ -13,7 +13,7 @@ public interface IFxProgress
 	void Report(FxEvent e);
 }
 
-/// <summary>Something that happened in a module, about a repository or the workspace (no repository).</summary>
+/// <summary>Something that happened in a module, about a repository or the space (no repository).</summary>
 public abstract record FxEvent(string Module, string? Repository);
 
 /// <summary>A step starts: <c>clone</c>, <c>fetch</c>, <c>status</c>, <c>pull</c>, <c>remote</c>, <c>generate</c>…</summary>

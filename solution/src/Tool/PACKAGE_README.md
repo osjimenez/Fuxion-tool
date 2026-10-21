@@ -4,7 +4,7 @@
 </p>
 <br/><br/>
 
-`fx`, the tool of the Fuxion workspace, as a dotnet tool (a native executable for each platform; the .NET SDK 10 or
+`fx`, the tool of Fuxion's spaces, as a dotnet tool (a native executable for each platform; the .NET SDK 10 or
 later installs it):
 ```
 dotnet tool install -g Fuxion.Tool

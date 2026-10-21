@@ -106,9 +106,10 @@ public sealed partial class LanguageTest
 		var codes = new[] { typeof(MountsModule), typeof(Core.Dotnet.SpacePropsGenerator), typeof(MountsManifest), typeof(Core.Sync.SyncEngine), typeof(Core.Sync.Inheritance),
 				typeof(Core.Layout.FxYamlReader), typeof(Core.Layout.FxOutputs), typeof(Core.Layout.FxNode), typeof(Core.Layout.SpaceConfig), typeof(Core.Layout.FxInherited),
 				typeof(Core.Dotnet.DotnetModule), typeof(Core.Dotnet.DotnetYamlReader), typeof(Core.Dotnet.SolutionComposer), typeof(Core.Versioning.VersioningErrorCodes),
-				typeof(Core.Versioning.VersionTagger), typeof(ManifestEditor), typeof(Core.Harness.HarnessModule), typeof(Core.Harness.HarnessYamlReader) }
+				typeof(Core.Versioning.VersionTagger), typeof(ManifestEditor), typeof(Core.Harness.HarnessModule), typeof(Core.Harness.HarnessYamlReader),
+				typeof(MountCopies), typeof(Core.Sync.SpaceShares), typeof(Core.Sync.RemoteParent), typeof(Core.Worktree.WorktreeModule) }
 			.SelectMany(t => t.GetFields().Where(f => f.IsLiteral && f.FieldType == typeof(string)).Select(f => (string)f.GetRawConstantValue()!))
-			.Where(c => Regex.IsMatch(c, @"^(fx|workspace|dotnet|version|harness)\.[a-z-]+$"))
+			.Where(c => Regex.IsMatch(c, @"^(fx|space|mounts|worktree|dotnet|version|harness)\.[a-z-]+$"))
 			.ToList();
 		Assert.NotEmpty(codes);
 		// codes whose message is git's or a parser's (FxText.Plain), or that reuse another text

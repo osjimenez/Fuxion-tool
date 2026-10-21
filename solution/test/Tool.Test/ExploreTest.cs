@@ -19,11 +19,11 @@ public sealed class ExploreTest : SampleTree
 			? found
 			: throw new InvalidOperationException($"{relative} is not in the tree");
 
-	[Fact(DisplayName = "the tree: disk and manifests in one, from the highest workspace; each repository as it is; _fx first")]
+	[Fact(DisplayName = "the tree: disk and manifests in one, from the highest space; each repository as it is; _fx first")]
 	public void Tree()
 	{
 		var acme = Acme();
-		// from anywhere inside, the highest workspace
+		// from anywhere inside, the highest space
 		var tree = FxTree.Build(Path.Combine(acme.Path, "repo-w1", "repo-c1", "src"))!;
 		Assert.Equal((FxTreeKind.Space, "acme", "/acme"), (tree.Kind, tree.Name, tree.Identity!.FullName));
 		Assert.Equal("_fx", tree.Children[0].Name);
@@ -66,7 +66,7 @@ public sealed class ExploreTest : SampleTree
 		Assert.Equal(FxOrigin.Local, At(tree, "_fx/dotnet/~$space.props").Origin);
 	}
 
-	[Fact(DisplayName = "where a file comes from: the workspaces it inherits from, the nearest first; the source of a share; the yaml of a generated file")]
+	[Fact(DisplayName = "where a file comes from: the spaces it inherits from, the nearest first; the source of a share; the yaml of a generated file")]
 	public void Origins_WhereFrom()
 	{
 		var acme = Acme();
@@ -130,7 +130,7 @@ public sealed class ExploreTest : SampleTree
 		Assert.Equal(["/acme/repo-w1/repo-c1"], serilog.Reason.Values);
 		Assert.Contains(c1, a => a is { What: "package", Name: "xunit.v3", Applies: true, Reason.Kind: FxReasonKind.Everyone });
 		Assert.Contains(c1, a => a is { What: "import", Name: "default.props", Applies: true });
-		// a workspace receives it to pass it on, not for it; a repository it is not for does not even receive it (plan R,
+		// a space receives it to pass it on, not for it; a repository it is not for does not even receive it (plan R,
 		// decision 2)
 		Assert.Contains(FxTree.Applies(At(tree, "repo-w1")), a => a is { What: "package", Name: "Serilog", Applies: false, Reason.Kind: FxReasonKind.NotForIt });
 		Assert.DoesNotContain(FxTree.Applies(At(tree, "repo-w1/repo-c2")), a => a.What == "package" && a.Name == "Serilog");
@@ -194,7 +194,7 @@ public sealed class ExploreTest : SampleTree
 		Assert.True(At(tree, "repo-w1").Problems >= At(tree, "repo-w1/repo-c1").Problems + At(tree, "repo-w1/repo-c2").Problems);
 	}
 
-	[Fact(DisplayName = "a workspace knows its worktrees; their folder, local")]
+	[Fact(DisplayName = "a space knows its worktrees; their folder, local")]
 	public void Worktrees()
 	{
 		var acme = AcmeCommitted();

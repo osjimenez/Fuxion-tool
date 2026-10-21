@@ -20,7 +20,7 @@ namespace Fuxion.Tool.Test;
 /// <summary><c>fx ui</c>, the layer to see (plan O, O4.1b): the tree, the doctor, the panels, going to an origin, worktrees.</summary>
 public sealed class UiTest : UiTree
 {
-	[Fact(DisplayName = "the first frame: the tree from the highest workspace, the node where it starts, the panel of the workspace and the keys")]
+	[Fact(DisplayName = "the first frame: the tree from the highest space, the node where it starts, the panel of the space and the keys")]
 	public void FirstFrame()
 	{
 		var acme = AcmeCommitted();
@@ -140,7 +140,7 @@ public sealed class UiTest : UiTree
 		h.Key(TerminalKey.Left, TerminalModifiers.Alt);
 		h.Until(() => At(inherited.Path), "Alt+← comes back");
 
-		// a share: its source, in a folder of the workspace not loaded yet
+		// a share: its source, in a folder of the space not loaded yet
 		Assert.True(h.OnUi(() => h.Ui.Select(h.Node(acme.Path, "repo-w1/repo-c1/notes.txt"))));
 		h.Key(TerminalKey.F4);
 		h.Until(() => At(Path.Combine(acme.Path, "_docs", "guide", "notes.txt")), "F4 goes to the source of the share");

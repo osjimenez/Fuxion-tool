@@ -27,7 +27,7 @@ public sealed record FxFix(string? Command = null, FxText? Hint = null)
 
 /// <summary>
 /// A problem or a finding of a module (plan O, decision 13), with a stable code. <see cref="Module"/> is the first part
-/// of the code; <see cref="Repository"/>, the repository it is about (none: the workspace, or the repository the module
+/// of the code; <see cref="Repository"/>, the repository it is about (none: the space, or the repository the module
 /// ran in); <see cref="File"/> and <see cref="Line"/>, where.
 /// </summary>
 public sealed record FxDiagnostic(string Code, FxSeverity Severity, FxText Message, string? File = null, int? Line = null)
@@ -134,7 +134,7 @@ public sealed record RepositoryAction(string Repository, string Action, FxText? 
 
 /// <summary>
 /// What a module did, or would do with <c>--dry-run</c> (plan O, decision 13): the files it owns, what it did to the
-/// repositories and what it found. <see cref="Repository"/> is the repository it ran in (none: the workspace).
+/// repositories and what it found. <see cref="Repository"/> is the repository it ran in (none: the space).
 /// </summary>
 public sealed record FxModuleResult(
 	string Module,

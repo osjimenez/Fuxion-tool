@@ -31,7 +31,7 @@ public sealed class SkillTest : SampleTree
 		foreach (var root in Repositories)
 			foreach (var folder in HarnessModule.SkillRoots)
 				Assert.Equal(FxSkill.Text, Read(Path.Combine(acme.Path, root, folder, "fx", "SKILL.md")));
-		// a workspace versions them (its .gitignore is a whitelist)
+		// a space versions them (its .gitignore is a whitelist)
 		Assert.Contains("!/.claude/skills/**", Read(Path.Combine(acme.Path, ".gitignore")));
 		Assert.Contains("!/.agents/skills/**", Read(Path.Combine(acme.Path, "repo-w1", ".gitignore")));
 		// the same skill as fx describe --skill

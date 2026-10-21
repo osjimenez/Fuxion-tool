@@ -11,7 +11,7 @@ namespace Fuxion.Tool.Core.Sync;
 /// <summary>
 /// The <c>.gitignore</c> of a space (plan P, decision 7): a whitelist. Nothing is versioned, at any depth, except
 /// fx's configuration, the <c>paths</c> of its <c>space.yaml</c>, what the modules generate and version (the solutions) and what
-/// the workspace receives from above (the shares); then
+/// the space receives from above (the shares); then
 /// the exclusions, the repositories that fall inside versioned folders, and the local files. A path deep inside also
 /// brings its folders above (git does not look inside an ignored folder; plan P, P1, detail 5).
 /// </summary>
@@ -19,7 +19,7 @@ public static class GitignoreGenerator
 {
 	public const string FileName = ".gitignore";
 
-	/// <param name="versioned">What the modules generate and version, relative to the workspace (<c>Acme.slnx</c>).</param>
+	/// <param name="versioned">What the modules generate and version, relative to the space (<c>Acme.slnx</c>).</param>
 	/// <param name="shared">The shares it receives from above, relative to it (<c>res/icon.png</c>).</param>
 	public static string Generate(SpaceConfig space, MountsManifest manifest, IEnumerable<string> versioned, IEnumerable<string>? shared = null)
 	{

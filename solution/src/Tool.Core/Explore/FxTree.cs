@@ -25,7 +25,7 @@ public enum FxReasonKind
 	/// <summary>By its name (<see cref="FxReason.Values"/>, full names).</summary>
 	Name,
 
-	/// <summary>A workspace in between: it always receives what comes from above, to pass it on.</summary>
+	/// <summary>A space in between: it always receives what comes from above, to pass it on.</summary>
 	Conduit,
 
 	/// <summary>Not for it: <see cref="FxReason.Values"/> say for whom (tags and names).</summary>
@@ -43,7 +43,7 @@ public sealed record FxTagInfo(FxTag Tag, bool Own, IReadOnlyList<string> From, 
 
 /// <summary>
 /// The tree of <c>fx ui</c> (plan O, decision 14), read from disk and from the manifests, never written: from the highest
-/// workspace on disk (in a worktree, its root; decision 14.11). A workspace has its <c>_fx/</c>, what it versions, what
+/// space on disk (in a worktree, its root; decision 14.11). A space has its <c>_fx/</c>, what it versions, what
 /// it generates, its repositories (mounted, declared and not on disk, parked) and what nobody declares; a repository,
 /// its <c>_fx/</c>, the shares it receives and its solutions, and the rest of it on demand (14.6). What reaches each one
 /// and why (14.4), the catalog of tags (14.13) and the diagnostics of the doctor on their nodes (14.2).
@@ -59,13 +59,13 @@ public static class FxTree
 		var node = new FxNode(top);
 		var identity = node.SelfIdentity();
 		return node.HasMounts
-			? Workspace(node, identity, null, MountCopies.Survey(top), null)
+			? Space(node, identity, null, MountCopies.Survey(top), null)
 			: Repository(node, identity, null, true, null);
 	}
 
 	static string Clean(string path) => Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
 
-	static FxTreeNode Workspace(FxNode node, FxIdentity identity, Mount? declaration, MountCopies copies, RepositoryCopy? superseded)
+	static FxTreeNode Space(FxNode node, FxIdentity identity, Mount? declaration, MountCopies copies, RepositoryCopy? superseded)
 	{
 		var tree = new FxTreeNode
 		{
@@ -110,7 +110,7 @@ public static class FxTree
 			{
 				var sub = new FxNode(state.FullPath);
 				child = repo.Inherits && sub.HasMounts
-					? Workspace(sub, childIdentity, repo, copies, state.SupersededBy)
+					? Space(sub, childIdentity, repo, copies, state.SupersededBy)
 					: Repository(sub, childIdentity, repo, state.Mounted, state.SupersededBy);
 			}
 			else
@@ -253,8 +253,8 @@ public static class FxTree
 
 	/// <summary>
 	/// Where a file of fx comes from (decision 14.3), the nearest first, and only what is on disk: an inherited file, from
-	/// the <c>_fx/</c> of the workspaces it comes from (a share kept on its way down, from its source); a share, from its
-	/// source in the workspace that gives it; a generated file, from the yaml it is made of; <c>inherited.yaml</c>, from
+	/// the <c>_fx/</c> of the spaces it comes from (a share kept on its way down, from its source); a share, from its
+	/// source in the space that gives it; a generated file, from the yaml it is made of; <c>inherited.yaml</c>, from
 	/// the manifest that declares the root. Nothing for a file by hand or local.
 	/// </summary>
 	public static IReadOnlyList<string> Origins(FxTreeNode tree, FxTreeNode file)
@@ -270,17 +270,17 @@ public static class FxTree
 		}
 		FxTreeNode? Named(string fullName)
 			=> tree.Descendants().Prepend(tree).FirstOrDefault(n => n.Kind == FxTreeKind.Space && n.Identity?.FullName == fullName);
-		void Shared(FxTreeNode workspace, string destination)
+		void Shared(FxTreeNode space, string destination)
 		{
-			foreach (var share in SpaceConfig.Load(workspace.Path).Shares ?? [])
+			foreach (var share in SpaceConfig.Load(space.Path).Shares ?? [])
 				if (SpaceShares.Source(share, destination) is { } source)
-					Add(FxLayout.Full(workspace.Path, source));
+					Add(FxLayout.Full(space.Path, source));
 		}
 		switch (file.Origin)
 		{
 			case FxOrigin.Inherited:
 				var inside = relative[(FxLayout.Inherited.Length + 1)..];
-				// inherited.yaml: the root as its workspace declares it
+				// inherited.yaml: the root as its space declares it
 				if (relative == FxLayout.InheritedFile)
 				{
 					for (var at = tree.Find(root)?.Parent; at is not null; at = at.Parent)
@@ -292,18 +292,18 @@ public static class FxTree
 					break;
 				}
 				foreach (var name in file.From.Reverse())
-					if (Named(name) is { } workspace)
+					if (Named(name) is { } space)
 					{
 						// the shares a space in between passes on: the space.yaml of the one that shares them
-						Add(FxLayout.Full(workspace.Path, inside == $"{SpaceShares.Folder}/{SpaceShares.Folder}.yaml" ? FxLayout.ConfigFile : $"{FxLayout.Folder}/{inside}"));
+						Add(FxLayout.Full(space.Path, inside == $"{SpaceShares.Folder}/{SpaceShares.Folder}.yaml" ? FxLayout.ConfigFile : $"{FxLayout.Folder}/{inside}"));
 						if (inside.StartsWith($"{SpaceShares.Folder}/", StringComparison.Ordinal))
-							Shared(workspace, inside[(SpaceShares.Folder.Length + 1)..]);
+							Shared(space, inside[(SpaceShares.Folder.Length + 1)..]);
 					}
 				break;
 			case FxOrigin.Share:
 				foreach (var name in file.From)
-					if (Named(name) is { } workspace)
-						Shared(workspace, relative);
+					if (Named(name) is { } space)
+						Shared(space, relative);
 				break;
 			case FxOrigin.Generated:
 				var parts = relative.Split('/');
@@ -449,7 +449,7 @@ public static class FxTree
 			: new(FxReasonKind.NotForIt, [.. appliesTo.Tags, .. appliesTo.Repositories]);
 
 	/// <summary>
-	/// What reaches a repository or a workspace from above and from its own <c>_fx/</c>: the .NET module and its imports,
+	/// What reaches a repository or a space from above and from its own <c>_fx/</c>: the .NET module and its imports,
 	/// variables and packages, the harness and its rules and skills (each one, if it is for it, and why), and the shares it
 	/// receives.
 	/// </summary>
@@ -519,9 +519,9 @@ public static class FxTree
 		}
 	}
 
-	/// <summary>Whom the harness of <paramref name="workspace"/> reaches, as a module (its <c>applies-to</c>; everyone, without it).</summary>
-	public static FxAppliesTo HarnessAppliesTo(FxTreeNode workspace)
-		=> workspace.Identity is { } identity && Harness(new FxNode(workspace.Path), identity) is { } harness ? harness.AppliesTo ?? FxAppliesTo.All : FxAppliesTo.All;
+	/// <summary>Whom the harness of <paramref name="space"/> reaches, as a module (its <c>applies-to</c>; everyone, without it).</summary>
+	public static FxAppliesTo HarnessAppliesTo(FxTreeNode space)
+		=> space.Identity is { } identity && Harness(new FxNode(space.Path), identity) is { } harness ? harness.AppliesTo ?? FxAppliesTo.All : FxAppliesTo.All;
 
 	/// <summary>The .NET of a root: what it inherits with its own on top (its own names made absolute from it); null without it.</summary>
 	static DotnetConfig? Dotnet(FxNode node, FxIdentity identity)
@@ -543,19 +543,19 @@ public static class FxTree
 	}
 
 	/// <summary>
-	/// Whom something of <paramref name="workspace"/> reaches (<paramref name="appliesTo"/>, absolute): every repository
-	/// declared below it, at any depth, and why; the workspaces in between always receive, to pass it on.
+	/// Whom something of <paramref name="space"/> reaches (<paramref name="appliesTo"/>, absolute): every repository
+	/// declared below it, at any depth, and why; the spaces in between always receive, to pass it on.
 	/// </summary>
-	public static IReadOnlyList<(FxTreeNode Repository, bool Applies, FxReason Reason)> Reach(FxTreeNode workspace, FxAppliesTo appliesTo)
-		=> workspace.Descendants().Where(n => n.Declaration is not null && n.Identity is not null && !n.Guest)
+	public static IReadOnlyList<(FxTreeNode Repository, bool Applies, FxReason Reason)> Reach(FxTreeNode space, FxAppliesTo appliesTo)
+		=> space.Descendants().Where(n => n.Declaration is not null && n.Identity is not null && !n.Guest)
 			.Select(n => n.Kind == FxTreeKind.Space && !appliesTo.Matches(n.Identity!)
 				? (n, true, new FxReason(FxReasonKind.Conduit, []))
 				: (n, appliesTo.Matches(n.Identity!), Explain(appliesTo, n.Identity!)))
 			.ToList();
 
-	/// <summary>The <c>applies-to</c> of the .NET module of a workspace, as it reaches what is below it (absolute).</summary>
-	public static FxAppliesTo DotnetAppliesTo(FxTreeNode workspace)
-		=> workspace.Identity is { } identity && Dotnet(new FxNode(workspace.Path), identity) is { } dotnet ? dotnet.AppliesTo ?? FxAppliesTo.All : FxAppliesTo.All;
+	/// <summary>The <c>applies-to</c> of the .NET module of a space, as it reaches what is below it (absolute).</summary>
+	public static FxAppliesTo DotnetAppliesTo(FxTreeNode space)
+		=> space.Identity is { } identity && Dotnet(new FxNode(space.Path), identity) is { } dotnet ? dotnet.AppliesTo ?? FxAppliesTo.All : FxAppliesTo.All;
 
 	/// <summary>The catalog of tags of a root (decision 14.13): its own and what it inherits, and the repositories below that have each.</summary>
 	public static IReadOnlyList<FxTagInfo> Tags(FxTreeNode root)
@@ -577,7 +577,7 @@ public static class FxTree
 
 	/// <summary>
 	/// Puts each diagnostic of <paramref name="results"/> on its node: the file it names, if any; else the repository it is
-	/// about, among those its workspace declares; else the root the module ran on.
+	/// about, among those its space declares; else the root the module ran on.
 	/// </summary>
 	public static void Attach(FxTreeNode tree, IEnumerable<FxModuleResult> results)
 	{

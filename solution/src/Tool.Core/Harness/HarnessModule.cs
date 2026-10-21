@@ -67,7 +67,7 @@ public static class HarnessModule
 		var own = FxFiles.Exists(ownFile) ? HarnessYamlReader.ReadFile(ownFile, warnings).Absolute(identity.FullName) : null;
 		if (own is { Enabled: false })
 			own = null;
-		// a workspace receives what comes from above to pass it on; it only uses it if it is for it
+		// a space receives what comes from above to pass it on; it only uses it if it is for it
 		if (inherited is not null && !(inherited.AppliesTo ?? FxAppliesTo.All).Matches(identity))
 			inherited = null;
 		var sources = string.Join(", ", new[] { inherited is null ? null : InheritedConfigFile, own is null ? null : ConfigFile }.OfType<string>());

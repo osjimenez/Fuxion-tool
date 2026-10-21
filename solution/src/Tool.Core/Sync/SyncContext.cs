@@ -4,7 +4,7 @@ using Fuxion.Tool.Core.Results;
 namespace Fuxion.Tool.Core.Sync;
 
 /// <summary>What <c>fx sync</c> or <c>fx doctor</c> was asked to do.</summary>
-/// <param name="Module">Only this module (<c>workspace</c>, <c>dotnet</c>); all of them, without it.</param>
+/// <param name="Module">Only this module (<c>space</c>, <c>dotnet</c>); all of them, without it.</param>
 /// <param name="FxVersion">
 /// The version of fx that runs (its informational version, <see cref="Layout.FxToolVersion"/>), for <c>requires</c>
 /// (decision 4) and for the <c>Fuxion.Tool.Sdk</c> the tree pins (plan S); none: not checked.

@@ -16,7 +16,7 @@ namespace Fuxion.Tool.Test;
 /// <summary>fx mount rename (plan P, P4), on the sample tree: the name, its references and the old one in aliases.</summary>
 public sealed class RenameTest : SampleTree
 {
-	[Fact(DisplayName = "fx mount rename: the name, its references in the workspace and the old name in aliases; references by it still work, with a warning")]
+	[Fact(DisplayName = "fx mount rename: the name, its references in the space and the old name in aliases; references by it still work, with a warning")]
 	public void Rename()
 	{
 		var acme = Acme();

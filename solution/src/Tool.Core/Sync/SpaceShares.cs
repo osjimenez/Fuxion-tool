@@ -9,7 +9,7 @@ using Fuxion.Tool.Core.Yaml;
 
 namespace Fuxion.Tool.Core.Sync;
 
-/// <summary>A file a share gives: where it goes in the repository that receives it, its content and the workspace it comes from.</summary>
+/// <summary>A file a share gives: where it goes in the repository that receives it, its content and the space it comes from.</summary>
 public sealed record SharedFile(string Destination, byte[] Content, string From);
 
 /// <summary>A share on its way down: its entry (<c>applies-to</c> already absolute) and its files; none if its source is not there.</summary>
@@ -22,8 +22,8 @@ public sealed record ReceivedShares(IReadOnlyDictionary<string, SharedFile> File
 }
 
 /// <summary>
-/// The shares (plan P, decision 23): files a workspace gives the repositories below it, outside <c>_fx/</c>, at their
-/// <c>destination</c>, versioned there. They go down level by level like the rest of what is inherited: a workspace in
+/// The shares (plan P, decision 23): files a space gives the repositories below it, outside <c>_fx/</c>, at their
+/// <c>destination</c>, versioned there. They go down level by level like the rest of what is inherited: a space in
 /// between keeps them in its <c>_fx/.inherited/shares/</c> (the merged entries in <c>shares.yaml</c> and the
 /// files, under their destination) to pass them on, and a repository they apply to receives them. A received file is
 /// fx's because its <c>inherited.yaml</c> lists it (an image cannot take a header): fx never overwrites a file of the
@@ -78,7 +78,7 @@ public static class SpaceShares
 		return new(files, kept);
 	}
 
-	/// <summary>The source of the file a repository receives at <paramref name="destination"/> from <paramref name="share"/>, relative to the workspace that declares it; null if the share does not give it.</summary>
+	/// <summary>The source of the file a repository receives at <paramref name="destination"/> from <paramref name="share"/>, relative to the space that declares it; null if the share does not give it.</summary>
 	public static string? Source(SpaceShare share, string destination)
 	{
 		if (!share.Path.EndsWith('/'))
@@ -142,8 +142,8 @@ public static class SpaceShares
 	}
 
 	/// <summary>
-	/// In the doctor of the workspace that declares them: a share whose source is not there, or not versioned (first it
-	/// is versioned, then shared: so a clone of the workspace has it).
+	/// In the doctor of the space that declares them: a share whose source is not there, or not versioned (first it
+	/// is versioned, then shared: so a clone of the space has it).
 	/// </summary>
 	public static void Check(FxNode node, SpaceConfig config, string configFile, bool doctor, FxDiagnostics diagnostics)
 	{

@@ -1,9 +1,10 @@
 # Fuxion-tool
 
-`fx`, the Fuxion workspace tool, and `Fuxion.Tool.Sdk`, the MSBuild SDK shared by the Fuxion repos.
+`fx`, the tool of Fuxion's spaces, and `Fuxion.Tool.Sdk`, the MSBuild SDK shared by the Fuxion repos.
 
 Work in progress: extracted on 06-oct-2026 from Fuxion-plus (with its history) and being rebuilt. The design lives in
-the Fuxion workspace (`_docs/plans/diseno-workspace-fx.md`); this repo follows plan K there.
+the Fuxion space (`_docs/plans/diseno-workspace-fx.md`, and the spaces in `plan-impl-spaces-reorganizacion-fx.md`);
+this repo follows plan K there.
 
 ## Install
 
@@ -42,7 +43,8 @@ A native executable (`fx.exe`, about 15 MB, no .NET needed to run it) built with
 XenoAtom.Terminal.UI. It reads git with the `git` executable, so `git` must be on the `PATH`.
 
 ```text
-fx ui                         the workspace in full screen: its tree, a panel per node and the doctor (Ctrl+Q quits)
+fx ui                         the space in full screen: its tree, a panel per node and the doctor (Ctrl+Q quits)
+fx init [--name <name>]       make this folder a space: its _fx/space.yaml, and nothing more
 fx sync [module] [--dry-run]  generate what fx owns here and in everything mounted below, from _fx
         [--only]              this root alone
         [--parent-ref <b>]    read the parent from its remote, on that branch
@@ -50,64 +52,68 @@ fx doctor [module]            check it, changing nothing
 fx version [--explain]        the version this repository would build now, and why
 fx version tag <X.Y>          create the tag version/X.Y.0 on HEAD (local; push it yourself)
 fx self update [--check]      update fx to its latest release (--version <v>: another), as it was installed
-fx repo list|status [--all]   the repositories of the workspace; status, only those that ask for attention
-fx repo mount|unmount|pull    mount (back from the parking) or unmount (park) repositories; pull the mounted ones
-fx repo add|remove|tag|set    edit the repositories of the manifest (a diff; --dry-run)
-fx repo rename <name> <new>   rename one: its references here change, the old name stays in aliases
-fx path add|remove            what the git of the workspace versions
-fx worktree add <branch>      a worktree of a branch in the nearest workspace (--in another), with where you are
-        [--in <ws>] [--mandatory]
-fx worktree mount|unmount     more (or less) of the tree in a worktree: repositories, or paths left out
+fx mount list|status [--all]  the mounts of the space; status, only those that ask for attention
+fx mount park|unpark|pull     park mounts (their clones to the parking) or bring them back; pull the ones here
+fx mount add|remove|tag|set   edit the mounts of mounts.yaml (a diff; --dry-run)
+fx mount rename <name> <new>  rename one: its references here change, the old name stays in aliases
+fx path add|remove            what the git of the space versions (the paths of _fx/space.yaml)
+fx worktree add <branch>      a worktree of a branch in the nearest space that mounts others (--in another), with
+        [--in <space>]        where you are; --required, also the required mounts below
+        [--required]
+fx worktree mount|unmount     more (or less) of the tree in a worktree: mounts, or paths left out
 fx worktree list|remove       the worktrees around here; remove one (not with uncommitted changes)
 fx describe [--skill]         every command, what it outputs and what it does (--output json: for agents; --skill: its SKILL.md)
 fx schema [<id>]              the JSON Schema of an output (fx-sync/1…); without an id, the list
-fx module enable|disable      the modules of fx in this root (a folder of _fx each)
+fx module enable|disable      the modules of fx in this space (a folder of _fx each)
 fx                            the commands by topic and the global options (also fx --help)
 
-Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain, --non-interactive, --lang en|es
+Global options: --root <path>, -s|--space, --output human|json|ndjson, -v|--verbose, --plain, --non-interactive, --lang en|es
 ```
 
-- **What fx fixes, and nothing else**: `_fx/`, the anchor of a root of fx (a repository or a workspace), with a folder
-  per module (`_fx/workspace/workspace.yaml`, `_fx/dotnet/dotnet.yaml`…; a module is on if its folder is there,
-  `enabled: false` turns it off); `_fx/fx.yaml` (the name of a root, `requires` and the catalog of tags);
-  `_fx/.inherited/`, what a repository receives from its workspace; the shares it receives, which its `inherited.yaml`
-  lists; the local files, `~$…`; the files of the coding agents (`AGENTS.md`, `CLAUDE.md`, `.claude/rules/`,
-  `.claude/skills/`, `.agents/skills/`: the harness); and the `.gitignore` of a
-  workspace (a whitelist: `*`, then `_fx/`, its `paths`, the solutions and the files of the agents it generates, the shares it receives, the
-  repositories inside versioned folders and `~$*`). Where the repositories go, what the workspace versions and which solutions it composes are the
-  user's. Every YAML file starts with its own `schema` (semver); keys are kebab-case.
-- **Workspaces inside workspaces**: each root inherits from its parent only, one level up (its `_fx/.inherited/` and
+- **What fx fixes, and nothing else**: `_fx/`, what makes a folder a space (a repository of code or not; `fx init`
+  makes one): `_fx/space.yaml`, its descriptor (its name, `visibility`, `requires`, the catalog of tags, what its git
+  versions, `paths`, and what it gives the spaces below it, `shares`), and a folder per module (`_fx/mounts/mounts.yaml`,
+  `_fx/dotnet/dotnet.yaml`…; a module is on if its folder is there, `enabled: false` turns it off); `_fx/.inherited/`,
+  what a space receives from its parent; the shares it receives, which its `inherited.yaml` lists; the local files,
+  `~$…`; the files of the coding agents (`AGENTS.md`, `CLAUDE.md`, `.claude/rules/`, `.claude/skills/`,
+  `.agents/skills/`: the harness); and the `.gitignore` of a space that mounts others or declares `paths` (a whitelist:
+  `*`, then `_fx/`, its `paths`, the solutions and the files of the agents it generates, the shares it receives, the
+  mounts inside versioned folders and `~$*`). Where the mounts go, what the space versions and which solutions it
+  composes are the user's. Every YAML file starts with its own `schema` (semver); keys are kebab-case.
+- **Spaces inside spaces**: each space inherits from its parent only, one level up (its `_fx/.inherited/` and
   its module folders), already merged (the nearest wins by name), with the repositories of `applies-to` made absolute
-  (`/acme/product/app`). A repository nothing applies to gets nothing. `fx sync` works on the root where it runs and
+  (`/acme/product/app`). A space nothing applies to gets nothing. `fx sync` works on the space where it runs and
   everything mounted below, never above: what goes down, from the top; the solutions, from the bottom up. The map of
-  `FxReference` is made by the highest workspace on disk (`_fx/dotnet/~$workspace.props`). A repository whose parent
+  `FxReference` is made by the highest space on disk (`_fx/dotnet/~$space.props`). A space whose parent
   is not on disk above it (a clone on its own) reads it from its remote, on its main branch or `--parent-ref`: a clone
   of one commit and only `_fx/`, in a cache of the user (`%LOCALAPPDATA%\fx\cache`, or `FX_CACHE`), used as it is
-  with `--offline`. `fx repo rename` keeps the old name in `aliases`, so references to it keep working while they
+  with `--offline`. `fx mount rename` keeps the old name in `aliases`, so references to it keep working while they
   change (the doctor warns about them).
-- **Mounted is at its place**: fx manages it, Visual Studio loads it and `FxReference` uses its projects. Unmounting
-  parks it: the clone moves to `_fx/~$parking/<its path>` of its workspace, with its work, and its worktrees still
+- **A mount is at its place**: fx manages it, Visual Studio loads it and `FxReference` uses its projects. Parking it
+  (`fx mount park`) moves the clone to `_fx/~$parking/<its path>` of its space, with its work, and its worktrees still
   linked. Moving is a rename on the same disk, instant whatever it holds; if something has it open, nothing moves and
-  fx says so. Mounting brings it back without cloning. fx never deletes a clone.
-- **Guests**: a workspace can mount a repository of another one with `inherits: false`. It uses it (its solution, the
-  map), but nothing of the workspace reaches it: it inherits from its own parent. When a tree has several copies of a
+  fx says so. Unparking brings it back without cloning. A mount with `required: true` cannot be parked; a new one
+  without it starts parked. fx never deletes a clone. Each mount has a `mode`: `write` (the default), `read-only` or
+  `propose-only` (what makes each one hold comes later, plan spaces).
+- **Guests**: a space can mount a repository of another one with `inherits: false`. It uses it (its solution, the
+  map), but nothing of the space reaches it: it inherits from its own parent. When a tree has several copies of a
   repository (the same `url`), the highest one is used, guest or not, and `fx sync` parks the others (it brings one
   back if the higher copy goes). Two copies at the same height are an error: mount it higher, or in only one of them.
-- **Shares**: files a workspace gives the repositories below it, outside `_fx/` (an icon, a `LICENSE`…): `shares` in
-  its `workspace.yaml`, each with its `path` (a file, or a folder ending in `/`; versioned by the workspace first: the
-  doctor checks it), an optional `destination` and `applies-to`. They go down like the rest of what is inherited: a
-  workspace in between keeps them in its `_fx/.inherited/workspace/` to pass them on, and a repository they apply to
+- **Shares**: files a space gives the spaces below it, outside `_fx/` (an icon, a `LICENSE`…): `shares` in its
+  `space.yaml`, each with its `path` (a file, or a folder ending in `/`; versioned by the space first: the doctor
+  checks it), an optional `destination` and `applies-to`. They go down like the rest of what is inherited: a space in
+  between keeps them in its `_fx/.inherited/shares/` to pass them on, and a repository they apply to
   receives them at their destination, versioned. They are fx's because its `inherited.yaml` lists them (an image takes
   no header): fx updates them, removes them when they are no longer given, and never overwrites a file of the
-  repository's own (unless `--adopt`). At the same destination, the nearest workspace wins.
+  repository's own (unless `--adopt`). At the same destination, the nearest space wins.
 - **Worktrees**: a branch to work on apart, without touching the main tree. `fx worktree add <branch>` creates it in
-  the nearest workspace (or `--in` one above), in its `_fx/~$worktrees/<branch>/`, never inside a repository of code
-  (a repository on its own, in `%LOCALAPPDATA%\fx\worktrees`, or `FX_WORKTREES`). Its root is always that workspace in
+  the nearest space that mounts others (or `--in` one above), in its `_fx/~$worktrees/<branch>/`, never inside a repository of code
+  (a repository on its own, in `%LOCALAPPDATA%\fx\worktrees`, or `FX_WORKTREES`). Its root is always that space in
   worktree mode: a `git worktree` of its main clone, sparse (without the `paths` marked `worktree: false`). Mounting
   in it is a `git worktree add` of each repository from its main clone (cloned once, parked, if there is none), in
   the same branch and at the same path: the local branch if there is one; if not, one that follows `origin`; if not,
-  a new one from HEAD. Nothing is mandatory in a worktree: it starts with its workspace and the node where you are
-  (with the workspaces on the way), `fx worktree mount` adds more and `--mandatory` brings the mandatory ones down. For
+  a new one from HEAD. Nothing is required in a worktree: it starts with its space and the node where you are
+  (with the spaces on the way), `fx worktree mount` adds more and `--required` brings the required ones down. For
   the code it is a closed tree: its own map of `FxReference` (what is not in it is a package), what is inherited read
   inside it, but its root, from the main tree; `fx sync` there neither clones nor parks. `fx worktree unmount` and
   `remove` never take out a repository with uncommitted changes, and delete the branches fx created with
@@ -125,12 +131,12 @@ Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain
   imported) and `packages` (ids with one version per
   `when`; with a single version, `when` may be left out), each with its `applies-to` (tags or repositories). From what
   the root inherits and its own on top, `fx sync` generates `_fx/dotnet/dotnet.g.props` (with `FxRepositoryName` and
-  `FxRepositoryFullName`; `FxRequiresWorkspace` in a repository of a workspace that is not `standalone`) and
+  `FxRepositoryFullName`; `FxRequiresSpace` in a repository mounted by a space, if it is not `standalone`) and
   `dotnet.g.targets`, the map of its own projects (`projects.g.props`, for an `FxReference` inside the repository),
   and the versions of the packages the repo uses: with central package
   management, `_fx/dotnet/packages.g.props` (and its `<Import>` in `Directory.Packages.props`); without it,
-  `PackageReference Update` items. It also composes the `solutions` the root declares, by hand, from other `.slnx`; a
-  workspace that composes them keeps the `sdks` in its own `global.json` too, because MSBuild reads `msbuild-sdks` from
+  `PackageReference Update` items. It also composes the `solutions` the space declares, by hand, from other `.slnx`; a
+  space that composes them keeps the `sdks` in its own `global.json` too, because MSBuild reads `msbuild-sdks` from
   the folder of the solution.
   `fx doctor` also checks that each package has a single owner and that exactly one version applies to every real
   target framework.
@@ -146,8 +152,8 @@ Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain
 
 - The version comes from the git history: the last `version/X.Y.0` tag and the commits since, with one rule per
   branch kind (`main`/`master`, `develop`, `feature/*`, `release/*`, `preview/*`, any other).
-- `--output json` writes one document on stdout with a versioned schema (`fx-sync/1`, `fx-doctor/1`, `fx-repo-list/1`,
-  `fx-version/1`…): `schema`, `ok`, the command's data (for sync and doctor, `modules`: the files and repositories
+- `--output json` writes one document on stdout with a versioned schema (`fx-sync/1`, `fx-doctor/1`, `fx-mount-list/1`,
+  `fx-version/1`…): `schema`, `ok`, the command's data (for sync and doctor, `modules`: the files and mounts
   each module touched) and `diagnostics`. Each diagnostic has a stable code (`dotnet.outdated`, `version.no-tag`…), a
   severity (`error`, `warning`, `info`), its scope (`module`, `repository`), the message, where (`file`, `line`) and,
   when there is one, the `fix` (a `command` to run or a `hint`). Codes, commands and JSON are always in English.
@@ -162,7 +168,7 @@ Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain
   every command with its options and output, the exit codes).
 - **Every root of fx has the skill and the rule of fx** (the harness, plan Q): `fx sync` writes them in every root
   with `_fx/`, the skill in `.claude/skills/fx/` and `.agents/skills/fx/` and the rule at the top of `AGENTS.md`,
-  generated and versioned (a workspace versions them in its `.gitignore`), so that a coding agent working there knows
+  generated and versioned (a space versions them in its `.gitignore`), so that a coding agent working there knows
   how to use fx; a loose clone has them too. The doctor says when they are out of date, and fx never overwrites a file
   of the user's own (unless `--adopt`).
 - `--verbose` writes each step of the core on stderr as it finishes (clone, fetch, status… per repository), and the
@@ -172,10 +178,10 @@ Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain
 - fx adapts to where it runs, without changing what it does: it only asks and animates in an interactive terminal
   (not in CI, nor in a pipe, nor for a coding agent), and only uses colours where they can be shown.
   `--non-interactive`, `--plain` and `--output` always win. Ctrl+C cancels: exit code 130.
-- When a command misses what it could ask for (the repositories of `fx repo mount`, the version of `fx version tag`)
+- When a command misses what it could ask for (the mounts of `fx mount unpark`, the version of `fx version tag`)
   and there is a person at the terminal, fx asks, and then shows the command that does the same without asking; Esc
   or Ctrl+C cancel. Without a terminal it says what is missing and ends with exit code 2, as any usage error.
-- The commands that edit the configuration (`_fx/workspace/workspace.yaml`, the yaml of a module) change only what
+- The commands that edit the configuration (`_fx/space.yaml`, `_fx/mounts/mounts.yaml`, the yaml of a module) change only what
   they must and keep the rest of the file: comments, order, quoting and line endings. They show the change as a diff,
   check it as the file is read (an invalid one is not written) and write it, unless `--dry-run` (`fx-manifest-edit/1`
   with `--output json`). They never touch clones nor folders: `fx sync` does the rest, and they say so. With
@@ -183,34 +189,34 @@ Global options: --root <path>, --output human|json|ndjson, -v|--verbose, --plain
   in place of the file and without writing it.
 - **`fx sync --dry-run` says what sync would do**: the files it would write, and the repositories it would clone, park
   or bring back from the parking. Each level reads what the level above would leave, as it would once written, so a
-  change in a workspace shows down to the last repository it reaches. The doctor, instead, says what is not as it
+  change in a space shows down to the last repository it reaches. The doctor, instead, says what is not as it
   should be. Both read fx's files through one layer of the core (`FxFiles`), which can put pending texts in place of
   the disk: what `fx ui` uses to show what a change would do before writing it.
 - In a terminal, the work that takes a while (git on every repository) shows a spinner per step as it runs; the long
   steps (clone, fetch, pull) and the failed ones stay as lines above it. `fx doctor` shows a line per module (`[✓]`,
   `[!]`, `[✗]`), each problem under it with its fix, and a summary. Tables have borders in a terminal and are plain
   columns elsewhere.
-- **`fx ui`** shows the workspace in full screen, from the highest workspace on disk, with the node where it was
-  launched selected. On the left, one tree with what is on disk and what the manifests declare: the repositories not
-  mounted or not cloned, parked or superseded by a higher copy, what nobody declares (`?`), the modules (also the ones
+- **`fx ui`** shows the space in full screen, from the highest space on disk, with the node where it was
+  launched selected. On the left, one tree with what is on disk and what the manifests declare: the mounts
+  parked or not cloned, parked or superseded by a higher copy, what nobody declares (`?`), the modules (also the ones
   not used, dimmed), and whose each file is (generated, inherited and from where, a share, local, by hand). Inside a
   repository, only what matters to fx; F3 shows the rest and the local files. git (`↑` ahead, `↓` behind, `*`
   changes) and the doctor (`!` warnings, `✗` errors, `✓`) put their marks on each node, and the problems go up to its
   parents; both run in the background, without network, and F5 runs them again. F2 opens the list of problems (Enter
-  goes to its node). On the right, a panel per node: a workspace (its repositories, problems, `paths` and shares,
-  worktrees), a repository (its state and last commits, what reaches it from its workspaces and why, its problems), a
-  module (whom the .NET of a workspace reaches), a file (whose it is, where it comes from and its content; on
-  `fx.yaml`, the catalog of tags). F4 goes where a file comes from: an inherited one, to the `_fx/` of the nearest
-  workspace it comes from; a share, to its source; a generated one, to the yaml it is made of. Enter on a worktree of
-  the panel of its workspace opens it as its own tree, with its branch on top (F6 goes to the main tree). Alt+← goes
-  back. **It acts too**: F9 opens the actions of the node, each with its command (sync the root it is in, pull,
-  mount, unmount, and in a worktree `fx worktree mount|unmount`); F7 syncs; Enter on a repository not on disk mounts
-  it or brings it back from the parking. Each one asks first, with the command that does the same and, for a sync,
+  goes to its node). On the right, a panel per node: a space that mounts others (its mounts, problems, `paths` and
+  shares, worktrees), a repository (its state and last commits, what reaches it from its spaces and why, its problems), a
+  module (whom the .NET of a space reaches), a file (whose it is, where it comes from and its content; on
+  `space.yaml`, the catalog of tags). F4 goes where a file comes from: an inherited one, to the `_fx/` of the nearest
+  space it comes from; a share, to its source; a generated one, to the yaml it is made of. Enter on a worktree of
+  the panel of its space opens it as its own tree, with its branch on top (F6 goes to the main tree). Alt+← goes
+  back. **It acts too**: F9 opens the actions of the node, each with its command (sync the space it is in, pull,
+  park, unpark, and in a worktree `fx worktree mount|unmount`); F7 syncs; Enter on a mount not on disk unparks it or
+  brings it back from the parking. Each one asks first, with the command that does the same and, for a sync,
   what it would change (its `--dry-run`), then runs in the background with its steps at the bottom (Esc cancels). F8
   opens the log of what was run, with what it did. **It edits**: the menu of a node also has its edits, each with the
-  command that does the same: a repository its workspace declares (a form with its keys, tags and name; or out of the
-  manifest), one nobody declares (added: Enter opens its form), a module (Enter turns one not used on), what a
-  workspace versions, and any yaml of fx by hand (a YAML editor; F4 opens it from a form). Edits are not written: they
+  command that does the same: a mount its space declares (a form with its keys, tags and name; or out of
+  `mounts.yaml`), one nobody declares (added: Enter opens its form), a module (Enter turns one not used on), what a
+  space versions, and any yaml of fx by hand (a YAML editor; F4 opens it from a form). Edits are not written: they
   are pending (the header counts them), each made over the ones before, and F10 shows them with their diff and what
   `fx sync` would do with them; Enter writes them (not if a file changed on disk meanwhile) and offers the sync,
   Ctrl+Z takes back the last, Delete throws them away. Ctrl+Q asks first with changes not written. Each panel shows the
@@ -239,9 +245,9 @@ nullable, test frameworks, PolySharp, packaging metadata… are the repo's, in p
   calculated once per repository and build. `FxVersioningEnabled=false` turns it off.
 - **Static metadata**: `Fuxion.Metadata.<Project>.{Project, Build, Versioning, Repository, Json}`, generated in `obj/`. The
   build date is the date of the HEAD commit (or `SOURCE_DATE_EPOCH`), so the file only changes with the commit.
-- **Where it is**: `FxRepositoryRoot` (where fx generated its .NET, or its `global.json`), `FxWorkspaceRoot` (the
-  highest workspace on disk; the root of a worktree stops it), `FxRepositoryName` and `FxRepositoryFullName` (as its
-  workspace declares it). With them, the repo's own props decide, for example, where its packages go when publishing
+- **Where it is**: `FxRepositoryRoot` (where fx generated its .NET, or its `global.json`), `FxSpaceRoot` (the
+  highest space on disk that mounts others; the root of a worktree stops it), `FxRepositoryName` and
+  `FxRepositoryFullName` (as the space that mounts it declares it). With them, the repo's own props decide, for example, where its packages go when publishing
   locally (a `PackageOutputPath`); the SDK does not.
 - **What `fx` generates from `_fx/dotnet/dotnet.yaml`**: its variables (`$(CoreFrameworks)`, `$(IsNet11)`,
   compilation constants) and its **imports**, plain MSBuild files imported where a condition holds. `props:` go before
@@ -257,7 +263,7 @@ nullable, test frameworks, PolySharp, packaging metadata… are the repo's, in p
   ```
 
 - **References by name**: `<FxReference Include="Project" />`: a project of the same repository (its
-  `projects.g.props`, also in a clone on its own), a project of a repository mounted in the workspace, or a package.
+  `projects.g.props`, also in a clone on its own), a project of a repository mounted in the space, or a package.
 - **Translated XML docs** (`FxDocumentationLanguages`), only when asked for.
 - fx's local files and folders (`~$…`) are not part of any project.
 - The tasks run on the .NET task host of MSBuild: in process under `dotnet build`, out of process under Visual Studio
@@ -270,13 +276,13 @@ The settings are listed at the top of `solution/src/Tool.Sdk/Sdk/Sdk.props`.
 
 - `FxTool.slnx` at the root; projects under `solution/src` (`Fuxion.Tool`, the `fx` command; `Fuxion.Tool.Core`,
   the logic; `Fuxion.Tool.Sdk`, the SDK) and tests under `solution/test`.
-- This repo builds with its own SDK, like the other repos of the Fuxion workspace: the version it **published before**,
-  pinned in `global.json` (fx writes it from the `sdks:` of the workspace's `_fx/dotnet/dotnet.yaml`), never the one it
+- This repo builds with its own SDK, like the other repos of the Fuxion space: the version it **published before**,
+  pinned in `global.json` (fx writes it from the `sdks:` of its parent's `_fx/dotnet/dotnet.yaml`), never the one it
   is building. `_fx/` has what fx gives it: `_fx/.inherited/` (versioned, so a clone on its own has it) and
   `_fx/dotnet/*.g.*`, generated (do not edit them), and its own `_fx/dotnet/dotnet.yaml` (`standalone: true`). The
-  conventions and the versions of every package come from the workspace's `dotnet.yaml`. To use a change of the SDK
-  here: publish it, raise `sdks:` in the workspace and run `fx sync`.
-- The SDK is on nuget.org since 0.6.1, so a loose clone restores it; inside the Fuxion workspace, its local
+  conventions and the versions of every package come from its parent's `dotnet.yaml`. To use a change of the SDK
+  here: publish it, raise `sdks:` in the parent and run `fx sync`.
+- The SDK is on nuget.org since 0.6.1, so a loose clone restores it; inside the Fuxion space, its local
   `nuget.config` adds `~$publish/tool/nupkgs`, where a version goes before nuget.org.
 - `solution/sketches/NugetPackageManager` (list, unlist and deprecate Fuxion packages on nuget.org) is in no solution
   yet: it needs Fuxion 11.
@@ -304,7 +310,7 @@ CI=true dotnet test --solution FxTool.slnx -c Release --no-build
 **Versions**: this repo versions itself from its `version/X.Y.0` tags, with its own SDK (the same as `fx version`: the
 tag and the commits since give `X.Y.{commits}`).
 
-**Publishing locally** (inside the Fuxion workspace, design D-36): the package goes to the workspace's
+**Publishing locally** (inside the Fuxion space, design D-36): the package goes to the space's
 `~$publish/tool/nupkgs` by itself (its `packable.props`), with the version of git.
 
 ```bash

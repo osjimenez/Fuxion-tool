@@ -11,7 +11,7 @@
 // - PTY_SIZE, the size of the terminal (100x30 by default).
 // The variables that make fx think it is not in front of a person (CI, agents, NO_COLOR…) are removed.
 //
-//   PTY_SIZE=160x45 PTY_KEYS='?problems~!doctor~\u001bOQ~!f2~\u0011' Pty <workspace> 'text:fx ui' 'fx.exe ui --lang en'
+//   PTY_SIZE=160x45 PTY_KEYS='?problems~!doctor~\u001bOQ~!f2~\u0011' Pty <space> 'text:fx ui' 'fx.exe ui --lang en'
 //
 // The pictures read the screen with the interpreter of the tests (TestScreen): characters are one cell each, so a
 // glyph the terminal takes as wide shifts its line.

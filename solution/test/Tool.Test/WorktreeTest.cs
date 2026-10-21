@@ -16,7 +16,7 @@ namespace Fuxion.Tool.Test;
 /// <summary>The worktrees of fx (plan P, P7), on the sample tree: the three of the plan (feature-x, fix-shared, fix-z) and the branch.</summary>
 public sealed class WorktreeTest : SampleTree
 {
-	[Fact(DisplayName = "add --required in the root: the workspace in worktree mode (sparse), its required mounts at every level, the highest copy; the main tree untouched")]
+	[Fact(DisplayName = "add --required in the root: the space in worktree mode (sparse), its required mounts at every level, the highest copy; the main tree untouched")]
 	public void Add_Mandatory()
 	{
 		var acme = AcmeCommitted();
@@ -56,7 +56,7 @@ public sealed class WorktreeTest : SampleTree
 		Assert.Contains(Project(acme.Path, "libs", "shared", "Shared.csproj"), Read(acme.Path, "_fx/dotnet/~$space.props"));
 	}
 
-	[Fact(DisplayName = "add from a repository: its workspace in worktree mode with that repository alone; mount brings more, with the workspaces on the way, --required, the paths left out")]
+	[Fact(DisplayName = "add from a repository: its space in worktree mode with that repository alone; mount brings more, with the spaces on the way, --required, the paths left out")]
 	public void Add_FromRepository_Mount()
 	{
 		var acme = AcmeCommitted();
@@ -89,8 +89,8 @@ public sealed class WorktreeTest : SampleTree
 		Assert.Contains(WorktreeModule.Mount(acme.Path, "nope", ["repo-c1"], false, cancellationToken: Token).Diagnostics, d => d.Code == WorktreeModule.NotFound);
 	}
 
-	[Fact(DisplayName = "add from a repository of an intermediate workspace: the worktree goes there; its root inherits from the main tree, the rest inside; --in another one above")]
-	public void Add_InIntermediateWorkspace()
+	[Fact(DisplayName = "add from a repository of an intermediate space: the worktree goes there; its root inherits from the main tree, the rest inside; --in another one above")]
+	public void Add_InIntermediateSpace()
 	{
 		var acme = AcmeCommitted();
 		var c1 = Path.Combine(acme.Path, "repo-w1", "repo-c1");
@@ -115,7 +115,7 @@ public sealed class WorktreeTest : SampleTree
 		// --in acme: the root is acme, with repo-w1 because repo-c1 hangs from it
 		Ok(WorktreeModule.Add(c1, "fix/zz", "acme", false, cancellationToken: Token));
 		Assert.Equal([".", "repo-w1", "repo-w1/repo-c1"], Paths(Path.Combine(acme.Path, "_fx", "~$worktrees", "fix-zz")));
-		Assert.Contains(WorktreeModule.Add(c1, "fix/q", "nope", false, cancellationToken: Token).Diagnostics, d => d.Code == WorktreeModule.UnknownWorkspace);
+		Assert.Contains(WorktreeModule.Add(c1, "fix/q", "nope", false, cancellationToken: Token).Diagnostics, d => d.Code == WorktreeModule.UnknownSpace);
 		// inside a worktree, no other one; and a branch of a repository is in one working tree only (git's limit): fix/z of
 		// repo-w1 is the root of the first worktree
 		Assert.Contains(WorktreeModule.Add(Path.Combine(root, "repo-c1"), "fix/q", null, false, cancellationToken: Token).Diagnostics, d => d.Code == WorktreeModule.InsideWorktree);

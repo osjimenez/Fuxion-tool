@@ -13,7 +13,7 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary>Workspaces inside workspaces (plan P, P4-P6), on the sample tree: inheritance, --only, guests, the highest copy.</summary>
+/// <summary>Spaces inside spaces (plan P, P4-P6), on the sample tree: inheritance, --only, guests, the highest copy.</summary>
 public sealed class NestedTest : SampleTree
 {
 	[Fact(DisplayName = "a tree: each level inherits from its parent, merged; the mandatory repositories of every level are mounted")]
@@ -38,7 +38,7 @@ public sealed class NestedTest : SampleTree
 		Assert.Contains("<CoreFrameworks>net10.0;net11.0</CoreFrameworks>", Read(acme.Path, "repo-w1/repo-c2/_fx/dotnet/dotnet.g.props"));
 		Assert.Equal("/acme/shared", FxInherited.Load(Path.Combine(acme.Path, "libs", "shared"))!.Space.FullName);
 
-		// the solutions from the bottom up; the map of the highest workspace
+		// the solutions from the bottom up; the map of the highest space
 		Assert.Contains("<Project Path=\"repo-c1/src/App/C1.App.csproj\" />", Read(acme.Path, "repo-w1/W1.slnx"));
 		var solution = Read(acme.Path, "Acme.slnx");
 		Assert.Contains("<Folder Name=\"/products/w1/C1/src/\">", solution);
@@ -68,7 +68,7 @@ public sealed class NestedTest : SampleTree
 		Assert.Contains("Polly", Read(acme.Path, "repo-w1/repo-c1/_fx/.inherited/dotnet/dotnet.yaml"));
 	}
 
-	[Fact(DisplayName = "a guest on its own tree: used (its solution, the map), but nothing reaches it from the workspace that mounts it")]
+	[Fact(DisplayName = "a guest on its own tree: used (its solution, the map), but nothing reaches it from the space that mounts it")]
 	public void Guest_Alone()
 	{
 		var acme = Acme();

@@ -13,10 +13,10 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary>The shares (plan P, P6), on the sample tree: down through the workspaces in between, folders and files.</summary>
+/// <summary>The shares (plan P, P6), on the sample tree: down through the spaces in between, folders and files.</summary>
 public sealed class SharesTest : SampleTree
 {
-	[Fact(DisplayName = "shares: down through the workspaces in between, to the repositories they apply to; the nearest wins; a file of the repository's own is not overwritten")]
+	[Fact(DisplayName = "shares: down through the spaces in between, to the repositories they apply to; the nearest wins; a file of the repository's own is not overwritten")]
 	public void Shares()
 	{
 		ShareFromAcme();
@@ -73,7 +73,7 @@ public sealed class SharesTest : SampleTree
 		Assert.False(Directory.Exists(Path.Combine(w1, "_fx", ".inherited", "shares", "res")));
 		Assert.DoesNotContain(FxInherited.Load(shared)!.Shares, s => s.Destination == "res/icon.png");
 
-		// the doctor of the workspace that shares: a source it does not version, and one that is not there
+		// the doctor of the space that shares: a source it does not version, and one that is not there
 		File.WriteAllText(Path.Combine(acme.Path, "notes.txt"), "notes\n");
 		File.AppendAllText(acmeSpace, "  - path: notes.txt\n  - path: missing.txt\n");
 		var doctor = SyncEngine.Doctor(acme.Path, new(Offline: true), cancellationToken: TestContext.Current.CancellationToken).SelectMany(r => r.Diagnostics).ToList();

@@ -9,7 +9,7 @@ namespace Fuxion.Tool.Core.Yaml;
 /// <summary>
 /// A path to a node of a YAML document:
 /// <list type="bullet">
-/// <item><c>workspace.major</c>: keys;</item>
+/// <item><c>space.major</c>: keys;</item>
 /// <item><c>packages[3].ids</c>: an item by position;</item>
 /// <item><c>repositories[name=plus].tags</c>: the first mapping whose <c>name</c> is <c>plus</c>, or a list that
 /// contains it (<c>packages[ids=PolySharp]</c>);</item>

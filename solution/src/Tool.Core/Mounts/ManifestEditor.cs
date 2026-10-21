@@ -205,9 +205,9 @@ public static partial class ManifestEditor
 	}
 
 	/// <summary>
-	/// Renames a repository (plan P, decision 12): its name, the references to it in this workspace
+	/// Renames a repository (plan P, decision 12): its name, the references to it in this space
 	/// (<c>depends-on</c>, the <c>applies-to</c> of the shares and of the modules: relative ones, and absolute ones from
-	/// this workspace), and its old name in <c>aliases</c>, so that the references elsewhere keep working while they
+	/// this space), and its old name in <c>aliases</c>, so that the references elsewhere keep working while they
 	/// change. The clone is not moved. One change per file it touches, the manifest first.
 	/// </summary>
 	public static IReadOnlyList<ManifestChange> RenameRepository(string root, string name, string newName)
@@ -219,10 +219,10 @@ public static partial class ManifestEditor
 			return [s.Error(RepositoryExists, new FxText(RepositoryExists, newName), name)];
 		if (name == newName)
 			return [s.Info(new FxText($"{Unchanged}.renamed", name), name)];
-		var workspace = new FxNode(root).SelfIdentity().FullName;
+		var space = new FxNode(root).SelfIdentity().FullName;
 		string Rewrite(string reference)
 		{
-			foreach (var (from, to) in new[] { (name, newName), ($"{workspace}/{name}", $"{workspace}/{newName}") })
+			foreach (var (from, to) in new[] { (name, newName), ($"{space}/{name}", $"{space}/{newName}") })
 				if (reference == from || reference.StartsWith(from + "/", StringComparison.Ordinal))
 					return to + reference[from.Length..];
 			return reference;
@@ -248,14 +248,14 @@ public static partial class ManifestEditor
 		// the references of the shares of this space
 		if (FxFiles.Exists(SpacePath(root)))
 		{
-			var space = new SpaceSession(root);
-			for (var i = 0; space.Current.Resolve($"shares[{i}]") is not null; i++)
-				space.RewriteList($"shares[{i}].applies-to.repositories", Rewrite);
-			if (space.Edits.Count > 0)
-				changes.Add(space.Done());
+			var shares = new SpaceSession(root);
+			for (var i = 0; shares.Current.Resolve($"shares[{i}]") is not null; i++)
+				shares.RewriteList($"shares[{i}].applies-to.repositories", Rewrite);
+			if (shares.Edits.Count > 0)
+				changes.Add(shares.Done());
 		}
 
-		// the references of the modules of this workspace
+		// the references of the modules of this space
 		foreach (var module in KnownModules.Where(m => m != MountsModule.Name && FxFiles.Exists(FxLayout.Full(root, FxLayout.ModuleFile(m)))))
 		{
 			var m = new ModuleSession(root, module);

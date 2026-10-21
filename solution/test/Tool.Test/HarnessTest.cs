@@ -47,7 +47,7 @@ public sealed class HarnessTest : SampleTree
 		Assert.Contains(FxHeader.Mark, agents);
 		Assert.Contains(HarnessGenerator.FxRuleTitle, agents);
 		Assert.Contains("This is `solo`, a repository with fx.", agents);
-		// a repository on its own has no workspace to make worktrees in
+		// a repository on its own has no space to make worktrees in
 		Assert.DoesNotContain("worktree", agents);
 		Assert.EndsWith("\n@AGENTS.md\n", Read(solo.Path, "CLAUDE.md"));
 		foreach (var root in HarnessModule.SkillRoots)
@@ -103,7 +103,7 @@ public sealed class HarnessTest : SampleTree
 		Assert.Equal(3, All(Doctor(solo.Path)).Count(d => d.Code == HarnessModule.Undeclared && d.Severity == FxSeverity.Warning));
 	}
 
-	[Fact(DisplayName = "the harness goes down with what is for each one: applies-to filters the root too, a workspace passes on what may be below, a repository gets only what is its")]
+	[Fact(DisplayName = "the harness goes down with what is for each one: applies-to filters the root too, a space passes on what may be below, a repository gets only what is its")]
 	public void Inheritance()
 	{
 		var acme = Clone(_acmeOrigin);
@@ -140,22 +140,22 @@ public sealed class HarnessTest : SampleTree
 
 		// acme: what has no applies-to and what names it; not what goes by tags it does not have
 		var root = Agents(".");
-		Assert.Contains(HarnessGenerator.FxWorkspaceRuleTitle, root);
+		Assert.Contains(HarnessGenerator.FxSpaceRuleTitle, root);
 		Assert.Contains("The rule company.", root);
 		Assert.Contains("The rule acme-only.", root);
 		Assert.DoesNotContain("The rule apps.", root);
 		Assert.False(Skill("."));
-		// repo-w1, a workspace (dotnet, product): what is for it, and it passes on what may be below; never what is only acme's
+		// repo-w1, a space (dotnet, product): what is for it, and it passes on what may be below; never what is only acme's
 		var w1 = Agents("repo-w1");
 		Assert.Contains("The rule w1-only.", w1);
 		Assert.DoesNotContain("The rule apps.", w1);
-		Assert.Contains("inside the workspace `acme`", w1);
+		Assert.Contains("inside the space `acme`", w1);
 		Assert.True(Inherited("repo-w1", "rules/apps.md"));
 		Assert.False(Inherited("repo-w1", "rules/acme-only.md"));
 		Assert.True(Skill("repo-w1"));
 		// repo-c1 (dotnet, app): only what is for it reaches it
 		var c1 = Agents("repo-w1/repo-c1");
-		Assert.Contains("a repository of the workspace `repo-w1`", c1);
+		Assert.Contains("a repository of the space `repo-w1`", c1);
 		Assert.Contains("The rule company.", c1);
 		Assert.Contains("The rule apps.", c1);
 		Assert.Contains("`.claude/rules/csharp.md`: `**/*.cs`", c1);

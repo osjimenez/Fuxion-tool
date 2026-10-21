@@ -13,7 +13,7 @@ using Fuxion.Tool.Core.Results;
 namespace Fuxion.Tool.Core.Sync;
 
 /// <summary>
-/// What a repository receives from its workspace, in its <c>_fx/.inherited/</c> (plan P, decisions 14-16): calculated
+/// What a repository receives from its space, in its <c>_fx/.inherited/</c> (plan P, decisions 14-16): calculated
 /// from its parent only, one level up and read-only (the parent's <c>_fx/.inherited/</c> and its own module folders),
 /// already merged (the nearest wins by name), with the repositories of every <c>applies-to</c> made absolute. Nobody
 /// writes in someone else's repository: each one gets this when its own sync runs.
@@ -21,11 +21,11 @@ namespace Fuxion.Tool.Core.Sync;
 /// <item><c>space.yaml</c>: <c>requires</c> and the catalog of tags.</item>
 /// <item><c>dotnet/</c>: the merged <c>dotnet.yaml</c> of what is for it (without the solutions) and the files of those imports.</item>
 /// <item><c>harness/</c>: the merged <c>harness.yaml</c> of what is for it, and the files of those rules and skills (plan Q).</item>
-/// <item><c>workspace/</c>, in a workspace: the shares, to pass them on (<see cref="SpaceShares"/>).</item>
+/// <item><c>space/</c>, in a space: the shares, to pass them on (<see cref="SpaceShares"/>).</item>
 /// <item><c>inherited.yaml</c>: who the repository is for its parent, whose it is and where each file comes from,
 /// also the shares it receives, written outside <c>_fx/</c>.</item>
 /// </list>
-/// Only where something applies (a module, a share) or to a workspace, which passes it on: a repository nothing applies
+/// Only where something applies (a module, a share) or to a space, which passes it on: a repository nothing applies
 /// to gets nothing (plan P, P1, detail 1).
 /// </summary>
 public static class Inheritance
@@ -64,7 +64,7 @@ public static class Inheritance
 			if (ownConfig.Requires is not null || ownConfig.Tags.Count > 0)
 				from.Add(parentIdentity.FullName);
 			var merged = SpaceConfig.Merge(inheritedConfig, ownConfig, FxLayout.ConfigFile);
-			expected[FxLayout.ConfigName] = (Encoding.UTF8.GetBytes(merged.ToInheritedYaml(Workspaces(from, FxLayout.ConfigFile))), from.Distinct().ToList());
+			expected[FxLayout.ConfigName] = (Encoding.UTF8.GetBytes(merged.ToInheritedYaml(Spaces(from, FxLayout.ConfigFile))), from.Distinct().ToList());
 		}
 
 		// the shares in the repository itself, outside _fx/ (also removing what it no longer gets)
@@ -109,7 +109,7 @@ public static class Inheritance
 	{
 		var folder = SpaceShares.Folder;
 		var froms = flows.SelectMany(f => f.Files?.Select(file => file.From) ?? []).Distinct().ToList();
-		expected[$"{folder}/{folder}.yaml"] = (Encoding.UTF8.GetBytes(SpaceShares.ToYaml(flows, Workspaces(froms, FxLayout.ConfigFile))), froms);
+		expected[$"{folder}/{folder}.yaml"] = (Encoding.UTF8.GetBytes(SpaceShares.ToYaml(flows, Spaces(froms, FxLayout.ConfigFile))), froms);
 		foreach (var flow in flows)
 			if (flow.Files is not null)
 				foreach (var file in flow.Files)
@@ -123,7 +123,7 @@ public static class Inheritance
 
 	/// <summary>
 	/// The .NET module: the parent's inherited <c>dotnet.yaml</c> with its own on top, what of it is for
-	/// <paramref name="identity"/> (a workspace: what may be for it or below it), and the files of those imports from both
+	/// <paramref name="identity"/> (a space: what may be for it or below it), and the files of those imports from both
 	/// folders (its own win by name; plan R, decision 2). Whether it applies.
 	/// </summary>
 	static bool Dotnet(FxNode parent, FxIdentity parentIdentity, FxIdentity identity, bool conduit,
@@ -152,7 +152,7 @@ public static class Inheritance
 		if (!conduit && !(merged.AppliesTo ?? FxAppliesTo.All).Matches(identity))
 			return false;
 
-		// only what is for it (a workspace: what may be for it or below it), and only the files of those imports, what they
+		// only what is for it (a space: what may be for it or below it), and only the files of those imports, what they
 		// import and what travels with them (plan R, decision 2); its own win by name
 		var going = conduit ? merged.ForBelow(identity) : merged.ForTarget(identity);
 		var files = new SortedDictionary<string, (byte[] Content, IReadOnlyList<string> From)>(StringComparer.OrdinalIgnoreCase);
@@ -173,16 +173,16 @@ public static class Inheritance
 		if (ownOn && FxFiles.Exists(ownYaml))
 			yamlFrom.Add(parentIdentity.FullName);
 		yamlFrom = yamlFrom.Distinct().ToList();
-		expected[$"{module}/{module}.yaml"] = (Encoding.UTF8.GetBytes(DotnetYamlWriter.Inherited(going, Workspaces(yamlFrom, $"_fx/{module}/{module}.yaml"))), yamlFrom);
+		expected[$"{module}/{module}.yaml"] = (Encoding.UTF8.GetBytes(DotnetYamlWriter.Inherited(going, Spaces(yamlFrom, $"_fx/{module}/{module}.yaml"))), yamlFrom);
 		foreach (var (relative, (content, from)) in files)
-			expected[$"{module}/{relative}"] = (FxHeader.Add(relative, content, Workspaces(from, $"_fx/{module}/{relative}")), from);
+			expected[$"{module}/{relative}"] = (FxHeader.Add(relative, content, Spaces(from, $"_fx/{module}/{relative}")), from);
 		return true;
 	}
 
 	/// <summary>
 	/// The harness (plan Q): the parent's inherited <c>harness.yaml</c> with its own on top, and only what is for
-	/// <paramref name="identity"/> (proposal 1: what is only for others, a rule of the workspace itself, does not reach a
-	/// public repository): the yaml of that, and the files of its rules and skills. A workspace gets what may be for it or
+	/// <paramref name="identity"/> (proposal 1: what is only for others, a rule of the space itself, does not reach a
+	/// public repository): the yaml of that, and the files of its rules and skills. A space gets what may be for it or
 	/// for something below it, to pass it on (<see cref="HarnessConfig.ForBelow"/>). Whether it applies.
 	/// </summary>
 	static bool Harness(FxNode parent, FxIdentity parentIdentity, FxIdentity identity, bool conduit,
@@ -242,16 +242,16 @@ public static class Inheritance
 		if (FxFiles.Exists(ownYaml) && own.Enabled && !own.IsEmpty)
 			yamlFrom.Add(parentIdentity.FullName);
 		yamlFrom = yamlFrom.Distinct().ToList();
-		expected[$"{module}/{module}.yaml"] = (Encoding.UTF8.GetBytes(HarnessYamlWriter.Inherited(going, Workspaces(yamlFrom, $"_fx/{module}/{module}.yaml"))), yamlFrom);
+		expected[$"{module}/{module}.yaml"] = (Encoding.UTF8.GetBytes(HarnessYamlWriter.Inherited(going, Spaces(yamlFrom, $"_fx/{module}/{module}.yaml"))), yamlFrom);
 		return true;
 	}
 
-	/// <summary>The <c>Generated from</c> of a file: the workspace (or workspaces) it comes from and the file there.</summary>
-	static string Workspaces(IReadOnlyList<string> from, string file)
+	/// <summary>The <c>Generated from</c> of a file: the space (or spaces) it comes from and the file there.</summary>
+	static string Spaces(IReadOnlyList<string> from, string file)
 		=> from.Count switch
 		{
 			0 => file,
-			1 => $"workspace {from[0]} ({file})",
-			_ => $"workspaces {string.Join(" and ", from)} ({file} of each)"
+			1 => $"space {from[0]} ({file})",
+			_ => $"spaces {string.Join(" and ", from)} ({file} of each)"
 		};
 }

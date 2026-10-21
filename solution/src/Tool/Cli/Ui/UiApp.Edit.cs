@@ -35,8 +35,8 @@ public sealed partial class UiApp
 	/// <summary>A value as the shell takes it: in quotes if it has spaces.</summary>
 	static string Q(string value) => value.Length == 0 || value.Any(char.IsWhiteSpace) ? $"\"{value}\"" : value;
 
-	/// <summary>The workspace that declares <paramref name="node"/>, if it is in one.</summary>
-	static FxTreeNode? ParentWorkspace(FxTreeNode node)
+	/// <summary>The space that declares <paramref name="node"/>, if it is in one.</summary>
+	static FxTreeNode? ParentSpace(FxTreeNode node)
 	{
 		for (var at = node.Parent; at is not null; at = at.Parent)
 			if (at.Kind == FxTreeKind.Space)
@@ -49,13 +49,13 @@ public sealed partial class UiApp
 	UiAction Staging(string label, UiEdit edit) => new(label, edit.Command, "", (_, _) => new([], [])) { Open = () => Stage(edit) };
 
 	/// <summary>
-	/// What edits <paramref name="node"/>, each with its command: a repository its workspace declares (its keys, its
+	/// What edits <paramref name="node"/>, each with its command: a repository its space declares (its keys, its
 	/// tags, its name; or out of the manifest), what nobody declares (added; 14.1), a module (on or off; 14.8) and what
-	/// a workspace versions (its <c>paths</c>).
+	/// a space versions (its <c>paths</c>).
 	/// </summary>
 	IEnumerable<UiAction> EditActions(FxTreeNode node)
 	{
-		if (node.Declaration is { } declaration && ParentWorkspace(node) is { } owner && node.SupersededBy is null)
+		if (node.Declaration is { } declaration && ParentSpace(node) is { } owner && node.SupersededBy is null)
 		{
 			var root = UiAction.RootOption(_start, owner.Path);
 			yield return Opening(Texts.Get("ui.edit.repository"), $"fx mount set|tag|rename {declaration.Name}{root}",
@@ -63,14 +63,14 @@ public sealed partial class UiApp
 			var name = declaration.Name;
 			yield return Staging(Texts.Get("ui.edit.remove"), new($"fx mount remove {name}{root}", () => [ManifestEditor.RemoveRepository(owner.Path, name)]));
 		}
-		if (node.Kind == FxTreeKind.Unknown && ParentWorkspace(node) is { } workspace)
+		if (node.Kind == FxTreeKind.Unknown && ParentSpace(node) is { } space)
 		{
-			var relative = FxLayout.Relative(workspace.Path, node.Path);
-			var root = UiAction.RootOption(_start, workspace.Path);
+			var relative = FxLayout.Relative(space.Path, node.Path);
+			var root = UiAction.RootOption(_start, space.Path);
 			if (FxLayout.IsGitRoot(node.Path))
-				yield return Opening(Texts.Get("ui.edit.add"), $"fx mount add <url> {relative}{root}", () => ShowForm(AddForm(node, workspace)));
+				yield return Opening(Texts.Get("ui.edit.add"), $"fx mount add <url> {relative}{root}", () => ShowForm(AddForm(node, space)));
 			else
-				yield return Staging(Texts.Get("ui.edit.version"), new($"fx path add {relative}/{root}", () => [ManifestEditor.AddPath(workspace.Path, $"{relative}/")]));
+				yield return Staging(Texts.Get("ui.edit.version"), new($"fx path add {relative}/{root}", () => [ManifestEditor.AddPath(space.Path, $"{relative}/")]));
 		}
 		if (node.Kind is FxTreeKind.Module or FxTreeKind.ModuleOff && node.Parent?.Parent is { } owned)
 		{
@@ -209,7 +209,7 @@ public sealed partial class UiApp
 		}
 	}
 
-	/// <summary>The declaration of a repository: what its workspace says of it (14.7, 14.9).</summary>
+	/// <summary>The declaration of a repository: what its space says of it (14.7, 14.9).</summary>
 	UiForm RepositoryForm(Mount declaration, FxTreeNode owner)
 	{
 		var name = declaration.Name;
@@ -252,12 +252,12 @@ public sealed partial class UiApp
 		}, ManifestEditor.ManifestPath(owner.Path));
 	}
 
-	/// <summary>A repository nobody declares, added to the workspace it is in (14.1).</summary>
-	UiForm AddForm(FxTreeNode node, FxTreeNode workspace)
+	/// <summary>A repository nobody declares, added to the space it is in (14.1).</summary>
+	UiForm AddForm(FxTreeNode node, FxTreeNode space)
 	{
 		var url = GitClient.Discover(node.Path)?.RemoteUrl("origin") ?? "";
-		var relative = FxLayout.Relative(workspace.Path, node.Path);
-		var root = UiAction.RootOption(_start, workspace.Path);
+		var relative = FxLayout.Relative(space.Path, node.Path);
+		var root = UiAction.RootOption(_start, space.Path);
 		return new(Texts.Get("ui.form.add", relative), [
 			new("url", Texts.Get("ui.field.url"), url),
 			new("path", Texts.Get("ui.field.path"), relative),
@@ -271,14 +271,14 @@ public sealed partial class UiApp
 			var tags = form["tags"].Words;
 			var command = $"fx mount add {Q(u)} {Q(p)}{(n.Length > 0 && n != ManifestEditor.NameFromUrl(u) ? $" --name {n}" : "")}{(required ? " --required" : "")}"
 			              + $"{(tags.Count > 0 ? $" --tag {string.Join(' ', tags)}" : "")}{root}";
-			return [new(command, () => [ManifestEditor.AddRepository(workspace.Path, u, p, n.Length > 0 ? n : null, required, null, tags)])];
-		}, ManifestEditor.ManifestPath(workspace.Path));
+			return [new(command, () => [ManifestEditor.AddRepository(space.Path, u, p, n.Length > 0 ? n : null, required, null, tags)])];
+		}, ManifestEditor.ManifestPath(space.Path));
 	}
 
-	/// <summary>Something more the workspace versions (its <c>paths</c>).</summary>
-	UiForm PathForm(FxTreeNode workspace)
+	/// <summary>Something more the space versions (its <c>paths</c>).</summary>
+	UiForm PathForm(FxTreeNode space)
 	{
-		var root = UiAction.RootOption(_start, workspace.Path);
+		var root = UiAction.RootOption(_start, space.Path);
 		return new(Texts.Get("ui.edit.path-add"), [
 			new("path", Texts.Get("ui.field.path")),
 			new("exclude", Texts.Get("ui.field.exclude"), check: false),
@@ -289,17 +289,17 @@ public sealed partial class UiApp
 			var (exclude, worktree) = (form["exclude"].Check.Value, form["worktree"].Check.Value);
 			if (path.Length == 0)
 				return [];
-			return [new($"fx path add {Q(path)}{(exclude ? " --exclude" : "")}{(worktree ? "" : " --no-worktree")}{root}", () => [ManifestEditor.AddPath(workspace.Path, path, exclude, worktree)])];
-		}, ManifestEditor.SpacePath(workspace.Path));
+			return [new($"fx path add {Q(path)}{(exclude ? " --exclude" : "")}{(worktree ? "" : " --no-worktree")}{root}", () => [ManifestEditor.AddPath(space.Path, path, exclude, worktree)])];
+		}, ManifestEditor.SpacePath(space.Path));
 	}
 
-	/// <summary>Something the workspace stops versioning: its <c>paths</c> (with the pending ones), to choose one.</summary>
-	void ShowPathRemove(FxTreeNode workspace)
+	/// <summary>Something the space stops versioning: its <c>paths</c> (with the pending ones), to choose one.</summary>
+	void ShowPathRemove(FxTreeNode space)
 	{
 		IReadOnlyList<SpacePath> paths;
 		using (Pending.Overlay())
-			paths = SpaceConfig.Load(workspace.Path).Paths ?? [];
-		var root = UiAction.RootOption(_start, workspace.Path);
+			paths = SpaceConfig.Load(space.Path).Paths ?? [];
+		var root = UiAction.RootOption(_start, space.Path);
 		var list = new ListBox<string>();
 		foreach (var path in paths)
 			list.Items.Add(path.Path);
@@ -310,7 +310,7 @@ public sealed partial class UiApp
 				return;
 			var path = list.Items[index];
 			dialog!.Close();
-			Stage(new($"fx path remove {Q(path)}{root}", () => [ManifestEditor.RemovePath(workspace.Path, path)]));
+			Stage(new($"fx path remove {Q(path)}{root}", () => [ManifestEditor.RemovePath(space.Path, path)]));
 			e.Handled = true;
 		});
 		dialog = new Dialog().Title(Texts.Get("ui.edit.path-remove")).IsModal(true).Padding(1).Content(list);
