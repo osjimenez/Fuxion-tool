@@ -976,9 +976,6 @@
   <data name="docs.invalid-manifest.relation" xml:space="preserve">
     <value>A relation is a mapping with its kind and its 'to'.</value>
   </data>
-  <data name="docs.invalid-manifest.register-entry" xml:space="preserve">
-    <value>The entries of a register come with the registers (U4, step 6).</value>
-  </data>
   <data name="docs.invalid-manifest.from" xml:space="preserve">
     <value>A target has one source in 'from' (a drop, one or more).</value>
   </data>
@@ -1016,12 +1013,57 @@
     <value>'{0}' is not a date (2026-01-16) or an instant.</value>
   </data>
   <data name="docs.invalid-manifest.alias" xml:space="preserve">
-    <value>The relation to {0}, an alias, comes with the registers (U4, step 6).</value>
+    <value>The alias {0} is not the key of an entry of the manifests or of the catalog.</value>
   </data>
   <data name="docs.invalid-manifest.relation-target" xml:space="preserve">
     <value>The relation goes to {0}, which is not a document of the manifests or of the catalog.</value>
   </data>
   <data name="docs.invalid-manifest.encoding" xml:space="preserve">
     <value>The source {0} is not UTF-8: repair: encoding reads it as Latin-1.</value>
+  </data>
+  <data name="docs.not-a-register" xml:space="preserve">
+    <value>{0} is a {1}, not a register.</value>
+  </data>
+  <data name="docs.unknown-entry" xml:space="preserve">
+    <value>'{0}' is not an entry of {1}: its name, its key or its identity.</value>
+  </data>
+  <data name="docs.entry-taken" xml:space="preserve">
+    <value>The entry {0} exists already in {1}.</value>
+  </data>
+  <data name="docs.entry-taken.key" xml:space="preserve">
+    <value>The key {0} is taken in {1}.</value>
+  </data>
+  <data name="docs.unknown-target" xml:space="preserve">
+    <value>'{0}' is not a document of the catalog (its path, its identity) or an entry of a register (its key, its identity).</value>
+  </data>
+  <data name="docs.invalid-relation.kind" xml:space="preserve">
+    <value>'{0}' is not a kind of relation: {1}.</value>
+  </data>
+  <data name="docs.unchanged.closed" xml:space="preserve">
+    <value>The entry {0} is closed already ({1}).</value>
+  </data>
+  <data name="docs.unchanged.entry" xml:space="preserve">
+    <value>The entry {0} does not change.</value>
+  </data>
+  <data name="docs.invalid-name.entry" xml:space="preserve">
+    <value>The entry {0} is twice in {1}.</value>
+  </data>
+  <data name="docs.invalid-metadata.entry-key" xml:space="preserve">
+    <value>The key {0} is twice in {1}.</value>
+  </data>
+  <data name="docs.invalid-dates.entry" xml:space="preserve">
+    <value>The entry {0} closes ({2}) before it was born ({1}).</value>
+  </data>
+  <data name="docs.invalid-manifest.register" xml:space="preserve">
+    <value>'{0}' is not a register of the manifests or of the catalog.</value>
+  </data>
+  <data name="docs.invalid-manifest.entry-taken" xml:space="preserve">
+    <value>The entry {0} is twice in {1}.</value>
+  </data>
+  <data name="docs.invalid-manifest.key-taken" xml:space="preserve">
+    <value>The key {0} is taken.</value>
+  </data>
+  <data name="docs.invalid-manifest.register-edited" xml:space="preserve">
+    <value>The register {0} has an edit not finalized: finalize it first.</value>
   </data>
 </root>

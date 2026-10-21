@@ -194,6 +194,7 @@ public static class DescribeCommand
 			Docs.DocCommand.ShowSchema => FxJsonContext.Default.DocShowDocument,
 			Docs.DocCommand.SchemasSchema => FxJsonContext.Default.DocSchemasDocument,
 			Docs.DocCommand.EditSchema => FxJsonContext.Default.DocEditDocument,
+			Docs.DocEntryCommand.ListSchema => FxJsonContext.Default.DocEntriesDocument,
 			_ => null
 		};
 

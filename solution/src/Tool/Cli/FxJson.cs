@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Fuxion.Tool.Core.Results;
 
@@ -209,6 +210,13 @@ public sealed record DocEditDocument(string Schema, bool Ok, bool Changed, bool 
 
 public sealed record JsonFileMove(string From, string To);
 
+/// <summary>An entry of a register: what it follows, its relations (with the path and the title of the documents they go to) and the fields of its register.</summary>
+public sealed record JsonEntry(string Id, string Name, string? Key, string Title, string Status, bool Open, string? Summary, IReadOnlyList<string> Tags, string CreatedAt,
+	string? ClosedAt, IReadOnlyList<JsonDocRelation> Relations, IReadOnlyDictionary<string, JsonElement> Fields);
+
+/// <summary><c>fx-doc-entries/1</c>: the entries of a register, by its path in the catalog.</summary>
+public sealed record DocEntriesDocument(string Schema, bool Ok, string? Register, IReadOnlyList<JsonEntry> Entries, IReadOnlyList<JsonDiagnostic> Diagnostics);
+
 // The events of --output ndjson (fx-events/1): one per line, "type" first; the last line is the command's document.
 
 public sealed record JsonStartEvent(string Type, string Schema);
@@ -239,6 +247,7 @@ public sealed record JsonDiagnosticEvent(string Type, JsonDiagnostic Diagnostic)
 [JsonSerializable(typeof(DocShowDocument))]
 [JsonSerializable(typeof(DocSchemasDocument))]
 [JsonSerializable(typeof(DocEditDocument))]
+[JsonSerializable(typeof(DocEntriesDocument))]
 [JsonSerializable(typeof(JsonStartEvent))]
 [JsonSerializable(typeof(JsonStepEvent))]
 [JsonSerializable(typeof(JsonDiagnosticEvent))]

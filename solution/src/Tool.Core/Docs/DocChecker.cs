@@ -55,6 +55,9 @@ public static partial class DocChecker
 	/// <summary>The folder of the historical documents, by the year and the month of their creation.</summary>
 	public const string Records = "_records";
 
+	/// <summary>What an entry of a register is to the rules of the relations: neither the source nor the target of a kind with types.</summary>
+	public const string Entry = "entry";
+
 	[GeneratedRegex("^[a-z0-9]+(?:-[a-z0-9]+)*$")]
 	public static partial Regex SlugPattern();
 
@@ -176,6 +179,9 @@ public static partial class DocChecker
 
 		readonly Dictionary<DocFile, string> _types = [];
 
+		/// <summary>The identities that are of entries of registers, not of documents.</summary>
+		readonly HashSet<string> _entries = new(StringComparer.OrdinalIgnoreCase);
+
 		bool Selected(DocFile file) => only is null || _only.Contains(file);
 
 		void Add(FxDiagnostic diagnostic) => _diagnostics.Add(diagnostic);
@@ -195,6 +201,15 @@ public static partial class DocChecker
 				}
 				if (json.TryGetProperty("type", out var type) && type.ValueKind == JsonValueKind.String)
 					_types[file] = type.GetString()!;
+				if (json.TryGetProperty("entries", out var entries) && entries.ValueKind == JsonValueKind.Array)
+					foreach (var entry in entries.EnumerateArray())
+						if (entry.ValueKind == JsonValueKind.Object && entry.TryGetProperty("id", out var entryId) && entryId.ValueKind == JsonValueKind.String)
+						{
+							if (!_ids.TryGetValue(entryId.GetString()!, out var owners))
+								_ids[entryId.GetString()!] = owners = [];
+							owners.Add(file);
+							_entries.Add(entryId.GetString()!);
+						}
 			}
 
 			var documents = new List<DocDocument>();
@@ -270,8 +285,13 @@ public static partial class DocChecker
 			foreach (var property in type.Required.Where(p => !json.TryGetProperty(p, out _)))
 				Add(FxDiagnostic.Error(CodeOf($"/{property}"),
 					property == "profile" ? new($"{InvalidProfile}.missing", type.Name, string.Join(", ", type.Profiles)) : new($"{InvalidMetadata}.missing", property), sidecarFile, 1));
-			// the properties that are missing, said above; the rest of the problems, each at its line
-			foreach (var error in DocsSchemas.Validate(json).Where(e => !(e.Pointer.Length == 0 && e.Keyword == "required")))
+			// the properties that are missing, said above; the rest of the problems, one at each place and at its line: not the
+			// summary of a node whose values say what is wrong ("some additional properties…")
+			var errors = DocsSchemas.Validate(json).Where(e => !(e.Pointer.Length == 0 && e.Keyword == "required")).ToList();
+			foreach (var error in errors
+				         .Where(e => !(e.Keyword is "additionalProperties" or "propertyNames" or "patternProperties" && errors.Any(o => o.Pointer.StartsWith($"{e.Pointer}/", StringComparison.Ordinal))))
+				         .GroupBy(e => e.Pointer)
+				         .Select(g => g.First()))
 				Add(FxDiagnostic.Error(CodeOf(error.Pointer), Message(error, json, type), sidecarFile, Line(error.Pointer)));
 			if (_diagnostics.Count > before)
 				return null;
@@ -300,18 +320,35 @@ public static partial class DocChecker
 			if (catalog.Config.Actors.Count > 0 && !catalog.Config.Actors.Contains(sidecar.CreatedBy))
 				Add(FxDiagnostic.Warning(UnknownActor, new(UnknownActor, sidecar.CreatedBy, string.Join(", ", catalog.Config.Actors)), sidecarFile, Line("/createdBy")));
 
-			// 4. Its relations
-			for (var i = 0; i < sidecar.Relations.Count; i++)
+			// 4. Its relations, and those of its entries (an entry is of the type "entry" for the rules)
+			void Relations(string id, string source, IReadOnlyList<DocRelation> relations, string pointer)
 			{
-				var relation = sidecar.Relations[i];
-				var line = Line($"/relations/{i}");
-				if (string.Equals(relation.TargetId, sidecar.Id, StringComparison.OrdinalIgnoreCase))
-					Add(FxDiagnostic.Error(InvalidRelation, new($"{InvalidRelation}.self", relation.Kind), sidecarFile, line));
-				else if (!_ids.TryGetValue(relation.TargetId, out var targets))
-					Add(FxDiagnostic.Error(MissingTarget, new(MissingTarget, relation.Kind, relation.TargetId), sidecarFile, line));
-				else if (_types.GetValueOrDefault(targets[0]) is { } target && !DocRelations.Allows(relation.Kind, type.Name, target))
-					Add(FxDiagnostic.Error(InvalidRelation, new(InvalidRelation, relation.Kind, type.Name, target, targets[0].Path, Allowed(DocRelations.Rule(relation.Kind))),
-						sidecarFile, line));
+				for (var i = 0; i < relations.Count; i++)
+				{
+					var relation = relations[i];
+					var line = Line($"{pointer}/{i}");
+					if (string.Equals(relation.TargetId, id, StringComparison.OrdinalIgnoreCase))
+						Add(FxDiagnostic.Error(InvalidRelation, new($"{InvalidRelation}.self", relation.Kind), sidecarFile, line));
+					else if (!_ids.TryGetValue(relation.TargetId, out var targets))
+						Add(FxDiagnostic.Error(MissingTarget, new(MissingTarget, relation.Kind, relation.TargetId), sidecarFile, line));
+					else if ((_entries.Contains(relation.TargetId) ? Entry : _types.GetValueOrDefault(targets[0])) is { } target
+					         && !DocRelations.Allows(relation.Kind, source, target))
+						Add(FxDiagnostic.Error(InvalidRelation, new(InvalidRelation, relation.Kind, source, target, targets[0].Path, Allowed(DocRelations.Rule(relation.Kind))),
+							sidecarFile, line));
+				}
+			}
+			Relations(sidecar.Id, type.Name, sidecar.Relations, "/relations");
+			for (var i = 0; i < sidecar.Entries.Count; i++)
+			{
+				var entry = sidecar.Entries[i];
+				var at = $"/entries/{i}";
+				Relations(entry.Id, Entry, entry.Relations, $"{at}/relations");
+				if (sidecar.Entries.Take(i).Any(e => e.Name == entry.Name))
+					Add(FxDiagnostic.Error(InvalidName, new($"{InvalidName}.entry", entry.Name, file.Path), sidecarFile, Line($"{at}/name")));
+				if (entry.Key is not null && sidecar.Entries.Take(i).Any(e => e.Key == entry.Key))
+					Add(FxDiagnostic.Error(InvalidMetadata, new($"{InvalidMetadata}.entry-key", entry.Key, file.Path), sidecarFile, Line($"{at}/key")));
+				if (entry.ClosedAt is not null && DocSidecar.ParseInstant(entry.ClosedAt) < DocSidecar.ParseInstant(entry.CreatedAt))
+					Add(FxDiagnostic.Error(InvalidDates, new($"{InvalidDates}.entry", entry.Name, entry.CreatedAt, entry.ClosedAt), sidecarFile, Line($"{at}/closedAt")));
 			}
 
 			// 5. Its title and its integrity

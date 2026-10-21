@@ -19,6 +19,81 @@ public sealed record DocGeneration(string Recipe, string Scope);
 public sealed record DocHashes(string Content, string Metadata);
 
 /// <summary>
+/// An entry of a register (plan U, decision 18): what it follows over time, kept in the sidecar of the register. It goes
+/// by its name; its identity, for the relations; its key, if the register uses them (the <c>I-NN</c> of today). Its
+/// fields are those of its register (a priority, a block…), sorted by name when written.
+/// </summary>
+public sealed record DocEntry
+{
+	public required string Id { get; init; }
+	public required string Name { get; init; }
+	public string? Key { get; init; }
+	public required string Title { get; init; }
+	public required string Status { get; init; }
+	public string? Summary { get; init; }
+	public IReadOnlyList<string> Tags { get; init; } = [];
+	public required string CreatedAt { get; init; }
+
+	/// <summary>When it closed; null while it is open.</summary>
+	public string? ClosedAt { get; init; }
+
+	public IReadOnlyList<DocRelation> Relations { get; init; } = [];
+	public IReadOnlyList<KeyValuePair<string, JsonElement>> Fields { get; init; } = [];
+
+	public bool Open => ClosedAt is null;
+
+	public static DocEntry From(JsonElement entry)
+	{
+		string? Optional(string name) => entry.TryGetProperty(name, out var value) ? value.GetString() : null;
+		return new()
+		{
+			Id = entry.GetProperty("id").GetString()!,
+			Name = entry.GetProperty("name").GetString()!,
+			Key = Optional("key"),
+			Title = entry.GetProperty("title").GetString()!,
+			Status = entry.GetProperty("status").GetString()!,
+			Summary = Optional("summary"),
+			Tags = entry.TryGetProperty("tags", out var tags) ? tags.EnumerateArray().Select(t => t.GetString()!).ToList() : [],
+			CreatedAt = entry.GetProperty("createdAt").GetString()!,
+			ClosedAt = Optional("closedAt"),
+			Relations = entry.TryGetProperty("relations", out var relations)
+				? relations.EnumerateArray().Select(r => new DocRelation(r.GetProperty("kind").GetString()!, r.GetProperty("targetId").GetString()!)).ToList()
+				: [],
+			Fields = entry.TryGetProperty("fields", out var fields) ? fields.EnumerateObject().Select(f => KeyValuePair.Create(f.Name, f.Value.Clone())).ToList() : []
+		};
+	}
+
+	internal void Write(Utf8JsonWriter writer)
+	{
+		writer.WriteStartObject();
+		writer.WriteString("id", Id);
+		writer.WriteString("name", Name);
+		if (Key is not null)
+			writer.WriteString("key", Key);
+		writer.WriteString("title", Title);
+		writer.WriteString("status", Status);
+		if (Summary is not null)
+			writer.WriteString("summary", Summary);
+		DocSidecar.WriteTags(writer, Tags);
+		writer.WriteString("createdAt", CreatedAt);
+		if (ClosedAt is not null)
+			writer.WriteString("closedAt", ClosedAt);
+		DocSidecar.WriteRelations(writer, Relations);
+		if (Fields.Count > 0)
+		{
+			writer.WriteStartObject("fields");
+			foreach (var (name, value) in Fields.OrderBy(f => f.Key, StringComparer.Ordinal))
+			{
+				writer.WritePropertyName(name);
+				value.WriteTo(writer);
+			}
+			writer.WriteEndObject();
+		}
+		writer.WriteEndObject();
+	}
+}
+
+/// <summary>
 /// The sidecar of a document, <c>TIPO-slug.meta.json</c> (the standard, its metadata model): its identity, its type,
 /// profile and status, its title, tags, dates and actor, its relations, its generation and its integrity. Read from a
 /// valid one (<see cref="From"/>) and written in the order of the standard (<see cref="ToJson"/>).
@@ -42,6 +117,9 @@ public sealed record DocSidecar
 	public required string CreatedBy { get; init; }
 	public IReadOnlyList<DocRelation> Relations { get; init; } = [];
 	public DocGeneration? Generation { get; init; }
+
+	/// <summary>The entries of a register, in their order.</summary>
+	public IReadOnlyList<DocEntry> Entries { get; init; } = [];
 
 	/// <summary>Null only until it is sealed (<see cref="Seal"/>).</summary>
 	public DocHashes? Integrity { get; init; }
@@ -93,6 +171,7 @@ public sealed record DocSidecar
 				? relations.EnumerateArray().Select(r => new DocRelation(Text(r, "kind"), Text(r, "targetId"))).ToList()
 				: [],
 			Generation = sidecar.TryGetProperty("generation", out var generation) ? new(Text(generation, "recipe"), Text(generation, "scope")) : null,
+			Entries = sidecar.TryGetProperty("entries", out var entries) ? entries.EnumerateArray().Select(DocEntry.From).ToList() : [],
 			Integrity = sidecar.TryGetProperty("integrity", out var integrity) ? new(Text(integrity, "content"), Text(integrity, "metadata")) : null
 		};
 	}
@@ -116,34 +195,24 @@ public sealed record DocSidecar
 				writer.WriteString("profile", Profile);
 			writer.WriteString("status", Status);
 			writer.WriteString("title", Title);
-			if (Tags.Count > 0)
-			{
-				writer.WriteStartArray("tags");
-				foreach (var tag in Tags.Order(StringComparer.Ordinal))
-					writer.WriteStringValue(tag);
-				writer.WriteEndArray();
-			}
+			WriteTags(writer, Tags);
 			writer.WriteString("createdAt", CreatedAt);
 			writer.WriteString("updatedAt", UpdatedAt);
 			writer.WriteString("createdBy", CreatedBy);
-			if (Relations.Count > 0)
-			{
-				writer.WriteStartArray("relations");
-				foreach (var relation in Relations.OrderBy(r => r.Kind, StringComparer.Ordinal).ThenBy(r => r.TargetId, StringComparer.Ordinal))
-				{
-					writer.WriteStartObject();
-					writer.WriteString("kind", relation.Kind);
-					writer.WriteString("targetId", relation.TargetId);
-					writer.WriteEndObject();
-				}
-				writer.WriteEndArray();
-			}
+			WriteRelations(writer, Relations);
 			if (Generation is not null)
 			{
 				writer.WriteStartObject("generation");
 				writer.WriteString("recipe", Generation.Recipe);
 				writer.WriteString("scope", Generation.Scope);
 				writer.WriteEndObject();
+			}
+			if (Entries.Count > 0)
+			{
+				writer.WriteStartArray("entries");
+				foreach (var entry in Entries)
+					entry.Write(writer);
+				writer.WriteEndArray();
 			}
 			if (Integrity is not null)
 			{
@@ -155,6 +224,31 @@ public sealed record DocSidecar
 			writer.WriteEndObject();
 		}
 		return Encoding.UTF8.GetString(buffer.WrittenSpan) + "\n";
+	}
+
+	internal static void WriteTags(Utf8JsonWriter writer, IReadOnlyList<string> tags)
+	{
+		if (tags.Count == 0)
+			return;
+		writer.WriteStartArray("tags");
+		foreach (var tag in tags.Order(StringComparer.Ordinal))
+			writer.WriteStringValue(tag);
+		writer.WriteEndArray();
+	}
+
+	internal static void WriteRelations(Utf8JsonWriter writer, IReadOnlyList<DocRelation> relations)
+	{
+		if (relations.Count == 0)
+			return;
+		writer.WriteStartArray("relations");
+		foreach (var relation in relations.OrderBy(r => r.Kind, StringComparer.Ordinal).ThenBy(r => r.TargetId, StringComparer.Ordinal))
+		{
+			writer.WriteStartObject();
+			writer.WriteString("kind", relation.Kind);
+			writer.WriteString("targetId", relation.TargetId);
+			writer.WriteEndObject();
+		}
+		writer.WriteEndArray();
 	}
 
 	/// <summary>The hash of its metadata, as <see cref="ToJson"/> writes it.</summary>

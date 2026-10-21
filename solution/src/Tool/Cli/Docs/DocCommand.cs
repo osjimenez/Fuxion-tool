@@ -82,6 +82,7 @@ public static class DocCommand
 		});
 		command.Add(schema);
 		AddWriters(command, global, currentDirectory);
+		command.Add(DocEntryCommand.Create(global, currentDirectory));
 		return command;
 	}
 
@@ -151,9 +152,17 @@ public static class DocCommand
 		{
 			var console = MountCommand.Console(result, global, currentDirectory);
 			return console.Run(_ => Write(console, result.GetValue(relateDryRun), (catalog, display) =>
-				One(console, catalog, result.GetValue(source)!) is { } from && One(console, catalog, result.GetValue(target)!) is { } to
-					? DocEditor.Relate(catalog, display, from, result.GetValue(kind)!, to, result.GetValue(remove), DateTimeOffset.UtcNow)
-					: null));
+			{
+				if (One(console, catalog, result.GetValue(source)!) is not { } from)
+					return null;
+				// the target, an entry of a register (its key, its identity), or a document
+				var to = result.GetValue(target)!;
+				if (DocEditor.EntryTarget(catalog, to) is { } entry)
+					return DocEditor.RelateToEntry(catalog, display, from, result.GetValue(kind)!, entry, result.GetValue(remove), DateTimeOffset.UtcNow);
+				return One(console, catalog, to) is { } document
+					? DocEditor.Relate(catalog, display, from, result.GetValue(kind)!, document, result.GetValue(remove), DateTimeOffset.UtcNow)
+					: null;
+			}));
 		});
 		command.Add(relate);
 
@@ -225,7 +234,7 @@ public static class DocCommand
 	}
 
 	/// <summary>The one document <paramref name="selector"/> names; null (said on stderr) if it names none or several.</summary>
-	static DocFile? One(FxConsole console, DocCatalog catalog, string selector)
+	internal static DocFile? One(FxConsole console, DocCatalog catalog, string selector)
 	{
 		if (Select(console, catalog, [selector]) is not { } files)
 			return null;
@@ -240,7 +249,7 @@ public static class DocCommand
 	/// each file or why nothing changes. <paramref name="work"/> gives null if what it names is not there (a usage error,
 	/// said already).
 	/// </summary>
-	static int Write(FxConsole console, bool dryRun, Func<DocCatalog, Func<string, string>, DocChange?> work)
+	internal static int Write(FxConsole console, bool dryRun, Func<DocCatalog, Func<string, string>, DocChange?> work)
 	{
 		var found = new List<FxDiagnostic>();
 		void Json(DocChange? change, bool written)
@@ -290,7 +299,7 @@ public static class DocCommand
 	static string ClassName(DocStatusClass c) => c.ToString().ToLowerInvariant();
 
 	/// <summary>The files of the diagnostics: relative to the space of the catalog.</summary>
-	static Func<string, string> Display(DocCatalog catalog) => path => FxLayout.Relative(catalog.Root, path);
+	internal static Func<string, string> Display(DocCatalog catalog) => path => FxLayout.Relative(catalog.Root, path);
 
 	static string CatalogPath(DocCatalog catalog) => FxLayout.Relative(catalog.Root, catalog.Folder);
 

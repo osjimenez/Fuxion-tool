@@ -12,7 +12,11 @@
         "type": { "const": "register" },
         "status": { "enum": ["active", "retired", "stale"] },
         "profile": { "enum": ["backlog", "debt", "exception", "incident", "inventory", "risk"] },
-        "generation": { "$ref": "../common.schema.json#/$defs/generation" }
+        "generation": { "$ref": "../common.schema.json#/$defs/generation" },
+        "entries": {
+          "type": "array",
+          "items": { "$ref": "../common.schema.json#/$defs/entry" }
+        }
       },
       "required": ["profile"]
     }

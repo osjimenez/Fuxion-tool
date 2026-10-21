@@ -1,8 +1,10 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Fuxion.Tool.Core.Layout;
 using Fuxion.Tool.Core.Results;
@@ -32,6 +34,19 @@ public sealed record DocManifestTarget(string Action, IReadOnlyList<string> From
 
 	/// <summary><c>encoding</c>: a source that is not UTF-8 is read as Latin-1 and written in UTF-8.</summary>
 	public string? Repair { get; init; }
+
+	/// <summary>Of a <c>register-entry</c>: the register, from the root of the space.</summary>
+	public string? Register { get; init; }
+
+	/// <summary>Of a <c>register-entry</c>: its name (by default, from its title), its key (an alias, as <c>I-20</c>), its summary and when it closed.</summary>
+	public string? Name { get; init; }
+
+	public string? Key { get; init; }
+	public string? Summary { get; init; }
+	public string? Closed { get; init; }
+
+	/// <summary>Of a <c>register-entry</c>: the fields of its register.</summary>
+	public IReadOnlyList<KeyValuePair<string, JsonElement>> Fields { get; init; } = [];
 }
 
 /// <summary>
@@ -46,7 +61,8 @@ public static partial class DocAdoption
 
 	public static readonly IReadOnlyList<string> Actions = ["adopt", "extract", "register-entry", "skill-material", "drop"];
 
-	[GeneratedRegex(@"^I-\d+$")]
+	// the key of an entry, as I-20
+	[GeneratedRegex(@"^[A-Z][A-Z0-9]*-\d+$")]
 	private static partial Regex Alias();
 
 	static readonly StringComparer Paths = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
@@ -178,7 +194,7 @@ public static partial class DocAdoption
 					continue;
 				}
 				reader.Keys(entry, "action", "from", "type", "profile", "status", "title", "path", "created", "tags", "relations", "sections", "register", "notes", "for",
-					"reason", "repair", "rewrite");
+					"reason", "repair", "rewrite", "name", "key", "summary", "closed", "fields");
 				if (FxYamlReader.Scalar(entry["action"]) is not { } action || !Actions.Contains(action))
 				{
 					reader.Error(entry["action"] ?? item, "action", FxYamlReader.Scalar(entry["action"]) ?? "", string.Join(", ", Actions));
@@ -207,12 +223,52 @@ public static partial class DocAdoption
 					Tags = FxYamlReader.List(entry["tags"]),
 					Relations = relations,
 					Sections = FxYamlReader.List(entry["sections"]),
-					Repair = FxYamlReader.Scalar(entry["repair"])
+					Repair = FxYamlReader.Scalar(entry["repair"]),
+					Register = FxYamlReader.Scalar(entry["register"]),
+					Name = FxYamlReader.Scalar(entry["name"]),
+					Key = FxYamlReader.Scalar(entry["key"]),
+					Summary = FxYamlReader.Scalar(entry["summary"]),
+					Closed = FxYamlReader.Scalar(entry["closed"]),
+					Fields = entry["fields"] is YamlMapping fields
+						? fields.Entries.Where(f => f.Key is YamlScalar).Select(f => KeyValuePair.Create(((YamlScalar)f.Key).Value, Json(f.Value))).ToList()
+						: []
 				});
 			}
 		foreach (var d in reader.Diagnostics)
 			diagnostics.Add(d);
 		return reader.HasErrors ? null : targets;
+	}
+
+	/// <summary>A value of a field, from YAML: a number, true or false, or text (what is quoted, always text); a list, of them.</summary>
+	static JsonElement Json(YamlNode node)
+	{
+		var buffer = new ArrayBufferWriter<byte>();
+		using (var writer = new Utf8JsonWriter(buffer))
+			Write(writer, node);
+		using var document = JsonDocument.Parse(buffer.WrittenMemory);
+		return document.RootElement.Clone();
+
+		static void Write(Utf8JsonWriter writer, YamlNode node)
+		{
+			switch (node)
+			{
+				case YamlSequence list:
+					writer.WriteStartArray();
+					foreach (var item in list.Items)
+						Write(writer, item);
+					writer.WriteEndArray();
+					break;
+				case YamlScalar { IsQuoted: false, Value: "true" or "false" } flag:
+					writer.WriteBooleanValue(flag.Value == "true");
+					break;
+				case YamlScalar { IsQuoted: false } number when decimal.TryParse(number.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var value):
+					writer.WriteNumberValue(value);
+					break;
+				default:
+					writer.WriteStringValue(FxYamlReader.Scalar(node) ?? "");
+					break;
+			}
+		}
 	}
 
 	/// <summary>The text of a source, its byte order mark out; with <c>repair: encoding</c>, read as Latin-1 if it is not UTF-8. Null if it cannot be read.</summary>
@@ -260,10 +316,7 @@ public static partial class DocAdoption
 		foreach (var target in targets)
 		{
 			if (target.Action == "register-entry")
-			{
-				Error(target, "register-entry");
 				continue;
-			}
 			if (target.From.Count == 0 || target.Action != "drop" && target.From.Count > 1)
 			{
 				Error(target, "from");
@@ -317,6 +370,50 @@ public static partial class DocAdoption
 		}
 		foreach (var source in removed.Where(moves.ContainsKey))
 			change.Error(InvalidManifest, new($"{InvalidManifest}.twice", display(source)));
+
+		// the entries, of a register of the manifests or of the catalog; their identities, and their keys for the aliases
+		var documents = DocChecker.Read(catalog);
+		var keys = documents.SelectMany(d => d.Sidecar.Entries).Where(e => e.Key is not null).GroupBy(e => e.Key!)
+			.ToDictionary(g => g.Key, g => g.First().Id, StringComparer.Ordinal);
+		var entries = new List<(DocManifestTarget Target, string Register, DocEntry Entry)>();
+		foreach (var target in targets.Where(t => t.Action == "register-entry"))
+		{
+			var register = target.Register is null ? null : Full(target.Register);
+			var existing = documents.FirstOrDefault(d => Paths.Equals(d.File.Markdown, register));
+			if (register is null || !(news.TryGetValue(register, out var created) && created.Type.Name == "register" || existing?.Type.Name == "register"))
+			{
+				Error(target, "register", target.Register ?? "");
+				continue;
+			}
+			if (string.IsNullOrWhiteSpace(target.Title) || target.Title.Contains('\n'))
+				Error(target, "title");
+			var createdAt = target.Created is null ? DocSidecar.Instant(now) : Instant(target.Created);
+			var closedAt = target.Closed is null ? null : Instant(target.Closed);
+			if (createdAt is null || target.Closed is not null && closedAt is null)
+			{
+				Error(target, "created", createdAt is null ? target.Created : target.Closed);
+				continue;
+			}
+			var name = target.Name ?? DocEditor.ProposeSlug(target.Title ?? "");
+			if (entries.Any(e => Paths.Equals(e.Register, register) && e.Entry.Name == name) || existing?.Sidecar.Entries.Any(e => e.Name == name) == true)
+				Error(target, "entry-taken", name, target.Register);
+			var id = DocSidecar.NewId(DocSidecar.ParseInstant(createdAt));
+			if (target.Key is not null && !keys.TryAdd(target.Key, id))
+				Error(target, "key-taken", target.Key);
+			entries.Add((target, register, new DocEntry
+			{
+				Id = id,
+				Name = name,
+				Key = target.Key,
+				Title = target.Title?.Trim() ?? "",
+				Status = DocEditor.ProposeSlug(target.Status ?? DocEditor.OpenStatus),
+				Summary = target.Summary,
+				Tags = target.Tags.Distinct(StringComparer.Ordinal).ToList(),
+				CreatedAt = createdAt,
+				ClosedAt = closedAt,
+				Fields = target.Fields
+			}));
+		}
 		if (!change.Ok)
 			return change;
 
@@ -325,6 +422,8 @@ public static partial class DocAdoption
 		{
 			if (Alias().IsMatch(relation.To))
 			{
+				if (keys.TryGetValue(relation.To, out var entry))
+					return entry;
 				change.Error(InvalidManifest, new($"{InvalidManifest}.alias", relation.To), target.File, relation.Line);
 				return null;
 			}
@@ -338,6 +437,9 @@ public static partial class DocAdoption
 		}
 
 		// 3. what each target writes
+		IReadOnlyList<DocEntry> Entries(string register) => entries.Where(e => Paths.Equals(e.Register, register))
+			.Select(e => e.Entry with { Relations = e.Target.Relations.Select(r => (r.Kind, Id: Identity(e.Target, r))).Where(r => r.Id is not null).Select(r => new DocRelation(r.Kind, r.Id!)).ToList() })
+			.ToList();
 		var unlisted = new List<string>();
 		foreach (var (path, (target, type, createdAt, id)) in news)
 		{
@@ -360,6 +462,7 @@ public static partial class DocAdoption
 			var relations = target.Relations.Select(r => (r.Kind, Id: Identity(target, r))).Where(r => r.Id is not null).Select(r => new DocRelation(r.Kind, r.Id!)).ToList();
 			var sidecar = new DocSidecar
 			{
+				Entries = Entries(path),
 				Id = id,
 				Type = type.Name,
 				Profile = target.Profile,
@@ -378,6 +481,16 @@ public static partial class DocAdoption
 			change.Set(path[..^".md".Length] + DocSidecar.Extension, sidecar.ToJson());
 			if (catalog.Contains(source) && catalog.Config.Bootstrap.Contains(FxLayout.Relative(catalog.Folder, source)))
 				unlisted.Add(FxLayout.Relative(catalog.Folder, source));
+		}
+		// the registers of the catalog that get entries: clean, with them at the end, finalized
+		foreach (var register in entries.Select(e => e.Register).Distinct(Paths).Where(r => !news.ContainsKey(r)))
+		{
+			var document = documents.First(d => Paths.Equals(d.File.Markdown, register));
+			if (DocLinks.Resealed(document.File, change.Text(register)!) is null)
+				change.Error(InvalidManifest, new($"{InvalidManifest}.register-edited", document.File.Path), display(register));
+			else
+				change.Set(document.File.Sidecar!, (document.Sidecar with { Entries = [.. document.Sidecar.Entries, .. Entries(register)], UpdatedAt = DocSidecar.Instant(now) })
+					.Seal(DocIntegrity.Content(change.Text(register)!)).ToJson());
 		}
 		foreach (var target in targets.Where(t => t.Action == "skill-material"))
 		{

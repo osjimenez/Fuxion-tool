@@ -88,7 +88,15 @@ public static class DocLinks
 				continue;
 			var file = documents.GetValueOrDefault(markdown);
 			change.Set(markdown, after, document: file?.Sidecar is not null);
-			if (file?.Sidecar is not null && Resealed(file, after) is { } sidecar)
+			if (file?.Sidecar is null)
+				continue;
+			// a sidecar the change writes already (a register that gets entries): sealed again as the change leaves it
+			if (change.Touches(file.Sidecar))
+			{
+				using var json = DocSidecar.Parse(change.Text(file.Sidecar)!);
+				change.Set(file.Sidecar, DocSidecar.From(json.RootElement).Seal(DocIntegrity.Content(after)).ToJson());
+			}
+			else if (Resealed(file, after) is { } sidecar)
 				change.Set(file.Sidecar, sidecar);
 		}
 	}

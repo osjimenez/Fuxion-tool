@@ -1420,4 +1420,79 @@
   <data name="doc.edit.removed" xml:space="preserve">
     <value>quitado {0}</value>
   </data>
+  <data name="doc.entry" xml:space="preserve">
+    <value>Las entradas de un registro: añadirlas, cambiarlas, cerrarlas y listarlas. Viven en su sidecar; cada cambio finaliza el registro.</value>
+  </data>
+  <data name="doc.entry.register" xml:space="preserve">
+    <value>El registro: su ruta o su identidad.</value>
+  </data>
+  <data name="doc.entry.entry" xml:space="preserve">
+    <value>La entrada: su nombre, su clave o su identidad.</value>
+  </data>
+  <data name="doc.entry.title" xml:space="preserve">
+    <value>Su título.</value>
+  </data>
+  <data name="doc.entry.new-title" xml:space="preserve">
+    <value>Su título nuevo.</value>
+  </data>
+  <data name="doc.entry.name" xml:space="preserve">
+    <value>Su nombre; por defecto, a partir de su título.</value>
+  </data>
+  <data name="doc.entry.status" xml:space="preserve">
+    <value>Su estado, en minúsculas con guiones (una nueva, open por defecto).</value>
+  </data>
+  <data name="doc.entry.summary" xml:space="preserve">
+    <value>Su resumen, unas líneas.</value>
+  </data>
+  <data name="doc.entry.key" xml:space="preserve">
+    <value>Su clave, si el registro las usa (I-20).</value>
+  </data>
+  <data name="doc.entry.created" xml:space="preserve">
+    <value>Cuándo nació (2026-01-16, o un instante); por defecto, ahora.</value>
+  </data>
+  <data name="doc.entry.tag" xml:space="preserve">
+    <value>Una etiqueta (una por --tag).</value>
+  </data>
+  <data name="doc.entry.field" xml:space="preserve">
+    <value>Un campo de su registro: nombre=valor (un valor JSON, o texto).</value>
+  </data>
+  <data name="doc.entry.set-field" xml:space="preserve">
+    <value>Un campo: nombre=valor (un valor JSON, o texto); nombre= lo quita.</value>
+  </data>
+  <data name="doc.entry.relation" xml:space="preserve">
+    <value>Una relación: clase=destino (un documento, por su ruta o identidad; una entrada, por su clave o identidad).</value>
+  </data>
+  <data name="doc.entry.unrelate" xml:space="preserve">
+    <value>Una relación que pierde: clase=destino.</value>
+  </data>
+  <data name="doc.entry.add" xml:space="preserve">
+    <value>Añade una entrada al final de un registro.</value>
+  </data>
+  <data name="doc.entry.set" xml:space="preserve">
+    <value>Cambia una entrada de un registro: su título, estado, resumen, etiquetas, campos y relaciones.</value>
+  </data>
+  <data name="doc.entry.close" xml:space="preserve">
+    <value>Cierra una entrada de un registro, ahora.</value>
+  </data>
+  <data name="doc.entry.close-status" xml:space="preserve">
+    <value>El estado en que se cierra; por defecto, closed.</value>
+  </data>
+  <data name="doc.entry.list" xml:space="preserve">
+    <value>Lista las entradas de un registro.</value>
+  </data>
+  <data name="doc.entry.open" xml:space="preserve">
+    <value>Solo las abiertas.</value>
+  </data>
+  <data name="doc.entry.closed" xml:space="preserve">
+    <value>Solo las cerradas.</value>
+  </data>
+  <data name="doc.entry.none" xml:space="preserve">
+    <value>Ninguna entrada.</value>
+  </data>
+  <data name="doc.entry.column.entry" xml:space="preserve">
+    <value>Entrada</value>
+  </data>
+  <data name="doc.entry.pair" xml:space="preserve">
+    <value>'{0}' no es nombre=valor.</value>
+  </data>
 </root>

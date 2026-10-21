@@ -976,9 +976,6 @@
   <data name="docs.invalid-manifest.relation" xml:space="preserve">
     <value>Una relación es un mapa con su clase y su 'to'.</value>
   </data>
-  <data name="docs.invalid-manifest.register-entry" xml:space="preserve">
-    <value>Las entradas de un registro llegan con los registros (U4, paso 6).</value>
-  </data>
   <data name="docs.invalid-manifest.from" xml:space="preserve">
     <value>Un destino tiene una fuente en 'from' (un drop, una o más).</value>
   </data>
@@ -1016,12 +1013,57 @@
     <value>'{0}' no es una fecha (2026-01-16) ni un instante.</value>
   </data>
   <data name="docs.invalid-manifest.alias" xml:space="preserve">
-    <value>La relación con {0}, un alias, llega con los registros (U4, paso 6).</value>
+    <value>El alias {0} no es la clave de una entrada de los manifiestos ni del catálogo.</value>
   </data>
   <data name="docs.invalid-manifest.relation-target" xml:space="preserve">
     <value>La relación va a {0}, que no es un documento de los manifiestos ni del catálogo.</value>
   </data>
   <data name="docs.invalid-manifest.encoding" xml:space="preserve">
     <value>La fuente {0} no está en UTF-8: repair: encoding la lee como Latin-1.</value>
+  </data>
+  <data name="docs.not-a-register" xml:space="preserve">
+    <value>{0} es un {1}, no un registro.</value>
+  </data>
+  <data name="docs.unknown-entry" xml:space="preserve">
+    <value>'{0}' no es una entrada de {1}: su nombre, su clave o su identidad.</value>
+  </data>
+  <data name="docs.entry-taken" xml:space="preserve">
+    <value>La entrada {0} ya existe en {1}.</value>
+  </data>
+  <data name="docs.entry-taken.key" xml:space="preserve">
+    <value>La clave {0} ya está en {1}.</value>
+  </data>
+  <data name="docs.unknown-target" xml:space="preserve">
+    <value>'{0}' no es un documento del catálogo (su ruta, su identidad) ni una entrada de un registro (su clave, su identidad).</value>
+  </data>
+  <data name="docs.invalid-relation.kind" xml:space="preserve">
+    <value>'{0}' no es una clase de relación: {1}.</value>
+  </data>
+  <data name="docs.unchanged.closed" xml:space="preserve">
+    <value>La entrada {0} ya está cerrada ({1}).</value>
+  </data>
+  <data name="docs.unchanged.entry" xml:space="preserve">
+    <value>La entrada {0} no cambia.</value>
+  </data>
+  <data name="docs.invalid-name.entry" xml:space="preserve">
+    <value>La entrada {0} está dos veces en {1}.</value>
+  </data>
+  <data name="docs.invalid-metadata.entry-key" xml:space="preserve">
+    <value>La clave {0} está dos veces en {1}.</value>
+  </data>
+  <data name="docs.invalid-dates.entry" xml:space="preserve">
+    <value>La entrada {0} se cierra ({2}) antes de nacer ({1}).</value>
+  </data>
+  <data name="docs.invalid-manifest.register" xml:space="preserve">
+    <value>'{0}' no es un registro de los manifiestos ni del catálogo.</value>
+  </data>
+  <data name="docs.invalid-manifest.entry-taken" xml:space="preserve">
+    <value>La entrada {0} está dos veces en {1}.</value>
+  </data>
+  <data name="docs.invalid-manifest.key-taken" xml:space="preserve">
+    <value>La clave {0} ya está tomada.</value>
+  </data>
+  <data name="docs.invalid-manifest.register-edited" xml:space="preserve">
+    <value>El registro {0} tiene una edición sin finalizar: finalízalo antes.</value>
   </data>
 </root>

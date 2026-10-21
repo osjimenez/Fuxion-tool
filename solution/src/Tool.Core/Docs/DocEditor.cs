@@ -13,7 +13,7 @@ namespace Fuxion.Tool.Core.Docs;
 /// <c>status</c> and <c>relate</c>. Each works out a <see cref="DocChange"/>, checked with the validator of the module;
 /// the command writes it, or shows it (<c>--dry-run</c>).
 /// </summary>
-public static class DocEditor
+public static partial class DocEditor
 {
 	public const string ActorMissing = "docs.actor-missing";
 	public const string NameTaken = "docs.name-taken";

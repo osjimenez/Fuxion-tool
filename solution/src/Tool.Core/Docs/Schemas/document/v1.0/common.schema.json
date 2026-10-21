@@ -74,6 +74,44 @@
       "required": ["recipe", "scope"],
       "additionalProperties": false
     },
+    "entry": {
+      "type": "object",
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "name": { "$ref": "#/$defs/tag" },
+        "key": { "type": "string", "pattern": "^[A-Z][A-Z0-9]*-[0-9]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "\\S" },
+        "status": { "$ref": "#/$defs/tag" },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "tags": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/tag" },
+          "uniqueItems": true
+        },
+        "createdAt": { "$ref": "#/$defs/utcInstant" },
+        "closedAt": { "$ref": "#/$defs/utcInstant" },
+        "relations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/relation" },
+          "uniqueItems": true
+        },
+        "fields": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "$ref": "#/$defs/tag" },
+          "additionalProperties": {
+            "anyOf": [
+              { "type": ["string", "number", "boolean"] },
+              { "type": "array", "items": { "type": ["string", "number", "boolean"] } }
+            ]
+          }
+        }
+      },
+      "required": ["id", "name", "title", "status", "createdAt"],
+      "additionalProperties": false
+    },
     "integrity": {
       "type": "object",
       "properties": {

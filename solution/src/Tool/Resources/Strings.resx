@@ -1420,4 +1420,79 @@
   <data name="doc.edit.removed" xml:space="preserve">
     <value>removed {0}</value>
   </data>
+  <data name="doc.entry" xml:space="preserve">
+    <value>The entries of a register: added, changed, closed and listed. They live in its sidecar; each change finalizes the register.</value>
+  </data>
+  <data name="doc.entry.register" xml:space="preserve">
+    <value>The register: its path or its identity.</value>
+  </data>
+  <data name="doc.entry.entry" xml:space="preserve">
+    <value>The entry: its name, its key or its identity.</value>
+  </data>
+  <data name="doc.entry.title" xml:space="preserve">
+    <value>Its title.</value>
+  </data>
+  <data name="doc.entry.new-title" xml:space="preserve">
+    <value>Its new title.</value>
+  </data>
+  <data name="doc.entry.name" xml:space="preserve">
+    <value>Its name; by default, from its title.</value>
+  </data>
+  <data name="doc.entry.status" xml:space="preserve">
+    <value>Its status, in lower case with dashes (a new one, open by default).</value>
+  </data>
+  <data name="doc.entry.summary" xml:space="preserve">
+    <value>Its summary, a few lines.</value>
+  </data>
+  <data name="doc.entry.key" xml:space="preserve">
+    <value>Its key, if the register uses them (I-20).</value>
+  </data>
+  <data name="doc.entry.created" xml:space="preserve">
+    <value>When it was born (2026-01-16, or an instant); by default, now.</value>
+  </data>
+  <data name="doc.entry.tag" xml:space="preserve">
+    <value>A tag (one per --tag).</value>
+  </data>
+  <data name="doc.entry.field" xml:space="preserve">
+    <value>A field of its register: name=value (a JSON value, or text).</value>
+  </data>
+  <data name="doc.entry.set-field" xml:space="preserve">
+    <value>A field: name=value (a JSON value, or text); name= takes it out.</value>
+  </data>
+  <data name="doc.entry.relation" xml:space="preserve">
+    <value>A relation: kind=target (a document, by its path or identity; an entry, by its key or identity).</value>
+  </data>
+  <data name="doc.entry.unrelate" xml:space="preserve">
+    <value>A relation it loses: kind=target.</value>
+  </data>
+  <data name="doc.entry.add" xml:space="preserve">
+    <value>Adds an entry at the end of a register.</value>
+  </data>
+  <data name="doc.entry.set" xml:space="preserve">
+    <value>Changes an entry of a register: its title, status, summary, tags, fields and relations.</value>
+  </data>
+  <data name="doc.entry.close" xml:space="preserve">
+    <value>Closes an entry of a register, now.</value>
+  </data>
+  <data name="doc.entry.close-status" xml:space="preserve">
+    <value>The status it closes in; by default, closed.</value>
+  </data>
+  <data name="doc.entry.list" xml:space="preserve">
+    <value>Lists the entries of a register.</value>
+  </data>
+  <data name="doc.entry.open" xml:space="preserve">
+    <value>Only the open ones.</value>
+  </data>
+  <data name="doc.entry.closed" xml:space="preserve">
+    <value>Only the closed ones.</value>
+  </data>
+  <data name="doc.entry.none" xml:space="preserve">
+    <value>No entry.</value>
+  </data>
+  <data name="doc.entry.column.entry" xml:space="preserve">
+    <value>Entry</value>
+  </data>
+  <data name="doc.entry.pair" xml:space="preserve">
+    <value>'{0}' is not name=value.</value>
+  </data>
 </root>
