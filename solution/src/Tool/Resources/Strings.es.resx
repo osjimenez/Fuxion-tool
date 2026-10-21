@@ -28,8 +28,8 @@
   <data name="option.non-interactive" xml:space="preserve">
     <value>Sin preguntas ni progreso en vivo, sea cual sea la terminal (para scripts y el CI).</value>
   </data>
-  <data name="option.workspace" xml:space="preserve">
-    <value>Actuar sobre todo el workspace, desde cualquier sitio dentro de él.</value>
+  <data name="option.space" xml:space="preserve">
+    <value>Actuar sobre el space más cercano que monta otros, él incluido, desde cualquier sitio dentro de él.</value>
   </data>
   <data name="option.lang" xml:space="preserve">
     <value>Idioma de los mensajes: en o es (por defecto, FX_LANG o el del sistema).</value>
@@ -56,7 +56,7 @@
     <value>Sin red: no pregunta a los remotos.</value>
   </data>
   <data name="module" xml:space="preserve">
-    <value>Solo este módulo: workspace, dotnet o harness.</value>
+    <value>Solo este módulo: mounts, dotnet o harness.</value>
   </data>
   <data name="doctor.errors" xml:space="preserve">
     <value>{0} error(es)</value>
@@ -145,70 +145,73 @@
   <data name="step.failed" xml:space="preserve">
     <value>falló</value>
   </data>
-  <data name="repo" xml:space="preserve">
-    <value>Los repositorios del workspace.</value>
+  <data name="mount" xml:space="preserve">
+    <value>Los montajes del space: los repositorios y spaces que incorpora.</value>
   </data>
-  <data name="repo.list" xml:space="preserve">
-    <value>Los repositorios del manifiesto: punto de montaje, política y si están montados.</value>
+  <data name="mount.list" xml:space="preserve">
+    <value>Los montajes de mounts.yaml: dónde, su modo, si son obligatorios y si están aquí.</value>
   </data>
-  <data name="repo.status" xml:space="preserve">
-    <value>Los repositorios montados que piden atención: rama, commits por delante y por detrás, cambios.</value>
+  <data name="mount.status" xml:space="preserve">
+    <value>Los montajes que están aquí y piden atención: rama, commits por delante y por detrás, cambios.</value>
   </data>
-  <data name="repo.status.all" xml:space="preserve">
-    <value>También los repositorios limpios y al día.</value>
+  <data name="mount.status.all" xml:space="preserve">
+    <value>También los montajes limpios y al día.</value>
   </data>
-  <data name="repo.all-clean" xml:space="preserve">
-    <value>Los {0} repositorios están limpios.</value>
+  <data name="mount.all-clean" xml:space="preserve">
+    <value>Los {0} montajes están limpios.</value>
   </data>
-  <data name="repo.some-clean" xml:space="preserve">
-    <value>{0} de {1} repositorios están limpios (--all para verlos).</value>
+  <data name="mount.some-clean" xml:space="preserve">
+    <value>{0} de {1} montajes están limpios (--all para verlos).</value>
   </data>
-  <data name="repo.names" xml:space="preserve">
-    <value>Repositorios del manifiesto.</value>
+  <data name="mount.names" xml:space="preserve">
+    <value>Montajes de mounts.yaml.</value>
   </data>
-  <data name="repo.mount" xml:space="preserve">
-    <value>Montar repositorios: uno aparcado vuelve ahora; fx sync clona lo que falte.</value>
+  <data name="mount.unpark" xml:space="preserve">
+    <value>Desaparca montajes: uno aparcado vuelve ahora; fx sync clona lo que falte.</value>
   </data>
-  <data name="repo.unmount" xml:space="preserve">
-    <value>Desmontar repositorios: se aparcan en _fx/~$parking/, nunca se borran.</value>
+  <data name="mount.park" xml:space="preserve">
+    <value>Aparca montajes: sus clones van a _fx/~$parking/, nunca se borran.</value>
   </data>
-  <data name="repo.only" xml:space="preserve">
-    <value>Solo estos repositorios.</value>
+  <data name="mount.only" xml:space="preserve">
+    <value>Solo estos montajes (sin nombres, todos).</value>
   </data>
-  <data name="repo.pull" xml:space="preserve">
-    <value>Avanza (fast-forward) los repositorios montados que tienen el árbol de trabajo limpio.</value>
+  <data name="mount.pull" xml:space="preserve">
+    <value>Avanza (fast-forward) los montajes que están aquí y tienen el árbol de trabajo limpio.</value>
   </data>
-  <data name="repo.column.repository" xml:space="preserve">
-    <value>Repositorio</value>
-  </data>
-  <data name="repo.column.branch" xml:space="preserve">
-    <value>Rama</value>
-  </data>
-  <data name="repo.column.ahead" xml:space="preserve">
-    <value>Por delante</value>
-  </data>
-  <data name="repo.column.behind" xml:space="preserve">
-    <value>Por detrás</value>
-  </data>
-  <data name="repo.column.changes" xml:space="preserve">
-    <value>Cambios</value>
-  </data>
-  <data name="repo.column.path" xml:space="preserve">
-    <value>Ruta</value>
-  </data>
-  <data name="repo.column.mount" xml:space="preserve">
+  <data name="mount.column.mount" xml:space="preserve">
     <value>Montaje</value>
   </data>
-  <data name="repo.column.mounted" xml:space="preserve">
-    <value>Montado</value>
+  <data name="mount.column.branch" xml:space="preserve">
+    <value>Rama</value>
   </data>
-  <data name="repo.column.cloned" xml:space="preserve">
+  <data name="mount.column.ahead" xml:space="preserve">
+    <value>Por delante</value>
+  </data>
+  <data name="mount.column.behind" xml:space="preserve">
+    <value>Por detrás</value>
+  </data>
+  <data name="mount.column.changes" xml:space="preserve">
+    <value>Cambios</value>
+  </data>
+  <data name="mount.column.path" xml:space="preserve">
+    <value>Ruta</value>
+  </data>
+  <data name="mount.column.mode" xml:space="preserve">
+    <value>Modo</value>
+  </data>
+  <data name="mount.column.required" xml:space="preserve">
+    <value>Obligatorio</value>
+  </data>
+  <data name="mount.column.mounted" xml:space="preserve">
+    <value>Aquí</value>
+  </data>
+  <data name="mount.column.cloned" xml:space="preserve">
     <value>Clonado</value>
   </data>
-  <data name="repo.detached" xml:space="preserve">
+  <data name="mount.detached" xml:space="preserve">
     <value>(separado)</value>
   </data>
-  <data name="repo.not-cloned" xml:space="preserve">
+  <data name="mount.not-cloned" xml:space="preserve">
     <value>(sin clonar)</value>
   </data>
   <data name="yes" xml:space="preserve">
@@ -316,8 +319,8 @@
   <data name="help.group.version" xml:space="preserve">
     <value>Versiones</value>
   </data>
-  <data name="help.group.workspace" xml:space="preserve">
-    <value>Workspace</value>
+  <data name="help.group.space" xml:space="preserve">
+    <value>Space</value>
   </data>
   <data name="help.more" xml:space="preserve">
     <value>fx &lt;comando&gt; --help: el detalle de un comando.</value>
@@ -328,17 +331,17 @@
   <data name="help.usage" xml:space="preserve">
     <value>Uso:</value>
   </data>
-  <data name="repo.ask.mount" xml:space="preserve">
-    <value>Repositorios que montar</value>
+  <data name="mount.ask.unpark" xml:space="preserve">
+    <value>Montajes que desaparcar</value>
   </data>
-  <data name="repo.ask.unmount" xml:space="preserve">
-    <value>Repositorios que desmontar</value>
+  <data name="mount.ask.park" xml:space="preserve">
+    <value>Montajes que aparcar</value>
   </data>
-  <data name="repo.nothing-to-mount" xml:space="preserve">
-    <value>Todos los repositorios del manifiesto ya están montados.</value>
+  <data name="mount.nothing-to-unpark" xml:space="preserve">
+    <value>Nada de mounts.yaml está aparcado.</value>
   </data>
-  <data name="repo.nothing-to-unmount" xml:space="preserve">
-    <value>Ningún repositorio montado se puede desmontar: los obligatorios no se desmontan.</value>
+  <data name="mount.nothing-to-park" xml:space="preserve">
+    <value>Ningún montaje se puede aparcar: los obligatorios no se aparcan.</value>
   </data>
   <data name="usage.help" xml:space="preserve">
     <value>fx --help da la lista de comandos; fx &lt;comando&gt; --help explica uno.</value>
@@ -355,53 +358,56 @@
   <data name="version.tag.next-minor" xml:space="preserve">
     <value>{0}  (siguiente menor)</value>
   </data>
-  <data name="repo.add" xml:space="preserve">
-    <value>Añade un repositorio al manifiesto, montado donde digas; el nombre sale de la URL si no se da --name. No se clona nada.</value>
+  <data name="mount.add" xml:space="preserve">
+    <value>Añade un montaje a mounts.yaml, donde digas; el nombre sale de la URL si no se da --name. No se clona nada.</value>
   </data>
-  <data name="repo.add.url" xml:space="preserve">
+  <data name="mount.add.url" xml:space="preserve">
     <value>La URL de la que se clona.</value>
   </data>
-  <data name="repo.add.name" xml:space="preserve">
+  <data name="mount.add.name" xml:space="preserve">
     <value>Su nombre (por defecto, de la URL: Fuxion-docs.git → fuxion-docs).</value>
   </data>
-  <data name="repo.add.path" xml:space="preserve">
-    <value>Dónde se monta, relativo al workspace: la estructura es tuya.</value>
+  <data name="mount.add.path" xml:space="preserve">
+    <value>Dónde se monta, relativo al space: la estructura es tuya.</value>
   </data>
-  <data name="repo.add.mandatory" xml:space="preserve">
-    <value>Siempre montado (por defecto, solo cuando alguien lo monta).</value>
+  <data name="mount.add.required" xml:space="preserve">
+    <value>Obligatorio: siempre está, no se puede aparcar (por defecto, cada copia lo aparca o lo trae).</value>
   </data>
-  <data name="repo.add.depends-on" xml:space="preserve">
-    <value>Los repositorios que necesita.</value>
+  <data name="mount.add.mode" xml:space="preserve">
+    <value>Su modo: write (por defecto), read-only o propose-only.</value>
   </data>
-  <data name="repo.add.tag" xml:space="preserve">
+  <data name="mount.add.depends-on" xml:space="preserve">
+    <value>Los montajes que necesita.</value>
+  </data>
+  <data name="mount.add.tag" xml:space="preserve">
     <value>Sus etiquetas.</value>
   </data>
-  <data name="repo.remove" xml:space="preserve">
-    <value>Saca un repositorio del manifiesto; su clon se queda.</value>
+  <data name="mount.remove" xml:space="preserve">
+    <value>Saca un montaje de mounts.yaml; su clon se queda.</value>
   </data>
-  <data name="repo.tag" xml:space="preserve">
-    <value>Añade etiquetas a un repositorio, o las quita (--remove).</value>
+  <data name="mount.tag" xml:space="preserve">
+    <value>Añade etiquetas a un montaje, o las quita (--remove).</value>
   </data>
-  <data name="repo.tag.tags" xml:space="preserve">
+  <data name="mount.tag.tags" xml:space="preserve">
     <value>Las etiquetas.</value>
   </data>
-  <data name="repo.tag.remove" xml:space="preserve">
+  <data name="mount.tag.remove" xml:space="preserve">
     <value>Quita las etiquetas en vez de añadirlas.</value>
   </data>
-  <data name="repo.set" xml:space="preserve">
-    <value>Cambia una clave de un repositorio: url, path, mount, depends-on o inherits.</value>
+  <data name="mount.set" xml:space="preserve">
+    <value>Cambia una clave de un montaje: url, path, required, mode, depends-on o inherits.</value>
   </data>
-  <data name="repo.set.key" xml:space="preserve">
+  <data name="mount.set.key" xml:space="preserve">
     <value>La clave.</value>
   </data>
-  <data name="repo.set.values" xml:space="preserve">
-    <value>Su valor (varios, para dependsOn y solutionExclude).</value>
+  <data name="mount.set.values" xml:space="preserve">
+    <value>Su valor (varios, para depends-on).</value>
   </data>
-  <data name="repo.set.unset" xml:space="preserve">
+  <data name="mount.set.unset" xml:space="preserve">
     <value>Quita la clave.</value>
   </data>
-  <data name="repo.name" xml:space="preserve">
-    <value>El repositorio.</value>
+  <data name="mount.name" xml:space="preserve">
+    <value>El montaje.</value>
   </data>
   <data name="modules" xml:space="preserve">
     <value>Los módulos de fx en esta raíz: una carpeta de _fx cada uno.</value>
@@ -413,7 +419,7 @@
     <value>Apaga un módulo sin perder su configuración (enabled: false).</value>
   </data>
   <data name="module.name" xml:space="preserve">
-    <value>El módulo: workspace, dotnet o harness.</value>
+    <value>El módulo: mounts, dotnet o harness.</value>
   </data>
   <data name="module.tag" xml:space="preserve">
     <value>Las etiquetas de los repositorios a los que baja (su applies-to).</value>
@@ -436,25 +442,25 @@
   <data name="ask.text.keys" xml:space="preserve">
     <value>(Enter; Esc cancela)</value>
   </data>
-  <data name="repo.ask.url" xml:space="preserve">
-    <value>URL del repositorio</value>
+  <data name="mount.ask.url" xml:space="preserve">
+    <value>URL del montaje</value>
   </data>
-  <data name="repo.ask.remove" xml:space="preserve">
-    <value>Repositorio que quitar</value>
+  <data name="mount.ask.remove" xml:space="preserve">
+    <value>Montaje que quitar</value>
   </data>
-  <data name="repo.ask.repository" xml:space="preserve">
-    <value>Repositorio</value>
+  <data name="mount.ask.mount" xml:space="preserve">
+    <value>Montaje</value>
   </data>
-  <data name="repo.ask.tags-add" xml:space="preserve">
+  <data name="mount.ask.tags-add" xml:space="preserve">
     <value>Etiquetas que añadir, separadas por espacios</value>
   </data>
-  <data name="repo.ask.tags-remove" xml:space="preserve">
+  <data name="mount.ask.tags-remove" xml:space="preserve">
     <value>Etiquetas que quitar</value>
   </data>
-  <data name="repo.ask.key" xml:space="preserve">
+  <data name="mount.ask.key" xml:space="preserve">
     <value>Clave que cambiar</value>
   </data>
-  <data name="repo.ask.value" xml:space="preserve">
+  <data name="mount.ask.value" xml:space="preserve">
     <value>Valor de {0}</value>
   </data>
   <data name="module.ask.enable" xml:space="preserve">
@@ -463,11 +469,11 @@
   <data name="module.ask.disable" xml:space="preserve">
     <value>Módulo que desactivar</value>
   </data>
-  <data name="repo.ask.path" xml:space="preserve">
-    <value>Carpeta donde montarlo, relativa al workspace</value>
+  <data name="mount.ask.path" xml:space="preserve">
+    <value>Carpeta donde montarlo, relativa al space</value>
   </data>
-  <data name="repo.add.guest" xml:space="preserve">
-    <value>Invitado: el workspace lo usa, pero hereda de su propio padre (inherits: false).</value>
+  <data name="mount.add.guest" xml:space="preserve">
+    <value>Invitado: el space lo usa, pero hereda de su propio padre (inherits: false).</value>
   </data>
   <data name="path" xml:space="preserve">
     <value>Lo que versiona el git del space (paths: de _fx/space.yaml).</value>
@@ -499,13 +505,13 @@
   <data name="sync.parent-ref" xml:space="preserve">
     <value>Lee el padre de su remoto, en esta rama (para probar lo que da, sin versionar la elección).</value>
   </data>
-  <data name="repo.rename" xml:space="preserve">
-    <value>Renombra un repositorio: cambian sus referencias en este workspace y el nombre viejo queda en aliases.</value>
+  <data name="mount.rename" xml:space="preserve">
+    <value>Renombra un montaje: cambian sus referencias en este space y el nombre viejo queda en aliases.</value>
   </data>
-  <data name="repo.rename.new-name" xml:space="preserve">
+  <data name="mount.rename.new-name" xml:space="preserve">
     <value>El nombre nuevo.</value>
   </data>
-  <data name="repo.ask.new-name" xml:space="preserve">
+  <data name="mount.ask.new-name" xml:space="preserve">
     <value>Nombre nuevo</value>
   </data>
   <data name="action.parked" xml:space="preserve">
@@ -523,10 +529,10 @@
   <data name="action.unmounted" xml:space="preserve">
     <value>desmontado</value>
   </data>
-  <data name="repo.parked" xml:space="preserve">
+  <data name="mount.parked" xml:space="preserve">
     <value>(aparcado)</value>
   </data>
-  <data name="repo.superseded" xml:space="preserve">
+  <data name="mount.superseded" xml:space="preserve">
     <value>(sobra)</value>
   </data>
   <data name="worktree" xml:space="preserve">
@@ -553,8 +559,8 @@
   <data name="worktree.in" xml:space="preserve">
     <value>El workspace donde va: uno de los de encima, por nombre, nombre completo o ruta.</value>
   </data>
-  <data name="worktree.mandatory" xml:space="preserve">
-    <value>También los repositorios obligatorios de lo que se monta, hacia abajo.</value>
+  <data name="worktree.required" xml:space="preserve">
+    <value>También los montajes obligatorios de lo que se monta, hacia abajo.</value>
   </data>
   <data name="worktree.mount.targets" xml:space="preserve">
     <value>Repositorios (nombre, ruta o nombre completo) o rutas que se dejaron fuera.</value>
@@ -706,11 +712,14 @@
   <data name="ui.mount" xml:space="preserve">
     <value>Montaje</value>
   </data>
-  <data name="ui.mount.mandatory" xml:space="preserve">
+  <data name="ui.mount.required" xml:space="preserve">
     <value>obligatorio</value>
   </data>
-  <data name="ui.mount.manual" xml:space="preserve">
-    <value>manual</value>
+  <data name="ui.mount.parkable" xml:space="preserve">
+    <value>se puede aparcar</value>
+  </data>
+  <data name="ui.mode" xml:space="preserve">
+    <value>Modo</value>
   </data>
   <data name="ui.guest" xml:space="preserve">
     <value>Invitado: este workspace lo usa, pero hereda de su propio padre.</value>
@@ -937,8 +946,8 @@
   <data name="ui.action.mount" xml:space="preserve">
     <value>Montar</value>
   </data>
-  <data name="ui.action.mount.description" xml:space="preserve">
-    <value>Lo marca como montado; después fx sync lo clona.</value>
+  <data name="ui.action.unpark.clone.description" xml:space="preserve">
+    <value>Lo saca del aparcamiento; después fx sync lo clona.</value>
   </data>
   <data name="ui.action.unpark.description" xml:space="preserve">
     <value>Devuelve su clon del aparcamiento, con su trabajo.</value>
@@ -946,8 +955,14 @@
   <data name="ui.action.unmount" xml:space="preserve">
     <value>Desmontar</value>
   </data>
-  <data name="ui.action.unmount.description" xml:space="preserve">
-    <value>Aparca su clon en {0}, con su trabajo: montarlo lo devuelve.</value>
+  <data name="ui.action.park" xml:space="preserve">
+    <value>Aparcar</value>
+  </data>
+  <data name="ui.action.unpark" xml:space="preserve">
+    <value>Desaparcar</value>
+  </data>
+  <data name="ui.action.park.description" xml:space="preserve">
+    <value>Aparca su clon en {0}, con su trabajo: desaparcarlo lo devuelve.</value>
   </data>
   <data name="ui.action.worktree-mount.description" xml:space="preserve">
     <value>Un git worktree de su clon principal, en la rama {0}.</value>
@@ -1075,8 +1090,8 @@
   <data name="ui.field.depends-on" xml:space="preserve">
     <value>Depende de</value>
   </data>
-  <data name="ui.field.mandatory" xml:space="preserve">
-    <value>Obligatorio: siempre montado</value>
+  <data name="ui.field.required" xml:space="preserve">
+    <value>Obligatorio: no se puede aparcar</value>
   </data>
   <data name="ui.field.inherits" xml:space="preserve">
     <value>Hereda de este workspace (no es invitado)</value>

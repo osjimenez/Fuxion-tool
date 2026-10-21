@@ -27,7 +27,7 @@ public enum MountMode
 /// <param name="Path">Where, relative to the space, with '/': any folder, at any depth.</param>
 /// <param name="Required">Always mounted: it cannot be parked. Without it, each copy parks it or brings it back.</param>
 /// <param name="Inherits">False for a guest: the space uses it, but it inherits from its own parent.</param>
-/// <param name="Aliases">Its old names (<c>fx repo rename</c>), so that old references keep working.</param>
+/// <param name="Aliases">Its old names (<c>fx mount rename</c>), so that old references keep working.</param>
 public sealed record Mount(
 	string Name,
 	string Path,

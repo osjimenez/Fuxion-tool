@@ -95,18 +95,18 @@ public sealed class PreviewTest : SampleTree
 	public void Cli()
 	{
 		var acme = Acme();
-		var dry = Fx(acme.Path, "repo", "add", "https://example.invalid/extra.git", "extra", "--mandatory", "--dry-run");
+		var dry = Fx(acme.Path, "mount", "add", "https://example.invalid/extra.git", "extra", "--required", "--dry-run");
 		Assert.Equal(0, dry.ExitCode);
 		Assert.Contains("+  - name: extra", dry.Out);
 		Assert.Contains("What fx sync would do with it:", dry.Out);
 		Assert.Contains("extra", dry.Out.Split("What fx sync would do with it:")[1]);
 		Assert.Contains("would-clone", dry.Out);
 
-		var json = JsonDocument.Parse(Fx(acme.Path, "repo", "add", "https://example.invalid/extra.git", "extra", "--mandatory", "--dry-run", "--output", "json").Out).RootElement;
-		Assert.Contains(json.GetProperty("sync").EnumerateArray().SelectMany(m => m.GetProperty("repositories").EnumerateArray()),
+		var json = JsonDocument.Parse(Fx(acme.Path, "mount", "add", "https://example.invalid/extra.git", "extra", "--required", "--dry-run", "--output", "json").Out).RootElement;
+		Assert.Contains(json.GetProperty("sync").EnumerateArray().SelectMany(m => m.GetProperty("mounts").EnumerateArray()),
 			r => r.GetProperty("name").GetString() == "extra" && r.GetProperty("action").GetString() == "would-clone");
 		// written: no sync, it is the next step
-		var written = JsonDocument.Parse(Fx(acme.Path, "repo", "add", "https://example.invalid/extra.git", "extra", "--output", "json").Out).RootElement;
+		var written = JsonDocument.Parse(Fx(acme.Path, "mount", "add", "https://example.invalid/extra.git", "extra", "--output", "json").Out).RootElement;
 		Assert.True(written.GetProperty("written").GetBoolean());
 		Assert.False(written.TryGetProperty("sync", out _));
 	}

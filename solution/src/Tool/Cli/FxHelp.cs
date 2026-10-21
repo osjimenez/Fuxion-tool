@@ -19,7 +19,7 @@ static class FxHelp
 	// the commands by what they are about; one not listed goes last, under "other"
 	static readonly (string Group, string[] Commands)[] Groups =
 	[
-		("help.group.workspace", ["sync", "doctor", "repo", "worktree", "module", "path"]),
+		("help.group.space", ["sync", "doctor", "mount", "worktree", "module", "path"]),
 		("help.group.version", ["version", "self"])
 	];
 
@@ -55,7 +55,7 @@ static class FxHelp
 	static IEnumerable<(string Usage, string Description)> Rows(Command command, string parent)
 	{
 		var path = parent.Length == 0 ? command.Name : $"{parent} {command.Name}";
-		// a command that only groups others (fx repo) has no row of its own
+		// a command that only groups others (fx mount) has no row of its own
 		if (command.Action is not null || command.Subcommands.Count == 0)
 			yield return (string.Join(' ', command.Arguments.Where(a => !a.Hidden).Select(Usage).Prepend(path)), command.Description ?? "");
 		foreach (var sub in command.Subcommands.Where(c => !c.Hidden))

@@ -26,9 +26,9 @@ public static class FxSkill
 		var b = new StringBuilder();
 		b.Append("---\n");
 		b.Append($"name: {Name}\n");
-		b.Append("description: \"How to use fx, the tool of the Fuxion workspace (sync, doctor, repositories, worktrees, versions, the configuration in _fx/): ")
+		b.Append("description: \"How to use fx, the tool of the Fuxion workspace (sync, doctor, mounts, worktrees, versions, the configuration in _fx/): ")
 			.Append("every command with its options, its JSON output and whether it changes something. Use it before running fx; when a build fails because ")
-			.Append("something generated is outdated; to mount, unmount or pull repositories; to work on a branch apart (fx worktree); to change the rules ")
+			.Append("something generated is outdated; to park, unpark or pull mounts; to work on a branch apart (fx worktree); to change the rules ")
 			.Append("or skills of the coding agents (AGENTS.md, CLAUDE.md, .claude/skills, all generated from _fx/harness/); or to read or change ")
 			.Append("the configuration of the workspace.\"\n");
 		b.Append("---\n\n");

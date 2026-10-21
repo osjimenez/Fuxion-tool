@@ -277,20 +277,20 @@ public sealed class ManifestEditorTest
 		return (exitCode, stdout.ToString(), stderr.ToString());
 	}
 
-	[Fact(DisplayName = "fx repo add: the diff, written; --dry-run writes nothing; the next step")]
+	[Fact(DisplayName = "fx mount add: the diff, written; --dry-run writes nothing; the next step")]
 	public void Cli_Add()
 	{
 		using var ws = new Workspace();
-		var dry = Fx(ws.Root, "repo", "add", "https://example.org/lab.git", "lab", "--dry-run");
+		var dry = Fx(ws.Root, "mount", "add", "https://example.org/lab.git", "lab", "--dry-run");
 		Assert.Equal(0, dry.ExitCode);
 		Assert.Contains("_fx/mounts/mounts.yaml", dry.Out);
 		Assert.Contains("+  - name: lab", dry.Out);
 		Assert.Contains("Dry run", dry.Out);
 		Assert.DoesNotContain("lab", ws.Text);
 
-		var run = Fx(ws.Root, "repo", "add", "https://example.org/lab.git", "lab");
+		var run = Fx(ws.Root, "mount", "add", "https://example.org/lab.git", "lab");
 		Assert.Equal(0, run.ExitCode);
-		Assert.Contains("Next: fx repo mount lab", run.Out);
+		Assert.Contains("Next: fx mount unpark lab", run.Out);
 		Assert.Contains("  - name: lab", ws.Text);
 	}
 
@@ -301,30 +301,40 @@ public sealed class ManifestEditorTest
 		var run = Fx(ws.Root, "module", "disable", "dotnet", "--output", "json");
 		Assert.Equal(0, run.ExitCode);
 		var json = JsonDocument.Parse(run.Out).RootElement;
-		Assert.Equal(Fuxion.Tool.Cli.Repo.ManifestCommands.Schema, json.GetProperty("schema").GetString());
+		Assert.Equal(Fuxion.Tool.Cli.Mounts.ManifestCommands.Schema, json.GetProperty("schema").GetString());
 		Assert.True(json.GetProperty("changed").GetBoolean());
 		Assert.True(json.GetProperty("written").GetBoolean());
 		Assert.Contains("+enabled: false", json.GetProperty("files")[0].GetProperty("diff").GetString());
 		Assert.Contains("enabled: false", File.ReadAllText(Path.Combine(ws.Root, "_fx", "dotnet", "dotnet.yaml")));
 	}
 
+	[Fact(DisplayName = "fx path add: in any space, also one that mounts nothing")]
+	public void Cli_PathWithoutMounts()
+	{
+		using var notes = new TempGitRepository();
+		notes.WriteFile(Path.Combine("_fx", "space.yaml"), "schema: 1.0.0\nname: notes\n");
+		var run = Fx(notes.Path, "path", "add", "ideas/");
+		Assert.Equal(0, run.ExitCode);
+		Assert.Equal("schema: 1.0.0\nname: notes\npaths:\n  - path: ideas/\n", File.ReadAllText(Path.Combine(notes.Path, "_fx", "space.yaml")).Replace("\r\n", "\n"));
+	}
+
 	[Fact(DisplayName = "an invalid change: exit code 1, the error, and the manifest as it was")]
 	public void Cli_Invalid()
 	{
 		using var ws = new Workspace();
-		var run = Fx(ws.Root, "repo", "remove", "oss");
+		var run = Fx(ws.Root, "mount", "remove", "oss");
 		Assert.Equal(1, run.ExitCode);
 		Assert.Contains(ManifestEditor.RepositoryNeeded, run.Err);
 		Assert.Equal(Manifest.Replace("\r\n", "\n"), ws.Text);
 	}
 
 	[Theory(DisplayName = "what is missing, with no terminal to ask for it: exit code 2")]
-	[InlineData("repo add")]
-	[InlineData("repo add https://example.org/lab.git")]
-	[InlineData("repo remove")]
-	[InlineData("repo tag oss")]
-	[InlineData("repo set oss")]
-	[InlineData("repo set oss mode")]
+	[InlineData("mount add")]
+	[InlineData("mount add https://example.org/lab.git")]
+	[InlineData("mount remove")]
+	[InlineData("mount tag oss")]
+	[InlineData("mount set oss")]
+	[InlineData("mount set oss mode")]
 	[InlineData("module enable")]
 	[InlineData("path add")]
 	[InlineData("path remove")]

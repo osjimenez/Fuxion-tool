@@ -11,7 +11,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Schema;
 using System.Text.Json.Serialization.Metadata;
-using Fuxion.Tool.Cli.Repo;
+using Fuxion.Tool.Cli.Mounts;
 using Fuxion.Tool.Cli.Sync;
 using Fuxion.Tool.Cli.Version;
 using XenoAtom.Terminal.UI;
@@ -43,7 +43,7 @@ public static class DescribeCommand
 		var describe = new Command("describe", Texts.Get("describe")) { skill }.Describe(Schema);
 		describe.SetAction(result =>
 		{
-			var console = RepoCommand.Console(result, global, currentDirectory);
+			var console = MountCommand.Console(result, global, currentDirectory);
 			// the skill of fx (O5): its SKILL.md, as it is, on stdout
 			if (result.GetValue(skill))
 			{
@@ -58,7 +58,7 @@ public static class DescribeCommand
 		var schema = new Command("schema", Texts.Get("schema")) { id }.Describe(SchemasSchema);
 		schema.SetAction(result =>
 		{
-			var console = RepoCommand.Console(result, global, currentDirectory);
+			var console = MountCommand.Console(result, global, currentDirectory);
 			return SchemaOf(console, currentDirectory, result.GetValue(id));
 		});
 		yield return schema;
@@ -178,9 +178,9 @@ public static class DescribeCommand
 		=> id switch
 		{
 			SyncCommand.SyncSchema or SyncCommand.DoctorSchema => FxJsonContext.Default.SyncDocument,
-			"fx-repo-list/1" or "fx-repo-status/1" => FxJsonContext.Default.RepositoriesDocument,
-			"fx-repo-mount/1" => FxJsonContext.Default.MountDocument,
-			"fx-repo-pull/1" => FxJsonContext.Default.PullDocument,
+			MountCommand.ListSchema or MountCommand.StatusSchema => FxJsonContext.Default.MountsDocument,
+			MountCommand.ParkSchema => FxJsonContext.Default.ParkDocument,
+			MountCommand.PullSchema => FxJsonContext.Default.PullDocument,
 			ManifestCommands.Schema => FxJsonContext.Default.ManifestEditDocument,
 			VersionCommand.Schema => FxJsonContext.Default.VersionDocument,
 			VersionTagCommand.Schema => FxJsonContext.Default.VersionTagDocument,

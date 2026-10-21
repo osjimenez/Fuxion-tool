@@ -76,11 +76,11 @@ public sealed class UiActionTest : UiTree
 		using var h = Open(acme.Path);
 
 		// the actions of a repository: sync, pull and, as it is not mandatory, unmount
-		Assert.Equal(["fx sync --root repo-w1/repo-c2", "fx repo pull --repo repo-c2 --root repo-w1", "fx repo unmount repo-c2 --root repo-w1"],
+		Assert.Equal(["fx sync --root repo-w1/repo-c2", "fx mount pull repo-c2 --root repo-w1", "fx mount park repo-c2 --root repo-w1"],
 			h.OnUi(() => h.Ui.Actions(h.Node(acme.Path, "repo-w1/repo-c2")).Where(a => a.Open is null).Select(a => a.Command).ToArray()));
 		// Esc: nothing
 		var unmount = Choose(h, acme.Path, "repo-w1/repo-c2", 2);
-		Assert.Equal("fx repo unmount repo-c2 --root repo-w1", unmount.Command);
+		Assert.Equal("fx mount park repo-c2 --root repo-w1", unmount.Command);
 		Assert.Contains(unmount.Command, h.Screen());
 		h.Key(TerminalKey.Escape);
 		h.Focused(null);
@@ -97,7 +97,7 @@ public sealed class UiActionTest : UiTree
 
 		// Enter on it: mounting it brings it back
 		Assert.True(h.OnUi(() => h.Ui.Select(h.Node(acme.Path, "repo-w1/repo-c2"))));
-		h.Shows("fx repo mount repo-c2 --root repo-w1");
+		h.Shows("fx mount unpark repo-c2 --root repo-w1");
 		h.Key(TerminalKey.Enter);
 		h.AnyDialog();
 		h.Key(TerminalKey.Enter);
@@ -109,7 +109,7 @@ public sealed class UiActionTest : UiTree
 		Choose(h, acme.Path, "repo-w1/repo-c1", 1);
 		h.Key(TerminalKey.Enter);
 		h.Until(() => h.Ui.Log.Count == 3 && !h.Ui.Busy, "pull");
-		Assert.Equal("fx repo pull --repo repo-c1 --root repo-w1", h.OnUi(() => h.Ui.Log[0].Action.Command));
+		Assert.Equal("fx mount pull repo-c1 --root repo-w1", h.OnUi(() => h.Ui.Log[0].Action.Command));
 	}
 
 	[Fact(DisplayName = "a form adds its edits to the pending changes, each with its command; F10 shows them with their diff; Enter writes them, then offers to sync")]
@@ -120,20 +120,20 @@ public sealed class UiActionTest : UiTree
 		var before = File.ReadAllText(manifest);
 		using var h = Open(acme.Path);
 		// F9: its actions, the edits after the ones that act
-		Assert.Equal(["fx sync --root repo-w1/repo-c2", "fx repo pull --repo repo-c2 --root repo-w1", "fx repo set|tag|rename repo-c2 --root repo-w1", "fx repo remove repo-c2 --root repo-w1"],
+		Assert.Equal(["fx sync --root repo-w1/repo-c2", "fx mount pull repo-c2 --root repo-w1", "fx mount set|tag|rename repo-c2 --root repo-w1", "fx mount remove repo-c2 --root repo-w1"],
 			h.OnUi(() => h.Ui.Actions(h.Node(acme.Path, "repo-w1/repo-c2")).Select(a => a.Command).ToArray()));
 		Choose(h, acme.Path, "repo-w1/repo-c2", 2);
 		Assert.Equal("dotnet, mobile", h.OnUi(() => h.Ui.Form!["tags"].Value));
 		h.OnUi(() =>
 		{
 			h.Ui.Form!["tags"].Text.Value = "dotnet, mobile, app";
-			h.Ui.Form!["mandatory"].Check.Value = false;
+			h.Ui.Form!["required"].Check.Value = false;
 			return 0;
 		});
 		// Ctrl+S, as a terminal sends it
 		h.Ctrl(TerminalChar.CtrlS);
 		h.Until(() => h.Ui.Form is null, "the form closes with its edits");
-		Assert.Equal(["fx repo tag repo-c2 app --root repo-w1", "fx repo set repo-c2 required --unset --root repo-w1"],
+		Assert.Equal(["fx mount tag repo-c2 app --root repo-w1", "fx mount set repo-c2 required --unset --root repo-w1"],
 			h.OnUi(() => h.Ui.Pending.Edits.Select(e => e.Command).ToArray()));
 		Assert.Equal(before, File.ReadAllText(manifest));
 		h.Shows("[F10]");
@@ -141,13 +141,13 @@ public sealed class UiActionTest : UiTree
 		// F10: the edits and the diff; Enter writes them, and the sync of the tree is offered
 		h.Key(TerminalKey.F10);
 		h.Shows("-    required: true");
-		Assert.Contains("fx repo tag repo-c2 app --root repo-w1", h.Screen());
+		Assert.Contains("fx mount tag repo-c2 app --root repo-w1", h.Screen());
 		h.Key(TerminalKey.Enter);
 		h.Until(() => !h.Ui.Pending.Any, "the edits, written");
 		var after = File.ReadAllText(manifest).Replace("\r\n", "\n");
 		Assert.Contains("tags: [dotnet, mobile, app]", after);
 		Assert.Contains("    path: repo-c2\n    tags:", after);
-		Assert.Equal(["fx repo set repo-c2 required --unset --root repo-w1", "fx repo tag repo-c2 app --root repo-w1"],
+		Assert.Equal(["fx mount set repo-c2 required --unset --root repo-w1", "fx mount tag repo-c2 app --root repo-w1"],
 			h.OnUi(() => h.Ui.Log.Select(l => l.Action.Command).ToArray()));
 		Assert.Contains("fx sync", h.Focused(Texts.Get("ui.action.sync")));
 		h.Key(TerminalKey.Escape);
@@ -179,7 +179,7 @@ public sealed class UiActionTest : UiTree
 		h.OnUi(() => h.Ui.Form!["url"].Text.Value = "https://example.invalid/tool.git");
 		h.Ctrl(TerminalChar.CtrlS);
 		h.Until(() => h.Ui.Form is null, "the form closes with its edit");
-		Assert.Equal("fx repo add https://example.invalid/tool.git extras/tool", h.OnUi(() => h.Ui.Pending.Edits[^1].Command));
+		Assert.Equal("fx mount add https://example.invalid/tool.git extras/tool", h.OnUi(() => h.Ui.Pending.Edits[^1].Command));
 
 		// Ctrl+Q with changes not written: it asks, and Esc goes back
 		h.Ctrl(TerminalChar.CtrlQ);
@@ -237,7 +237,7 @@ public sealed class UiActionTest : UiTree
 		h.OnUi(() => h.Ui.Form!["tags"].Text.Value = "dotnet, app, mobile");
 		h.Key(TerminalKey.F4);
 		h.Until(() => h.Ui.Form is null && h.Ui.Editor is not null, "the YAML, from the form");
-		Assert.Equal("fx repo tag repo-c1 mobile --root repo-w1", h.OnUi(() => h.Ui.Pending.Edits.Single().Command));
+		Assert.Equal("fx mount tag repo-c1 mobile --root repo-w1", h.OnUi(() => h.Ui.Pending.Edits.Single().Command));
 		Assert.Contains("tags: [dotnet, app, mobile]", h.OnUi(() => h.Ui.Editor!.Text));
 		h.Key(TerminalKey.Escape);
 		h.Until(() => h.Ui.Editor is null, "Esc closes the YAML");

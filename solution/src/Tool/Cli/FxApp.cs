@@ -3,7 +3,7 @@ using System.CommandLine.Help;
 using System.CommandLine.Invocation;
 using System.IO;
 using System.Linq;
-using Fuxion.Tool.Cli.Repo;
+using Fuxion.Tool.Cli.Mounts;
 using Fuxion.Tool.Cli.Sync;
 using Fuxion.Tool.Cli.Version;
 
@@ -19,7 +19,7 @@ public static class FxApp
 		{
 			SyncCommand.CreateSync(global, currentDirectory),
 			SyncCommand.CreateDoctor(global, currentDirectory),
-			RepoCommand.Create(global, currentDirectory),
+			MountCommand.Create(global, currentDirectory),
 			ManifestCommands.CreateModule(global, currentDirectory),
 			ManifestCommands.CreatePath(global, currentDirectory),
 			Worktree.WorktreeCommand.Create(global, currentDirectory),

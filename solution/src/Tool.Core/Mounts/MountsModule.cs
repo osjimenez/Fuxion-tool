@@ -26,7 +26,7 @@ public sealed record RepositoryState(Mount Repository, string FullPath, bool Mou
 /// <c>fx sync</c> it clones the mounted repositories that are missing (or brings them back from the parking) and
 /// fetches the others, parks what it does not use, keeps the local state and generates the <c>.gitignore</c>;
 /// <c>fx doctor</c> checks the same without touching anything, plus the state of each repository and what is on disk
-/// that nobody declared. <c>fx repo</c> lists, mounts, unmounts and pulls them. It never commits, never pushes, never
+/// that nobody declared. <c>fx mount</c> lists, parks, unparks and pulls them. It never commits, never pushes, never
 /// pulls implicitly, never deletes: unmounting is parking, a move. What it does on each repository goes to the
 /// progress channel as a step (<c>clone</c>, <c>fetch</c>, <c>status</c>, <c>remote</c>, <c>pull</c>).
 /// </summary>
@@ -112,7 +112,7 @@ public static class MountsModule
 	public static IReadOnlyList<Mount> Apply(MountsManifest manifest, SyncContext context, FxDiagnostics diagnostics, List<RepositoryAction> actions)
 	{
 		var root = manifest.Root;
-		// inside a worktree nothing is mandatory: mounted is what is there (fx worktree mounts it), and sync neither
+		// inside a worktree nothing is required: mounted is what is there (fx worktree mounts it), and sync neither
 		// clones, nor parks, nor fetches, nor keeps a state (plan P, decisions 27 and 28)
 		if (WorktreeCard.FindRoot(root) is not null)
 			return manifest.Mounts.Where(r => FxLayout.IsGitRoot(manifest.FullPath(r))).ToList();
@@ -468,7 +468,7 @@ public static class MountsModule
 		return u.ToLowerInvariant();
 	}
 
-	// fx repo
+	// fx mount
 
 	/// <summary>
 	/// Moves a clone between its place and the parking of its workspace (plan P, decision 20): a rename on the same
@@ -528,66 +528,66 @@ public static class MountsModule
 	}
 
 	/// <summary>
-	/// <c>fx repo mount</c>/<c>unmount</c> (plan P, decision 20): the intent in the local state, and the clone moved now.
-	/// Unmounting parks it; mounting brings it back from the parking, unless a higher copy supersedes it (then it stays
-	/// there). It never clones (<c>fx sync</c> does) and never deletes. With an unknown name, or a mandatory repository
-	/// to unmount, nothing changes; a clone that cannot move keeps its state.
+	/// <c>fx mount park</c>/<c>unpark</c> (plan P, decision 20; plan spaces, decision 18): the intent in the local state,
+	/// and the clone moved now. Parking moves it to the parking; unparking brings it back, unless a higher copy
+	/// supersedes it (then it stays there). It never clones (<c>fx sync</c> does) and never deletes. With an unknown
+	/// name, or a required mount to park, nothing changes; a clone that cannot move keeps its state.
 	/// </summary>
-	public static FxModuleResult SetMount(MountsManifest manifest, IEnumerable<string> names, bool mounted)
+	public static FxModuleResult Park(MountsManifest manifest, IEnumerable<string> names, bool parked)
 	{
 		var actions = new List<RepositoryAction>();
 		var diagnostics = new List<FxDiagnostic>();
-		var repositories = new List<Mount>();
+		var mounts = new List<Mount>();
 		foreach (var name in names)
 		{
-			var repo = manifest.Mounts.FirstOrDefault(r => string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase));
-			if (repo is null)
+			var mount = manifest.Mounts.FirstOrDefault(m => string.Equals(m.Name, name, StringComparison.OrdinalIgnoreCase));
+			if (mount is null)
 				diagnostics.Add(FxDiagnostic.Error(UnknownRepository, new(UnknownRepository, name), repository: name));
-			else if (!mounted && repo.Required)
-				diagnostics.Add(FxDiagnostic.Error(UnknownRepository, new($"{UnknownRepository}.required", repo.Name), repository: repo.Name));
+			else if (parked && mount.Required)
+				diagnostics.Add(FxDiagnostic.Error(UnknownRepository, new($"{UnknownRepository}.required", mount.Name), repository: mount.Name));
 			else
-				repositories.Add(repo);
+				mounts.Add(mount);
 		}
 		if (diagnostics.Count > 0)
 			return new(Name, manifest.Root, null, [], actions, diagnostics);
 
 		var root = manifest.Root;
 		var state = MountsState.Load(root);
-		var copies = mounted ? MountCopies.Survey(root) : MountCopies.None;
-		foreach (var repo in repositories)
+		var copies = parked ? MountCopies.None : MountCopies.Survey(root);
+		foreach (var mount in mounts)
 		{
-			var full = manifest.FullPath(repo);
-			var parking = ParkingPath(manifest, repo);
-			if (mounted)
+			var full = manifest.FullPath(mount);
+			var parking = ParkingPath(manifest, mount);
+			if (!parked)
 			{
 				if (FxLayout.IsGitRoot(full))
-					actions.Add(new(repo.Name, "mounted"));
+					actions.Add(new(mount.Name, "unparked"));
 				else if (copies.SupersededBy(full) is { } higher)
-					actions.Add(new(repo.Name, "superseded", new("mounts.action.superseded", higher.FullName)));
+					actions.Add(new(mount.Name, "superseded", new("mounts.action.superseded", higher.FullName)));
 				else if (FxLayout.IsGitRoot(parking))
 				{
-					if (!Move(repo.Name, parking, full, root, diagnostics.Add))
+					if (!Move(mount.Name, parking, full, root, diagnostics.Add))
 						continue;
-					actions.Add(new(repo.Name, "unparked"));
+					actions.Add(new(mount.Name, "unparked"));
 				}
 				else
-					actions.Add(new(repo.Name, "mounted", new("mounts.action.to-clone")));
+					actions.Add(new(mount.Name, "unparked", new("mounts.action.to-clone")));
 			}
 			else if (FxLayout.IsGitRoot(full))
 			{
-				if (!Move(repo.Name, full, parking, root, diagnostics.Add))
+				if (!Move(mount.Name, full, parking, root, diagnostics.Add))
 					continue;
-				actions.Add(new(repo.Name, "parked", new("mounts.action.parked-in", FxLayout.Relative(root, parking).TrimEnd('/'))));
+				actions.Add(new(mount.Name, "parked", new("mounts.action.parked-in", FxLayout.Relative(root, parking).TrimEnd('/'))));
 			}
 			else
-				actions.Add(new(repo.Name, "unmounted"));
-			state = state.With(repo.Name, mounted);
+				actions.Add(new(mount.Name, "parked"));
+			state = state.With(mount.Name, !parked);
 		}
 		Save(FxLayout.Full(root, MountsState.RelativePath), state.ToYaml());
 		return new(Name, root, null, [], actions, diagnostics);
 	}
 
-	/// <summary><c>fx repo pull</c>: fast-forward only, and only with a clean working tree.</summary>
+	/// <summary><c>fx mount pull</c>: fast-forward only, and only with a clean working tree.</summary>
 	public static FxModuleResult Pull(MountsManifest manifest, IReadOnlyCollection<string> only, IFxProgress? progress = null, CancellationToken cancellationToken = default)
 	{
 		var actions = new List<RepositoryAction>();

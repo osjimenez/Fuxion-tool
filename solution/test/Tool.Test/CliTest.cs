@@ -222,7 +222,7 @@ public sealed class CliTest
 		Assert.Equal(0, alone.ExitCode);
 		Assert.Equal("", alone.Err);
 		Assert.Contains("Usage: fx <command> [options]", alone.Out);
-		Assert.Contains("  repo mount [<names>...]", alone.Out);
+		Assert.Contains("  mount unpark [<names>...]", alone.Out);
 		Assert.Contains("  version tag [<X.Y>]", alone.Out);
 		Assert.Contains("  -v, --verbose", alone.Out);
 		Assert.Contains("  --output <format>", alone.Out);
@@ -238,7 +238,7 @@ public sealed class CliTest
 		Assert.Contains("--dry-run", Fx(TempGitRepository.TempRoot, "sync", "--help").Out);
 	}
 
-	/// <summary>Every command that does something, with its path (<c>repo mount</c>).</summary>
+	/// <summary>Every command that does something, with its path (<c>mount unpark</c>).</summary>
 	static IEnumerable<string> Commands(Command command, string parent)
 	{
 		foreach (var sub in command.Subcommands)

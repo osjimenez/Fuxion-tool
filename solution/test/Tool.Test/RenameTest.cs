@@ -13,10 +13,10 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary>fx repo rename (plan P, P4), on the sample tree: the name, its references and the old one in aliases.</summary>
+/// <summary>fx mount rename (plan P, P4), on the sample tree: the name, its references and the old one in aliases.</summary>
 public sealed class RenameTest : SampleTree
 {
-	[Fact(DisplayName = "fx repo rename: the name, its references in the workspace and the old name in aliases; references by it still work, with a warning")]
+	[Fact(DisplayName = "fx mount rename: the name, its references in the workspace and the old name in aliases; references by it still work, with a warning")]
 	public void Rename()
 	{
 		var acme = Acme();
@@ -49,12 +49,12 @@ public sealed class RenameTest : SampleTree
 		Assert.Contains(ManifestEditor.RenameRepository(w1, "app", "repo-c2").Single().Diagnostics, d => d.Code == ManifestEditor.RepositoryExists);
 	}
 
-	[Fact(DisplayName = "fx repo rename --output json: every file it changes, with its diff")]
+	[Fact(DisplayName = "fx mount rename --output json: every file it changes, with its diff")]
 	public void Cli_Rename()
 	{
 		var acme = Acme();
 		var stdout = new StringWriter();
-		Assert.Equal(0, InProcess.Run(["repo", "rename", "repo-c1", "app", "--dry-run", "--output", "json"], stdout, new StringWriter(), Path.Combine(acme.Path, "repo-w1")));
+		Assert.Equal(0, InProcess.Run(["mount", "rename", "repo-c1", "app", "--dry-run", "--output", "json"], stdout, new StringWriter(), Path.Combine(acme.Path, "repo-w1")));
 		var json = JsonDocument.Parse(stdout.ToString()).RootElement;
 		Assert.True(json.GetProperty("changed").GetBoolean());
 		Assert.False(json.GetProperty("written").GetBoolean());

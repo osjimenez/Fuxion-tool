@@ -104,7 +104,7 @@ public sealed class ExploreTest : SampleTree
 		Directory.CreateDirectory(Path.Combine(acme.Path, "stray", ".git"));
 		// shared, manual and unmounted: parked; then repo-w2's guest is the only copy, mounted and not cloned
 		Append(Path.Combine(acme.Path, "_fx", "mounts", "mounts.yaml"), "    path: libs/shared\n    required: true\n", "    path: libs/shared\n");
-		Assert.Empty(MountsModule.SetMount(MountsManifest.Load(acme.Path), ["shared"], mounted: false).Diagnostics);
+		Assert.Empty(MountsModule.Park(MountsManifest.Load(acme.Path), ["shared"], parked: true).Diagnostics);
 
 		var tree = FxTree.Build(acme.Path)!;
 		Assert.Equal(FxTreeKind.Unknown, At(tree, "notes").Kind);

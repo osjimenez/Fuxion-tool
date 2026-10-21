@@ -20,7 +20,7 @@ public sealed record UiOutcome(IReadOnlyList<string> Lines, IReadOnlyList<FxDiag
 
 	static string Esc(string? text) => FxConsole.Escape(text);
 
-	/// <summary>Of <c>fx sync</c> or <c>fx repo …</c>: the actions on the repositories, the files that change (or would), and the diagnostics.</summary>
+	/// <summary>Of <c>fx sync</c> or <c>fx mount …</c>: the actions on the mounts, the files that change (or would), and the diagnostics.</summary>
 	public static UiOutcome From(IEnumerable<FxModuleResult> results)
 	{
 		var lines = new List<string>();
@@ -43,7 +43,7 @@ public sealed record UiOutcome(IReadOnlyList<string> Lines, IReadOnlyList<FxDiag
 	}
 
 	static string Line(RepositoryAction a)
-		=> $"[{(a.Action.EndsWith("failed", StringComparison.Ordinal) || a.Action == "missing" ? "error" : a.Action is "superseded" or "unmounted" or "skipped" ? "muted" : "success")}]"
+		=> $"[{(a.Action.EndsWith("failed", StringComparison.Ordinal) || a.Action == "missing" ? "error" : a.Action is "superseded" or "skipped" ? "muted" : "success")}]"
 		   + $"{Esc(Texts.Get($"action.{a.Action}"))}[/] {Esc(a.Repository)}{(a.Detail is null ? "" : $" [muted]({Esc(a.Detail.ToString())})[/]")}";
 }
 
@@ -64,8 +64,8 @@ public sealed record UiAction(string Label, string Command, string Description, 
 	public static string RootOption(string start, string path) => FxLayout.Relative(start, path) is var relative && relative == "." ? "" : $" --root {relative}";
 
 	/// <summary>
-	/// The actions of <paramref name="node"/>, the main one first: on what is not on disk, mounting it; on a root,
-	/// syncing it, pulling and unmounting; anywhere else, syncing the root it is in (14.11). In a worktree (its
+	/// The actions of <paramref name="node"/>, the main one first: on what is not on disk, unparking it; on a root,
+	/// syncing it, pulling and parking; anywhere else, syncing the root it is in (14.11). In a worktree (its
 	/// <paramref name="card"/>), mounting and unmounting are the worktree's. The commands, from <paramref name="start"/>.
 	/// </summary>
 	public static IReadOnlyList<UiAction> For(FxTreeNode node, string start, WorktreeCard? card)
@@ -80,7 +80,7 @@ public sealed record UiAction(string Label, string Command, string Description, 
 			if (card is not null)
 				actions.Add(WorktreeMount(node, card));
 			else if (node.Kind == FxTreeKind.Parked || !node.Mounted)
-				actions.Add(Mount(node, workspace, mounted: true, Root(workspace.Path)));
+				actions.Add(Park(node, workspace, parked: false, Root(workspace.Path)));
 			// mounted and not cloned: sync clones it
 			actions.Add(Sync(workspace, Root(workspace.Path)));
 			return actions;
@@ -95,12 +95,12 @@ public sealed record UiAction(string Label, string Command, string Description, 
 			actions.Add(Pull(root, null, Root(root.Path)));
 		else if (workspace is not null && root.Declaration is not null)
 			actions.Add(Pull(workspace, root, Root(workspace.Path)));
-		// unmounting: what its workspace declares, if it is not mandatory (in a worktree, nothing is)
+		// parking: what its space mounts, if it is not required (in a worktree, nothing is)
 		if (root == node && workspace is not null && root.Declaration is { } declaration && root.SupersededBy is null)
 			if (card is not null)
 				actions.Add(WorktreeUnmount(root, card));
 			else if (!declaration.Required)
-				actions.Add(Mount(root, workspace, mounted: false, Root(workspace.Path)));
+				actions.Add(Park(root, workspace, parked: true, Root(workspace.Path)));
 		return actions;
 	}
 
@@ -120,19 +120,19 @@ public sealed record UiAction(string Label, string Command, string Description, 
 	static UiAction Pull(FxTreeNode workspace, FxTreeNode? repository, string option)
 	{
 		var name = repository?.Declaration?.Name;
-		return new(Texts.Get("ui.action.pull"), $"fx repo pull{(name is null ? "" : $" --repo {name}")}{option}", Texts.Get("ui.action.pull.description"),
+		return new(Texts.Get("ui.action.pull"), $"fx mount pull{(name is null ? "" : $" {name}")}{option}", Texts.Get("ui.action.pull.description"),
 			(progress, token) => UiOutcome.From([MountsModule.Pull(MountsManifest.Load(workspace.Path), name is null ? [] : [name], progress, token)]));
 	}
 
-	static UiAction Mount(FxTreeNode node, FxTreeNode workspace, bool mounted, string option)
+	static UiAction Park(FxTreeNode node, FxTreeNode workspace, bool parked, string option)
 	{
 		var name = node.Declaration!.Name;
-		var verb = mounted ? "mount" : "unmount";
-		var description = mounted
-			? Texts.Get(node.Kind == FxTreeKind.Parked ? "ui.action.unpark.description" : "ui.action.mount.description")
-			: Texts.Get("ui.action.unmount.description", $"{FxLayout.Parking}/{FxLayout.Relative(workspace.Path, node.Path)}");
-		return new(Texts.Get($"ui.action.{verb}"), $"fx repo {verb} {name}{option}", description,
-			(_, _) => UiOutcome.From([MountsModule.SetMount(MountsManifest.Load(workspace.Path), [name], mounted)]));
+		var verb = parked ? "park" : "unpark";
+		var description = parked
+			? Texts.Get("ui.action.park.description", $"{FxLayout.Parking}/{FxLayout.Relative(workspace.Path, node.Path)}")
+			: Texts.Get(node.Kind == FxTreeKind.Parked ? "ui.action.unpark.description" : "ui.action.unpark.clone.description");
+		return new(Texts.Get($"ui.action.{verb}"), $"fx mount {verb} {name}{option}", description,
+			(_, _) => UiOutcome.From([MountsModule.Park(MountsManifest.Load(workspace.Path), [name], parked)]));
 	}
 
 	static UiAction WorktreeMount(FxTreeNode node, WorktreeCard card)

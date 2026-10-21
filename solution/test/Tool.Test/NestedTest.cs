@@ -119,7 +119,7 @@ public sealed class NestedTest : SampleTree
 		// acme stops mounting its copy: repo-w2's is the highest now, and comes back, still a guest
 		var manifest = Path.Combine(acme.Path, "_fx", "mounts", "mounts.yaml");
 		File.WriteAllText(manifest, Read(acme.Path, "_fx/mounts/mounts.yaml").Replace("    path: libs/shared\n    required: true\n", "    path: libs/shared\n"));
-		Assert.Empty(MountsModule.SetMount(MountsManifest.Load(acme.Path), ["shared"], mounted: false).Diagnostics);
+		Assert.Empty(MountsModule.Park(MountsManifest.Load(acme.Path), ["shared"], parked: true).Diagnostics);
 		var back = Sync(acme.Path);
 		Assert.Empty(Errors(back));
 		Assert.Contains(back.SelectMany(r => r.Actions), a => a is { Repository: "shared", Action: "unparked" });

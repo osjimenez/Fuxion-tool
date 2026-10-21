@@ -68,9 +68,9 @@ public sealed class GlobalOptions
 		return option;
 	}
 
-	public Option<bool> Workspace { get; } = new("--workspace", "-w")
+	public Option<bool> Space { get; } = new("--space", "-s")
 	{
-		Description = Texts.Get("option.workspace"),
+		Description = Texts.Get("option.space"),
 		Recursive = true
 	};
 
@@ -90,7 +90,7 @@ public sealed class GlobalOptions
 	}
 
 	/// <summary>Every global option, in the order of the help.</summary>
-	public IEnumerable<Option> All => [Root, Workspace, Output, Verbose, Plain, NonInteractive, Lang];
+	public IEnumerable<Option> All => [Root, Space, Output, Verbose, Plain, NonInteractive, Lang];
 
 	public void AddTo(Command command)
 	{
@@ -103,8 +103,8 @@ public sealed class GlobalOptions
 		var root = result.GetValue(Root);
 		// real (without symbolic links), as git names its folders: on macOS /var and /tmp are links
 		var directory = Fuxion.Tool.Core.Layout.FxLayout.Real(string.IsNullOrWhiteSpace(root) ? currentDirectory : Path.GetFullPath(root, currentDirectory));
-		if (result.GetValue(Workspace) && Fuxion.Tool.Core.Mounts.MountsManifest.FindRoot(directory) is { } workspace)
-			directory = workspace;
+		if (result.GetValue(Space) && Fuxion.Tool.Core.Mounts.MountsManifest.FindRoot(directory) is { } space)
+			directory = space;
 		return new(
 			directory,
 			result.GetValue(Output) switch

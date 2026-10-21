@@ -1,10 +1,10 @@
 using System;
-using System.CommandLine;
 using System.Collections.Generic;
+using System.CommandLine;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Fuxion.Tool.Cli.Repo;
+using Fuxion.Tool.Cli.Mounts;
 using Fuxion.Tool.Cli.Sync;
 using Fuxion.Tool.Core.Layout;
 using Fuxion.Tool.Core.Results;
@@ -23,22 +23,22 @@ public static class WorktreeCommand
 		var command = new Command("worktree", Texts.Get("worktree"));
 
 		Argument<string> Branch() => new("branch") { Description = Texts.Get("worktree.branch") };
-		Option<bool> Mandatory() => new("--mandatory") { Description = Texts.Get("worktree.mandatory") };
+		Option<bool> Required() => new("--required") { Description = Texts.Get("worktree.required") };
 
 		var addBranch = Branch();
 		var @in = new Option<string?>("--in") { Description = Texts.Get("worktree.in") };
-		var addMandatory = Mandatory();
-		var add = new Command("add", Texts.Get("worktree.add")) { addBranch, @in, addMandatory }.Describe("fx-worktree-add/1", writes: true, network: true);
+		var addRequired = Required();
+		var add = new Command("add", Texts.Get("worktree.add")) { addBranch, @in, addRequired }.Describe("fx-worktree-add/1", writes: true, network: true);
 		add.SetAction((result, cancellationToken) => Run(result, global, currentDirectory, "fx-worktree-add/1", (console, progress, token) =>
-			WorktreeModule.Add(console.Settings.Directory, result.GetValue(addBranch)!, result.GetValue(@in), result.GetValue(addMandatory), SyncCommand.Informational, progress, token), cancellationToken));
+			WorktreeModule.Add(console.Settings.Directory, result.GetValue(addBranch)!, result.GetValue(@in), result.GetValue(addRequired), SyncCommand.Informational, progress, token), cancellationToken));
 		command.Add(add);
 
 		var mountBranch = Branch();
 		var targets = new Argument<string[]>("targets") { Description = Texts.Get("worktree.mount.targets"), Arity = ArgumentArity.OneOrMore };
-		var mountMandatory = Mandatory();
-		var mount = new Command("mount", Texts.Get("worktree.mount")) { mountBranch, targets, mountMandatory }.Describe("fx-worktree-mount/1", writes: true, network: true);
+		var mountRequired = Required();
+		var mount = new Command("mount", Texts.Get("worktree.mount")) { mountBranch, targets, mountRequired }.Describe("fx-worktree-mount/1", writes: true, network: true);
 		mount.SetAction((result, cancellationToken) => Run(result, global, currentDirectory, "fx-worktree-mount/1", (console, progress, token) =>
-			WorktreeModule.Mount(console.Settings.Directory, result.GetValue(mountBranch)!, result.GetValue(targets) ?? [], result.GetValue(mountMandatory), SyncCommand.Informational, progress, token),
+			WorktreeModule.Mount(console.Settings.Directory, result.GetValue(mountBranch)!, result.GetValue(targets) ?? [], result.GetValue(mountRequired), SyncCommand.Informational, progress, token),
 			cancellationToken));
 		command.Add(mount);
 
@@ -52,7 +52,7 @@ public static class WorktreeCommand
 		var list = new Command("list", Texts.Get("worktree.list")).Describe("fx-worktree-list/1");
 		list.SetAction((result, cancellationToken) =>
 		{
-			var console = RepoCommand.Console(result, global, currentDirectory);
+			var console = MountCommand.Console(result, global, currentDirectory);
 			return Task.FromResult(console.Run(token => List(console, token), cancellationToken));
 		});
 		command.Add(list);
@@ -69,7 +69,7 @@ public static class WorktreeCommand
 	static Task<int> Run(ParseResult result, GlobalOptions global, string currentDirectory, string schema, Func<FxConsole, IFxProgress?, CancellationToken, WorktreeResult> work,
 		CancellationToken cancellationToken)
 	{
-		var console = RepoCommand.Console(result, global, currentDirectory);
+		var console = MountCommand.Console(result, global, currentDirectory);
 		return Task.FromResult(console.Run(token =>
 		{
 			var outcome = console.WithProgress((progress, cancel) => work(console, progress, cancel), token);
@@ -111,8 +111,8 @@ public static class WorktreeCommand
 			console.Line($"[gray]{FxConsole.Escape(Texts.Get("worktree.none"))}[/]");
 			return 0;
 		}
-		var table = new Table().Headers(new TextBlock(Texts.Get("worktree.column.branch")), new TextBlock(Texts.Get("repo.column.path")),
-			new TextBlock(Texts.Get("worktree.column.from")), new TextBlock(Texts.Get("worktree.column.repositories")), new TextBlock(Texts.Get("repo.column.changes")));
+		var table = new Table().Headers(new TextBlock(Texts.Get("worktree.column.branch")), new TextBlock(Texts.Get("mount.column.path")),
+			new TextBlock(Texts.Get("worktree.column.from")), new TextBlock(Texts.Get("worktree.column.repositories")), new TextBlock(Texts.Get("mount.column.changes")));
 		if (!console.Capabilities.CanColor)
 			table.Style(TableStyle.Default with { ShowOuterBorder = false, ShowVerticalLines = false, ShowHeaderSeparator = false, CellPadding = new(0, 0, 2, 0) });
 		foreach (var w in worktrees)

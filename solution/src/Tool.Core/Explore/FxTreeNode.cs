@@ -82,7 +82,7 @@ public sealed class FxTreeNode
 	/// <summary>Of a repository: its declaration in the workspace that mounts it.</summary>
 	public Mount? Declaration { get; init; }
 
-	/// <summary>Of a repository: whether it is mounted (the intent of the developer, or mandatory).</summary>
+	/// <summary>Of a repository: whether it is mounted (the intent of the developer, or required).</summary>
 	public bool Mounted { get; init; }
 
 	/// <summary>Of a repository: the copy used instead of this one, if a higher one supersedes it (plan P, decision 19).</summary>

@@ -28,9 +28,9 @@ public sealed record WorktreeInfo(string Root, WorktreeCard Card, IReadOnlyDicti
 /// is created in a workspace (the nearest, or <c>--in</c>), in its <c>_fx/~$worktrees/&lt;branch&gt;/</c>, and its root
 /// is always that workspace mounted in worktree mode: a <c>git worktree</c> of its main clone, sparse (without the
 /// <c>paths</c> marked <c>worktree: false</c>). Mounting in it is a <c>git worktree add</c> of each repository from its
-/// main clone (cloned once, parked, if there is none), in the same branch and at the same path. Nothing is mandatory in
-/// a worktree: it starts with its workspace and the node where it was created, and <c>--mandatory</c> brings the
-/// mandatory ones down. For the code it is a closed tree (its own map of <c>FxReference</c>; what is inherited, read
+/// main clone (cloned once, parked, if there is none), in the same branch and at the same path. Nothing is required in
+/// a worktree: it starts with its workspace and the node where it was created, and <c>--required</c> brings the
+/// required mounts down. For the code it is a closed tree (its own map of <c>FxReference</c>; what is inherited, read
 /// inside, but its root, from the main tree). A repository on its own has them in a folder of the user. fx never
 /// removes a worktree with uncommitted changes, and only deletes the branches it created that git deletes safely.
 /// </summary>
@@ -101,11 +101,11 @@ public static class WorktreeModule
 	// fx worktree add
 
 	/// <summary>
-	/// <c>fx worktree add &lt;branch&gt; [--in &lt;workspace&gt;] [--mandatory]</c>: a worktree of <paramref name="branch"/>
+	/// <c>fx worktree add &lt;branch&gt; [--in &lt;workspace&gt;] [--required]</c>: a worktree of <paramref name="branch"/>
 	/// in the nearest workspace around <paramref name="directory"/> (or <paramref name="in"/>, one of those above),
 	/// with the node of <paramref name="directory"/> mounted, and the workspaces on the way to it.
 	/// </summary>
-	public static WorktreeResult Add(string directory, string branch, string? @in, bool mandatory, string? fxVersion = null,
+	public static WorktreeResult Add(string directory, string branch, string? @in, bool required, string? fxVersion = null,
 		IFxProgress? progress = null, CancellationToken cancellationToken = default)
 	{
 		var actions = new List<RepositoryAction>();
@@ -150,8 +150,8 @@ public static class WorktreeModule
 
 		if (target.Length > 0)
 			session.MountPath(target);
-		if (mandatory)
-			session.Mandatory([""]);
+		if (required)
+			session.Required([""]);
 		session.Save();
 		return new(root, branch, actions, diagnostics, SyncEngine.Sync(root, new(FxVersion: fxVersion), progress, cancellationToken));
 	}
@@ -227,8 +227,8 @@ public static class WorktreeModule
 			}
 		}
 
-		/// <summary>The mandatory repositories of the workspaces at <paramref name="workspaces"/>, level by level down (the highest copies first).</summary>
-		public void Mandatory(IReadOnlyList<string> workspaces)
+		/// <summary>The required mounts of the spaces at <paramref name="workspaces"/>, level by level down (the highest copies first).</summary>
+		public void Required(IReadOnlyList<string> workspaces)
 		{
 			var next = new List<string>();
 			foreach (var workspace in workspaces)
@@ -239,7 +239,7 @@ public static class WorktreeModule
 						next.Add(path);
 				}
 			if (next.Count > 0)
-				Mandatory(next);
+				Required(next);
 		}
 
 		/// <summary>
@@ -406,11 +406,11 @@ public static class WorktreeModule
 		=> new(null, branch, [], [FxDiagnostic.Error(NotFound, new(NotFound, branch), fix: FxFix.Run("fx worktree list"))], []);
 
 	/// <summary>
-	/// <c>fx worktree mount &lt;branch&gt; &lt;repositories or paths…&gt; [--mandatory]</c>: more of the tree in the
+	/// <c>fx worktree mount &lt;branch&gt; &lt;repositories or paths…&gt; [--required]</c>: more of the tree in the
 	/// worktree. A repository by its name, its path or its full name (with the workspaces on the way to it); a path left
 	/// out (<c>worktree: false</c>), brought back.
 	/// </summary>
-	public static WorktreeResult Mount(string directory, string branch, IReadOnlyList<string> targets, bool mandatory, string? fxVersion = null,
+	public static WorktreeResult Mount(string directory, string branch, IReadOnlyList<string> targets, bool required, string? fxVersion = null,
 		IFxProgress? progress = null, CancellationToken cancellationToken = default)
 	{
 		if (Find(directory, branch) is not { } worktree)
@@ -434,8 +434,8 @@ public static class WorktreeModule
 			if (session.MountPath(path))
 				mounted.Add(path);
 		}
-		if (mandatory)
-			session.Mandatory(mounted.Where(p => MountsManifest.HasMounts(FxLayout.Full(worktree.Root, p))).ToList());
+		if (required)
+			session.Required(mounted.Where(p => MountsManifest.HasMounts(FxLayout.Full(worktree.Root, p))).ToList());
 		session.Save();
 		return new(worktree.Root, branch, actions, diagnostics, SyncEngine.Sync(worktree.Root, new(FxVersion: fxVersion), progress, cancellationToken));
 	}

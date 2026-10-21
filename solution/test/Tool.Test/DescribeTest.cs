@@ -45,10 +45,10 @@ public sealed class DescribeTest
 		var doctor = Command(describe, "doctor");
 		Assert.False(doctor.GetProperty("writes").GetBoolean());
 		Assert.True(doctor.GetProperty("network").GetBoolean());
-		var add = Command(describe, "repo add");
+		var add = Command(describe, "mount add");
 		Assert.Equal(("fx-manifest-edit/1", true, true), (add.GetProperty("output").GetString(), add.GetProperty("writes").GetBoolean(), add.GetProperty("dryRun").GetBoolean()));
 		Assert.Equal("0..1", add.GetProperty("arguments")[0].GetProperty("arity").GetString());
-		Assert.False(Command(describe, "repo list").GetProperty("writes").GetBoolean());
+		Assert.False(Command(describe, "mount list").GetProperty("writes").GetBoolean());
 		Assert.True(Command(describe, "worktree add").GetProperty("writes").GetBoolean());
 		Assert.Contains(describe.GetProperty("globalOptions").EnumerateArray(), o => o.GetProperty("name").GetString() == "--output"
 			&& o.GetProperty("values").EnumerateArray().Select(v => v.GetString()).SequenceEqual(["human", "json", "ndjson"]));
@@ -81,7 +81,7 @@ public sealed class DescribeTest
 		// every command, with what it outputs; the rules for an agent
 		foreach (var command in Describe().GetProperty("commands").EnumerateArray())
 			Assert.Contains($"| `fx {command.GetProperty("name").GetString()}` |", skill);
-		Assert.Contains("### `fx repo add [<url>] [<path>]`", skill);
+		Assert.Contains("### `fx mount add [<url>] [<path>]`", skill);
 		Assert.Contains("`--output json`", skill);
 		Assert.Contains("Never `fx ui`", skill);
 		Assert.Contains("`fx worktree add <branch>`", skill);
@@ -107,8 +107,8 @@ public sealed class DescribeTest
 		Assert.Equal(0, exitCode);
 		var schemas = JsonDocument.Parse(stdout).RootElement.GetProperty("schemas").EnumerateArray().ToList();
 		Assert.Contains(schemas, s => s.GetProperty("id").GetString() == "fx-events/1");
-		Assert.Contains(schemas, s => s.GetProperty("id").GetString() == "fx-repo-mount/1"
-		                             && s.GetProperty("commands").EnumerateArray().Select(c => c.GetString()).SequenceEqual(["fx repo mount", "fx repo unmount"]));
+		Assert.Contains(schemas, s => s.GetProperty("id").GetString() == "fx-mount-park/1"
+		                             && s.GetProperty("commands").EnumerateArray().Select(c => c.GetString()).SequenceEqual(["fx mount park", "fx mount unpark"]));
 		foreach (var id in schemas.Select(s => s.GetProperty("id").GetString()!))
 		{
 			var (code, text, _) = Run(TempGitRepository.TempRoot, "schema", id);

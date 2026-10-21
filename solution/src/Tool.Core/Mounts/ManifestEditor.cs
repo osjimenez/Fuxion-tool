@@ -29,7 +29,7 @@ public sealed record ManifestChange(string File, string Before, YamlEditor After
 }
 
 /// <summary>
-/// The commands that edit the configuration of a space (plan O, O3.4; plan P): <c>fx repo add|remove|tag|set</c> edit
+/// The commands that edit the configuration of a space (plan O, O3.4; plan P): <c>fx mount add|remove|tag|set|rename</c> edit
 /// <c>_fx/mounts/mounts.yaml</c>, <c>fx path add|remove</c> its <c>_fx/space.yaml</c>; <c>fx module enable|disable</c>,
 /// the yaml of the module (creating its folder, or <c>enabled: false</c>). Each changes only what it must and keeps the rest of
 /// the file, comments included. The result is validated as the file is read (strict): a change that would leave it

@@ -1,5 +1,5 @@
 using System.CommandLine;
-using Fuxion.Tool.Cli.Repo;
+using Fuxion.Tool.Cli.Mounts;
 using Fuxion.Tool.Core.Explore;
 using Fuxion.Tool.Core.Layout;
 using Fuxion.Tool.Core.Results;
@@ -20,7 +20,7 @@ public static class UiCommand
 		var command = new Command("ui", Texts.Get("ui")).Describe(null, interactive: true);
 		command.SetAction(result =>
 		{
-			var console = RepoCommand.Console(result, global, currentDirectory);
+			var console = MountCommand.Console(result, global, currentDirectory);
 			if (console.Settings.IsMachine || !console.Capabilities.CanPrompt || !console.Capabilities.CanAnimate)
 			{
 				console.ErrorLine($"[red]{FxConsole.Escape(Texts.Get(NoTerminal))}[/]");

@@ -14,7 +14,7 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary>The workspace module and the sync of a tree: manifest, local state, inheritance, sync, doctor and fx repo (plans M and P).</summary>
+/// <summary>The workspace module and the sync of a tree: manifest, local state, inheritance, sync, doctor and fx mount (plans M and P).</summary>
 public sealed class WorkspaceTest
 {
 	/// <summary>
@@ -466,7 +466,7 @@ public sealed class WorkspaceTest
 	public void Solution_Compose()
 	{
 		using var ws = new Workspace(("plus", "mandatory"), ("lab", "manual"));
-		Assert.Empty(MountsModule.SetMount(MountsManifest.Load(ws.Root), ["lab"], mounted: true).Diagnostics);
+		Assert.Empty(MountsModule.Park(MountsManifest.Load(ws.Root), ["lab"], parked: false).Diagnostics);
 		Assert.DoesNotContain(Errors(Sync(ws.Root)), _ => true);
 		Assert.Contains("lab/repo/solution/src/lab/lab.csproj", ws.Read("Test.slnx"));
 		// an empty folder and a build type only lab has
@@ -479,7 +479,7 @@ public sealed class WorkspaceTest
 		Assert.Contains("<Folder Name=\"/lab/empty/\" />", before);
 
 		// lab unmounted, so parked: the solution does not change, its projects are still there (unavailable in Visual Studio)
-		Assert.Empty(MountsModule.SetMount(MountsManifest.Load(ws.Root), ["lab"], mounted: false).Diagnostics);
+		Assert.Empty(MountsModule.Park(MountsManifest.Load(ws.Root), ["lab"], parked: true).Diagnostics);
 		var results = Sync(ws.Root);
 		Assert.DoesNotContain(Codes(results), c => c == "dotnet.missing-solution");
 		var solution = ws.Read("Test.slnx");
@@ -699,20 +699,20 @@ public sealed class WorkspaceTest
 		Assert.Equal(3, diagnostic.Line);
 	}
 
-	[Fact(DisplayName = "fx repo unmount parks the clone, with its work, never deletes it; mount brings it back without cloning")]
+	[Fact(DisplayName = "fx mount park parks the clone, with its work, never deletes it; unpark brings it back without cloning")]
 	public void MountUnmount()
 	{
 		using var ws = new Workspace(("plus", "mandatory"), ("lab", "manual"));
 		var manifest = MountsManifest.Load(ws.Root);
-		var mount = MountsModule.SetMount(manifest, ["lab"], mounted: true);
+		var mount = MountsModule.Park(manifest, ["lab"], parked: false);
 		Assert.Empty(mount.Diagnostics);
-		Assert.Equal("mounted", Assert.Single(mount.Actions).Action);
+		Assert.Equal("unparked", Assert.Single(mount.Actions).Action);
 		Assert.Contains(new RepositoryAction("lab", "cloned"), Actions(Sync(ws.Root)));
 		Assert.Contains("lab.csproj", ws.Read("_fx/dotnet/~$workspace.props"));
 		File.WriteAllText(Path.Combine(ws.RepoPath("lab"), "work.txt"), "not committed");
 
 		// parked in _fx/~$parking/ under its path; the folder it leaves empty goes
-		var unmount = MountsModule.SetMount(manifest, ["lab"], mounted: false);
+		var unmount = MountsModule.Park(manifest, ["lab"], parked: true);
 		Assert.Empty(unmount.Diagnostics);
 		var parked = Assert.Single(unmount.Actions);
 		Assert.Equal("parked", parked.Action);
@@ -726,16 +726,16 @@ public sealed class WorkspaceTest
 		Assert.True(Assert.Single(MountsModule.Repositories(manifest, withStatus: false, cancellationToken: TestContext.Current.CancellationToken), r => r.Repository.Name == "lab").Parked);
 
 		// back, without cloning: the work is there, and the parking goes
-		Assert.Equal("unparked", Assert.Single(MountsModule.SetMount(manifest, ["lab"], mounted: true).Actions).Action);
+		Assert.Equal("unparked", Assert.Single(MountsModule.Park(manifest, ["lab"], parked: false).Actions).Action);
 		Assert.True(File.Exists(Path.Combine(ws.RepoPath("lab"), "work.txt")));
 		Assert.False(Directory.Exists(Path.Combine(ws.Root, "_fx", "~$parking")));
 		Sync(ws.Root);
 		Assert.Contains("lab.csproj", ws.Read("_fx/dotnet/~$workspace.props"));
 
-		// a mandatory one cannot be unmounted, nor an unknown one mounted: nothing changes
-		Assert.Single(MountsModule.SetMount(manifest, ["plus", "lab"], mounted: false).Diagnostics);
+		// a required one cannot be parked, nor an unknown one unparked: nothing changes
+		Assert.Single(MountsModule.Park(manifest, ["plus", "lab"], parked: true).Diagnostics);
 		Assert.True(FxLayout.IsGitRoot(ws.RepoPath("lab")));
-		Assert.Single(MountsModule.SetMount(manifest, ["nope"], mounted: true).Diagnostics);
+		Assert.Single(MountsModule.Park(manifest, ["nope"], parked: false).Diagnostics);
 	}
 
 	[Fact(DisplayName = "fx sync parks what is unmounted and still there, and brings back what is mounted and parked; the doctor says it first")]
@@ -743,15 +743,15 @@ public sealed class WorkspaceTest
 	{
 		using var ws = new Workspace(("plus", "mandatory"), ("lab", "manual"));
 		var manifest = MountsManifest.Load(ws.Root);
-		MountsModule.SetMount(manifest, ["lab"], mounted: true);
+		MountsModule.Park(manifest, ["lab"], parked: false);
 		Sync(ws.Root);
 		void State(bool mounted)
 			=> File.WriteAllText(Path.Combine(ws.Root, MountsState.RelativePath), MountsState.Load(ws.Root).With("lab", mounted).ToYaml());
 
-		// unmounted only in the state, as fx 0.1 did
+		// parked only in the state, as fx 0.1 did
 		State(false);
 		var notParked = Assert.Single(Diagnostics(Doctor(ws.Root)), d => d.Code == MountsModule.NotParked);
-		Assert.Equal("'lab' is unmounted but still at lab/repo: fx sync parks it.", notParked.Message.English);
+		Assert.Equal("'lab' is parked but still at lab/repo: fx sync parks it.", notParked.Message.English);
 		Assert.Equal(FxSeverity.Warning, notParked.Severity);
 		Assert.Contains(Actions(Sync(ws.Root)), a => a is { Repository: "lab", Action: "parked" });
 		Assert.True(FxLayout.IsGitRoot(Path.Combine(ws.Root, "_fx", "~$parking", "lab", "repo")));
@@ -770,14 +770,14 @@ public sealed class WorkspaceTest
 	{
 		using var ws = new Workspace(("plus", "mandatory"), ("lab", "manual"));
 		var manifest = MountsManifest.Load(ws.Root);
-		MountsModule.SetMount(manifest, ["lab"], mounted: true);
+		MountsModule.Park(manifest, ["lab"], parked: false);
 		Sync(ws.Root);
 
 		// the place in the parking is taken
 		var parking = Path.Combine(ws.Root, "_fx", "~$parking", "lab", "repo");
 		Directory.CreateDirectory(parking);
 		File.WriteAllText(Path.Combine(parking, "other.txt"), "");
-		var taken = Assert.Single(MountsModule.SetMount(manifest, ["lab"], mounted: false).Diagnostics);
+		var taken = Assert.Single(MountsModule.Park(manifest, ["lab"], parked: true).Diagnostics);
 		Assert.Equal(MountsModule.MoveFailed, taken.Code);
 		Assert.Contains("there is already something there", taken.Message.English);
 		Assert.True(FxLayout.IsGitRoot(ws.RepoPath("lab")));
@@ -788,7 +788,7 @@ public sealed class WorkspaceTest
 		Assert.SkipUnless(OperatingSystem.IsWindows(), "only Windows keeps an open folder from moving");
 		using (File.Open(Path.Combine(ws.RepoPath("lab"), "Fxlab.slnx"), FileMode.Open, FileAccess.Read, FileShare.Read))
 		{
-			var open = Assert.Single(MountsModule.SetMount(manifest, ["lab"], mounted: false).Diagnostics);
+			var open = Assert.Single(MountsModule.Park(manifest, ["lab"], parked: true).Diagnostics);
 			Assert.Equal(MountsModule.MoveFailed, open.Code);
 			Assert.Equal($"{MountsModule.MoveFailed}.fix", open.Fix!.Hint!.Key);
 		}
@@ -802,13 +802,13 @@ public sealed class WorkspaceTest
 	{
 		using var ws = new Workspace(("plus", "mandatory"), ("lab", "manual"));
 		var manifest = MountsManifest.Load(ws.Root);
-		MountsModule.SetMount(manifest, ["lab"], mounted: true);
+		MountsModule.Park(manifest, ["lab"], parked: false);
 		Sync(ws.Root);
 		var lab = new TempGitRepository(init: false, path: ws.RepoPath("lab"));
 		using var worktree = new TempGitRepository(init: false);
 		lab.Git("worktree", "add", "--quiet", "-b", "feature/x", worktree.Path);
 
-		MountsModule.SetMount(manifest, ["lab"], mounted: false);
+		MountsModule.Park(manifest, ["lab"], parked: true);
 		var parked = new TempGitRepository(init: false, path: Path.Combine(ws.Root, "_fx", "~$parking", "lab", "repo"));
 		Assert.Equal("feature/x", worktree.Git("rev-parse", "--abbrev-ref", "HEAD").Trim());
 		Assert.Contains(FxLayout.Normalize(worktree.Path).TrimEnd('\\', '/').Replace('\\', '/'), parked.Git("worktree", "list", "--porcelain").Replace('\\', '/'),
@@ -867,9 +867,9 @@ public sealed class WorkspaceTest
 		Assert.Contains(diagnostics, d => d.Code == MountsModule.Outdated && d.File == ".gitignore");
 	}
 
-	// fx repo pull
+	// fx mount pull
 
-	[Fact(DisplayName = "fx repo pull: fast-forward; a repo with changes is left alone")]
+	[Fact(DisplayName = "fx mount pull: fast-forward; a repo with changes is left alone")]
 	public void Pull()
 	{
 		using var ws = new Workspace(("plus", "mandatory"), ("lab", "mandatory"));
@@ -895,24 +895,25 @@ public sealed class WorkspaceTest
 
 		Assert.Equal(0, InProcess.Run(["doctor", "--offline"], new StringWriter(), new StringWriter(), ws.RepoPath("plus")));
 		stdout = new StringWriter();
-		Assert.Equal(0, InProcess.Run(["doctor", "-w", "--offline", "--output", "json"], stdout, new StringWriter(), ws.RepoPath("plus")));
+		Assert.Equal(0, InProcess.Run(["doctor", "-s", "--offline", "--output", "json"], stdout, new StringWriter(), ws.RepoPath("plus")));
 		Assert.Contains(JsonDocument.Parse(stdout.ToString()).RootElement.GetProperty("modules").EnumerateArray(), m => m.GetProperty("module").GetString() == "mounts");
 	}
 
-	[Fact(DisplayName = "fx repo list --output json: fx-repo-list/1")]
+	[Fact(DisplayName = "fx mount list --output json: fx-mount-list/1")]
 	public void Cli_RepoList()
 	{
 		using var ws = new Workspace(("plus", "mandatory"), ("lab", "manual"));
 		var stdout = new StringWriter();
-		Assert.Equal(0, InProcess.Run(["repo", "list", "--output", "json"], stdout, new StringWriter(), ws.Root));
+		Assert.Equal(0, InProcess.Run(["mount", "list", "--output", "json"], stdout, new StringWriter(), ws.Root));
 		var json = JsonDocument.Parse(stdout.ToString()).RootElement;
-		Assert.Equal("fx-repo-list/1", json.GetProperty("schema").GetString());
-		var repos = json.GetProperty("repositories").EnumerateArray().ToList();
-		Assert.Equal("mandatory", repos[0].GetProperty("mount").GetString());
+		Assert.Equal("fx-mount-list/1", json.GetProperty("schema").GetString());
+		var repos = json.GetProperty("mounts").EnumerateArray().ToList();
+		Assert.True(repos[0].GetProperty("required").GetBoolean());
+		Assert.Equal("write", repos[0].GetProperty("mode").GetString());
 		Assert.False(repos[1].GetProperty("mounted").GetBoolean());
 	}
 
-	[Fact(DisplayName = "fx repo unmount|mount: what happened to each repository (fx-repo-mount/1); fx repo list says which is parked")]
+	[Fact(DisplayName = "fx mount park|unpark: what happened to each mount (fx-mount-park/1); fx mount list says which is parked")]
 	public void Cli_MountParking()
 	{
 		using var ws = new Workspace(("plus", "mandatory"), ("lab", "mandatory"));
@@ -920,54 +921,54 @@ public sealed class WorkspaceTest
 		ws.WriteManifest(("plus", "mandatory", ""), ("lab", "manual", ""));
 
 		var stdout = new StringWriter();
-		Assert.Equal(0, InProcess.Run(["repo", "unmount", "lab", "--output", "json"], stdout, new StringWriter(), ws.Root));
+		Assert.Equal(0, InProcess.Run(["mount", "park", "lab", "--output", "json"], stdout, new StringWriter(), ws.Root));
 		var json = JsonDocument.Parse(stdout.ToString()).RootElement;
-		Assert.Equal("fx-repo-mount/1", json.GetProperty("schema").GetString());
-		var lab = Assert.Single(json.GetProperty("repositories").EnumerateArray());
+		Assert.Equal("fx-mount-park/1", json.GetProperty("schema").GetString());
+		var lab = Assert.Single(json.GetProperty("mounts").EnumerateArray());
 		Assert.Equal("parked", lab.GetProperty("action").GetString());
 		Assert.Equal("in _fx/~$parking/lab/repo", lab.GetProperty("detail").GetString());
 
 		stdout = new StringWriter();
-		Assert.Equal(0, InProcess.Run(["repo", "list", "--output", "json"], stdout, new StringWriter(), ws.Root));
-		var repos = JsonDocument.Parse(stdout.ToString()).RootElement.GetProperty("repositories").EnumerateArray().ToList();
+		Assert.Equal(0, InProcess.Run(["mount", "list", "--output", "json"], stdout, new StringWriter(), ws.Root));
+		var repos = JsonDocument.Parse(stdout.ToString()).RootElement.GetProperty("mounts").EnumerateArray().ToList();
 		Assert.True(repos[1].GetProperty("parked").GetBoolean());
 		Assert.False(repos[0].GetProperty("parked").GetBoolean());
 
 		stdout = new StringWriter();
-		Assert.Equal(0, InProcess.Run(["repo", "mount", "lab"], stdout, new StringWriter(), ws.Root));
+		Assert.Equal(0, InProcess.Run(["mount", "unpark", "lab"], stdout, new StringWriter(), ws.Root));
 		Assert.Equal("unparked   lab", stdout.ToString().Trim());
 	}
 
-	[Theory(DisplayName = "fx repo mount|unmount without names and no terminal to ask for them: what is missing, exit code 2 (plan O, O3.3)")]
-	[InlineData("mount")]
-	[InlineData("unmount")]
+	[Theory(DisplayName = "fx mount park|unpark without names and no terminal to ask for them: what is missing, exit code 2 (plan O, O3.3)")]
+	[InlineData("park")]
+	[InlineData("unpark")]
 	public void Cli_MountMissing(string verb)
 	{
 		using var ws = new Workspace(("plus", "mandatory"), ("lab", "manual"));
 		var stderr = new StringWriter();
-		Assert.Equal(FxConsole.UsageError, InProcess.Run(["repo", verb], new StringWriter(), stderr, ws.Root));
-		Assert.Contains($"fx repo {verb} <names>", stderr.ToString());
+		Assert.Equal(FxConsole.UsageError, InProcess.Run(["mount", verb], new StringWriter(), stderr, ws.Root));
+		Assert.Contains($"fx mount {verb} <names>", stderr.ToString());
 	}
 
-	[Fact(DisplayName = "fx repo status: only the repositories that ask for attention; --all, every one (plan O, decision 8)")]
+	[Fact(DisplayName = "fx mount status: only the mounts that ask for attention; --all, every one (plan O, decision 8)")]
 	public void Cli_RepoStatus()
 	{
 		using var ws = new Workspace(("plus", "mandatory"), ("lab", "mandatory"));
 		Assert.Equal(0, InProcess.Run(["sync"], new StringWriter(), new StringWriter(), ws.Root));
 		var stdout = new StringWriter();
-		Assert.Equal(0, InProcess.Run(["repo", "status"], stdout, new StringWriter(), ws.Root));
-		Assert.Equal("✓ All 2 repositories are clean.", stdout.ToString().Trim());
+		Assert.Equal(0, InProcess.Run(["mount", "status"], stdout, new StringWriter(), ws.Root));
+		Assert.Equal("✓ All 2 mounts are clean.", stdout.ToString().Trim());
 
 		File.WriteAllText(Path.Combine(ws.RepoPath("lab"), "new.txt"), "x");
 		stdout = new StringWriter();
-		Assert.Equal(0, InProcess.Run(["repo", "status"], stdout, new StringWriter(), ws.Root));
+		Assert.Equal(0, InProcess.Run(["mount", "status"], stdout, new StringWriter(), ws.Root));
 		var text = stdout.ToString();
 		Assert.Contains("lab", text);
 		Assert.DoesNotContain("plus", text);
-		Assert.Contains("1 of 2 repositories are clean (--all to see them).", text);
+		Assert.Contains("1 of 2 mounts are clean (--all to see them).", text);
 
 		stdout = new StringWriter();
-		Assert.Equal(0, InProcess.Run(["repo", "status", "--all"], stdout, new StringWriter(), ws.Root));
+		Assert.Equal(0, InProcess.Run(["mount", "status", "--all"], stdout, new StringWriter(), ws.Root));
 		text = stdout.ToString();
 		Assert.Contains("lab", text);
 		Assert.Contains("plus", text);

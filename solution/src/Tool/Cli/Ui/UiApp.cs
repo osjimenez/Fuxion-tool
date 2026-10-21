@@ -374,7 +374,7 @@ public sealed partial class UiApp
 	/// <summary>What can be done on <paramref name="node"/>, the main action first.</summary>
 	public IReadOnlyList<UiAction> Actions(FxTreeNode node) => UiAction.For(node, _start, _card).Concat(EditActions(node)).ToList();
 
-	/// <summary>What Enter does on what is not on disk (14.1: mount it; a `?`, add it) and on a module not used (14.8: turn it on).</summary>
+	/// <summary>What Enter does on what is not on disk (14.1: unpark it; a `?`, add it) and on a module not used (14.8: turn it on).</summary>
 	UiAction? Main(FxTreeNode node) => node.Kind switch
 	{
 		FxTreeKind.Declared or FxTreeKind.Parked => UiAction.For(node, _start, _card).FirstOrDefault(),
@@ -817,7 +817,7 @@ public sealed partial class UiApp
 		if (node.Declaration is { } declaration)
 		{
 			var tags = declaration.Tags.Count == 0 ? "—" : string.Join(", ", declaration.Tags);
-			lines.Add(Line($"{Esc(Texts.Get("ui.tags"))}: [accent]{Esc(tags)}[/]   {Esc(Texts.Get("ui.mount"))}: {Esc(Texts.Get(declaration.Required ? "ui.mount.mandatory" : "ui.mount.manual"))}"));
+			lines.Add(Line($"{Esc(Texts.Get("ui.tags"))}: [accent]{Esc(tags)}[/]   {Esc(Texts.Get("ui.mount"))}: {Esc(Texts.Get(declaration.Required ? "ui.mount.required" : "ui.mount.parkable"))}   {Esc(Texts.Get("ui.mode"))}: {Esc(MountsManifest.ModeText(declaration.Mode))}"));
 		}
 		if (node.Guest)
 			lines.Add(Line($"[muted]{Esc(Texts.Get("ui.guest"))}[/]"));
@@ -979,7 +979,7 @@ public sealed partial class UiApp
 		return new VStack(
 			Line($"[warning]?[/] [bold]{Esc(node.Name)}[/]  [muted]{Esc(node.Path)}[/]"),
 			Line(Esc(Texts.Get(repository ? "ui.unknown.repository" : "ui.unknown.folder"))),
-			Equivalent(repository ? $"fx repo add {url} {relative}" : $"fx path add {relative}/")).Spacing(1);
+			Equivalent(repository ? $"fx mount add {url} {relative}" : $"fx path add {relative}/")).Spacing(1);
 	}
 
 	Visual ModulePanel(FxTreeNode node)

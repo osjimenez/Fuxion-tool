@@ -29,7 +29,7 @@
     <value>{0} is a repository the workspace does not declare.</value>
   </data>
   <data name="mounts.orphan.fix" xml:space="preserve">
-    <value>Declare it (fx repo add), or move it out of the workspace.</value>
+    <value>Mount it (fx mount add), or move it out of the space.</value>
   </data>
   <data name="space.not-ignored" xml:space="preserve">
     <value>'{0}': the metarepo does not ignore {1}; a git add would take it in.</value>
@@ -254,10 +254,10 @@
     <value>The manifest already has a repository '{0}'.</value>
   </data>
   <data name="mounts.needed" xml:space="preserve">
-    <value>{1} depend(s) on '{0}': change their dependsOn first (fx repo set &lt;repo&gt; dependsOn ...).</value>
+    <value>{1} depend(s) on '{0}': change their depends-on first (fx mount set &lt;name&gt; depends-on ...).</value>
   </data>
   <data name="mounts.unknown-key" xml:space="preserve">
-    <value>fx repo set does not change '{0}'; it changes {1}.</value>
+    <value>fx mount set does not change '{0}'; it changes {1}.</value>
   </data>
   <data name="mounts.invalid-value" xml:space="preserve">
     <value>'{0}' takes {2}, not '{1}'.</value>
@@ -494,7 +494,7 @@
     <value>'{0}' is mounted but parked in {2}: fx sync brings it back to {1}.</value>
   </data>
   <data name="mounts.not-parked" xml:space="preserve">
-    <value>'{0}' is unmounted but still at {1}: fx sync parks it.</value>
+    <value>'{0}' is parked but still at {1}: fx sync parks it.</value>
   </data>
   <data name="mounts.not-parked.superseded" xml:space="preserve">
     <value>'{0}' at {1} is not used: the copy of {2} is higher. fx sync parks this one.</value>

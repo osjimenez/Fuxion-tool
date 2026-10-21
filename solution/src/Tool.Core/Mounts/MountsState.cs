@@ -43,7 +43,7 @@ public sealed record MountsState(IReadOnlyDictionary<string, bool> Parked)
 
 	public string ToYaml()
 	{
-		var b = new StringBuilder(FxHeader.Hash("fx repo mount, fx repo unmount", "fx repo mount <repo>, fx repo unmount <repo>"));
+		var b = new StringBuilder(FxHeader.Hash("fx mount park, fx mount unpark", "fx mount park <name>, fx mount unpark <name>"));
 		b.Append($"schema: {FxYamlReader.Schema}\n");
 		b.Append("mounts:\n");
 		foreach (var (name, parked) in Parked.OrderBy(m => m.Key, StringComparer.OrdinalIgnoreCase))

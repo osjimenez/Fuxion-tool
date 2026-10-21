@@ -16,11 +16,11 @@ namespace Fuxion.Tool.Test;
 /// <summary>The worktrees of fx (plan P, P7), on the sample tree: the three of the plan (feature-x, fix-shared, fix-z) and the branch.</summary>
 public sealed class WorktreeTest : SampleTree
 {
-	[Fact(DisplayName = "add --mandatory in the root: the workspace in worktree mode (sparse), its mandatory repositories at every level, the highest copy; the main tree untouched")]
+	[Fact(DisplayName = "add --required in the root: the workspace in worktree mode (sparse), its required mounts at every level, the highest copy; the main tree untouched")]
 	public void Add_Mandatory()
 	{
 		var acme = AcmeCommitted();
-		var result = Ok(WorktreeModule.Add(acme.Path, "feature/x", null, mandatory: true, cancellationToken: Token));
+		var result = Ok(WorktreeModule.Add(acme.Path, "feature/x", null, required: true, cancellationToken: Token));
 		var root = Path.Combine(acme.Path, "_fx", "~$worktrees", "feature-x");
 		Assert.True(FxLayout.SameFolder(root, result.Root!));
 		Assert.Equal("feature/x", Branch(root));
@@ -56,7 +56,7 @@ public sealed class WorktreeTest : SampleTree
 		Assert.Contains(Project(acme.Path, "libs", "shared", "Shared.csproj"), Read(acme.Path, "_fx/dotnet/~$workspace.props"));
 	}
 
-	[Fact(DisplayName = "add from a repository: its workspace in worktree mode with that repository alone; mount brings more, with the workspaces on the way, --mandatory, the paths left out")]
+	[Fact(DisplayName = "add from a repository: its workspace in worktree mode with that repository alone; mount brings more, with the workspaces on the way, --required, the paths left out")]
 	public void Add_FromRepository_Mount()
 	{
 		var acme = AcmeCommitted();

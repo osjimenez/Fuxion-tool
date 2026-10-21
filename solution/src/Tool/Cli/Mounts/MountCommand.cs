@@ -10,45 +10,50 @@ using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Controls;
 using XenoAtom.Terminal.UI.Styling;
 
-namespace Fuxion.Tool.Cli.Repo;
+namespace Fuxion.Tool.Cli.Mounts;
 
-/// <summary><c>fx repo list|status|mount|unmount|pull</c> (design §10.2): the repositories of the workspace.</summary>
-public static class RepoCommand
+/// <summary><c>fx mount list|status|park|unpark|pull</c> (design §10.2; plan spaces, decision 18): the mounts of the space.</summary>
+public static class MountCommand
 {
+	public const string ListSchema = "fx-mount-list/1";
+	public const string StatusSchema = "fx-mount-status/1";
+	public const string ParkSchema = "fx-mount-park/1";
+	public const string PullSchema = "fx-mount-pull/1";
+
 	public static Command Create(GlobalOptions global, string currentDirectory)
 	{
-		var command = new Command("repo", Texts.Get("repo"));
+		var command = new Command("mount", Texts.Get("mount"));
 
-		var list = new Command("list", Texts.Get("repo.list")).Describe("fx-repo-list/1");
+		var list = new Command("list", Texts.Get("mount.list")).Describe(ListSchema);
 		list.SetAction((result, cancellationToken) => Run(result, global, currentDirectory, (console, token) => List(console, withStatus: false, all: true, token), cancellationToken));
 		command.Add(list);
 
-		var all = new Option<bool>("--all") { Description = Texts.Get("repo.status.all") };
-		var status = new Command("status", Texts.Get("repo.status")) { all }.Describe("fx-repo-status/1");
+		var all = new Option<bool>("--all") { Description = Texts.Get("mount.status.all") };
+		var status = new Command("status", Texts.Get("mount.status")) { all }.Describe(StatusSchema);
 		status.SetAction((result, cancellationToken) => Run(result, global, currentDirectory, (console, token) => List(console, withStatus: true, result.GetValue(all), token), cancellationToken));
 		command.Add(status);
 
-		foreach (var mounted in new[] { true, false })
+		foreach (var parked in new[] { true, false })
 		{
 			// optional for the parser: asked if missing (plan O, O3.3)
-			var names = new Argument<string[]>("names") { Description = Texts.Get("repo.names"), Arity = ArgumentArity.ZeroOrMore };
-			var mount = new Command(mounted ? "mount" : "unmount", Texts.Get(mounted ? "repo.mount" : "repo.unmount"))
+			var names = new Argument<string[]>("names") { Description = Texts.Get("mount.names"), Arity = ArgumentArity.ZeroOrMore };
+			var park = new Command(parked ? "park" : "unpark", Texts.Get(parked ? "mount.park" : "mount.unpark"))
 			{
 				names
-			}.Describe("fx-repo-mount/1", writes: true);
-			mount.SetAction(result =>
+			}.Describe(ParkSchema, writes: true);
+			park.SetAction(result =>
 			{
 				var console = Console(result, global, currentDirectory);
-				return console.Run(token => Mount(console, result.GetValue(names) ?? [], mounted, token));
+				return console.Run(token => Park(console, result.GetValue(names) ?? [], parked, token));
 			});
-			command.Add(mount);
+			command.Add(park);
 		}
 
-		var only = new Option<string[]>("--repo") { Description = Texts.Get("repo.only"), AllowMultipleArgumentsPerToken = true };
-		var pull = new Command("pull", Texts.Get("repo.pull")) { only }.Describe("fx-repo-pull/1", writes: true, network: true);
+		var only = new Argument<string[]>("names") { Description = Texts.Get("mount.only"), Arity = ArgumentArity.ZeroOrMore };
+		var pull = new Command("pull", Texts.Get("mount.pull")) { only }.Describe(PullSchema, writes: true, network: true);
 		pull.SetAction((result, cancellationToken) => Run(result, global, currentDirectory, (console, token) => Pull(console, result.GetValue(only) ?? [], token), cancellationToken));
 		command.Add(pull);
-		// the ones that edit the manifest (plan O, O3.4)
+		// the ones that edit mounts.yaml (plan O, O3.4)
 		ManifestCommands.AddTo(command, global, currentDirectory);
 		return command;
 	}
@@ -104,9 +109,9 @@ public static class RepoCommand
 
 	static int List(FxConsole console, bool withStatus, bool all, CancellationToken cancellationToken)
 	{
-		var schema = withStatus ? "fx-repo-status/1" : "fx-repo-list/1";
-		void Json(IReadOnlyList<JsonRepository> repositories, IReadOnlyList<FxDiagnostic> diagnostics)
-			=> console.WriteJson(new RepositoriesDocument(schema, FxConsole.Ok(diagnostics), repositories, JsonDiagnostic.From(diagnostics)), c => c.RepositoriesDocument);
+		var schema = withStatus ? StatusSchema : ListSchema;
+		void Json(IReadOnlyList<JsonMount> mounts, IReadOnlyList<FxDiagnostic> diagnostics)
+			=> console.WriteJson(new MountsDocument(schema, FxConsole.Ok(diagnostics), mounts, JsonDiagnostic.From(diagnostics)), c => c.MountsDocument);
 		if (Manifest(console, errors => Json([], errors)) is not { } manifest)
 			return 1;
 		var repositories = console.WithProgress((progress, cancel) => MountsModule.Repositories(manifest, withStatus, progress, cancel, MountCopies.Survey(manifest.Root)), cancellationToken)
@@ -114,10 +119,11 @@ public static class RepoCommand
 			.ToList();
 		if (console.Settings.IsMachine)
 		{
-			Json(repositories.Select(r => new JsonRepository(
+			Json(repositories.Select(r => new JsonMount(
 				r.Repository.Name,
 				r.Repository.Path,
-				r.Repository.Required ? "mandatory" : "manual",
+				r.Repository.Required,
+				MountsManifest.ModeText(r.Repository.Mode),
 				r.Mounted,
 				r.Present,
 				r.Parked,
@@ -137,12 +143,12 @@ public static class RepoCommand
 			var shown = all ? repositories : repositories.Where(NeedsAttention).ToList();
 			if (shown.Count > 0)
 			{
-				var table = Table(console, Texts.Get("repo.column.repository"), Texts.Get("repo.column.branch"), Texts.Get("repo.column.ahead"),
-					Texts.Get("repo.column.behind"), Texts.Get("repo.column.changes"));
+				var table = Table(console, Texts.Get("mount.column.mount"), Texts.Get("mount.column.branch"), Texts.Get("mount.column.ahead"),
+					Texts.Get("mount.column.behind"), Texts.Get("mount.column.changes"));
 				foreach (var r in shown)
 					table.AddRow(
 						Cell(console, r.Repository.Name),
-						Cell(console, r.Status?.Branch ?? Texts.Get(r.Present ? "repo.detached" : Where(r)), r.Present ? null : NeedsAttention(r) ? "red" : "gray"),
+						Cell(console, r.Status?.Branch ?? Texts.Get(r.Present ? "mount.detached" : Where(r)), r.Present ? null : NeedsAttention(r) ? "red" : "gray"),
 						Cell(console, r.Status?.Ahead.ToString() ?? "", r.Status?.Ahead > 0 ? "yellow" : null),
 						Cell(console, r.Status?.Behind.ToString() ?? "", r.Status?.Behind > 0 ? "yellow" : null),
 						Cell(console, r.Status?.Changes.ToString() ?? "", r.Status?.Changes > 0 ? "yellow" : null));
@@ -151,60 +157,60 @@ public static class RepoCommand
 			var clean = repositories.Count - repositories.Count(NeedsAttention);
 			if (!all)
 				console.Line(clean == repositories.Count
-					? $"[green]✓[/] {FxConsole.Escape(Texts.Get("repo.all-clean", repositories.Count))}"
-					: $"[gray]{FxConsole.Escape(Texts.Get("repo.some-clean", clean, repositories.Count))}[/]");
+					? $"[green]✓[/] {FxConsole.Escape(Texts.Get("mount.all-clean", repositories.Count))}"
+					: $"[gray]{FxConsole.Escape(Texts.Get("mount.some-clean", clean, repositories.Count))}[/]");
 			return 0;
 		}
 
-		var repoTable = Table(console, Texts.Get("repo.column.repository"), Texts.Get("repo.column.path"), Texts.Get("repo.column.mount"),
-			Texts.Get("repo.column.mounted"), Texts.Get("repo.column.cloned"));
+		var repoTable = Table(console, Texts.Get("mount.column.mount"), Texts.Get("mount.column.path"), Texts.Get("mount.column.mode"),
+			Texts.Get("mount.column.required"), Texts.Get("mount.column.mounted"), Texts.Get("mount.column.cloned"));
 		foreach (var r in repositories)
 			repoTable.AddRow(
 				Cell(console, r.Repository.Name),
 				Cell(console, r.Repository.Path),
-				Cell(console, r.Repository.Required ? "mandatory" : "manual"),
+				Cell(console, MountsManifest.ModeText(r.Repository.Mode), r.Repository.Mode == MountMode.Write ? null : "yellow"),
+				Cell(console, Texts.Get(r.Repository.Required ? "yes" : "no")),
 				Cell(console, Texts.Get(r.Mounted ? "yes" : "no"), r.Mounted ? "green" : "gray"),
 				Cell(console, Texts.Get(r.Present ? "yes" : r.Parked || r.SupersededBy is not null ? Where(r) : "no"), r.Present ? "green" : NeedsAttention(r) && r.Mounted ? "red" : "gray"));
 		console.Write(repoTable);
 		return 0;
 	}
 
-	/// <summary>Where a repository that is not at its place is: parked (and why), or not cloned.</summary>
-	static string Where(RepositoryState r) => r.SupersededBy is not null ? "repo.superseded" : r.Parked ? "repo.parked" : "repo.not-cloned";
+	/// <summary>Where a mount that is not at its place is: parked (and why), or not cloned.</summary>
+	static string Where(RepositoryState r) => r.SupersededBy is not null ? "mount.superseded" : r.Parked ? "mount.parked" : "mount.not-cloned";
 
-	static int Mount(FxConsole console, IReadOnlyList<string> names, bool mounted, CancellationToken cancellationToken)
+	static int Park(FxConsole console, IReadOnlyList<string> names, bool parked, CancellationToken cancellationToken)
 	{
-		const string schema = "fx-repo-mount/1";
 		void Json(IReadOnlyList<RepositoryAction> actions, IReadOnlyList<FxDiagnostic> diagnostics)
-			=> console.WriteJson(new MountDocument(schema, FxConsole.Ok(diagnostics),
-				actions.Select(a => new JsonRepositoryAction(a.Repository, a.Action, a.Detail?.English)).ToList(), JsonDiagnostic.From(diagnostics)), c => c.MountDocument);
+			=> console.WriteJson(new ParkDocument(ParkSchema, FxConsole.Ok(diagnostics),
+				actions.Select(a => new JsonRepositoryAction(a.Repository, a.Action, a.Detail?.English)).ToList(), JsonDiagnostic.From(diagnostics)), c => c.ParkDocument);
 		if (Manifest(console, errors => Json([], errors)) is not { } manifest)
 			return 1;
 		if (names.Count == 0)
 		{
-			var verb = mounted ? "mount" : "unmount";
+			var verb = parked ? "park" : "unpark";
 			if (!console.Capabilities.CanPrompt)
-				return console.Missing("<names>", $"fx repo {verb} <names>");
+				return console.Missing("<names>", $"fx mount {verb} <names>");
 			var candidates = MountsModule.Repositories(manifest, withStatus: false)
-				.Where(r => mounted ? !r.Mounted : r.Mounted && !r.Repository.Required)
+				.Where(r => parked ? r.Mounted && !r.Repository.Required : !r.Mounted)
 				.ToList();
 			if (candidates.Count == 0)
 			{
-				console.Line($"[gray]{FxConsole.Escape(Texts.Get(mounted ? "repo.nothing-to-mount" : "repo.nothing-to-unmount"))}[/]");
+				console.Line($"[gray]{FxConsole.Escape(Texts.Get(parked ? "mount.nothing-to-park" : "mount.nothing-to-unpark"))}[/]");
 				return 0;
 			}
-			names = Ask.Many(console, Texts.Get(mounted ? "repo.ask.mount" : "repo.ask.unmount"), candidates, r => r.Repository.Name, cancellationToken)
+			names = Ask.Many(console, Texts.Get(parked ? "mount.ask.park" : "mount.ask.unpark"), candidates, r => r.Repository.Name, cancellationToken)
 				.Select(r => r.Repository.Name)
 				.ToList();
-			Ask.Equivalent(console, $"fx repo {verb} {string.Join(' ', names)}");
+			Ask.Equivalent(console, $"fx mount {verb} {string.Join(' ', names)}");
 		}
-		var result = MountsModule.SetMount(manifest, names, mounted);
+		var result = MountsModule.Park(manifest, names, parked);
 		if (console.Settings.IsMachine)
 			Json(result.Actions, result.Diagnostics);
 		else
 			foreach (var a in result.Actions)
 			{
-				var color = a.Action is "superseded" or "unmounted" ? "gray" : "green";
+				var color = a.Action is "superseded" || a.Detail is null && a.Action == "parked" ? "gray" : "green";
 				console.Line($"[{color}]{FxConsole.Escape(Texts.Get($"action.{a.Action}")),-10}[/] {FxConsole.Escape(a.Repository)}{(a.Detail is null ? "" : $" [gray]({FxConsole.Escape(a.Detail.ToString())})[/]")}");
 			}
 		return console.Report(result.Diagnostics);
@@ -212,9 +218,8 @@ public static class RepoCommand
 
 	static int Pull(FxConsole console, IReadOnlyCollection<string> only, CancellationToken cancellationToken)
 	{
-		const string schema = "fx-repo-pull/1";
 		void Json(IReadOnlyList<RepositoryAction> actions, IReadOnlyList<FxDiagnostic> diagnostics)
-			=> console.WriteJson(new PullDocument(schema, FxConsole.Ok(diagnostics),
+			=> console.WriteJson(new PullDocument(PullSchema, FxConsole.Ok(diagnostics),
 				actions.Select(a => new JsonRepositoryAction(a.Repository, a.Action, a.Detail?.English)).ToList(), JsonDiagnostic.From(diagnostics)), c => c.PullDocument);
 		if (Manifest(console, errors => Json([], errors)) is not { } manifest)
 			return 1;

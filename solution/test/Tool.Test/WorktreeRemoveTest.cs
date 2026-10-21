@@ -8,8 +8,8 @@ using Fuxion.Tool.Core.Layout;
 using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Sync;
 using Fuxion.Tool.Core.Worktree;
-using Xunit;
 using static Fuxion.Tool.Test.Worktrees;
+using Xunit;
 
 namespace Fuxion.Tool.Test;
 
@@ -77,7 +77,7 @@ public sealed class WorktreeRemoveTest : SampleTree
 		var json = JsonDocument.Parse(stdout.ToString()).RootElement;
 		Assert.Equal("fx-worktree-add/1", json.GetProperty("schema").GetString());
 		Assert.True(json.GetProperty("ok").GetBoolean());
-		Assert.Equal(["acme", "shared"], json.GetProperty("repositories").EnumerateArray().Select(r => r.GetProperty("name").GetString()));
+		Assert.Equal(["acme", "shared"], json.GetProperty("mounts").EnumerateArray().Select(r => r.GetProperty("name").GetString()));
 		Assert.EndsWith("fix-y", json.GetProperty("path").GetString()!.TrimEnd('\\', '/'));
 
 		stdout = new StringWriter();
@@ -85,7 +85,7 @@ public sealed class WorktreeRemoveTest : SampleTree
 		var worktree = Assert.Single(JsonDocument.Parse(stdout.ToString()).RootElement.GetProperty("worktrees").EnumerateArray());
 		Assert.Equal("fix/y", worktree.GetProperty("branch").GetString());
 		Assert.Equal(["_docs/"], worktree.GetProperty("leftOut").EnumerateArray().Select(p => p.GetString()));
-		Assert.Equal(0, worktree.GetProperty("repositories")[1].GetProperty("changes").GetInt32());
+		Assert.Equal(0, worktree.GetProperty("mounts")[1].GetProperty("changes").GetInt32());
 
 		stdout = new StringWriter();
 		var stderr = new StringWriter();

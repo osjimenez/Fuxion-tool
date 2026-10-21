@@ -36,7 +36,9 @@ public sealed record JsonFile(string Path, string Status);
 
 public sealed record JsonRepositoryAction(string Name, string Action, string? Detail);
 
-public sealed record JsonModule(string Module, string Root, string? Repository, IReadOnlyList<JsonFile> Files, IReadOnlyList<JsonRepositoryAction> Repositories)
+/// <param name="Space">The space it is about, below where the run started; null, where it started.</param>
+/// <param name="Mounts">What happened to each mount.</param>
+public sealed record JsonModule(string Module, string Root, string? Space, IReadOnlyList<JsonFile> Files, IReadOnlyList<JsonRepositoryAction> Mounts)
 {
 	public static JsonModule From(FxModuleResult m) => new(
 		m.Module,
@@ -57,10 +59,11 @@ public sealed record JsonModule(string Module, string Root, string? Repository, 
 /// <summary><c>fx-sync/1</c> and <c>fx-doctor/1</c>.</summary>
 public sealed record SyncDocument(string Schema, bool Ok, IReadOnlyList<JsonModule> Modules, IReadOnlyList<JsonDiagnostic> Diagnostics);
 
-public sealed record JsonRepository(
+public sealed record JsonMount(
 	string Name,
 	string Path,
-	string Mount,
+	bool Required,
+	string Mode,
 	bool Mounted,
 	bool Present,
 	bool Parked,
@@ -72,11 +75,11 @@ public sealed record JsonRepository(
 	int? Behind = null,
 	int? Changes = null);
 
-/// <summary><c>fx-repo-list/1</c> and <c>fx-repo-status/1</c>.</summary>
-public sealed record RepositoriesDocument(string Schema, bool Ok, IReadOnlyList<JsonRepository> Repositories, IReadOnlyList<JsonDiagnostic> Diagnostics);
+/// <summary><c>fx-mount-list/1</c> and <c>fx-mount-status/1</c>.</summary>
+public sealed record MountsDocument(string Schema, bool Ok, IReadOnlyList<JsonMount> Mounts, IReadOnlyList<JsonDiagnostic> Diagnostics);
 
-/// <summary><c>fx-repo-mount/1</c> (also for unmount): what happened to each repository.</summary>
-public sealed record MountDocument(string Schema, bool Ok, IReadOnlyList<JsonRepositoryAction> Repositories, IReadOnlyList<JsonDiagnostic> Diagnostics);
+/// <summary><c>fx-mount-park/1</c> (also for unpark): what happened to each mount.</summary>
+public sealed record ParkDocument(string Schema, bool Ok, IReadOnlyList<JsonRepositoryAction> Mounts, IReadOnlyList<JsonDiagnostic> Diagnostics);
 
 public sealed record JsonArgument(string Name, string Description, string Arity);
 
@@ -102,19 +105,19 @@ public sealed record JsonSchemaInfo(string Id, IReadOnlyList<string> Commands);
 /// <summary><c>fx-schemas/1</c>: the schemas of fx and the commands that write each one.</summary>
 public sealed record SchemasDocument(string Schema, bool Ok, IReadOnlyList<JsonSchemaInfo> Schemas, IReadOnlyList<JsonDiagnostic> Diagnostics);
 
-/// <summary><c>fx-worktree-add/1</c>, <c>-mount/1</c>, <c>-unmount/1</c> and <c>-remove/1</c>: the worktree, what happened to each repository and the sync that followed.</summary>
-public sealed record WorktreeDocument(string Schema, bool Ok, string? Path, string Branch, IReadOnlyList<JsonRepositoryAction> Repositories, IReadOnlyList<JsonModule> Modules,
+/// <summary><c>fx-worktree-add/1</c>, <c>-mount/1</c>, <c>-unmount/1</c> and <c>-remove/1</c>: the worktree, what happened to each mount and the sync that followed.</summary>
+public sealed record WorktreeDocument(string Schema, bool Ok, string? Path, string Branch, IReadOnlyList<JsonRepositoryAction> Mounts, IReadOnlyList<JsonModule> Modules,
 	IReadOnlyList<JsonDiagnostic> Diagnostics);
 
-public sealed record JsonWorktreeMount(string Path, string Repository, bool CreatedBranch, int? Changes);
+public sealed record JsonWorktreeMount(string Path, string Name, bool CreatedBranch, int? Changes);
 
-public sealed record JsonWorktree(string Branch, string Path, string From, IReadOnlyList<string> LeftOut, IReadOnlyList<JsonWorktreeMount> Repositories);
+public sealed record JsonWorktree(string Branch, string Path, string From, IReadOnlyList<string> LeftOut, IReadOnlyList<JsonWorktreeMount> Mounts);
 
 /// <summary><c>fx-worktree-list/1</c>.</summary>
 public sealed record WorktreeListDocument(string Schema, bool Ok, IReadOnlyList<JsonWorktree> Worktrees, IReadOnlyList<JsonDiagnostic> Diagnostics);
 
-/// <summary><c>fx-repo-pull/1</c>.</summary>
-public sealed record PullDocument(string Schema, bool Ok, IReadOnlyList<JsonRepositoryAction> Repositories, IReadOnlyList<JsonDiagnostic> Diagnostics);
+/// <summary><c>fx-mount-pull/1</c>.</summary>
+public sealed record PullDocument(string Schema, bool Ok, IReadOnlyList<JsonRepositoryAction> Mounts, IReadOnlyList<JsonDiagnostic> Diagnostics);
 
 public sealed record JsonTag(string Name, string Commit);
 
@@ -177,8 +180,8 @@ public sealed record JsonDiagnosticEvent(string Type, JsonDiagnostic Diagnostic)
 	DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
 	WriteIndented = true)]
 [JsonSerializable(typeof(SyncDocument))]
-[JsonSerializable(typeof(RepositoriesDocument))]
-[JsonSerializable(typeof(MountDocument))]
+[JsonSerializable(typeof(MountsDocument))]
+[JsonSerializable(typeof(ParkDocument))]
 [JsonSerializable(typeof(PullDocument))]
 [JsonSerializable(typeof(VersionDocument))]
 [JsonSerializable(typeof(VersionTagDocument))]

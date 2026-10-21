@@ -58,17 +58,17 @@ public sealed partial class UiApp
 		if (node.Declaration is { } declaration && ParentWorkspace(node) is { } owner && node.SupersededBy is null)
 		{
 			var root = UiAction.RootOption(_start, owner.Path);
-			yield return Opening(Texts.Get("ui.edit.repository"), $"fx repo set|tag|rename {declaration.Name}{root}",
+			yield return Opening(Texts.Get("ui.edit.repository"), $"fx mount set|tag|rename {declaration.Name}{root}",
 				() => ShowForm(RepositoryForm(AsPending(owner, declaration), owner)));
 			var name = declaration.Name;
-			yield return Staging(Texts.Get("ui.edit.remove"), new($"fx repo remove {name}{root}", () => [ManifestEditor.RemoveRepository(owner.Path, name)]));
+			yield return Staging(Texts.Get("ui.edit.remove"), new($"fx mount remove {name}{root}", () => [ManifestEditor.RemoveRepository(owner.Path, name)]));
 		}
 		if (node.Kind == FxTreeKind.Unknown && ParentWorkspace(node) is { } workspace)
 		{
 			var relative = FxLayout.Relative(workspace.Path, node.Path);
 			var root = UiAction.RootOption(_start, workspace.Path);
 			if (FxLayout.IsGitRoot(node.Path))
-				yield return Opening(Texts.Get("ui.edit.add"), $"fx repo add <url> {relative}{root}", () => ShowForm(AddForm(node, workspace)));
+				yield return Opening(Texts.Get("ui.edit.add"), $"fx mount add <url> {relative}{root}", () => ShowForm(AddForm(node, workspace)));
 			else
 				yield return Staging(Texts.Get("ui.edit.version"), new($"fx path add {relative}/{root}", () => [ManifestEditor.AddPath(workspace.Path, $"{relative}/")]));
 		}
@@ -220,7 +220,7 @@ public sealed partial class UiApp
 			new("path", Texts.Get("ui.field.path"), declaration.Path),
 			new("tags", Texts.Get("ui.field.tags"), string.Join(", ", declaration.Tags)),
 			new("depends-on", Texts.Get("ui.field.depends-on"), string.Join(", ", declaration.DependsOn ?? [])),
-			new("mandatory", Texts.Get("ui.field.mandatory"), check: declaration.Required),
+			new("required", Texts.Get("ui.field.required"), check: declaration.Required),
 			new("inherits", Texts.Get("ui.field.inherits"), check: declaration.Inherits)
 		], form =>
 		{
@@ -229,25 +229,25 @@ public sealed partial class UiApp
 			var added = tags.Except(declaration.Tags).ToList();
 			var removed = declaration.Tags.Except(tags).ToList();
 			if (added.Count > 0)
-				edits.Add(new($"fx repo tag {name} {string.Join(' ', added)}{root}", () => [ManifestEditor.TagRepository(owner.Path, name, added)]));
+				edits.Add(new($"fx mount tag {name} {string.Join(' ', added)}{root}", () => [ManifestEditor.TagRepository(owner.Path, name, added)]));
 			if (removed.Count > 0)
-				edits.Add(new($"fx repo tag {name} {string.Join(' ', removed)} --remove{root}", () => [ManifestEditor.TagRepository(owner.Path, name, removed, remove: true)]));
+				edits.Add(new($"fx mount tag {name} {string.Join(' ', removed)} --remove{root}", () => [ManifestEditor.TagRepository(owner.Path, name, removed, remove: true)]));
 			void Set(string key, IReadOnlyList<string> values)
-				=> edits.Add(new(values.Count == 0 ? $"fx repo set {name} {key} --unset{root}" : $"fx repo set {name} {key} {string.Join(' ', values.Select(Q))}{root}",
+				=> edits.Add(new(values.Count == 0 ? $"fx mount set {name} {key} --unset{root}" : $"fx mount set {name} {key} {string.Join(' ', values.Select(Q))}{root}",
 					() => [ManifestEditor.SetRepository(owner.Path, name, key, values)]));
 			if (form["url"].Value.Trim() is var url && url != (declaration.Url ?? ""))
 				Set("url", url.Length == 0 ? [] : [url]);
 			if (form["path"].Value.Trim() is var path && path != declaration.Path)
 				Set("path", [path]);
-			if (form["mandatory"].Check.Value != (declaration.Required))
-				Set("required", form["mandatory"].Check.Value ? ["true"] : []);
+			if (form["required"].Check.Value != declaration.Required)
+				Set("required", form["required"].Check.Value ? ["true"] : []);
 			if (form["inherits"].Check.Value != declaration.Inherits)
 				Set("inherits", [form["inherits"].Check.Value ? "true" : "false"]);
 			if (!form["depends-on"].Words.SequenceEqual(declaration.DependsOn ?? []))
 				Set("depends-on", form["depends-on"].Words);
 			// the name, the last: the edits above use the old one
 			if (form["name"].Value.Trim() is { Length: > 0 } newName && newName != name)
-				edits.Add(new($"fx repo rename {name} {newName}{root}", () => ManifestEditor.RenameRepository(owner.Path, name, newName)));
+				edits.Add(new($"fx mount rename {name} {newName}{root}", () => ManifestEditor.RenameRepository(owner.Path, name, newName)));
 			return edits;
 		}, ManifestEditor.ManifestPath(owner.Path));
 	}
@@ -263,15 +263,15 @@ public sealed partial class UiApp
 			new("path", Texts.Get("ui.field.path"), relative),
 			new("name", Texts.Get("ui.field.name"), url.Length > 0 ? ManifestEditor.NameFromUrl(url) : node.Name),
 			new("tags", Texts.Get("ui.field.tags")),
-			new("mandatory", Texts.Get("ui.field.mandatory"), check: false)
+			new("required", Texts.Get("ui.field.required"), check: false)
 		], form =>
 		{
 			var (u, p, n) = (form["url"].Value.Trim(), form["path"].Value.Trim(), form["name"].Value.Trim());
-			var mandatory = form["mandatory"].Check.Value;
+			var required = form["required"].Check.Value;
 			var tags = form["tags"].Words;
-			var command = $"fx repo add {Q(u)} {Q(p)}{(n.Length > 0 && n != ManifestEditor.NameFromUrl(u) ? $" --name {n}" : "")}{(mandatory ? " --mandatory" : "")}"
+			var command = $"fx mount add {Q(u)} {Q(p)}{(n.Length > 0 && n != ManifestEditor.NameFromUrl(u) ? $" --name {n}" : "")}{(required ? " --required" : "")}"
 			              + $"{(tags.Count > 0 ? $" --tag {string.Join(' ', tags)}" : "")}{root}";
-			return [new(command, () => [ManifestEditor.AddRepository(workspace.Path, u, p, n.Length > 0 ? n : null, mandatory, null, tags)])];
+			return [new(command, () => [ManifestEditor.AddRepository(workspace.Path, u, p, n.Length > 0 ? n : null, required, null, tags)])];
 		}, ManifestEditor.ManifestPath(workspace.Path));
 	}
 

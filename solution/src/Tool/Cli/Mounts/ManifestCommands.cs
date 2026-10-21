@@ -12,12 +12,12 @@ using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Sync;
 using Fuxion.Tool.Core.Text;
 
-namespace Fuxion.Tool.Cli.Repo;
+namespace Fuxion.Tool.Cli.Mounts;
 
 /// <summary>
-/// The commands that edit the configuration (plan O, O3.4; plan P): <c>fx repo add|remove|tag|set</c> and <c>fx path
-/// add|remove</c> (the manifest of the workspace), <c>fx module enable|disable</c> (the yaml of a module, in any root of
-/// fx). They show the change as a diff and write it, or only show it (<c>--dry-run</c>); what is missing is asked, with
+/// The commands that edit the configuration (plan O, O3.4; plan P): <c>fx mount add|remove|tag|set|rename</c>
+/// (<c>mounts.yaml</c>), <c>fx path add|remove</c> (<c>space.yaml</c>) and <c>fx module enable|disable</c> (the yaml of a
+/// module), the last two in any space. They show the change as a diff and write it, or only show it (<c>--dry-run</c>); what is missing is asked, with
 /// a person in front (<see cref="Ask"/>). They never touch clones nor folders: <c>fx sync</c> does the rest, and each
 /// one says so.
 /// </summary>
@@ -30,68 +30,71 @@ public static class ManifestCommands
 	/// <summary>What a command does once it has its values: the change, or null if something is missing with no one to ask.</summary>
 	delegate ManifestChange? Edit(ParseResult result, FxConsole console, MountsManifest manifest, CancellationToken cancellationToken);
 
-	/// <summary>The same, for a command that changes several files (<c>fx repo rename</c>).</summary>
+	/// <summary>The same, for a command that changes several files (<c>fx mount rename</c>).</summary>
 	delegate IReadOnlyList<ManifestChange>? EditMany(ParseResult result, FxConsole console, MountsManifest manifest, CancellationToken cancellationToken);
 
-	/// <summary>The same, for a command that edits any root of fx (not only a workspace).</summary>
+	/// <summary>The same, for a command that edits any space (not only one that mounts others).</summary>
 	delegate ManifestChange? RootEdit(ParseResult result, FxConsole console, string root, CancellationToken cancellationToken);
 
-	/// <summary><c>fx repo add|remove|tag|set</c>, into <c>fx repo</c>.</summary>
-	public static void AddTo(Command repo, GlobalOptions global, string currentDirectory)
+	/// <summary><c>fx mount add|remove|tag|set|rename</c>, into <c>fx mount</c>.</summary>
+	public static void AddTo(Command mount, GlobalOptions global, string currentDirectory)
 	{
-		var url = new Argument<string?>("url") { Description = Texts.Get("repo.add.url"), Arity = ArgumentArity.ZeroOrOne };
-		var path = new Argument<string?>("path") { Description = Texts.Get("repo.add.path"), Arity = ArgumentArity.ZeroOrOne };
-		var name = new Option<string?>("--name") { Description = Texts.Get("repo.add.name") };
-		var mandatory = new Option<bool>("--mandatory") { Description = Texts.Get("repo.add.mandatory") };
-		var guest = new Option<bool>("--guest") { Description = Texts.Get("repo.add.guest") };
-		var dependsOn = new Option<string[]>("--depends-on") { Description = Texts.Get("repo.add.depends-on"), AllowMultipleArgumentsPerToken = true };
-		var tags = new Option<string[]>("--tag") { Description = Texts.Get("repo.add.tag"), AllowMultipleArgumentsPerToken = true };
-		var add = new Command("add", Texts.Get("repo.add")) { url, path, name, mandatory, guest, dependsOn, tags };
+		var url = new Argument<string?>("url") { Description = Texts.Get("mount.add.url"), Arity = ArgumentArity.ZeroOrOne };
+		var path = new Argument<string?>("path") { Description = Texts.Get("mount.add.path"), Arity = ArgumentArity.ZeroOrOne };
+		var name = new Option<string?>("--name") { Description = Texts.Get("mount.add.name") };
+		var required = new Option<bool>("--required") { Description = Texts.Get("mount.add.required") };
+		var mode = new Option<string?>("--mode") { Description = Texts.Get("mount.add.mode") };
+		mode.AcceptOnlyFromAmong([.. MountsManifest.Modes]);
+		var guest = new Option<bool>("--guest") { Description = Texts.Get("mount.add.guest") };
+		var dependsOn = new Option<string[]>("--depends-on") { Description = Texts.Get("mount.add.depends-on"), AllowMultipleArgumentsPerToken = true };
+		var tags = new Option<string[]>("--tag") { Description = Texts.Get("mount.add.tag"), AllowMultipleArgumentsPerToken = true };
+		var add = new Command("add", Texts.Get("mount.add")) { url, path, name, required, mode, guest, dependsOn, tags };
 		// the name of the added one, for the next step (it may come from an answer)
 		var added = "";
 		Wire(add, global, currentDirectory, (result, console, manifest, token) =>
 		{
-			// where it goes is the user's: no default (the layout of the workspace is free)
+			// where it goes is the user's: no default (the layout of the space is free)
 			string? u = result.GetValue(url), p = result.GetValue(path);
 			if (string.IsNullOrWhiteSpace(u) || string.IsNullOrWhiteSpace(p))
 			{
 				if (!console.Capabilities.CanPrompt)
 				{
-					console.Missing(string.IsNullOrWhiteSpace(u) ? "<url>" : "<path>", "fx repo add <url> <path>");
+					console.Missing(string.IsNullOrWhiteSpace(u) ? "<url>" : "<path>", "fx mount add <url> <path>");
 					return null;
 				}
 				if (string.IsNullOrWhiteSpace(u))
-					u = Ask.Text(console, Texts.Get("repo.ask.url"), token);
+					u = Ask.Text(console, Texts.Get("mount.ask.url"), token);
 				if (string.IsNullOrWhiteSpace(p))
-					p = Ask.Text(console, Texts.Get("repo.ask.path"), token);
+					p = Ask.Text(console, Texts.Get("mount.ask.path"), token);
 				Ask.Equivalent(console, string.Join(' ', result.Tokens.Select(t => t.Value).Where(t => t != u && t != p).Prepend("fx").Append(u).Append(p)));
 			}
 			added = result.GetValue(name) ?? ManifestEditor.NameFromUrl(u);
-			return ManifestEditor.AddRepository(manifest.Root, u, p, added, result.GetValue(mandatory),
-				result.GetValue(dependsOn) ?? [], result.GetValue(tags) ?? [], inherits: !result.GetValue(guest));
-		}, result => result.GetValue(mandatory) ? Sync : $"fx repo mount {added}");
-		repo.Add(add);
+			return ManifestEditor.AddRepository(manifest.Root, u, p, added, result.GetValue(required),
+				result.GetValue(dependsOn) ?? [], result.GetValue(tags) ?? [], inherits: !result.GetValue(guest),
+				MountsManifest.ParseMode(result.GetValue(mode)) ?? MountMode.Write);
+		}, result => result.GetValue(required) ? Sync : $"fx mount unpark {added}");
+		mount.Add(add);
 
 		var removed = RepositoryArgument();
-		var remove = new Command("remove", Texts.Get("repo.remove")) { removed };
+		var remove = new Command("remove", Texts.Get("mount.remove")) { removed };
 		Wire(remove, global, currentDirectory, (result, console, manifest, token) =>
 		{
-			if (Repository(result, console, manifest, removed, "fx repo remove <name>", Texts.Get("repo.ask.remove"), token) is not { } n)
+			if (Repository(result, console, manifest, removed, "fx mount remove <name>", Texts.Get("mount.ask.remove"), token) is not { } n)
 				return null;
 			if (string.IsNullOrWhiteSpace(result.GetValue(removed)))
-				Ask.Equivalent(console, $"fx repo remove {n}");
+				Ask.Equivalent(console, $"fx mount remove {n}");
 			return ManifestEditor.RemoveRepository(manifest.Root, n);
 		});
-		repo.Add(remove);
+		mount.Add(remove);
 
 		var tagged = RepositoryArgument();
-		var tagList = new Argument<string[]>("tags") { Description = Texts.Get("repo.tag.tags"), Arity = ArgumentArity.ZeroOrMore };
-		var untag = new Option<bool>("--remove") { Description = Texts.Get("repo.tag.remove") };
-		var tag = new Command("tag", Texts.Get("repo.tag")) { tagged, tagList, untag };
+		var tagList = new Argument<string[]>("tags") { Description = Texts.Get("mount.tag.tags"), Arity = ArgumentArity.ZeroOrMore };
+		var untag = new Option<bool>("--remove") { Description = Texts.Get("mount.tag.remove") };
+		var tag = new Command("tag", Texts.Get("mount.tag")) { tagged, tagList, untag };
 		Wire(tag, global, currentDirectory, (result, console, manifest, token) =>
 		{
 			var asked = string.IsNullOrWhiteSpace(result.GetValue(tagged));
-			if (Repository(result, console, manifest, tagged, "fx repo tag <name> <tags>...", Texts.Get("repo.ask.repository"), token) is not { } n)
+			if (Repository(result, console, manifest, tagged, "fx mount tag <name> <tags>...", Texts.Get("mount.ask.mount"), token) is not { } n)
 				return null;
 			var removing = result.GetValue(untag);
 			IReadOnlyList<string> values = result.GetValue(tagList) ?? [];
@@ -100,40 +103,40 @@ public static class ManifestCommands
 				var current = manifest.Mounts.FirstOrDefault(r => r.Name == n)?.Tags ?? [];
 				if (!console.Capabilities.CanPrompt || (removing && current.Count == 0))
 				{
-					console.Missing("<tags>", $"fx repo tag {n} <tags>...{(removing ? " --remove" : "")}");
+					console.Missing("<tags>", $"fx mount tag {n} <tags>...{(removing ? " --remove" : "")}");
 					return null;
 				}
 				values = removing
-					? Ask.Many(console, Texts.Get("repo.ask.tags-remove"), current, t => t, token)
-					: Ask.Text(console, Texts.Get("repo.ask.tags-add"), token).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+					? Ask.Many(console, Texts.Get("mount.ask.tags-remove"), current, t => t, token)
+					: Ask.Text(console, Texts.Get("mount.ask.tags-add"), token).Split(' ', StringSplitOptions.RemoveEmptyEntries);
 				asked = true;
 			}
 			if (asked)
-				Ask.Equivalent(console, $"fx repo tag {n} {string.Join(' ', values)}{(removing ? " --remove" : "")}");
+				Ask.Equivalent(console, $"fx mount tag {n} {string.Join(' ', values)}{(removing ? " --remove" : "")}");
 			return ManifestEditor.TagRepository(manifest.Root, n, values, removing);
 		});
-		repo.Add(tag);
+		mount.Add(tag);
 
 		var changed = RepositoryArgument();
-		var key = new Argument<string?>("key") { Description = Texts.Get("repo.set.key"), Arity = ArgumentArity.ZeroOrOne };
+		var key = new Argument<string?>("key") { Description = Texts.Get("mount.set.key"), Arity = ArgumentArity.ZeroOrOne };
 		key.AcceptOnlyFromAmong([.. ManifestEditor.SettableKeys]);
-		var values = new Argument<string[]>("values") { Description = Texts.Get("repo.set.values"), Arity = ArgumentArity.ZeroOrMore };
-		var unset = new Option<bool>("--unset") { Description = Texts.Get("repo.set.unset") };
-		var set = new Command("set", Texts.Get("repo.set")) { changed, key, values, unset };
+		var values = new Argument<string[]>("values") { Description = Texts.Get("mount.set.values"), Arity = ArgumentArity.ZeroOrMore };
+		var unset = new Option<bool>("--unset") { Description = Texts.Get("mount.set.unset") };
+		var set = new Command("set", Texts.Get("mount.set")) { changed, key, values, unset };
 		Wire(set, global, currentDirectory, (result, console, manifest, token) =>
 		{
 			var asked = string.IsNullOrWhiteSpace(result.GetValue(changed));
-			if (Repository(result, console, manifest, changed, "fx repo set <name> <key> <values>...", Texts.Get("repo.ask.repository"), token) is not { } n)
+			if (Repository(result, console, manifest, changed, "fx mount set <name> <key> <values>...", Texts.Get("mount.ask.mount"), token) is not { } n)
 				return null;
 			var k = result.GetValue(key);
 			if (string.IsNullOrWhiteSpace(k))
 			{
 				if (!console.Capabilities.CanPrompt)
 				{
-					console.Missing("<key>", $"fx repo set {n} <key> <values>...");
+					console.Missing("<key>", $"fx mount set {n} <key> <values>...");
 					return null;
 				}
-				k = Ask.One(console, Texts.Get("repo.ask.key"), ManifestEditor.SettableKeys, x => x, token);
+				k = Ask.One(console, Texts.Get("mount.ask.key"), ManifestEditor.SettableKeys, x => x, token);
 				asked = true;
 			}
 			var removing = result.GetValue(unset);
@@ -142,10 +145,10 @@ public static class ManifestCommands
 			{
 				if (!console.Capabilities.CanPrompt)
 				{
-					console.Missing("<values>", $"fx repo set {n} {k} <values>... (--unset to remove it)");
+					console.Missing("<values>", $"fx mount set {n} {k} <values>... (--unset to remove it)");
 					return null;
 				}
-				var question = Texts.Get("repo.ask.value", k);
+				var question = Texts.Get("mount.ask.value", k);
 				given = k switch
 				{
 					"required" or "inherits" => [Ask.One(console, question, ["true", "false"], v => v, token)],
@@ -156,35 +159,35 @@ public static class ManifestCommands
 				asked = true;
 			}
 			if (asked)
-				Ask.Equivalent(console, $"fx repo set {n} {k} {(removing ? "--unset" : string.Join(' ', given))}");
+				Ask.Equivalent(console, $"fx mount set {n} {k} {(removing ? "--unset" : string.Join(' ', given))}");
 			return ManifestEditor.SetRepository(manifest.Root, n, k, given);
 		});
-		repo.Add(set);
+		mount.Add(set);
 
 		var renamed = RepositoryArgument();
-		var newName = new Argument<string?>("new-name") { Description = Texts.Get("repo.rename.new-name"), Arity = ArgumentArity.ZeroOrOne };
-		var rename = new Command("rename", Texts.Get("repo.rename")) { renamed, newName };
+		var newName = new Argument<string?>("new-name") { Description = Texts.Get("mount.rename.new-name"), Arity = ArgumentArity.ZeroOrOne };
+		var rename = new Command("rename", Texts.Get("mount.rename")) { renamed, newName };
 		WireMany(rename, global, currentDirectory, (result, console, manifest, token) =>
 		{
 			var asked = string.IsNullOrWhiteSpace(result.GetValue(renamed));
-			if (Repository(result, console, manifest, renamed, "fx repo rename <name> <new-name>", Texts.Get("repo.ask.repository"), token) is not { } n)
+			if (Repository(result, console, manifest, renamed, "fx mount rename <name> <new-name>", Texts.Get("mount.ask.mount"), token) is not { } n)
 				return null;
 			var to = result.GetValue(newName);
 			if (string.IsNullOrWhiteSpace(to))
 			{
 				if (!console.Capabilities.CanPrompt)
 				{
-					console.Missing("<new-name>", $"fx repo rename {n} <new-name>");
+					console.Missing("<new-name>", $"fx mount rename {n} <new-name>");
 					return null;
 				}
-				to = Ask.Text(console, Texts.Get("repo.ask.new-name"), token);
+				to = Ask.Text(console, Texts.Get("mount.ask.new-name"), token);
 				asked = true;
 			}
 			if (asked)
-				Ask.Equivalent(console, $"fx repo rename {n} {to}");
+				Ask.Equivalent(console, $"fx mount rename {n} {to}");
 			return ManifestEditor.RenameRepository(manifest.Root, n, to);
 		});
-		repo.Add(rename);
+		mount.Add(rename);
 	}
 
 	/// <summary><c>fx module enable|disable</c>, in the root of fx where it runs.</summary>
@@ -227,7 +230,7 @@ public static class ManifestCommands
 		       && !(File.Exists(file) && File.ReadAllText(file).Contains("enabled: false", StringComparison.Ordinal));
 	}
 
-	/// <summary><c>fx path add|remove</c>: what the git of the workspace versions.</summary>
+	/// <summary><c>fx path add|remove</c>: what the git of the space versions, in any space.</summary>
 	public static Command CreatePath(GlobalOptions global, string currentDirectory)
 	{
 		var command = new Command("path", Texts.Get("path"));
@@ -236,20 +239,20 @@ public static class ManifestCommands
 		var exclude = new Option<bool>("--exclude") { Description = Texts.Get("path.exclude") };
 		var noWorktree = new Option<bool>("--no-worktree") { Description = Texts.Get("path.no-worktree") };
 		var add = new Command("add", Texts.Get("path.add")) { added, exclude, noWorktree };
-		Wire(add, global, currentDirectory, (result, console, manifest, token) =>
+		WireRoot(add, global, currentDirectory, (result, console, root, token) =>
 			Given(result, console, result.GetValue(added), "<path>", "fx path add <path>", () => Ask.Text(console, Texts.Get("path.ask.add"), token)) is { } path
-				? ManifestEditor.AddPath(manifest.Root, path, result.GetValue(exclude), !result.GetValue(noWorktree))
+				? ManifestEditor.AddPath(root, path, result.GetValue(exclude), !result.GetValue(noWorktree))
 				: null);
 		command.Add(add);
 
 		var removed = PathArgument();
 		var remove = new Command("remove", Texts.Get("path.remove")) { removed };
-		Wire(remove, global, currentDirectory, (result, console, manifest, token) =>
+		WireRoot(remove, global, currentDirectory, (result, console, root, token) =>
 		{
-			var choices = (SpaceConfig.Load(manifest.Root).Paths ?? []).Select(p => p.Path).ToList();
+			var choices = (SpaceConfig.Load(root).Paths ?? []).Select(p => p.Path).ToList();
 			return Given(result, console, result.GetValue(removed), "<path>", "fx path remove <path>", () => Ask.One(console, Texts.Get("path.ask.remove"), choices, f => f, token),
 				choices.Count > 0) is { } path
-				? ManifestEditor.RemovePath(manifest.Root, path)
+				? ManifestEditor.RemovePath(root, path)
 				: null;
 		});
 		command.Add(remove);
@@ -257,7 +260,7 @@ public static class ManifestCommands
 	}
 
 	// optional for the parser: asked if missing (plan O, O3.3)
-	static Argument<string?> RepositoryArgument() => new("name") { Description = Texts.Get("repo.name"), Arity = ArgumentArity.ZeroOrOne };
+	static Argument<string?> RepositoryArgument() => new("name") { Description = Texts.Get("mount.name"), Arity = ArgumentArity.ZeroOrOne };
 
 	static Argument<string?> ModuleArgument() => new("module") { Description = Texts.Get("module.name"), Arity = ArgumentArity.ZeroOrOne };
 
@@ -304,12 +307,12 @@ public static class ManifestCommands
 		command.Add(dryRun);
 		command.SetAction((result, cancellationToken) =>
 		{
-			var console = RepoCommand.Console(result, global, currentDirectory);
+			var console = MountCommand.Console(result, global, currentDirectory);
 			return Task.FromResult(console.Run(token =>
 			{
 				void Json(IReadOnlyList<FxDiagnostic> diagnostics)
 					=> console.WriteJson(new ManifestEditDocument(Schema, false, false, false, [], JsonDiagnostic.From(diagnostics)), c => c.ManifestEditDocument);
-				if (RepoCommand.Manifest(console, Json) is not { } manifest)
+				if (MountCommand.Manifest(console, Json) is not { } manifest)
 					return 1;
 				if (edit(result, console, manifest, token) is not { } changes)
 					return FxConsole.UsageError;
@@ -318,7 +321,7 @@ public static class ManifestCommands
 		});
 	}
 
-	/// <summary>The action of a command that edits any root of fx: the root around the directory (its <c>_fx/</c>, or its git).</summary>
+	/// <summary>The action of a command that edits any space: the one around the directory (its <c>_fx/</c>, or its git).</summary>
 	static void WireRoot(Command command, GlobalOptions global, string currentDirectory, RootEdit edit)
 	{
 		command.Describe(Schema, writes: true);
@@ -326,7 +329,7 @@ public static class ManifestCommands
 		command.Add(dryRun);
 		command.SetAction((result, cancellationToken) =>
 		{
-			var console = RepoCommand.Console(result, global, currentDirectory);
+			var console = MountCommand.Console(result, global, currentDirectory);
 			return Task.FromResult(console.Run(token =>
 			{
 				if (FxLayout.FindRoot(console.Settings.Directory) is not { } root)
