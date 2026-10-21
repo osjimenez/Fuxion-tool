@@ -156,6 +156,72 @@ public static class DocCommand
 					: null));
 		});
 		command.Add(relate);
+
+		var adoptDocuments = new Argument<string[]>("documents") { Description = Texts.Get("doc.adopt.documents"), Arity = ArgumentArity.ZeroOrMore };
+		var adoptType = new Option<string?>("--type") { Description = Texts.Get("doc.adopt.type"), HelpName = "type" };
+		adoptType.AcceptOnlyFromAmong([.. DocTypes.All.Select(t => t.Name)]);
+		var adoptProfile = new Option<string?>("--profile") { Description = Texts.Get("doc.new.profile"), HelpName = "profile" };
+		var adoptStatus = new Option<string?>("--status") { Description = Texts.Get("doc.adopt.status"), HelpName = "status" };
+		var created = new Option<string?>("--created") { Description = Texts.Get("doc.adopt.created"), HelpName = "date" };
+		var manifests = new Option<string[]>("--manifest") { Description = Texts.Get("doc.adopt.manifest"), HelpName = "file" };
+		var adoptActor = new Option<string?>("--actor") { Description = Texts.Get("doc.new.actor", DocEditor.ActorVariable), HelpName = "actor" };
+		var adoptDryRun = DryRun();
+		var adopt = new Command("adopt", Texts.Get("doc.adopt"))
+		{
+			adoptDocuments, adoptType, adoptProfile, adoptStatus, created, manifests, adoptActor, adoptDryRun
+		}.Describe(EditSchema, writes: true);
+		adopt.SetAction(result =>
+		{
+			var console = MountCommand.Console(result, global, currentDirectory);
+			var selectors = result.GetValue(adoptDocuments) ?? [];
+			var files = result.GetValue(manifests) ?? [];
+			var actor = result.GetValue(adoptActor) ?? Environment.GetEnvironmentVariable(DocEditor.ActorVariable);
+			if (files.Length > 0 && (selectors.Length > 0 || result.GetValue(adoptType) is not null || result.GetValue(adoptProfile) is not null
+			                         || result.GetValue(adoptStatus) is not null || result.GetValue(created) is not null))
+			{
+				console.ErrorLine($"[red]{FxConsole.Escape(Texts.Get("doc.adopt.manifest-alone"))}[/]");
+				return FxConsole.UsageError;
+			}
+			return console.Run(_ => Write(console, result.GetValue(adoptDryRun), (catalog, display) =>
+			{
+				if (files.Length > 0)
+				{
+					var change = new DocChange(catalog, display);
+					var targets = new List<DocManifestTarget>();
+					foreach (var file in files.Select(f => FxLayout.Full(console.Settings.Directory, f)))
+					{
+						if (!FxFiles.Exists(file))
+						{
+							console.ErrorLine($"[red]{FxConsole.Escape(Texts.Get("doc.adopt.no-manifest", file))}[/]");
+							return null;
+						}
+						if (DocAdoption.Read(file, display(file), change.Diagnostics) is { } read)
+							targets.AddRange(read);
+					}
+					return change.Ok ? DocAdoption.Apply(catalog, display, targets, actor, DateTimeOffset.UtcNow) : change;
+				}
+				List<DocFile>? chosen = null;
+				if (selectors.Length > 0 && (chosen = Select(console, catalog, selectors)) is null)
+					return null;
+				return DocAdoption.Bootstrap(catalog, display, chosen, result.GetValue(adoptType), result.GetValue(adoptProfile), result.GetValue(adoptStatus),
+					result.GetValue(created), actor, DateTimeOffset.UtcNow);
+			}));
+		});
+		command.Add(adopt);
+
+		var moveDocument = new Argument<string>("document") { Description = Texts.Get("doc.show.document") };
+		var folder = new Argument<string>("folder") { Description = Texts.Get("doc.move.folder") };
+		var moveDryRun = DryRun();
+		var move = new Command("move", Texts.Get("doc.move")) { moveDocument, folder, moveDryRun }.Describe(EditSchema, writes: true);
+		move.SetAction(result =>
+		{
+			var console = MountCommand.Console(result, global, currentDirectory);
+			return console.Run(_ => Write(console, result.GetValue(moveDryRun), (catalog, display) =>
+				One(console, catalog, result.GetValue(moveDocument)!) is { } file
+					? DocEditor.Move(catalog, display, file, result.GetValue(folder)!, console.Settings.Directory)
+					: null));
+		});
+		command.Add(move);
 	}
 
 	/// <summary>The one document <paramref name="selector"/> names; null (said on stderr) if it names none or several.</summary>
@@ -181,9 +247,11 @@ public static class DocCommand
 		{
 			var diagnostics = change is null ? found : [.. found, .. change.Diagnostics];
 			var ok = FxConsole.Ok(diagnostics);
+			var shown = ok && change is not null;
 			console.WriteJson(new DocEditDocument(EditSchema, ok, ok && change is { Changed: true }, written, change?.Documents ?? [],
-				ok && change is not null ? change.Files.Select(f => new JsonFileEdit(f.File, Core.Text.LineDiff.Unified(f.Diff))).ToList() : [],
-				JsonDiagnostic.From(diagnostics)), c => c.DocEditDocument);
+				shown ? change!.Files.Select(f => new JsonFileEdit(f.File, Core.Text.LineDiff.Unified(f.Diff))).ToList() : [],
+				shown ? change!.Moved.Select(m => new JsonFileMove(m.From, m.To)).ToList() : [], shown ? change!.Removed : [], JsonDiagnostic.From(diagnostics)),
+				c => c.DocEditDocument);
 		}
 		if (DocsModule.Find(console.Settings.Directory, found) is not { } catalog)
 		{
@@ -206,6 +274,10 @@ public static class DocCommand
 		}
 		else if (change.Ok)
 		{
+			foreach (var move in change.Moved)
+				console.Line($"[yellow]{FxConsole.Escape(Texts.Get("doc.edit.moved", move.From, move.To))}[/]");
+			foreach (var removed in change.Removed)
+				console.Line($"[red]{FxConsole.Escape(Texts.Get("doc.edit.removed", removed))}[/]");
 			foreach (var file in change.Files)
 				ManifestCommands.WriteDiff(console, file.File, file.Diff);
 			console.Line(written

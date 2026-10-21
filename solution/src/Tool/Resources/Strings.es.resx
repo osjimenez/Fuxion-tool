@@ -1384,4 +1384,40 @@
   <data name="doc.edit.dry-run" xml:space="preserve">
     <value>No se ha escrito nada (--dry-run).</value>
   </data>
+  <data name="doc.adopt" xml:space="preserve">
+    <value>Adopta documentos: un Markdown sin sidecar lo recibe donde está (por defecto, los de arranque); con --manifest, los lotes de los manifiestos de adopción, de una vez.</value>
+  </data>
+  <data name="doc.adopt.documents" xml:space="preserve">
+    <value>Markdown sin sidecar; ninguno, los de la lista de arranque.</value>
+  </data>
+  <data name="doc.adopt.type" xml:space="preserve">
+    <value>Su tipo; por defecto, lo que dice su bloque de estado, o su nombre.</value>
+  </data>
+  <data name="doc.adopt.status" xml:space="preserve">
+    <value>Su estado; por defecto, lo que dice su bloque de estado, o el inicial de su tipo.</value>
+  </data>
+  <data name="doc.adopt.created" xml:space="preserve">
+    <value>Cuándo se creó (2026-10-21, o un instante); por defecto, lo que dice su bloque de estado.</value>
+  </data>
+  <data name="doc.adopt.manifest" xml:space="preserve">
+    <value>Un manifiesto de adopción (uno por --manifest): se aplican todos de una vez, o ninguno.</value>
+  </data>
+  <data name="doc.adopt.manifest-alone" xml:space="preserve">
+    <value>--manifest va solo: lo que adopta está en los manifiestos.</value>
+  </data>
+  <data name="doc.adopt.no-manifest" xml:space="preserve">
+    <value>El manifiesto {0} no existe.</value>
+  </data>
+  <data name="doc.move" xml:space="preserve">
+    <value>Mueve un documento estable a otra carpeta del catálogo, con sus anexos, y reescribe los enlaces a ellos.</value>
+  </data>
+  <data name="doc.move.folder" xml:space="preserve">
+    <value>La carpeta adonde va (desde aquí, o desde el catálogo).</value>
+  </data>
+  <data name="doc.edit.moved" xml:space="preserve">
+    <value>movido {0} → {1}</value>
+  </data>
+  <data name="doc.edit.removed" xml:space="preserve">
+    <value>quitado {0}</value>
+  </data>
 </root>

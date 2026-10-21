@@ -201,10 +201,13 @@ public sealed record DocSchemasDocument(string Schema, bool Ok, string Version, 
 /// <summary>
 /// <c>fx-doc-edit/1</c>, of the commands of <c>fx doc</c> that write: whether the catalog changed and was written (not with
 /// <c>--dry-run</c> nor with errors: all or nothing), the documents it touches, by their path in the catalog, and each file
-/// that changes, as <c>diff -u</c> hunks.
+/// that changes, as <c>diff -u</c> hunks (of a file that moves, against where it was), the files that move and those that
+/// go.
 /// </summary>
 public sealed record DocEditDocument(string Schema, bool Ok, bool Changed, bool Written, IReadOnlyList<string> Documents, IReadOnlyList<JsonFileEdit> Files,
-	IReadOnlyList<JsonDiagnostic> Diagnostics);
+	IReadOnlyList<JsonFileMove> Moved, IReadOnlyList<string> Removed, IReadOnlyList<JsonDiagnostic> Diagnostics);
+
+public sealed record JsonFileMove(string From, string To);
 
 // The events of --output ndjson (fx-events/1): one per line, "type" first; the last line is the command's document.
 

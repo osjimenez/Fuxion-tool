@@ -75,9 +75,34 @@ public sealed class DocCatalog
 			foreach (var sub in FxFiles.EnumerateDirectories(full).Order(StringComparer.Ordinal))
 			{
 				var name = System.IO.Path.GetFileName(sub);
-				if (!name.StartsWith('.') && !FxLayout.IsLocal(name))
+				// the annexes of a document live in a folder named like it, next to it: they are not documents
+				if (!name.StartsWith('.') && !FxLayout.IsLocal(name) && !markdowns.ContainsKey(name) && !sidecars.ContainsKey(name))
 					Walk(sub, relative.Length == 0 ? name : $"{relative}/{name}");
 			}
+		}
+	}
+
+	/// <summary>The folder of the annexes of <paramref name="file"/>: named like it, next to it (it may not exist).</summary>
+	public string Annexes(DocFile file) => Full(file.Folder.Length == 0 ? file.Stem : $"{file.Folder}/{file.Stem}");
+
+	/// <summary>
+	/// Every Markdown of the catalog, documents or not (annexes, documents without sidecar): those whose links point into
+	/// it. Not those of its folders that start with '.' or are local.
+	/// </summary>
+	public IReadOnlyList<string> Markdowns()
+	{
+		var found = new List<string>();
+		Walk(Folder);
+		return found;
+
+		void Walk(string folder)
+		{
+			if (!FxFiles.DirectoryExists(folder))
+				return;
+			found.AddRange(FxFiles.EnumerateFiles(folder, "*.md").Order(StringComparer.Ordinal));
+			foreach (var sub in FxFiles.EnumerateDirectories(folder).Order(StringComparer.Ordinal))
+				if (System.IO.Path.GetFileName(sub) is var name && !name.StartsWith('.') && !FxLayout.IsLocal(name))
+					Walk(sub);
 		}
 	}
 

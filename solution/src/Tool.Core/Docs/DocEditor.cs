@@ -23,6 +23,7 @@ public static class DocEditor
 	public const string Unchanged = "docs.unchanged";
 	public const string Correction = "docs.correction";
 	public const string ViewsBySync = "docs.views-by-sync";
+	public const string HistoricalMove = "docs.historical-move";
 
 	/// <summary>The environment variable of the actor, when <c>--actor</c> does not say it (plan U, decision 20).</summary>
 	public const string ActorVariable = "FX_DOCS_ACTOR";
@@ -66,7 +67,7 @@ public static class DocEditor
 	}
 
 	/// <summary>The actor of a change: given, and one of the actors of <c>docs.yaml</c> (plan U, decision 20).</summary>
-	static bool Actor(DocChange change, string? actor)
+	internal static bool Actor(DocChange change, string? actor)
 	{
 		if (string.IsNullOrWhiteSpace(actor))
 			change.Error(ActorMissing, new(ActorMissing, ActorVariable));
@@ -323,6 +324,67 @@ public static class DocEditor
 					Save(change, other, other.Sidecar with { Status = replaced }, now);
 			}
 		}
+		change.Verify();
+		return change;
+	}
+
+	/// <summary>
+	/// <c>fx doc move</c> (the SPEC of the module, 5.6): a stable document to another folder of the catalog, its pair and its
+	/// annexes, with the links of the catalog to them, and theirs, rewritten. Its name stays; a historical one never moves.
+	/// Moving is not an edit: whatever was clean is sealed again with its <c>updatedAt</c> kept.
+	/// </summary>
+	public static DocChange Move(DocCatalog catalog, Func<string, string> display, DocFile file, string folder, string currentDirectory)
+	{
+		var change = new DocChange(catalog, display);
+		if (Load(change, file) is not { } document)
+			return change;
+		if (document.Type.Temporality == DocTemporality.Historical)
+		{
+			change.Error(HistoricalMove, new(HistoricalMove, document.Path, document.Type.Name), display(file.Markdown!));
+			return change;
+		}
+		var relative = catalog.RelativeFolder(folder, currentDirectory);
+		if (relative is null)
+			change.Error(InvalidFolder, new(InvalidFolder, folder, FxLayout.Relative(catalog.Root, catalog.Folder)));
+		else if (relative.Split('/')[0] == DocChecker.Records)
+			change.Error(InvalidFolder, new($"{InvalidFolder}.records", document.Type.Name));
+		else if (relative == file.Folder)
+			change.Diagnostics.Add(FxDiagnostic.Info(Unchanged, new($"{Unchanged}.move", document.Path, relative.Length == 0 ? "." : relative)));
+		if (!change.Ok || relative == file.Folder)
+			return change;
+
+		var path = relative!.Length == 0 ? $"{file.Stem}.md" : $"{relative}/{file.Stem}.md";
+		var markdown = catalog.Full(path);
+		var sidecar = markdown[..^".md".Length] + DocSidecar.Extension;
+		if (FxFiles.Exists(markdown) || FxFiles.Exists(sidecar))
+			change.Error(NameTaken, new(NameTaken, path));
+		else if (file.Formal && catalog.Files.FirstOrDefault(f => f.Folder == relative && f.Formal && f.Slug == file.Slug) is { } sameSlug)
+			change.Error(NameTaken, new($"{NameTaken}.slug", file.Slug, sameSlug.Path));
+		if (!change.Ok)
+			return change;
+
+		var annexes = catalog.Annexes(file);
+		var moves = new Dictionary<string, string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
+		{
+			[file.Markdown!] = markdown,
+			[file.Sidecar!] = sidecar
+		};
+		if (FxFiles.DirectoryExists(annexes))
+			moves[annexes] = markdown[..^".md".Length];
+		var text = Encoding.UTF8.GetString(document.Markdown);
+		var moved = DocLinks.Rewrite(text, file.Markdown!, markdown, moves);
+		change.Move(file.Markdown!, markdown, moved);
+		change.MoveBytes(file.Sidecar!, sidecar, moved != text && DocLinks.Resealed(file, moved) is { } resealed ? Encoding.UTF8.GetBytes(resealed) : FxFiles.ReadAllBytes(file.Sidecar!));
+		if (FxFiles.DirectoryExists(annexes))
+			foreach (var annex in FxFiles.EnumerateFiles(annexes, "*", System.IO.SearchOption.AllDirectories))
+			{
+				var to = DocLinks.Where(annex, moves)!;
+				if (annex.EndsWith(".md", StringComparison.Ordinal))
+					change.Move(annex, to, DocLinks.Rewrite(Encoding.UTF8.GetString(FxFiles.ReadAllBytes(annex)), annex, to, moves), document: false);
+				else
+					change.MoveBytes(annex, to, FxFiles.ReadAllBytes(annex), document: false);
+			}
+		DocLinks.Relink(change, moves);
 		change.Verify();
 		return change;
 	}

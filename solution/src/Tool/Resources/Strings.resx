@@ -1384,4 +1384,40 @@
   <data name="doc.edit.dry-run" xml:space="preserve">
     <value>Nothing was written (--dry-run).</value>
   </data>
+  <data name="doc.adopt" xml:space="preserve">
+    <value>Adopts documents: Markdown without a sidecar gets it where it is (the bootstrap ones by default); with --manifest, the batches of the adoption manifests, at once.</value>
+  </data>
+  <data name="doc.adopt.documents" xml:space="preserve">
+    <value>Markdown without a sidecar; none, those of the bootstrap list.</value>
+  </data>
+  <data name="doc.adopt.type" xml:space="preserve">
+    <value>Its type; by default, what its block of status says, or its name.</value>
+  </data>
+  <data name="doc.adopt.status" xml:space="preserve">
+    <value>Its status; by default, what its block of status says, or the initial one of its type.</value>
+  </data>
+  <data name="doc.adopt.created" xml:space="preserve">
+    <value>When it was created (2026-10-21, or an instant); by default, what its block of status says.</value>
+  </data>
+  <data name="doc.adopt.manifest" xml:space="preserve">
+    <value>An adoption manifest (one per --manifest): all of them are applied at once, or none.</value>
+  </data>
+  <data name="doc.adopt.manifest-alone" xml:space="preserve">
+    <value>--manifest goes alone: what it adopts is in the manifests.</value>
+  </data>
+  <data name="doc.adopt.no-manifest" xml:space="preserve">
+    <value>The manifest {0} does not exist.</value>
+  </data>
+  <data name="doc.move" xml:space="preserve">
+    <value>Moves a stable document to another folder of the catalog, with its annexes, and rewrites the links to them.</value>
+  </data>
+  <data name="doc.move.folder" xml:space="preserve">
+    <value>The folder it goes to (from here, or from the catalog).</value>
+  </data>
+  <data name="doc.edit.moved" xml:space="preserve">
+    <value>moved {0} → {1}</value>
+  </data>
+  <data name="doc.edit.removed" xml:space="preserve">
+    <value>removed {0}</value>
+  </data>
 </root>

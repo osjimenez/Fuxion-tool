@@ -940,4 +940,88 @@
   <data name="docs.changed-on-disk" xml:space="preserve">
     <value>{0} ha cambiado en disco mientras se preparaba el cambio: no se ha escrito nada; repítelo.</value>
   </data>
+  <data name="docs.historical-move" xml:space="preserve">
+    <value>{0} es un {1}, histórico: no se mueve.</value>
+  </data>
+  <data name="docs.unchanged.move" xml:space="preserve">
+    <value>{0} ya está en {1}.</value>
+  </data>
+  <data name="docs.unchanged.nothing-to-adopt" xml:space="preserve">
+    <value>Nada que adoptar: la lista de arranque está vacía.</value>
+  </data>
+  <data name="docs.adopted" xml:space="preserve">
+    <value>{0} no es un Markdown sin sidecar: no hay nada que adoptar.</value>
+  </data>
+  <data name="docs.created-missing" xml:space="preserve">
+    <value>{0} no dice cuándo se creó: --created.</value>
+  </data>
+  <data name="docs.title-mismatch.adopt" xml:space="preserve">
+    <value>El Markdown no tiene H1: su título.</value>
+  </data>
+  <data name="docs.broken-link.dropped" xml:space="preserve">
+    <value>El enlace '{0}' va a una fuente que el manifiesto descarta.</value>
+  </data>
+  <data name="docs.invalid-manifest" xml:space="preserve">
+    <value>Manifiesto de adopción no válido.</value>
+  </data>
+  <data name="docs.invalid-manifest.targets" xml:space="preserve">
+    <value>'targets' tiene que ser una lista.</value>
+  </data>
+  <data name="docs.invalid-manifest.target" xml:space="preserve">
+    <value>Un destino es un mapa con su acción.</value>
+  </data>
+  <data name="docs.invalid-manifest.action" xml:space="preserve">
+    <value>'{0}' no es una acción: {1}.</value>
+  </data>
+  <data name="docs.invalid-manifest.relation" xml:space="preserve">
+    <value>Una relación es un mapa con su clase y su 'to'.</value>
+  </data>
+  <data name="docs.invalid-manifest.register-entry" xml:space="preserve">
+    <value>Las entradas de un registro llegan con los registros (U4, paso 6).</value>
+  </data>
+  <data name="docs.invalid-manifest.from" xml:space="preserve">
+    <value>Un destino tiene una fuente en 'from' (un drop, una o más).</value>
+  </data>
+  <data name="docs.invalid-manifest.source" xml:space="preserve">
+    <value>La fuente {0} no existe.</value>
+  </data>
+  <data name="docs.invalid-manifest.twice" xml:space="preserve">
+    <value>La fuente {0} la toman dos destinos.</value>
+  </data>
+  <data name="docs.invalid-manifest.path" xml:space="preserve">
+    <value>La ruta '{0}' no es la de un Markdown del catálogo {1}.</value>
+  </data>
+  <data name="docs.invalid-manifest.same-path" xml:space="preserve">
+    <value>Dos destinos van a {0}.</value>
+  </data>
+  <data name="docs.invalid-manifest.taken" xml:space="preserve">
+    <value>{0} ya existe.</value>
+  </data>
+  <data name="docs.invalid-manifest.adopted" xml:space="preserve">
+    <value>La fuente {0} ya tiene su sidecar.</value>
+  </data>
+  <data name="docs.invalid-manifest.sections" xml:space="preserve">
+    <value>Un extract dice sus secciones.</value>
+  </data>
+  <data name="docs.invalid-manifest.section" xml:space="preserve">
+    <value>La fuente {1} no tiene la sección '{0}'.</value>
+  </data>
+  <data name="docs.invalid-manifest.type" xml:space="preserve">
+    <value>'{0}' no es un tipo del estándar: {1}.</value>
+  </data>
+  <data name="docs.invalid-manifest.title" xml:space="preserve">
+    <value>Un destino tiene su título, una línea.</value>
+  </data>
+  <data name="docs.invalid-manifest.created" xml:space="preserve">
+    <value>'{0}' no es una fecha (2026-01-16) ni un instante.</value>
+  </data>
+  <data name="docs.invalid-manifest.alias" xml:space="preserve">
+    <value>La relación con {0}, un alias, llega con los registros (U4, paso 6).</value>
+  </data>
+  <data name="docs.invalid-manifest.relation-target" xml:space="preserve">
+    <value>La relación va a {0}, que no es un documento de los manifiestos ni del catálogo.</value>
+  </data>
+  <data name="docs.invalid-manifest.encoding" xml:space="preserve">
+    <value>La fuente {0} no está en UTF-8: repair: encoding la lee como Latin-1.</value>
+  </data>
 </root>

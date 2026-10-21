@@ -940,4 +940,88 @@
   <data name="docs.changed-on-disk" xml:space="preserve">
     <value>{0} changed on disk while the change was worked out: nothing was written; run it again.</value>
   </data>
+  <data name="docs.historical-move" xml:space="preserve">
+    <value>{0} is a {1}, historical: it does not move.</value>
+  </data>
+  <data name="docs.unchanged.move" xml:space="preserve">
+    <value>{0} is already in {1}.</value>
+  </data>
+  <data name="docs.unchanged.nothing-to-adopt" xml:space="preserve">
+    <value>Nothing to adopt: the bootstrap list is empty.</value>
+  </data>
+  <data name="docs.adopted" xml:space="preserve">
+    <value>{0} is not a Markdown without a sidecar: there is nothing to adopt.</value>
+  </data>
+  <data name="docs.created-missing" xml:space="preserve">
+    <value>{0} does not say when it was created: --created.</value>
+  </data>
+  <data name="docs.title-mismatch.adopt" xml:space="preserve">
+    <value>The Markdown has no H1: its title.</value>
+  </data>
+  <data name="docs.broken-link.dropped" xml:space="preserve">
+    <value>The link '{0}' goes to a source the manifest drops.</value>
+  </data>
+  <data name="docs.invalid-manifest" xml:space="preserve">
+    <value>Invalid adoption manifest.</value>
+  </data>
+  <data name="docs.invalid-manifest.targets" xml:space="preserve">
+    <value>'targets' must be a list.</value>
+  </data>
+  <data name="docs.invalid-manifest.target" xml:space="preserve">
+    <value>A target is a mapping with its action.</value>
+  </data>
+  <data name="docs.invalid-manifest.action" xml:space="preserve">
+    <value>'{0}' is not an action: {1}.</value>
+  </data>
+  <data name="docs.invalid-manifest.relation" xml:space="preserve">
+    <value>A relation is a mapping with its kind and its 'to'.</value>
+  </data>
+  <data name="docs.invalid-manifest.register-entry" xml:space="preserve">
+    <value>The entries of a register come with the registers (U4, step 6).</value>
+  </data>
+  <data name="docs.invalid-manifest.from" xml:space="preserve">
+    <value>A target has one source in 'from' (a drop, one or more).</value>
+  </data>
+  <data name="docs.invalid-manifest.source" xml:space="preserve">
+    <value>The source {0} does not exist.</value>
+  </data>
+  <data name="docs.invalid-manifest.twice" xml:space="preserve">
+    <value>The source {0} is taken by two targets.</value>
+  </data>
+  <data name="docs.invalid-manifest.path" xml:space="preserve">
+    <value>The path '{0}' is not that of a Markdown of the catalog {1}.</value>
+  </data>
+  <data name="docs.invalid-manifest.same-path" xml:space="preserve">
+    <value>Two targets go to {0}.</value>
+  </data>
+  <data name="docs.invalid-manifest.taken" xml:space="preserve">
+    <value>{0} exists already.</value>
+  </data>
+  <data name="docs.invalid-manifest.adopted" xml:space="preserve">
+    <value>The source {0} has its sidecar already.</value>
+  </data>
+  <data name="docs.invalid-manifest.sections" xml:space="preserve">
+    <value>An extract says its sections.</value>
+  </data>
+  <data name="docs.invalid-manifest.section" xml:space="preserve">
+    <value>The source {1} has no section '{0}'.</value>
+  </data>
+  <data name="docs.invalid-manifest.type" xml:space="preserve">
+    <value>'{0}' is not a type of the standard: {1}.</value>
+  </data>
+  <data name="docs.invalid-manifest.title" xml:space="preserve">
+    <value>A target has its title, a line.</value>
+  </data>
+  <data name="docs.invalid-manifest.created" xml:space="preserve">
+    <value>'{0}' is not a date (2026-01-16) or an instant.</value>
+  </data>
+  <data name="docs.invalid-manifest.alias" xml:space="preserve">
+    <value>The relation to {0}, an alias, comes with the registers (U4, step 6).</value>
+  </data>
+  <data name="docs.invalid-manifest.relation-target" xml:space="preserve">
+    <value>The relation goes to {0}, which is not a document of the manifests or of the catalog.</value>
+  </data>
+  <data name="docs.invalid-manifest.encoding" xml:space="preserve">
+    <value>The source {0} is not UTF-8: repair: encoding reads it as Latin-1.</value>
+  </data>
 </root>
