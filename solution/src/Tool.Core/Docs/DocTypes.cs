@@ -30,7 +30,8 @@ public enum DocStatusClass
 /// <summary>
 /// A type of document as its schema declares it, with what the logic of the module needs of it: its temporality, its
 /// statuses and the class of each one, its profiles, and whether it takes a <c>generation</c>. Read from the annotations of
-/// the schemas, never from a list in the code (plan U, ADR "esquemas cerrados, con costuras").
+/// the schemas, never from a list in the code (plan U, ADR "esquemas cerrados, con costuras"). <see cref="Required"/>, the
+/// properties a sidecar of the type must have: those of the base and its own.
 /// </summary>
 public sealed record DocType(
 	string Name,
@@ -40,7 +41,8 @@ public sealed record DocType(
 	IReadOnlyList<string> Profiles,
 	bool ProfileRequired,
 	bool GenerationAllowed,
-	bool GenerationRequired)
+	bool GenerationRequired,
+	IReadOnlyList<string> Required)
 {
 	/// <summary>The prefix of its file names: the type in upper case (<c>ADR-</c>).</summary>
 	public string Token => Name.ToUpperInvariant();
@@ -71,6 +73,13 @@ public static class DocTypes
 	/// <summary>The type whose file names start with <paramref name="token"/> (<c>ADR</c>); null if none.</summary>
 	public static DocType? FromToken(string token) => All.FirstOrDefault(t => t.Token == token);
 
+	/// <summary>The properties every sidecar must have, from the base.</summary>
+	static readonly Lazy<IReadOnlyList<string>> BaseRequired = new(() =>
+	{
+		using var document = JsonDocument.Parse(DocsSchemas.Texts["base.schema.json"]);
+		return document.RootElement.GetProperty("required").EnumerateArray().Select(r => r.GetString()!).ToList();
+	});
+
 	/// <summary>A type from its schema: its annotations and the part of its <c>allOf</c> that specializes the base.</summary>
 	static DocType Read(string name, string text)
 	{
@@ -83,8 +92,8 @@ public static class DocTypes
 		var classes = root.GetProperty("x-docs-status-classes").EnumerateObject()
 			.ToDictionary(c => c.Name, c => Enum.Parse<DocStatusClass>(c.Value.GetString()!, ignoreCase: true), StringComparer.Ordinal);
 		var profiles = properties.TryGetProperty("profile", out var profile) ? profile.GetProperty("enum").EnumerateArray().Select(p => p.GetString()!).ToList() : [];
-		var required = own.TryGetProperty("required", out var r) ? r.EnumerateArray().Select(x => x.GetString()).ToList() : [];
+		var required = own.TryGetProperty("required", out var r) ? r.EnumerateArray().Select(x => x.GetString()!).ToList() : [];
 		return new(name, temporality, statuses, classes, profiles, required.Contains("profile"), properties.TryGetProperty("generation", out _),
-			required.Contains("generation"));
+			required.Contains("generation"), [.. BaseRequired.Value, .. required]);
 	}
 }

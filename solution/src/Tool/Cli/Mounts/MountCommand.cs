@@ -89,7 +89,7 @@ public static class MountCommand
 	static bool NeedsAttention(RepositoryState r)
 		=> r.SupersededBy is null && !r.Present || r.Present && r.Status is null or { Changes: > 0 } or { Ahead: > 0 } or { Behind: > 0 } or { Detached: true } or { Upstream: null };
 
-	static Table Table(FxConsole console, params string[] headers)
+	internal static Table Table(FxConsole console, params string[] headers)
 	{
 		var table = new Table().Headers(headers.Select(h => (Visual)new TextBlock(h)).ToArray());
 		// without decoration where there are no colours (a pipe, an agent, --plain): columns, as gh or kubectl
@@ -98,7 +98,7 @@ public static class MountCommand
 		return table;
 	}
 
-	static Visual Cell(FxConsole console, string text, string? color = null)
+	internal static Visual Cell(FxConsole console, string text, string? color = null)
 	{
 		if (color is null || !console.Capabilities.CanColor)
 			return new TextBlock(text);

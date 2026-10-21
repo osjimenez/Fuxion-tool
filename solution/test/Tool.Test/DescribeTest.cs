@@ -128,7 +128,7 @@ public sealed class DescribeTest
 	/// Whether <paramref name="document"/> fits <paramref name="schema"/>, a little: its required properties are there, it
 	/// has no others, and what can be left out (null) is not required. Recursive over objects and arrays.
 	/// </summary>
-	static void Fits(JsonElement schema, JsonElement document, string where)
+	internal static void Fits(JsonElement schema, JsonElement document, string where)
 	{
 		if (schema.TryGetProperty("properties", out var properties) && document.ValueKind == JsonValueKind.Object)
 		{

@@ -1216,4 +1216,109 @@
   <data name="self.update.package" xml:space="preserve">
     <value>fx se ejecuta con dnx, desde su paquete de NuGet; dnx ejecuta la versión que se le pida: {0}</value>
   </data>
+  <data name="doc" xml:space="preserve">
+    <value>El catálogo de documentos del space (el módulo docs): comprobar, listar y mostrar sus documentos, y los tipos de su estándar.</value>
+  </data>
+  <data name="doc.check" xml:space="preserve">
+    <value>Comprueba los documentos del catálogo, o los que se den: sus sidecars, nombres, sitios, títulos, relaciones, enlaces e integridad.</value>
+  </data>
+  <data name="doc.check.documents" xml:space="preserve">
+    <value>Documentos: rutas (del Markdown, del sidecar, o una carpeta) o identidades; ninguno, el catálogo entero.</value>
+  </data>
+  <data name="doc.check.catalog" xml:space="preserve">
+    <value>El catálogo ({0})</value>
+  </data>
+  <data name="doc.check.all-valid" xml:space="preserve">
+    <value>{0} documento(s) comprobado(s): todos válidos.</value>
+  </data>
+  <data name="doc.check.problems" xml:space="preserve">
+    <value>{0} documento(s) comprobado(s): {1} con problemas.</value>
+  </data>
+  <data name="doc.check.bootstrap" xml:space="preserve">
+    <value>{0} documento(s) de arranque esperan su adopción (fx doc adopt).</value>
+  </data>
+  <data name="doc.list" xml:space="preserve">
+    <value>Lista los documentos del catálogo, con filtros.</value>
+  </data>
+  <data name="doc.list.type" xml:space="preserve">
+    <value>Solo los de este tipo.</value>
+  </data>
+  <data name="doc.list.profile" xml:space="preserve">
+    <value>Solo los de este perfil.</value>
+  </data>
+  <data name="doc.list.status" xml:space="preserve">
+    <value>Solo los que están en este estado.</value>
+  </data>
+  <data name="doc.list.class" xml:space="preserve">
+    <value>Solo aquellos cuyo estado es de esta clase: open, current, closed, replaced o void.</value>
+  </data>
+  <data name="doc.list.tag" xml:space="preserve">
+    <value>Solo los que llevan esta etiqueta.</value>
+  </data>
+  <data name="doc.list.relation" xml:space="preserve">
+    <value>Solo los que tienen una relación de esta clase.</value>
+  </data>
+  <data name="doc.list.none" xml:space="preserve">
+    <value>Ningún documento coincide.</value>
+  </data>
+  <data name="doc.show" xml:space="preserve">
+    <value>Muestra un documento: sus metadatos, sus relaciones y las inversas.</value>
+  </data>
+  <data name="doc.show.document" xml:space="preserve">
+    <value>El documento: su ruta o su identidad.</value>
+  </data>
+  <data name="doc.show.dates" xml:space="preserve">
+    <value>Creado el {0} por {1}; actualizado el {2}.</value>
+  </data>
+  <data name="doc.show.tags" xml:space="preserve">
+    <value>Etiquetas: {0}</value>
+  </data>
+  <data name="doc.show.relations" xml:space="preserve">
+    <value>Relaciones</value>
+  </data>
+  <data name="doc.show.inverse" xml:space="preserve">
+    <value>Relaciones inversas</value>
+  </data>
+  <data name="doc.schema" xml:space="preserve">
+    <value>Los tipos del estándar documental; con un tipo, su JSON Schema.</value>
+  </data>
+  <data name="doc.schema.type" xml:space="preserve">
+    <value>Un tipo: su JSON Schema, tal como lo tiene fx.</value>
+  </data>
+  <data name="doc.schema.more" xml:space="preserve">
+    <value>fx doc schema &lt;tipo&gt;: el JSON Schema de un tipo.</value>
+  </data>
+  <data name="doc.column.type" xml:space="preserve">
+    <value>Tipo</value>
+  </data>
+  <data name="doc.column.status" xml:space="preserve">
+    <value>Estado</value>
+  </data>
+  <data name="doc.column.title" xml:space="preserve">
+    <value>Título</value>
+  </data>
+  <data name="doc.column.path" xml:space="preserve">
+    <value>Ruta</value>
+  </data>
+  <data name="doc.column.temporality" xml:space="preserve">
+    <value>Temporalidad</value>
+  </data>
+  <data name="doc.column.statuses" xml:space="preserve">
+    <value>Estados (clase)</value>
+  </data>
+  <data name="doc.column.profiles" xml:space="preserve">
+    <value>Perfiles</value>
+  </data>
+  <data name="doc.temporality.historical" xml:space="preserve">
+    <value>histórico</value>
+  </data>
+  <data name="doc.temporality.stable" xml:space="preserve">
+    <value>estable</value>
+  </data>
+  <data name="doc.unknown-document" xml:space="preserve">
+    <value>'{0}' no nombra ningún documento del catálogo {1}.</value>
+  </data>
+  <data name="doc.many-documents" xml:space="preserve">
+    <value>'{0}' nombra {1} documentos; da uno.</value>
+  </data>
 </root>

@@ -67,7 +67,7 @@ public static class SyncCommand
 	static Argument<string?> ModuleArgument()
 	{
 		var argument = new Argument<string?>("module") { Description = Texts.Get("module"), Arity = ArgumentArity.ZeroOrOne };
-		argument.AcceptOnlyFromAmong(MountsModule.Name, DotnetModule.Name, HarnessModule.Name);
+		argument.AcceptOnlyFromAmong(MountsModule.Name, DotnetModule.Name, HarnessModule.Name, Core.Docs.DocsModule.Name);
 		return argument;
 	}
 

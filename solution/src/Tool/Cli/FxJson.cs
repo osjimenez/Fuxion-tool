@@ -166,6 +166,38 @@ public sealed record JsonFileEdit(string File, string Diff);
 public sealed record ManifestEditDocument(string Schema, bool Ok, bool Changed, bool Written, IReadOnlyList<JsonFileEdit> Files, IReadOnlyList<JsonDiagnostic> Diagnostics,
 	IReadOnlyList<JsonModule>? Sync = null);
 
+// The documents of the module docs (plan U): its catalog, checked, listed and shown, and the types of its standard.
+
+/// <summary>A document of the catalog: its path in it, and what its sidecar says.</summary>
+public sealed record JsonDoc(string Path, string Id, string Type, string? Profile, string Status, string Class, string Title, IReadOnlyList<string> Tags,
+	string CreatedAt, string UpdatedAt, string CreatedBy);
+
+/// <summary><c>fx-doc-check/1</c>: the catalog (relative to its space), how many documents were checked, those with problems, and the problems.</summary>
+public sealed record DocCheckDocument(string Schema, bool Ok, string? Catalog, int Checked, IReadOnlyList<string> WithProblems, IReadOnlyList<JsonDiagnostic> Diagnostics);
+
+/// <summary><c>fx-doc-list/1</c>: the documents that pass the filters.</summary>
+public sealed record DocListDocument(string Schema, bool Ok, string? Catalog, IReadOnlyList<JsonDoc> Documents, IReadOnlyList<JsonDiagnostic> Diagnostics);
+
+/// <summary>A relation of a document: its kind and the other document, with its path and title if it is in the catalog.</summary>
+public sealed record JsonDocRelation(string Kind, string Id, string? Path, string? Title);
+
+/// <summary><c>fx-doc-show/1</c>: a document, its relations and the inverse ones (those of other documents to it).</summary>
+public sealed record DocShowDocument(string Schema, bool Ok, JsonDoc? Document, IReadOnlyList<JsonDocRelation> Relations, IReadOnlyList<JsonDocRelation> Inverse,
+	IReadOnlyList<JsonDiagnostic> Diagnostics);
+
+public sealed record JsonDocStatus(string Name, string Class);
+
+/// <param name="Generation"><c>required</c>, <c>allowed</c> or <c>none</c>.</param>
+public sealed record JsonDocType(string Name, string Token, string Temporality, IReadOnlyList<JsonDocStatus> Statuses, string InitialStatus, IReadOnlyList<string> Profiles,
+	bool ProfileRequired, string Generation);
+
+/// <summary>A kind of relation, and the types its source and its target may be (none: any).</summary>
+public sealed record JsonDocRelationKind(string Name, IReadOnlyList<string>? Sources, IReadOnlyList<string>? Targets);
+
+/// <summary><c>fx-doc-schemas/1</c>: the version of the standard, its types and its kinds of relation, as its schemas declare them.</summary>
+public sealed record DocSchemasDocument(string Schema, bool Ok, string Version, IReadOnlyList<JsonDocType> Types, IReadOnlyList<JsonDocRelationKind> Relations,
+	IReadOnlyList<JsonDiagnostic> Diagnostics);
+
 // The events of --output ndjson (fx-events/1): one per line, "type" first; the last line is the command's document.
 
 public sealed record JsonStartEvent(string Type, string Schema);
@@ -191,6 +223,10 @@ public sealed record JsonDiagnosticEvent(string Type, JsonDiagnostic Diagnostic)
 [JsonSerializable(typeof(WorktreeListDocument))]
 [JsonSerializable(typeof(DescribeDocument))]
 [JsonSerializable(typeof(SchemasDocument))]
+[JsonSerializable(typeof(DocCheckDocument))]
+[JsonSerializable(typeof(DocListDocument))]
+[JsonSerializable(typeof(DocShowDocument))]
+[JsonSerializable(typeof(DocSchemasDocument))]
 [JsonSerializable(typeof(JsonStartEvent))]
 [JsonSerializable(typeof(JsonStepEvent))]
 [JsonSerializable(typeof(JsonDiagnosticEvent))]

@@ -42,7 +42,14 @@
         "summarizes",
         "supersedes",
         "verified-by"
-      ]
+      ],
+      "x-docs-relation-rules": {
+        "decided-by": { "targets": ["adr"] },
+        "implemented-by": { "targets": ["plan"] },
+        "operated-by": { "targets": ["runbook"] },
+        "realized-by": { "sources": ["spec"], "targets": ["design"] },
+        "summarizes": { "sources": ["report", "view"] }
+      }
     },
     "relation": {
       "type": "object",

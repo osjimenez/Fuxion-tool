@@ -263,6 +263,10 @@ public static class SyncEngine
 		if (context.Runs(HarnessModule.Name) && HarnessModule.Run(node, identity, label, context) is { } harness)
 			run.Results.Add(harness);
 
+		// 4b. Its catalog of documents (plan U), in the doctor: each root has its own, nothing goes down
+		if (context.Runs(Docs.DocsModule.Name) && Docs.DocsModule.Run(node, label, context) is { } docs)
+			run.Results.Add(docs);
+
 		// 5. What the space generates, if it mounts others or declares paths (plan spaces): its .gitignore, a whitelist of
 		// what it versions (its paths, its solutions, the shares it receives, and the files of the agents, always); its own
 		// shares, checked; and what only the module of the mounts checks

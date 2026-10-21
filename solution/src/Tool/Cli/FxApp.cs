@@ -23,6 +23,7 @@ public static class FxApp
 			MountCommand.Create(global, currentDirectory),
 			ManifestCommands.CreateModule(global, currentDirectory),
 			ManifestCommands.CreatePath(global, currentDirectory),
+			Docs.DocCommand.Create(global, currentDirectory),
 			Worktree.WorktreeCommand.Create(global, currentDirectory),
 			Ui.UiCommand.Create(global, currentDirectory),
 			VersionCommand.Create(global, currentDirectory),

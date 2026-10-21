@@ -760,4 +760,124 @@
   <data name="docs.invalid-yaml.register-path" xml:space="preserve">
     <value>La ruta de un registro ('{0}') tiene que ser una carpeta relativa al catálogo, no local.</value>
   </data>
+  <data name="docs.no-catalog" xml:space="preserve">
+    <value>Este space no tiene catálogo de documentos (su carpeta _fx/docs/, activada).</value>
+  </data>
+  <data name="docs.invalid-yaml.bootstrap" xml:space="preserve">
+    <value>Un documento de arranque ('{0}') es la ruta de un Markdown, relativa al catálogo.</value>
+  </data>
+  <data name="docs.invalid-yaml.duplicate-bootstrap" xml:space="preserve">
+    <value>El documento de arranque '{0}' está dos veces en la lista.</value>
+  </data>
+  <data name="docs.invalid-metadata.json" xml:space="preserve">
+    <value>El sidecar no es JSON válido: {0}</value>
+  </data>
+  <data name="docs.invalid-metadata.missing" xml:space="preserve">
+    <value>Al sidecar le falta '{0}'.</value>
+  </data>
+  <data name="docs.invalid-metadata.schema" xml:space="preserve">
+    <value>'{0}': {1}</value>
+  </data>
+  <data name="docs.invalid-encoding" xml:space="preserve">
+    <value>{0} no está en UTF-8.</value>
+  </data>
+  <data name="docs.invalid-encoding.sidecar" xml:space="preserve">
+    <value>El sidecar no está en UTF-8.</value>
+  </data>
+  <data name="docs.invalid-type" xml:space="preserve">
+    <value>'{0}' no es un tipo del estándar: {1}.</value>
+  </data>
+  <data name="docs.invalid-type.missing" xml:space="preserve">
+    <value>El sidecar no dice su tipo.</value>
+  </data>
+  <data name="docs.invalid-profile" xml:space="preserve">
+    <value>'{0}' no es un perfil de {1}: {2}.</value>
+  </data>
+  <data name="docs.invalid-profile.missing" xml:space="preserve">
+    <value>Un {0} necesita su perfil: {1}.</value>
+  </data>
+  <data name="docs.invalid-profile.none" xml:space="preserve">
+    <value>Un {0} no lleva perfil.</value>
+  </data>
+  <data name="docs.invalid-status" xml:space="preserve">
+    <value>'{0}' no es un estado de {1}: {2}.</value>
+  </data>
+  <data name="docs.invalid-dates.format" xml:space="preserve">
+    <value>'{0}' tiene que ser un instante en UTC, terminado en Z ('{1}').</value>
+  </data>
+  <data name="docs.invalid-dates.order" xml:space="preserve">
+    <value>createdAt ({0}) es posterior a updatedAt ({1}).</value>
+  </data>
+  <data name="docs.invalid-name.readme" xml:space="preserve">
+    <value>{0}: un readme se llama README.md.</value>
+  </data>
+  <data name="docs.invalid-name.prefix" xml:space="preserve">
+    <value>{0}: el nombre de un {1} empieza por '{2}'.</value>
+  </data>
+  <data name="docs.invalid-name.slug" xml:space="preserve">
+    <value>{0}: el slug '{1}' lleva letras ASCII en minúscula, dígitos y guiones sueltos.</value>
+  </data>
+  <data name="docs.invalid-name.same-slug" xml:space="preserve">
+    <value>El slug '{0}' es también el de {1}, en la misma carpeta.</value>
+  </data>
+  <data name="docs.invalid-location.historical" xml:space="preserve">
+    <value>{0}: un {1} va en {2}, por su createdAt.</value>
+  </data>
+  <data name="docs.invalid-location.stable" xml:space="preserve">
+    <value>{0}: un {1} es estable; no va bajo _records/.</value>
+  </data>
+  <data name="docs.title-mismatch" xml:space="preserve">
+    <value>El primer H1 ('{0}') no es el título del sidecar ('{1}').</value>
+  </data>
+  <data name="docs.title-mismatch.none" xml:space="preserve">
+    <value>El Markdown no tiene H1; su título es '{0}'.</value>
+  </data>
+  <data name="docs.unknown-actor" xml:space="preserve">
+    <value>'{0}' no es uno de los actores de docs.yaml: {1}.</value>
+  </data>
+  <data name="docs.missing-sidecar" xml:space="preserve">
+    <value>{0} no tiene sidecar, y no está en la lista de arranque.</value>
+  </data>
+  <data name="docs.orphan-sidecar" xml:space="preserve">
+    <value>El sidecar de {0} no tiene Markdown.</value>
+  </data>
+  <data name="docs.duplicate-id" xml:space="preserve">
+    <value>La identidad {0} es también la de {1}.</value>
+  </data>
+  <data name="docs.invalid-relation" xml:space="preserve">
+    <value>Una relación '{0}' no va de un {1} a un {2} ({3}): {4}.</value>
+  </data>
+  <data name="docs.invalid-relation.self" xml:space="preserve">
+    <value>Una relación '{0}' con el propio documento.</value>
+  </data>
+  <data name="docs.missing-target" xml:space="preserve">
+    <value>La relación '{0}' apunta a {1}, que no está en el catálogo.</value>
+  </data>
+  <data name="docs.broken-link" xml:space="preserve">
+    <value>El enlace '{0}' no lleva a ningún sitio.</value>
+  </data>
+  <data name="docs.broken-link.outside" xml:space="preserve">
+    <value>El enlace '{0}' no lleva a ningún sitio aquí; está fuera del catálogo, quizá en un montaje que no está.</value>
+  </data>
+  <data name="docs.unfinalized" xml:space="preserve">
+    <value>{0} ha cambiado después de finalizarse.</value>
+  </data>
+  <data name="docs.integrity-mismatch" xml:space="preserve">
+    <value>Los metadatos de {0} no cuadran con su hash: ¿editados a mano?</value>
+  </data>
+  <data name="docs.frozen-changed" xml:space="preserve">
+    <value>{0} está en estado {1}, congelado, y su contenido ha cambiado.</value>
+  </data>
+  <data name="docs.frozen-changed.fix" xml:space="preserve">
+    <value>restáuralo (git restore), o anota una corrección: fx doc finalize {0} --correction &lt;nota&gt;</value>
+  </data>
+  <data name="docs.view-edited" xml:space="preserve">
+    <value>{0} es una vista generada, y se ha editado a mano.</value>
+  </data>
+  <data name="docs.bootstrap-pending" xml:space="preserve">
+    <value>{0} es un documento de arranque: espera su adopción.</value>
+  </data>
+  <data name="docs.bootstrap-stale" xml:space="preserve">
+    <value>{0} está en la lista de arranque, pero ya no es un Markdown sin sidecar: sácalo.</value>
+  </data>
 </root>

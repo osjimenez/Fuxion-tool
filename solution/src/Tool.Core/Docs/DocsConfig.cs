@@ -16,13 +16,20 @@ public sealed record DocsKeyedRegister(string Path, string Prefix, string Provid
 
 /// <summary>
 /// <c>_fx/docs/docs.yaml</c>, the module of the documentation of a space (plan U): where its catalog is, who may be the
-/// actor of a change, and the registers that use short keys. A space without it has no catalog.
+/// actor of a change, and the registers that use short keys. A space without the folder <c>_fx/docs/</c> has no catalog;
+/// without the file, the defaults.
 /// </summary>
 public sealed record DocsConfig(string Catalog, IReadOnlyList<string> Actors, IReadOnlyList<DocsKeyedRegister> Registers)
 {
 	public const string DefaultCatalog = "_docs";
 
 	public bool Enabled { get; init; } = true;
+
+	/// <summary>
+	/// The documents of the bootstrap regime (the standard, DESIGN §12): Markdown without a sidecar yet, relative to the
+	/// catalog, that the module adopts and takes out of the list. Any other Markdown without its sidecar is an error.
+	/// </summary>
+	public IReadOnlyList<string> Bootstrap { get; init; } = [];
 
 	public static DocsConfig Default { get; } = new(DefaultCatalog, [], []);
 }
@@ -56,7 +63,7 @@ public static partial class DocsYamlReader
 		var map = reader.Load(yaml);
 		if (map is null)
 			throw new DocsConfigException(reader.Diagnostics);
-		reader.Keys(map, "schema", "enabled", "catalog", "actors", "registers");
+		reader.Keys(map, "schema", "enabled", "catalog", "actors", "registers", "bootstrap");
 
 		var written = FxYamlReader.Scalar(map["catalog"]);
 		var catalog = written is null ? DocsConfig.DefaultCatalog : Relative(written) ?? written;
@@ -98,13 +105,21 @@ public static partial class DocsYamlReader
 		foreach (var duplicate in registers.GroupBy(r => r.Prefix, StringComparer.Ordinal).Where(g => g.Key.Length > 0 && g.Count() > 1))
 			reader.Diagnostics.Add(FxDiagnostic.Error(InvalidYaml, new($"{InvalidYaml}.duplicate-prefix", duplicate.Key), source, duplicate.Last().Line));
 
+		if (map["bootstrap"] is YamlMapping notAListOfDocuments)
+			reader.Error(notAListOfDocuments, "list", "bootstrap");
+		var bootstrap = FxYamlReader.List(map["bootstrap"]).Select(b => Relative(b) ?? b).ToList();
+		foreach (var document in bootstrap.Where(b => Relative(b) is null || !b.EndsWith(".md", StringComparison.Ordinal)))
+			reader.Error(map["bootstrap"], "bootstrap", document);
+		foreach (var duplicate in bootstrap.GroupBy(b => b, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1))
+			reader.Error(map["bootstrap"], "duplicate-bootstrap", duplicate.Key);
+
 		var enabled = reader.Enabled(map);
 
 		if (reader.HasErrors)
 			throw new DocsConfigException(reader.Diagnostics);
 		foreach (var warning in reader.Diagnostics)
 			warnings?.Add(warning);
-		return new(catalog, actors, registers) { Enabled = enabled };
+		return new(catalog, actors, registers) { Enabled = enabled, Bootstrap = bootstrap };
 	}
 
 	/// <summary>

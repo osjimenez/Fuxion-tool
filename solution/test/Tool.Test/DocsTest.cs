@@ -204,12 +204,16 @@ public sealed class DocsTest
 			  - path: incidents/
 			    prefix: INC
 			    provider: git
+			bootstrap:
+			  - _governance/README.md
+			  - fx\SPEC-modulo-docs.md
 			""", "docs.yaml");
 		Assert.True(config.Enabled);
 		Assert.Equal("docs", config.Catalog);
 		Assert.Equal(["editor", "agent.claude"], config.Actors);
 		Assert.Equal([("ideas", "I", "repo"), ("incidents", "INC", "git")], config.Registers.Select(r => (r.Path, r.Prefix, r.Provider)));
 		Assert.Equal(5, config.Registers[0].Line);
+		Assert.Equal(["_governance/README.md", "fx/SPEC-modulo-docs.md"], config.Bootstrap);
 
 		var empty = DocsYamlReader.Read("schema: 1.0.0\n", "docs.yaml");
 		Assert.Equal((DocsConfig.DefaultCatalog, 0, 0), (empty.Catalog, empty.Actors.Count, empty.Registers.Count));
@@ -236,6 +240,10 @@ public sealed class DocsTest
 	[InlineData("registers:\n  - path: ideas\n    prefix: I\n  - path: ideas/\n    prefix: J", "duplicate-register", 5)]
 	[InlineData("registers:\n  - path: a\n    prefix: I\n  - path: b\n    prefix: I", "duplicate-prefix", 5)]
 	[InlineData("enabled: maybe", "enabled", 2)]
+	[InlineData("bootstrap: [../README.md]", "bootstrap", 2)]
+	[InlineData("bootstrap: [notes.txt]", "bootstrap", 2)]
+	[InlineData("bootstrap: [a.md, a.md]", "duplicate-bootstrap", 2)]
+	[InlineData("bootstrap:\n  first: a.md", "list", 3)]
 	public void InvalidConfig(string yaml, string key, int line)
 	{
 		var ex = Assert.Throws<DocsConfigException>(() => DocsYamlReader.Read($"schema: 1.0.0\n{yaml}\n", "docs.yaml"));

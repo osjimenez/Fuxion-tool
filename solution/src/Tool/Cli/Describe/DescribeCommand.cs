@@ -189,6 +189,10 @@ public static class DescribeCommand
 			"fx-worktree-add/1" or "fx-worktree-mount/1" or "fx-worktree-unmount/1" or "fx-worktree-remove/1" => FxJsonContext.Default.WorktreeDocument,
 			Schema => FxJsonContext.Default.DescribeDocument,
 			SchemasSchema => FxJsonContext.Default.SchemasDocument,
+			Docs.DocCommand.CheckSchema => FxJsonContext.Default.DocCheckDocument,
+			Docs.DocCommand.ListSchema => FxJsonContext.Default.DocListDocument,
+			Docs.DocCommand.ShowSchema => FxJsonContext.Default.DocShowDocument,
+			Docs.DocCommand.SchemasSchema => FxJsonContext.Default.DocSchemasDocument,
 			_ => null
 		};
 
