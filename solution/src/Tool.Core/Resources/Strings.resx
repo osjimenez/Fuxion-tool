@@ -1243,4 +1243,7 @@
   <data name="docs.invalid-manifest.annex-path" xml:space="preserve">
     <value>The annex '{0}' goes in the folder of its document, {1}/.</value>
   </data>
+  <data name="docs.invalid-manifest.redirect" xml:space="preserve">
+    <value>A drop sends the links to what it drops to a document of the manifests or of the catalog: '{0}' is not one.</value>
+  </data>
 </root>

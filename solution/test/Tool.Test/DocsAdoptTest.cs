@@ -303,6 +303,30 @@ public sealed class DocsAdoptTest
 		Assert.DoesNotContain(space.Problems(), p => p.File is { } file && (file.Contains("PLAN-hoja-de-ruta/") || file.Contains("DESIGN-x/")));
 	}
 
+	[Fact(DisplayName = "adopt --manifest: a drop can redirect the links to what it drops to another document, instead of being blocked by them")]
+	public void ManifestDropRedirect()
+	{
+		using var batch = new Batch();
+		var space = batch.Space;
+		var change = batch.Apply(batch.Manifest("""
+			  - action: drop
+			    from: _docs/analyzers/old.md
+			    redirect: _docs/fx/DESIGN-x.md
+
+			"""));
+		Assert.True(change.Ok, Ok(change));
+		Assert.True(change.Write(), Ok(change));
+		Assert.False(File.Exists(space.Full("_docs/analyzers/old.md")));
+		Assert.Equal("# Analyzers\n\nThe rule [FX001](FX001.md) and the [old notes](../fx/DESIGN-x.md).\n", space.Read("_docs/analyzers/README.md"));
+		// to something that is not a document, refused
+		Assert.Contains(DocAdoption.InvalidManifest, Codes(batch.Apply(batch.Manifest("""
+			  - action: drop
+			    from: _docs/analyzers/FX001.md
+			    redirect: _docs/analyzers/latin.md
+
+			"""))));
+	}
+
 	[Fact(DisplayName = "adopt --manifest: an annex can be a whole folder, which goes into the folder of its document, links and all")]
 	public void ManifestAnnexFolder()
 	{

@@ -50,6 +50,9 @@ public sealed record DocManifestTarget(string Action, IReadOnlyList<string> From
 
 	/// <summary>Of an <c>annex</c>: the document it belongs to, of the manifests or of the catalog, from the root of the space.</summary>
 	public string? Of { get; init; }
+
+	/// <summary>Of a <c>drop</c>: the document the links to what it drops go to, of the manifests or of the catalog (an idea that became an entry: its register).</summary>
+	public string? Redirect { get; init; }
 }
 
 /// <summary>
@@ -197,7 +200,7 @@ public static partial class DocAdoption
 					continue;
 				}
 				reader.Keys(entry, "action", "from", "type", "profile", "status", "title", "path", "created", "tags", "relations", "sections", "register", "notes", "for",
-					"reason", "repair", "rewrite", "name", "key", "summary", "closed", "fields", "of");
+					"reason", "repair", "rewrite", "name", "key", "summary", "closed", "fields", "of", "redirect");
 				if (FxYamlReader.Scalar(entry["action"]) is not { } action || !Actions.Contains(action))
 				{
 					reader.Error(entry["action"] ?? item, "action", FxYamlReader.Scalar(entry["action"]) ?? "", string.Join(", ", Actions));
@@ -233,6 +236,7 @@ public static partial class DocAdoption
 					Summary = FxYamlReader.Scalar(entry["summary"]),
 					Closed = FxYamlReader.Scalar(entry["closed"]),
 					Of = FxYamlReader.Scalar(entry["of"]),
+					Redirect = FxYamlReader.Scalar(entry["redirect"]),
 					Fields = entry["fields"] is YamlMapping fields
 						? fields.Entries.Where(f => f.Key is YamlScalar).Select(f => KeyValuePair.Create(((YamlScalar)f.Key).Value, Json(f.Value))).ToList()
 						: []
@@ -321,6 +325,8 @@ public static partial class DocAdoption
 		var sidecars = catalog.Files.Where(f => f.Sidecar is not null && f.Markdown is not null).ToDictionary(f => f.Markdown!, Paths);
 		// the folders whose files move with them: the annexes of an adopted source, and the folder an annex target takes whole
 		var annexFolders = new List<string>();
+		// what a drop redirects: its links go there instead of blocking it
+		var redirects = new Dictionary<string, (DocManifestTarget Target, string To)>(Paths);
 		foreach (var target in targets)
 		{
 			if (target.Action == "register-entry")
@@ -335,8 +341,12 @@ public static partial class DocAdoption
 			if (target.Action == "drop")
 			{
 				foreach (var from in target.From.Select(Full).Where(catalog.Contains))
+				{
 					if (!removed.Add(from) || moves.ContainsKey(from))
 						Error(target, "twice", target.From[0]);
+					if (target.Redirect is not null)
+						redirects[from] = (target, Full(target.Redirect));
+				}
 				continue;
 			}
 			var source = Full(target.From[0]);
@@ -405,6 +415,13 @@ public static partial class DocAdoption
 			if (!Paths.Equals(annex, folder) && !annex.StartsWith(folder + System.IO.Path.DirectorySeparatorChar, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
 				Error(target, "annex-path", target.Path, FxLayout.Relative(catalog.Root, folder));
 		}
+
+		// a redirect, to a document of the manifests or of the catalog; then its links follow it as if it had moved there
+		foreach (var (from, (target, to)) in redirects)
+			if (!news.ContainsKey(to) && !sidecars.ContainsKey(to))
+				Error(target, "redirect", target.Redirect);
+			else
+				moves[from] = to;
 
 		// the entries, of a register of the manifests or of the catalog; their identities, and their keys for the aliases
 		var documents = DocChecker.Read(catalog);
@@ -557,7 +574,7 @@ public static partial class DocAdoption
 
 		// 4. the links of the catalog: what goes leaves none behind; to what moves, they follow it
 		foreach (var markdown in catalog.Markdowns().Where(m => !removed.Contains(m) && DocLinks.Where(m, moves) is null && !change.Touches(m)))
-			foreach (var link in DocLinks.To(change.Text(markdown)!, markdown, removed))
+			foreach (var link in DocLinks.To(change.Text(markdown)!, markdown, removed.Where(r => !redirects.ContainsKey(r)).ToHashSet(Paths)))
 				change.Error(DocChecker.BrokenLink, new($"{DocChecker.BrokenLink}.dropped", link.Target), display(markdown), link.Line);
 		if (change.Ok)
 		{

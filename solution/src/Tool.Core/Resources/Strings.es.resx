@@ -1243,4 +1243,7 @@
   <data name="docs.invalid-manifest.annex-path" xml:space="preserve">
     <value>El anexo '{0}' va en la carpeta de su documento, {1}/.</value>
   </data>
+  <data name="docs.invalid-manifest.redirect" xml:space="preserve">
+    <value>Un descarte lleva los enlaces a lo que descarta a un documento de los manifiestos o del catálogo: '{0}' no lo es.</value>
+  </data>
 </root>
