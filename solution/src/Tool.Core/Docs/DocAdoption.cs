@@ -297,7 +297,8 @@ public static partial class DocAdoption
 
 	/// <summary>
 	/// <c>fx doc adopt --manifest</c>: every target of the manifests at once, all or nothing (the SPEC of the module, 5.5).
-	/// <c>adopt</c> moves a source of the catalog to its path (one from outside, as a mount that is read only, is copied),
+	/// <c>adopt</c> moves a source of the catalog to its path, with its annexes (the folder named like it, next to it; one
+	/// from outside, as a mount that is read only, is copied),
 	/// its H1 as its title; <c>extract</c> makes a document of some sections of a source, which stays as it was;
 	/// <c>skill-material</c> moves a source to an annex of the entry that will make a skill of it, and <c>annex</c>, to one of a
 	/// document (in the folder named like it, next to it); <c>drop</c> removes a source of the catalog. The relations go
@@ -318,6 +319,8 @@ public static partial class DocAdoption
 		var moves = new Dictionary<string, string>(Paths);
 		var removed = new HashSet<string>(Paths);
 		var sidecars = catalog.Files.Where(f => f.Sidecar is not null && f.Markdown is not null).ToDictionary(f => f.Markdown!, Paths);
+		// the folders whose files move with them: the annexes of an adopted source, and the folder an annex target takes whole
+		var annexFolders = new List<string>();
 		foreach (var target in targets)
 		{
 			if (target.Action == "register-entry")
@@ -327,7 +330,7 @@ public static partial class DocAdoption
 				Error(target, "from");
 				continue;
 			}
-			foreach (var from in target.From.Where(f => !FxFiles.Exists(Full(f))))
+			foreach (var from in target.From.Where(f => !FxFiles.Exists(Full(f)) && !(target.Action == "annex" && FxFiles.DirectoryExists(Full(f)))))
 				Error(target, "source", from);
 			if (target.Action == "drop")
 			{
@@ -345,7 +348,7 @@ public static partial class DocAdoption
 			var path = Full(target.Path);
 			if (news.ContainsKey(path) || targets.Any(t => t != target && t.Action is "skill-material" or "annex" && t.Path is not null && Paths.Equals(Full(t.Path), path)))
 				Error(target, "same-path", target.Path);
-			else if (FxFiles.Exists(path) && !Paths.Equals(path, source))
+			else if ((FxFiles.Exists(path) || FxFiles.DirectoryExists(source) && FxFiles.DirectoryExists(path)) && !Paths.Equals(path, source))
 				Error(target, "taken", target.Path);
 			if (target.Action == "adopt" && sidecars.ContainsKey(source))
 				Error(target, "adopted", target.From[0]);
@@ -356,7 +359,11 @@ public static partial class DocAdoption
 				moves[source] = path;
 			}
 			if (target.Action is "skill-material" or "annex")
+			{
+				if (FxFiles.DirectoryExists(source) && moves.ContainsKey(source))
+					annexFolders.Add(source);
 				continue;
+			}
 			if (target.Action == "extract" && target.Sections.Count == 0)
 				Error(target, "sections");
 			if (target.Type is null || DocTypes.Find(target.Type) is not { } type)
@@ -375,6 +382,15 @@ public static partial class DocAdoption
 		}
 		foreach (var source in removed.Where(moves.ContainsKey))
 			change.Error(InvalidManifest, new($"{InvalidManifest}.twice", display(source)));
+		// the annexes of an adopted source (the folder named like it, next to it) go with it, to the folder of its new name
+		foreach (var target in targets.Where(t => t.Action == "adopt" && t.From.Count == 1))
+		{
+			var source = Full(target.From[0]);
+			if (!source.EndsWith(".md", StringComparison.Ordinal) || !moves.TryGetValue(source, out var to) || !FxFiles.DirectoryExists(source[..^".md".Length]))
+				continue;
+			moves[source[..^".md".Length]] = to[..^".md".Length];
+			annexFolders.Add(source[..^".md".Length]);
+		}
 		// an annex, of a document of the manifests or of the catalog, and in its folder (named like it, next to it)
 		foreach (var target in targets.Where(t => t.Action == "annex" && t.Path is not null))
 		{
@@ -385,7 +401,8 @@ public static partial class DocAdoption
 				continue;
 			}
 			var folder = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(of)!, System.IO.Path.GetFileNameWithoutExtension(of));
-			if (!Full(target.Path!).StartsWith(folder + System.IO.Path.DirectorySeparatorChar, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+			var annex = Full(target.Path!);
+			if (!Paths.Equals(annex, folder) && !annex.StartsWith(folder + System.IO.Path.DirectorySeparatorChar, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
 				Error(target, "annex-path", target.Path, FxLayout.Relative(catalog.Root, folder));
 		}
 
@@ -510,7 +527,7 @@ public static partial class DocAdoption
 				change.Set(document.File.Sidecar!, (document.Sidecar with { Entries = [.. document.Sidecar.Entries, .. Entries(register)], UpdatedAt = DocSidecar.Instant(now) })
 					.Seal(DocIntegrity.Content(change.Text(register)!)).ToJson());
 		}
-		foreach (var target in targets.Where(t => t.Action is "skill-material" or "annex"))
+		foreach (var target in targets.Where(t => t.Action is "skill-material" or "annex" && !FxFiles.DirectoryExists(Full(t.From[0]))))
 		{
 			var source = Full(target.From[0]);
 			var path = Full(target.Path!);
@@ -523,6 +540,17 @@ public static partial class DocAdoption
 				change.MoveBytes(source, path, content, document: false);
 			else
 				change.SetBytes(path, content, document: false);
+		}
+		foreach (var annex in annexFolders.SelectMany(f => FxFiles.EnumerateFiles(f, "*", System.IO.SearchOption.AllDirectories)))
+		{
+			// one that a target of its own moves or drops, that target says where it goes
+			if (moves.ContainsKey(annex) || removed.Contains(annex))
+				continue;
+			var to = DocLinks.Where(annex, moves)!;
+			if (annex.EndsWith(".md", StringComparison.Ordinal) && Source(annex, null) is { } text)
+				change.Move(annex, to, DocLinks.Rewrite(text, annex, to, moves), document: false);
+			else
+				change.MoveBytes(annex, to, FxFiles.ReadAllBytes(annex), document: false);
 		}
 		foreach (var source in removed)
 			change.Delete(source);

@@ -303,6 +303,62 @@ public sealed class DocsAdoptTest
 		Assert.DoesNotContain(space.Problems(), p => p.File is { } file && (file.Contains("PLAN-hoja-de-ruta/") || file.Contains("DESIGN-x/")));
 	}
 
+	[Fact(DisplayName = "adopt --manifest: an annex can be a whole folder, which goes into the folder of its document, links and all")]
+	public void ManifestAnnexFolder()
+	{
+		using var batch = new Batch();
+		var space = batch.Space;
+		space.Write("_docs/notes/kit/guide.md", "# Guide\n\nSee the [roadmap](../../RoadMap.md).\n");
+		space.Write("_docs/notes/kit/tree/data.yaml", "a: 1\n");
+		var change = batch.Apply(batch.Manifest("""
+			  - action: adopt
+			    from: _docs/RoadMap.md
+			    type: plan
+			    profile: rollout
+			    status: cancelled
+			    title: Hoja de ruta
+			    path: _docs/_records/2026/01/PLAN-hoja-de-ruta.md
+			    created: 2026-01-16
+			  - action: annex
+			    from: _docs/notes/kit
+			    of: _docs/_records/2026/01/PLAN-hoja-de-ruta.md
+			    path: _docs/_records/2026/01/PLAN-hoja-de-ruta/kit
+
+			"""));
+		Assert.True(change.Ok, Ok(change));
+		Assert.True(change.Write(), Ok(change));
+		Assert.False(Directory.Exists(space.Full("_docs/notes/kit")));
+		Assert.Equal("# Guide\n\nSee the [roadmap](../../PLAN-hoja-de-ruta.md).\n", space.Read("_docs/_records/2026/01/PLAN-hoja-de-ruta/kit/guide.md"));
+		Assert.Equal("a: 1\n", space.Read("_docs/_records/2026/01/PLAN-hoja-de-ruta/kit/tree/data.yaml"));
+	}
+
+	[Fact(DisplayName = "adopt --manifest: the annexes of a source (the folder named like it) go with it, to the folder of its new name, links and all")]
+	public void ManifestAnnexesFollow()
+	{
+		using var batch = new Batch();
+		var space = batch.Space;
+		space.Write("_docs/notes/Faces/diagram.md", "# Diagram\n\nBack to [faces](../Faces.md), and the [roadmap](../../RoadMap.md).\n");
+		space.Write("_docs/notes/Faces/scripts/run.sh", "echo faces\n");
+		space.Write("_docs/fx/links.md", "See the [diagram](../notes/Faces/diagram.md).\n");
+		var change = batch.Apply(batch.Manifest("""
+			  - action: adopt
+			    from: _docs/notes/Faces.md
+			    type: research
+			    status: draft
+			    title: Faces
+			    path: _docs/_records/2026/01/RESEARCH-faces.md
+			    created: 2026-01-16
+
+			"""));
+		Assert.True(change.Ok, Ok(change));
+		Assert.True(change.Write(), Ok(change));
+		Assert.False(Directory.Exists(space.Full("_docs/notes/Faces")));
+		Assert.Equal("# Diagram\n\nBack to [faces](../RESEARCH-faces.md), and the [roadmap](../../../../RoadMap.md).\n",
+			space.Read("_docs/_records/2026/01/RESEARCH-faces/diagram.md"));
+		Assert.Equal("echo faces\n", space.Read("_docs/_records/2026/01/RESEARCH-faces/scripts/run.sh"));
+		Assert.Equal("See the [diagram](../_records/2026/01/RESEARCH-faces/diagram.md).\n", space.Read("_docs/fx/links.md"));
+	}
+
 	[Theory(DisplayName = "adopt --manifest: a wrong target stops all of them")]
 	[InlineData("  - action: move\n    from: _docs/RoadMap.md\n", DocAdoption.InvalidManifest)]
 	[InlineData("  - action: register-entry\n    from: _docs/RoadMap.md\n    register: _docs/ideas/REGISTER-ideas.md\n    title: An idea\n", DocAdoption.InvalidManifest)]
