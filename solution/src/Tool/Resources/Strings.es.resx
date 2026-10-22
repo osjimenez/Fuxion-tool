@@ -1525,4 +1525,10 @@
   <data name="doc.key.git" xml:space="preserve">
     <value>reservada en el remoto (git)</value>
   </data>
+  <data name="doc.check.branches" xml:space="preserve">
+    <value>También contra las ramas remotas que git conoce, sin red: ninguna ruta, slug, identidad ni clave de entrada repetidas.</value>
+  </data>
+  <data name="doc.check.fetch" xml:space="preserve">
+    <value>Trae antes las ramas remotas (implica --branches).</value>
+  </data>
 </root>

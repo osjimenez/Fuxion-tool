@@ -1159,4 +1159,25 @@
   <data name="docs.unchanged.no-provisional" xml:space="preserve">
     <value>{0} no tiene ninguna clave provisional.</value>
   </data>
+  <data name="docs.branch-collision.path" xml:space="preserve">
+    <value>{0} es otro documento en la rama {2}: la misma ruta, otra identidad.</value>
+  </data>
+  <data name="docs.branch-collision.slug" xml:space="preserve">
+    <value>El slug de {0} es el de {1} en la rama {2}: otro nombre en la misma carpeta.</value>
+  </data>
+  <data name="docs.branch-collision.id" xml:space="preserve">
+    <value>La identidad de {0} es la de {1} en la rama {2}: otro documento.</value>
+  </data>
+  <data name="docs.branch-collision.entry" xml:space="preserve">
+    <value>La entrada {1} de {0} es otra en la rama {2}.</value>
+  </data>
+  <data name="docs.branch-collision.key" xml:space="preserve">
+    <value>La clave {1} de {0} es la de otra entrada en la rama {2}.</value>
+  </data>
+  <data name="docs.fetch-failed" xml:space="preserve">
+    <value>No se han podido traer las ramas remotas: {0}</value>
+  </data>
+  <data name="docs.name-taken.branch" xml:space="preserve">
+    <value>El nombre {0} ya está en la rama {1}.</value>
+  </data>
 </root>

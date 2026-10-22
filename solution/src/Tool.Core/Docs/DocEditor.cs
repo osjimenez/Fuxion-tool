@@ -132,6 +132,9 @@ public static partial class DocEditor
 				change.Error(NameTaken, new($"{NameTaken}.slug", slug, sameSlug.Path));
 			else if (catalog.Files.FirstOrDefault(f => f.Stem == stem) is { } sameName)
 				change.Error(NameTaken, new($"{NameTaken}.name", stem, sameName.Path));
+			// nor in a remote branch git knows (the SPEC of the module, 5.1)
+			else if (DocBranches.Taken(catalog, relative, stem, slug) is { } branch)
+				change.Error(NameTaken, new($"{NameTaken}.branch", stem, branch));
 		}
 		if (!change.Ok)
 			return change;

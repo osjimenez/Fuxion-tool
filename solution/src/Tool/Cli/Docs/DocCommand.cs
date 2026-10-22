@@ -31,11 +31,13 @@ public static class DocCommand
 		var command = new Command("doc", Texts.Get("doc"));
 
 		var documents = new Argument<string[]>("documents") { Description = Texts.Get("doc.check.documents"), Arity = ArgumentArity.ZeroOrMore };
-		var check = new Command("check", Texts.Get("doc.check")) { documents }.Describe(CheckSchema);
+		var branches = new Option<bool>("--branches") { Description = Texts.Get("doc.check.branches") };
+		var fetch = new Option<bool>("--fetch") { Description = Texts.Get("doc.check.fetch") };
+		var check = new Command("check", Texts.Get("doc.check")) { documents, branches, fetch }.Describe(CheckSchema, network: true);
 		check.SetAction(result =>
 		{
 			var console = MountCommand.Console(result, global, currentDirectory);
-			return console.Run(_ => Check(console, result.GetValue(documents) ?? []));
+			return console.Run(_ => Check(console, result.GetValue(documents) ?? [], result.GetValue(branches) || result.GetValue(fetch), result.GetValue(fetch)));
 		});
 		command.Add(check);
 
@@ -334,7 +336,7 @@ public static class DocCommand
 		return files;
 	}
 
-	static int Check(FxConsole console, IReadOnlyList<string> selectors)
+	static int Check(FxConsole console, IReadOnlyList<string> selectors, bool branches = false, bool fetch = false)
 	{
 		var diagnostics = new List<FxDiagnostic>();
 		void Json(DocCatalog? catalog, int count, IReadOnlyList<string> withProblems)
@@ -351,6 +353,14 @@ public static class DocCommand
 			return FxConsole.UsageError;
 		var display = Display(catalog);
 		diagnostics.AddRange(DocChecker.Check(catalog, display, only).Diagnostics);
+		// against the remote branches git knows (--fetch: brought first)
+		if (branches)
+		{
+			if (fetch && DocBranches.Fetch(catalog) is { } failed)
+				diagnostics.Add(failed);
+			var mine = DocChecker.Read(catalog).Where(d => only is null || only.Contains(d.File)).ToList();
+			diagnostics.AddRange(DocBranches.Collisions(catalog, mine, DocBranches.Read(catalog), display));
+		}
 		var files = (IReadOnlyList<DocFile>?)only ?? catalog.Files;
 		bool Of(DocFile file, FxDiagnostic d)
 			=> d.File is not null && (file.Markdown is not null && d.File == display(file.Markdown) || file.Sidecar is not null && d.File == display(file.Sidecar));

@@ -1159,4 +1159,25 @@
   <data name="docs.unchanged.no-provisional" xml:space="preserve">
     <value>{0} has no provisional key.</value>
   </data>
+  <data name="docs.branch-collision.path" xml:space="preserve">
+    <value>{0} is another document in the branch {2}: the same path, another identity.</value>
+  </data>
+  <data name="docs.branch-collision.slug" xml:space="preserve">
+    <value>The slug of {0} is that of {1} in the branch {2}: another name in the same folder.</value>
+  </data>
+  <data name="docs.branch-collision.id" xml:space="preserve">
+    <value>The identity of {0} is that of {1} in the branch {2}: another document.</value>
+  </data>
+  <data name="docs.branch-collision.entry" xml:space="preserve">
+    <value>The entry {1} of {0} is another one in the branch {2}.</value>
+  </data>
+  <data name="docs.branch-collision.key" xml:space="preserve">
+    <value>The key {1} of {0} is another entry's in the branch {2}.</value>
+  </data>
+  <data name="docs.fetch-failed" xml:space="preserve">
+    <value>The remote branches could not be fetched: {0}</value>
+  </data>
+  <data name="docs.name-taken.branch" xml:space="preserve">
+    <value>The name {0} is taken in the branch {1}.</value>
+  </data>
 </root>

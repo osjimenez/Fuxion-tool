@@ -1525,4 +1525,10 @@
   <data name="doc.key.git" xml:space="preserve">
     <value>reserved on the remote (git)</value>
   </data>
+  <data name="doc.check.branches" xml:space="preserve">
+    <value>Also against the remote branches git knows, without network: no path, slug, identity or key of an entry repeated.</value>
+  </data>
+  <data name="doc.check.fetch" xml:space="preserve">
+    <value>Fetches the remote branches first (it implies --branches).</value>
+  </data>
 </root>
