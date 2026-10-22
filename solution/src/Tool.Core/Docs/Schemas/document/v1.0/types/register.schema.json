@@ -4,6 +4,7 @@
   "title": "Document register metadata 1.0",
   "x-docs-temporality": "stable",
   "x-docs-status-classes": { "active": "current", "retired": "void", "stale": "current" },
+  "x-docs-attention": ["stale"],
   "allOf": [
     { "$ref": "../base.schema.json" },
     {

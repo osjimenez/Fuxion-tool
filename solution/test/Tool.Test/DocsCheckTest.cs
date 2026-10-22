@@ -55,7 +55,8 @@ public sealed class DocsCheckTest
 
 		/// <summary>A document, its pair sealed: its path in the catalog.</summary>
 		public string Add(string type, string slug, string? title = null, string? folder = null, string? status = null, DateTimeOffset? created = null,
-			DateTimeOffset? updated = null, IReadOnlyList<DocRelation>? relations = null, string? body = null, string? markdown = null, string? id = null, string? stem = null)
+			DateTimeOffset? updated = null, IReadOnlyList<DocRelation>? relations = null, string? body = null, string? markdown = null, string? id = null, string? stem = null,
+			IReadOnlyList<string>? tags = null)
 		{
 			var t = DocTypes.Find(type)!;
 			var at = created ?? At;
@@ -64,6 +65,9 @@ public sealed class DocsCheckTest
 			var path = folder.Length == 0 ? $"{stem}.md" : $"{folder}/{stem}.md";
 			title ??= $"The {slug}";
 			markdown ??= $"# {title}\n\n{body ?? "Text."}\n";
+			// a view, as its recipe makes it
+			if (t.GenerationRequired && body is null && Directory.CreateDirectory(Full("_docs")).Exists)
+				markdown =DocViews.Generate(Catalog(), DocChecker.Read(Catalog()), title, new("docs.status", "_docs"), Path.GetFullPath(Full($"_docs/{path}")), out _)!;
 			var sidecar = new DocSidecar
 			{
 				Id = id ?? DocSidecar.NewId(at),
@@ -75,6 +79,7 @@ public sealed class DocsCheckTest
 				UpdatedAt = DocSidecar.Instant(updated ?? at),
 				CreatedBy = "editor",
 				Relations = relations ?? [],
+				Tags = tags ?? [],
 				Generation = t.GenerationRequired ? new("docs.status", "_docs") : null
 			}.Seal(DocIntegrity.Content(markdown));
 			Write($"_docs/{path}", markdown);

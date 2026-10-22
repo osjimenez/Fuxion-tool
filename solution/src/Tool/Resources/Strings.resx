@@ -1495,4 +1495,10 @@
   <data name="doc.entry.pair" xml:space="preserve">
     <value>'{0}' is not name=value.</value>
   </data>
+  <data name="doc.new.recipe" xml:space="preserve">
+    <value>The recipe of a view: docs.status, docs.catalog (docs.catalog/&lt;tag&gt;) or docs.backlog.</value>
+  </data>
+  <data name="doc.new.scope" xml:space="preserve">
+    <value>What a view is about, from the root of the space: a folder, or the register of a backlog; by default, the catalog.</value>
+  </data>
 </root>

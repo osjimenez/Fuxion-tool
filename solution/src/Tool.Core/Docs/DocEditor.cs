@@ -80,10 +80,11 @@ public static partial class DocEditor
 	/// <summary>
 	/// <c>fx doc new</c>: the pair of a new document, its Markdown with its H1 and its sidecar sealed, in the place of its
 	/// type: a historical one in <c>_records/AAAA/MM</c> of <paramref name="now"/>, a stable one in
-	/// <paramref name="folder"/> (the root of the catalog by default). Not where its name or its slug are taken.
+	/// <paramref name="folder"/> (the root of the catalog by default). Not where its name or its slug are taken. A view, with
+	/// its <paramref name="generation"/>, already generated.
 	/// </summary>
 	public static DocChange New(DocCatalog catalog, Func<string, string> display, string currentDirectory, string typeName, string title, string? slug, string? profile,
-		string? folder, IReadOnlyList<string> tags, string? actor, DateTimeOffset now)
+		string? folder, IReadOnlyList<string> tags, string? actor, DateTimeOffset now, DocGeneration? generation = null)
 	{
 		var change = new DocChange(catalog, display);
 		var type = DocTypes.Find(typeName)!;
@@ -92,7 +93,7 @@ public static partial class DocEditor
 		title = title.Trim();
 		if (title.Length == 0 || title.Contains('\n') || title.Contains('\r'))
 			change.Error(InvalidTitle, new(InvalidTitle));
-		if (type.GenerationRequired)
+		if (type.Name == "view" ? generation is null : generation is not null)
 			change.Error(ViewsBySync, new(ViewsBySync, type.Name));
 		if (type.ProfileRequired && profile is null)
 			change.Error(DocChecker.InvalidProfile, new($"{DocChecker.InvalidProfile}.missing", type.Name, string.Join(", ", type.Profiles)));
@@ -136,6 +137,15 @@ public static partial class DocEditor
 			return change;
 
 		var text = $"# {title}\n";
+		if (generation is not null)
+		{
+			if (DocViews.Generate(catalog, DocChecker.Read(catalog), title, generation, markdown, out var problem) is not { } generated)
+			{
+				change.Error(problem!.Key.StartsWith(DocViews.UnknownRecipe, StringComparison.Ordinal) ? DocViews.UnknownRecipe : DocViews.InvalidScope, problem);
+				return change;
+			}
+			text = generated;
+		}
 		var sidecar = new DocSidecar
 		{
 			Id = DocSidecar.NewId(now),
@@ -146,7 +156,8 @@ public static partial class DocEditor
 			Tags = tags.Distinct(StringComparer.Ordinal).ToList(),
 			CreatedAt = DocSidecar.Instant(now),
 			UpdatedAt = DocSidecar.Instant(now),
-			CreatedBy = actor!
+			CreatedBy = actor!,
+			Generation = generation
 		}.Seal(DocIntegrity.Content(text));
 		change.Set(markdown, text);
 		change.Set(sidecarPath, sidecar.ToJson());
@@ -208,7 +219,7 @@ public static partial class DocEditor
 			return false;
 		var file = change.Display(document.Document.File.Markdown!);
 		if (document.Type.Name == "view")
-			change.Diagnostics.Add(FxDiagnostic.Error(DocChecker.ViewEdited, new(DocChecker.ViewEdited, document.Path), file, fix: FxFix.Run("fx sync")));
+			change.Diagnostics.Add(FxDiagnostic.Error(DocChecker.ViewEdited, new(DocChecker.ViewEdited, document.Path), file, fix: FxFix.Run("fx sync --adopt")));
 		else if (document.Type.IsFrozen(document.Sidecar.Status))
 			change.Diagnostics.Add(FxDiagnostic.Error(DocChecker.FrozenChanged, new(DocChecker.FrozenChanged, document.Path, document.Sidecar.Status), file,
 				fix: FxFix.Do(new FxText($"{DocChecker.FrozenChanged}.fix", document.Path))));

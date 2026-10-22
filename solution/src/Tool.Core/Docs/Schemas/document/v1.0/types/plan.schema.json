@@ -4,6 +4,7 @@
   "title": "Document plan metadata 1.0",
   "x-docs-temporality": "historical",
   "x-docs-status-classes": { "blocked": "open", "cancelled": "void", "completed": "closed", "draft": "open", "in-progress": "open", "ready": "open" },
+  "x-docs-attention": ["blocked"],
   "allOf": [
     { "$ref": "../base.schema.json" },
     {

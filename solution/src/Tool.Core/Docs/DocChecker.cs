@@ -369,7 +369,7 @@ public static partial class DocChecker
 				else if (title.Text != sidecar.Title)
 					Add(FxDiagnostic.Error(TitleMismatch, new(TitleMismatch, title.Text, sidecar.Title), markdownFile, title.Line));
 				if (DocIntegrity.Hash(DocIntegrity.Utf8.GetBytes(content)) != sidecar.Integrity!.Content)
-					Add(type.Name == "view" ? FxDiagnostic.Error(ViewEdited, new(ViewEdited, file.Path), markdownFile, fix: FxFix.Run("fx sync"))
+					Add(type.Name == "view" ? FxDiagnostic.Error(ViewEdited, new(ViewEdited, file.Path), markdownFile, fix: FxFix.Run("fx sync --adopt"))
 						: type.IsFrozen(sidecar.Status) ? FxDiagnostic.Error(FrozenChanged, new(FrozenChanged, file.Path, sidecar.Status), markdownFile,
 							fix: FxFix.Do(new FxText($"{FrozenChanged}.fix", file.Path)))
 						: FxDiagnostic.Warning(Unfinalized, new(Unfinalized, file.Path), markdownFile, fix: FxFix.Run($"fx doc finalize {file.Path}")));
@@ -385,8 +385,23 @@ public static partial class DocChecker
 			}
 			if (metadata is not null && metadata != sidecar.Integrity!.Metadata)
 				Add(FxDiagnostic.Error(IntegrityMismatch, new(IntegrityMismatch, file.Path), sidecarFile, Line("/integrity/metadata")));
+
+			// 6. A view: its recipe and its scope, and whether it is as fx sync would leave it (one edited by hand, said above)
+			if (type.Name == "view" && sidecar.Generation is { } generation)
+			{
+				_all ??= Read(catalog);
+				var expected = DocViews.Generate(catalog, _all, sidecar.Title, generation, file.Markdown!, out var problem);
+				if (problem is not null)
+					Add(FxDiagnostic.Error(problem.Key.StartsWith(DocViews.UnknownRecipe, StringComparison.Ordinal) ? DocViews.UnknownRecipe : DocViews.InvalidScope, problem,
+						sidecarFile, Line("/generation")));
+				else if (content is not null && DocIntegrity.Content(content) == sidecar.Integrity!.Content && expected != content)
+					Add(FxDiagnostic.Error(DocViews.ViewOutdated, new(DocViews.ViewOutdated, file.Path), markdownFile, fix: FxFix.Run("fx sync")));
+			}
 			return new(file, sidecar);
 		}
+
+		/// <summary>The documents of the catalog that can be read, for the views; read once, if a view is checked.</summary>
+		IReadOnlyList<DocDocument>? _all;
 
 		/// <summary>What a kind of relation joins, for its message: "a spec to a design", "anything to an adr".</summary>
 		static string Allowed(DocRelationRule rule)

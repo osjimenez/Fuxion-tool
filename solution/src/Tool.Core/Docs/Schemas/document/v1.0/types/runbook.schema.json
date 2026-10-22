@@ -4,6 +4,7 @@
   "title": "Document runbook metadata 1.0",
   "x-docs-temporality": "stable",
   "x-docs-status-classes": { "active": "current", "draft": "open", "needs-review": "current", "retired": "void" },
+  "x-docs-attention": ["needs-review"],
   "allOf": [
     { "$ref": "../base.schema.json" },
     {

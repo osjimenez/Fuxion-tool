@@ -890,7 +890,7 @@
     <value>El título es una línea, no vacía.</value>
   </data>
   <data name="docs.views-by-sync" xml:space="preserve">
-    <value>Un {0} lo genera fx sync a partir de su receta; fx doc new no lo crea.</value>
+    <value>Una vista sale de su receta y su alcance (--recipe, --scope), y la genera fx sync; un {0} no los lleva.</value>
   </data>
   <data name="docs.invalid-name.new-slug" xml:space="preserve">
     <value>El slug '{0}' lleva letras ASCII en minúscula, dígitos y guiones sueltos (--slug).</value>
@@ -1065,5 +1065,71 @@
   </data>
   <data name="docs.invalid-manifest.register-edited" xml:space="preserve">
     <value>El registro {0} tiene una edición sin finalizar: finalízalo antes.</value>
+  </data>
+  <data name="docs.view.generated" xml:space="preserve">
+    <value>Generada por fx sync (receta `{0}`, alcance `{1}`): no se edita a mano.</value>
+  </data>
+  <data name="docs.view.none" xml:space="preserve">
+    <value>_Ninguno._</value>
+  </data>
+  <data name="docs.view.status.summary" xml:space="preserve">
+    <value>{0} abiertos · {1} vigentes · {2} piden atención · {3} documentos.</value>
+  </data>
+  <data name="docs.view.status.attention" xml:space="preserve">
+    <value>Piden atención</value>
+  </data>
+  <data name="docs.view.status.open" xml:space="preserve">
+    <value>Abiertos</value>
+  </data>
+  <data name="docs.view.status.current" xml:space="preserve">
+    <value>Vigentes</value>
+  </data>
+  <data name="docs.view.column.document" xml:space="preserve">
+    <value>Documento</value>
+  </data>
+  <data name="docs.view.column.type" xml:space="preserve">
+    <value>Tipo</value>
+  </data>
+  <data name="docs.view.column.status" xml:space="preserve">
+    <value>Estado</value>
+  </data>
+  <data name="docs.view.column.updated" xml:space="preserve">
+    <value>Actualizado</value>
+  </data>
+  <data name="docs.view.column.entry" xml:space="preserve">
+    <value>Entrada</value>
+  </data>
+  <data name="docs.view.column.title" xml:space="preserve">
+    <value>Título</value>
+  </data>
+  <data name="docs.view.column.fields" xml:space="preserve">
+    <value>Campos</value>
+  </data>
+  <data name="docs.view.column.documents" xml:space="preserve">
+    <value>Documentos</value>
+  </data>
+  <data name="docs.view.column.closed" xml:space="preserve">
+    <value>Cerrada</value>
+  </data>
+  <data name="docs.view.backlog.summary" xml:space="preserve">
+    <value>{0} abiertas · {1} cerradas.</value>
+  </data>
+  <data name="docs.view.backlog.closed" xml:space="preserve">
+    <value>Cerradas</value>
+  </data>
+  <data name="docs.unknown-recipe" xml:space="preserve">
+    <value>'{0}' no es una receta de fx: {1}.</value>
+  </data>
+  <data name="docs.invalid-scope.folder" xml:space="preserve">
+    <value>El alcance '{0}' no es una carpeta del catálogo.</value>
+  </data>
+  <data name="docs.invalid-scope.register" xml:space="preserve">
+    <value>El alcance '{0}' no es un registro del catálogo.</value>
+  </data>
+  <data name="docs.view-outdated" xml:space="preserve">
+    <value>{0} no está como la hace hoy su receta.</value>
+  </data>
+  <data name="docs.invalid-yaml.language" xml:space="preserve">
+    <value>El idioma '{0}' no es uno de fx: {1}.</value>
   </data>
 </root>

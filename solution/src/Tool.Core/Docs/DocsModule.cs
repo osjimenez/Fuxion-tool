@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using Fuxion.Tool.Core.Layout;
 using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Sync;
@@ -64,10 +66,13 @@ public static class DocsModule
 		return null;
 	}
 
-	/// <summary><c>fx doctor</c>: the check of the catalog of <paramref name="node"/>, if it has one.</summary>
+	/// <summary>
+	/// The catalog of <paramref name="node"/>, if it has one: in <c>fx doctor</c>, its check; in <c>fx sync</c>, its views
+	/// generated (the SPEC of the module, 11.3).
+	/// </summary>
 	public static FxModuleResult? Run(FxNode node, string? repository, SyncContext context)
 	{
-		if (!context.Doctor || !node.HasModule(Name))
+		if (!node.HasModule(Name))
 			return null;
 		var diagnostics = new FxDiagnostics(context.Progress, repository);
 		string Display(string path) => FxLayout.Relative(context.DisplayRoot, path);
@@ -84,12 +89,69 @@ public static class DocsModule
 		diagnostics.AddRange(warnings.Select(d => d with { File = d.File is null ? null : Display(d.File) }));
 		if (config is null && diagnostics.Count == 0)
 			return null;
+		var files = new List<SyncFile>();
 		if (config is not null)
-			context.Progress.Step(Name, repository, "check", () =>
+			context.Progress.Step(Name, repository, context.Doctor ? "check" : "views", () =>
 			{
-				diagnostics.AddRange(DocChecker.Check(DocCatalog.Scan(node.Root, config), Display).Diagnostics);
+				var catalog = DocCatalog.Scan(node.Root, config);
+				if (context.Doctor)
+					diagnostics.AddRange(DocChecker.Check(catalog, Display).Diagnostics);
+				else
+					Views(catalog, context, files, diagnostics, Display);
 				return true;
 			});
-		return new(Name, context.DisplayRoot, repository, [], [], diagnostics.ToList()) { Node = node.Root };
+		return new(Name, context.DisplayRoot, repository, files, [], diagnostics.ToList()) { Node = node.Root };
+	}
+
+	/// <summary>
+	/// <c>fx sync</c>: each view of the catalog as its recipe makes it, finalized now; the same, untouched. One edited by
+	/// hand is not replaced, unless <c>--adopt</c> (the fx way: never overwrite what is not its own without asking).
+	/// </summary>
+	static void Views(DocCatalog catalog, SyncContext context, List<SyncFile> files, FxDiagnostics diagnostics, Func<string, string> display)
+	{
+		var documents = DocChecker.Read(catalog);
+		var now = DateTimeOffset.UtcNow;
+		foreach (var view in documents.Where(d => d.Type.Name == "view" && d.Sidecar.Generation is not null))
+		{
+			var markdown = view.File.Markdown!;
+			var expected = DocViews.Generate(catalog, documents, view.Sidecar.Title, view.Sidecar.Generation!, markdown, out var problem);
+			if (problem is not null)
+			{
+				diagnostics.Add(FxDiagnostic.Error(problem.Key.StartsWith(DocViews.UnknownRecipe, StringComparison.Ordinal) ? DocViews.UnknownRecipe : DocViews.InvalidScope,
+					problem, display(view.File.Sidecar!)));
+				continue;
+			}
+			string? current;
+			try
+			{
+				current = DocIntegrity.Normalize(FxFiles.ReadAllBytes(markdown));
+			}
+			catch (DecoderFallbackException)
+			{
+				current = null;
+			}
+			if (current == expected)
+			{
+				files.Add(new(display(markdown), SyncFileStatus.Unchanged));
+				continue;
+			}
+			if ((current is null || DocIntegrity.Content(current) != view.Sidecar.Integrity!.Content) && !context.Adopt)
+			{
+				files.Add(new(display(markdown), SyncFileStatus.Refused));
+				diagnostics.Add(FxDiagnostic.Error(DocChecker.ViewEdited, new(DocChecker.ViewEdited, view.File.Path), display(markdown), fix: FxFix.Run("fx sync --adopt")));
+				continue;
+			}
+			// never before it was created, whatever the clock says
+			var updated = DocSidecar.Instant(now > DocSidecar.ParseInstant(view.Sidecar.CreatedAt) ? now : DocSidecar.ParseInstant(view.Sidecar.CreatedAt));
+			var sidecar = (view.Sidecar with { UpdatedAt = updated }).Seal(DocIntegrity.Content(expected!));
+			var status = context.Write ? SyncFileStatus.Written : SyncFileStatus.WouldWrite;
+			if (context.Write)
+			{
+				File.WriteAllText(markdown, expected, new UTF8Encoding(false));
+				File.WriteAllText(view.File.Sidecar!, sidecar.ToJson(), new UTF8Encoding(false));
+			}
+			files.Add(new(display(markdown), status));
+			files.Add(new(display(view.File.Sidecar!), status));
+		}
 	}
 }

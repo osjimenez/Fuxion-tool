@@ -1495,4 +1495,10 @@
   <data name="doc.entry.pair" xml:space="preserve">
     <value>'{0}' no es nombre=valor.</value>
   </data>
+  <data name="doc.new.recipe" xml:space="preserve">
+    <value>La receta de una vista: docs.status, docs.catalog (docs.catalog/&lt;etiqueta&gt;) o docs.backlog.</value>
+  </data>
+  <data name="doc.new.scope" xml:space="preserve">
+    <value>De qué trata una vista, desde la raíz del space: una carpeta, o el registro de un backlog; por defecto, el catálogo.</value>
+  </data>
 </root>

@@ -31,7 +31,8 @@ public enum DocStatusClass
 /// A type of document as its schema declares it, with what the logic of the module needs of it: its temporality, its
 /// statuses and the class of each one, its profiles, and whether it takes a <c>generation</c>. Read from the annotations of
 /// the schemas, never from a list in the code (plan U, ADR "esquemas cerrados, con costuras"). <see cref="Required"/>, the
-/// properties a sidecar of the type must have: those of the base and its own.
+/// properties a sidecar of the type must have: those of the base and its own; <see cref="Attention"/>, its statuses that
+/// ask for attention (the SPEC of the module, 13.2: the status view puts them first).
 /// </summary>
 public sealed record DocType(
 	string Name,
@@ -42,7 +43,8 @@ public sealed record DocType(
 	bool ProfileRequired,
 	bool GenerationAllowed,
 	bool GenerationRequired,
-	IReadOnlyList<string> Required)
+	IReadOnlyList<string> Required,
+	IReadOnlyList<string> Attention)
 {
 	/// <summary>The prefix of its file names: the type in upper case (<c>ADR-</c>).</summary>
 	public string Token => Name.ToUpperInvariant();
@@ -104,6 +106,7 @@ public static class DocTypes
 		var profiles = properties.TryGetProperty("profile", out var profile) ? profile.GetProperty("enum").EnumerateArray().Select(p => p.GetString()!).ToList() : [];
 		var required = own.TryGetProperty("required", out var r) ? r.EnumerateArray().Select(x => x.GetString()!).ToList() : [];
 		return new(name, temporality, statuses, classes, profiles, required.Contains("profile"), properties.TryGetProperty("generation", out _),
-			required.Contains("generation"), [.. BaseRequired.Value, .. required]);
+			required.Contains("generation"), [.. BaseRequired.Value, .. required],
+			root.TryGetProperty("x-docs-attention", out var attention) ? attention.EnumerateArray().Select(s => s.GetString()!).ToList() : []);
 	}
 }

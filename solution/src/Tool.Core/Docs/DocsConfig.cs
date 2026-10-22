@@ -31,6 +31,16 @@ public sealed record DocsConfig(string Catalog, IReadOnlyList<string> Actors, IR
 	/// </summary>
 	public IReadOnlyList<string> Bootstrap { get; init; } = [];
 
+	/// <summary>
+	/// The language of what fx writes in the catalog (the views), whoever runs it: the same bytes on every machine. One of
+	/// those of fx, <c>en</c> by default.
+	/// </summary>
+	public string Language { get; init; } = DefaultLanguage;
+
+	public const string DefaultLanguage = "en";
+
+	public static readonly IReadOnlyList<string> Languages = ["en", "es"];
+
 	public static DocsConfig Default { get; } = new(DefaultCatalog, [], []);
 }
 
@@ -63,7 +73,7 @@ public static partial class DocsYamlReader
 		var map = reader.Load(yaml);
 		if (map is null)
 			throw new DocsConfigException(reader.Diagnostics);
-		reader.Keys(map, "schema", "enabled", "catalog", "actors", "registers", "bootstrap");
+		reader.Keys(map, "schema", "enabled", "catalog", "actors", "registers", "bootstrap", "language");
 
 		var written = FxYamlReader.Scalar(map["catalog"]);
 		var catalog = written is null ? DocsConfig.DefaultCatalog : Relative(written) ?? written;
@@ -119,7 +129,12 @@ public static partial class DocsYamlReader
 			throw new DocsConfigException(reader.Diagnostics);
 		foreach (var warning in reader.Diagnostics)
 			warnings?.Add(warning);
-		return new(catalog, actors, registers) { Enabled = enabled, Bootstrap = bootstrap };
+		var language = FxYamlReader.Scalar(map["language"]) ?? DocsConfig.DefaultLanguage;
+		if (!DocsConfig.Languages.Contains(language))
+			reader.Error(map["language"], "language", language, string.Join(", ", DocsConfig.Languages));
+		if (reader.HasErrors)
+			throw new DocsConfigException(reader.Diagnostics);
+		return new(catalog, actors, registers) { Enabled = enabled, Bootstrap = bootstrap, Language = language };
 	}
 
 	/// <summary>

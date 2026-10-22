@@ -99,14 +99,17 @@ public static class DocCommand
 		var path = new Option<string?>("--path") { Description = Texts.Get("doc.new.path"), HelpName = "folder" };
 		var tags = new Option<string[]>("--tag") { Description = Texts.Get("doc.new.tag"), HelpName = "tag" };
 		var actor = new Option<string?>("--actor") { Description = Texts.Get("doc.new.actor", DocEditor.ActorVariable), HelpName = "actor" };
+		var recipe = new Option<string?>("--recipe") { Description = Texts.Get("doc.new.recipe"), HelpName = "recipe" };
+		var scope = new Option<string?>("--scope") { Description = Texts.Get("doc.new.scope"), HelpName = "path" };
 		var newDryRun = DryRun();
-		var @new = new Command("new", Texts.Get("doc.new")) { newType, title, slug, profile, path, tags, actor, newDryRun }.Describe(EditSchema, writes: true);
+		var @new = new Command("new", Texts.Get("doc.new")) { newType, title, slug, profile, path, tags, actor, recipe, scope, newDryRun }.Describe(EditSchema, writes: true);
 		@new.SetAction(result =>
 		{
 			var console = MountCommand.Console(result, global, currentDirectory);
 			return console.Run(_ => Write(console, result.GetValue(newDryRun), (catalog, display) => DocEditor.New(catalog, display, console.Settings.Directory,
 				result.GetValue(newType)!, result.GetValue(title)!, result.GetValue(slug), result.GetValue(profile), result.GetValue(path), result.GetValue(tags) ?? [],
-				result.GetValue(actor) ?? Environment.GetEnvironmentVariable(DocEditor.ActorVariable), DateTimeOffset.UtcNow)));
+				result.GetValue(actor) ?? Environment.GetEnvironmentVariable(DocEditor.ActorVariable), DateTimeOffset.UtcNow,
+				result.GetValue(recipe) is { } r ? new DocGeneration(r, result.GetValue(scope) ?? catalog.Config.Catalog) : null)));
 		});
 		command.Add(@new);
 
