@@ -1237,4 +1237,10 @@
   <data name="docs.schema.format.date-time" xml:space="preserve">
     <value>The value is not a date and time of RFC 3339.</value>
   </data>
+  <data name="docs.invalid-manifest.of" xml:space="preserve">
+    <value>An annex says the document it belongs to (of:), one of the manifests or of the catalog: '{0}' is not.</value>
+  </data>
+  <data name="docs.invalid-manifest.annex-path" xml:space="preserve">
+    <value>The annex '{0}' goes in the folder of its document, {1}/.</value>
+  </data>
 </root>

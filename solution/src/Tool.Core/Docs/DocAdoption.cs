@@ -47,6 +47,9 @@ public sealed record DocManifestTarget(string Action, IReadOnlyList<string> From
 
 	/// <summary>Of a <c>register-entry</c>: the fields of its register.</summary>
 	public IReadOnlyList<KeyValuePair<string, JsonElement>> Fields { get; init; } = [];
+
+	/// <summary>Of an <c>annex</c>: the document it belongs to, of the manifests or of the catalog, from the root of the space.</summary>
+	public string? Of { get; init; }
 }
 
 /// <summary>
@@ -59,7 +62,7 @@ public static partial class DocAdoption
 	public const string Adopted = "docs.adopted";
 	public const string CreatedMissing = "docs.created-missing";
 
-	public static readonly IReadOnlyList<string> Actions = ["adopt", "extract", "register-entry", "skill-material", "drop"];
+	public static readonly IReadOnlyList<string> Actions = ["adopt", "extract", "register-entry", "skill-material", "annex", "drop"];
 
 	// the key of an entry, as I-20
 	[GeneratedRegex(@"^[A-Z][A-Z0-9]*-\d+$")]
@@ -194,7 +197,7 @@ public static partial class DocAdoption
 					continue;
 				}
 				reader.Keys(entry, "action", "from", "type", "profile", "status", "title", "path", "created", "tags", "relations", "sections", "register", "notes", "for",
-					"reason", "repair", "rewrite", "name", "key", "summary", "closed", "fields");
+					"reason", "repair", "rewrite", "name", "key", "summary", "closed", "fields", "of");
 				if (FxYamlReader.Scalar(entry["action"]) is not { } action || !Actions.Contains(action))
 				{
 					reader.Error(entry["action"] ?? item, "action", FxYamlReader.Scalar(entry["action"]) ?? "", string.Join(", ", Actions));
@@ -229,6 +232,7 @@ public static partial class DocAdoption
 					Key = FxYamlReader.Scalar(entry["key"]),
 					Summary = FxYamlReader.Scalar(entry["summary"]),
 					Closed = FxYamlReader.Scalar(entry["closed"]),
+					Of = FxYamlReader.Scalar(entry["of"]),
 					Fields = entry["fields"] is YamlMapping fields
 						? fields.Entries.Where(f => f.Key is YamlScalar).Select(f => KeyValuePair.Create(((YamlScalar)f.Key).Value, Json(f.Value))).ToList()
 						: []
@@ -295,7 +299,8 @@ public static partial class DocAdoption
 	/// <c>fx doc adopt --manifest</c>: every target of the manifests at once, all or nothing (the SPEC of the module, 5.5).
 	/// <c>adopt</c> moves a source of the catalog to its path (one from outside, as a mount that is read only, is copied),
 	/// its H1 as its title; <c>extract</c> makes a document of some sections of a source, which stays as it was;
-	/// <c>skill-material</c> moves a source to an annex; <c>drop</c> removes a source of the catalog. The relations go
+	/// <c>skill-material</c> moves a source to an annex of the entry that will make a skill of it, and <c>annex</c>, to one of a
+	/// document (in the folder named like it, next to it); <c>drop</c> removes a source of the catalog. The relations go
 	/// from paths to identities, and the links of the whole catalog follow what moves. What a source left in the bootstrap
 	/// list leaves it.
 	/// </summary>
@@ -332,25 +337,25 @@ public static partial class DocAdoption
 				continue;
 			}
 			var source = Full(target.From[0]);
-			if (target.Path is null || !target.Path.EndsWith(".md", StringComparison.Ordinal) || !catalog.Contains(Full(target.Path)))
+			if (target.Path is null || target.Action != "annex" && !target.Path.EndsWith(".md", StringComparison.Ordinal) || !catalog.Contains(Full(target.Path)))
 			{
 				Error(target, "path", target.Path ?? "", FxLayout.Relative(catalog.Root, catalog.Folder));
 				continue;
 			}
 			var path = Full(target.Path);
-			if (news.ContainsKey(path) || targets.Any(t => t != target && t.Action == "skill-material" && t.Path is not null && Paths.Equals(Full(t.Path), path)))
+			if (news.ContainsKey(path) || targets.Any(t => t != target && t.Action is "skill-material" or "annex" && t.Path is not null && Paths.Equals(Full(t.Path), path)))
 				Error(target, "same-path", target.Path);
 			else if (FxFiles.Exists(path) && !Paths.Equals(path, source))
 				Error(target, "taken", target.Path);
 			if (target.Action == "adopt" && sidecars.ContainsKey(source))
 				Error(target, "adopted", target.From[0]);
-			if (target.Action is "adopt" or "skill-material" && catalog.Contains(source) && !Paths.Equals(source, path))
+			if (target.Action is "adopt" or "skill-material" or "annex" && catalog.Contains(source) && !Paths.Equals(source, path))
 			{
 				if (moves.ContainsKey(source) || removed.Contains(source))
 					Error(target, "twice", target.From[0]);
 				moves[source] = path;
 			}
-			if (target.Action == "skill-material")
+			if (target.Action is "skill-material" or "annex")
 				continue;
 			if (target.Action == "extract" && target.Sections.Count == 0)
 				Error(target, "sections");
@@ -370,6 +375,19 @@ public static partial class DocAdoption
 		}
 		foreach (var source in removed.Where(moves.ContainsKey))
 			change.Error(InvalidManifest, new($"{InvalidManifest}.twice", display(source)));
+		// an annex, of a document of the manifests or of the catalog, and in its folder (named like it, next to it)
+		foreach (var target in targets.Where(t => t.Action == "annex" && t.Path is not null))
+		{
+			var of = target.Of is null ? null : Full(target.Of);
+			if (of is null || !news.ContainsKey(of) && !sidecars.ContainsKey(of))
+			{
+				Error(target, "of", target.Of ?? "");
+				continue;
+			}
+			var folder = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(of)!, System.IO.Path.GetFileNameWithoutExtension(of));
+			if (!Full(target.Path!).StartsWith(folder + System.IO.Path.DirectorySeparatorChar, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+				Error(target, "annex-path", target.Path, FxLayout.Relative(catalog.Root, folder));
+		}
 
 		// the entries, of a register of the manifests or of the catalog; their identities, and their keys for the aliases
 		var documents = DocChecker.Read(catalog);
@@ -492,7 +510,7 @@ public static partial class DocAdoption
 				change.Set(document.File.Sidecar!, (document.Sidecar with { Entries = [.. document.Sidecar.Entries, .. Entries(register)], UpdatedAt = DocSidecar.Instant(now) })
 					.Seal(DocIntegrity.Content(change.Text(register)!)).ToJson());
 		}
-		foreach (var target in targets.Where(t => t.Action == "skill-material"))
+		foreach (var target in targets.Where(t => t.Action is "skill-material" or "annex"))
 		{
 			var source = Full(target.From[0]);
 			var path = Full(target.Path!);

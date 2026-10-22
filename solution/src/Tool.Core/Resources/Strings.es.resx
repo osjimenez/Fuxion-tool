@@ -1237,4 +1237,10 @@
   <data name="docs.schema.format.date-time" xml:space="preserve">
     <value>El valor no es una fecha y hora de RFC 3339.</value>
   </data>
+  <data name="docs.invalid-manifest.of" xml:space="preserve">
+    <value>Un anexo dice el documento al que pertenece (of:), uno de los manifiestos o del catálogo: '{0}' no lo es.</value>
+  </data>
+  <data name="docs.invalid-manifest.annex-path" xml:space="preserve">
+    <value>El anexo '{0}' va en la carpeta de su documento, {1}/.</value>
+  </data>
 </root>

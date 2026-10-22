@@ -269,6 +269,40 @@ public sealed class DocsAdoptTest
 		Assert.True(File.Exists(batch.Space.Full("_docs/RoadMap.md")));
 	}
 
+	[Fact(DisplayName = "adopt --manifest: an annex goes to the folder of its document, of the manifests or of the catalog, without a sidecar")]
+	public void ManifestAnnex()
+	{
+		using var batch = new Batch();
+		var space = batch.Space;
+		var change = batch.Apply(batch.Manifest("""
+			  - action: adopt
+			    from: _docs/RoadMap.md
+			    type: plan
+			    profile: rollout
+			    status: cancelled
+			    title: Hoja de ruta
+			    path: _docs/_records/2026/01/PLAN-hoja-de-ruta.md
+			    created: 2026-01-16
+			  - action: annex
+			    from: _docs/analyzers/README.md
+			    of: _docs/_records/2026/01/PLAN-hoja-de-ruta.md
+			    path: _docs/_records/2026/01/PLAN-hoja-de-ruta/analizadores.md
+			  - action: annex
+			    from: _docs/analyzers/FX001.md
+			    of: _docs/fx/DESIGN-x.md
+			    path: _docs/fx/DESIGN-x/FX001.md
+
+			"""));
+		Assert.True(change.Ok, Ok(change));
+		Assert.True(change.Write(), Ok(change));
+		// moved, with their links from where they are now; no sidecar, and out of the catalog
+		Assert.Equal("# Analyzers\n\nThe rule [FX001](../../../../fx/DESIGN-x/FX001.md) and the [old notes](../../../../analyzers/old.md).\n",
+			space.Read("_docs/_records/2026/01/PLAN-hoja-de-ruta/analizadores.md"));
+		Assert.False(File.Exists(space.Full("_docs/_records/2026/01/PLAN-hoja-de-ruta/analizadores.meta.json")));
+		Assert.Equal("# FX001\n", space.Read("_docs/fx/DESIGN-x/FX001.md"));
+		Assert.DoesNotContain(space.Problems(), p => p.File is { } file && (file.Contains("PLAN-hoja-de-ruta/") || file.Contains("DESIGN-x/")));
+	}
+
 	[Theory(DisplayName = "adopt --manifest: a wrong target stops all of them")]
 	[InlineData("  - action: move\n    from: _docs/RoadMap.md\n", DocAdoption.InvalidManifest)]
 	[InlineData("  - action: register-entry\n    from: _docs/RoadMap.md\n    register: _docs/ideas/REGISTER-ideas.md\n    title: An idea\n", DocAdoption.InvalidManifest)]
@@ -282,6 +316,9 @@ public sealed class DocsAdoptTest
 	[InlineData("  - action: extract\n    from: _docs/notes/Faces.md\n    sections: [\"7. Missing\"]\n    type: research\n    title: X\n    path: _docs/_records/2026/01/RESEARCH-x.md\n    created: 2026-01-16\n", DocAdoption.InvalidManifest)]
 	[InlineData("  - action: adopt\n    from: _docs/RoadMap.md\n    type: plan\n    profile: rollout\n    title: X\n    path: _docs/_records/2026/01/PLAN-x.md\n    created: 2026-01-16\n  - action: drop\n    from: _docs/RoadMap.md\n", DocAdoption.InvalidManifest)]
 	[InlineData("  - action: adopt\n    from: _docs/RoadMap.md\n    type: plan\n    profile: rollout\n    title: X\n    path: _docs/_records/2026/01/PLAN-x.md\n    created: 2026-01-16\n    owner: someone\n", DocAdoption.InvalidManifest)]
+	[InlineData("  - action: annex\n    from: _docs/analyzers/README.md\n    path: _docs/fx/DESIGN-x/README.md\n", DocAdoption.InvalidManifest)]
+	[InlineData("  - action: annex\n    from: _docs/analyzers/README.md\n    of: _docs/fx/DESIGN-none.md\n    path: _docs/fx/DESIGN-none/README.md\n", DocAdoption.InvalidManifest)]
+	[InlineData("  - action: annex\n    from: _docs/analyzers/README.md\n    of: _docs/fx/DESIGN-x.md\n    path: _docs/fx/README.md\n", DocAdoption.InvalidManifest)]
 	public void ManifestRefused(string targets, string code)
 	{
 		using var batch = new Batch();
