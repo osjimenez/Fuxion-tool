@@ -79,7 +79,7 @@
       "properties": {
         "id": { "$ref": "#/$defs/uuid" },
         "name": { "$ref": "#/$defs/tag" },
-        "key": { "type": "string", "pattern": "^[A-Z][A-Z0-9]*-[0-9]+$" },
+        "key": { "type": "string", "pattern": "^[A-Z][A-Z0-9]*-(?:[0-9]+|~[0-9a-f]{4})$" },
         "title": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "\\S" },
         "status": { "$ref": "#/$defs/tag" },
         "summary": { "type": "string", "minLength": 1, "maxLength": 2000 },

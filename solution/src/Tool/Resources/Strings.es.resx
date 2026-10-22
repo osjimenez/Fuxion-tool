@@ -1501,4 +1501,28 @@
   <data name="doc.new.scope" xml:space="preserve">
     <value>De qué trata una vista, desde la raíz del space: una carpeta, o el registro de un backlog; por defecto, el catálogo.</value>
   </data>
+  <data name="doc.key" xml:space="preserve">
+    <value>La siguiente clave de un registro que las usa, reservada por su provider (repo: la siguiente del registro, en todas las ramas; git: una reserva atómica en el remoto); con --confirm, sus claves provisionales reservadas ahora.</value>
+  </data>
+  <data name="doc.key.title" xml:space="preserve">
+    <value>Para qué es la clave (va en la reserva).</value>
+  </data>
+  <data name="doc.key.confirm" xml:space="preserve">
+    <value>Reserva ahora las claves provisionales del registro.</value>
+  </data>
+  <data name="doc.key.dry-run" xml:space="preserve">
+    <value>Dice la clave que daría, sin reservar nada.</value>
+  </data>
+  <data name="doc.key.provisional" xml:space="preserve">
+    <value>provisional: resérvala después con --confirm</value>
+  </data>
+  <data name="doc.key.would" xml:space="preserve">
+    <value>la que daría (--dry-run)</value>
+  </data>
+  <data name="doc.key.repo" xml:space="preserve">
+    <value>la siguiente del registro (repo)</value>
+  </data>
+  <data name="doc.key.git" xml:space="preserve">
+    <value>reservada en el remoto (git)</value>
+  </data>
 </root>

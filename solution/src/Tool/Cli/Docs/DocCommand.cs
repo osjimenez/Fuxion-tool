@@ -83,6 +83,7 @@ public static class DocCommand
 		command.Add(schema);
 		AddWriters(command, global, currentDirectory);
 		command.Add(DocEntryCommand.Create(global, currentDirectory));
+		command.Add(DocKeyCommand.Create(global, currentDirectory));
 		return command;
 	}
 

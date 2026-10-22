@@ -99,10 +99,12 @@ public static partial class DocEditor
 
 	/// <summary>
 	/// <c>fx doc entry add</c>: a new entry at the end of <paramref name="file"/>, a register, which is finalized. Its name,
-	/// from its title unless it says one, unique in the register; its status, <see cref="OpenStatus"/> unless it says one.
+	/// from its title unless it says one, unique in the register; its status, <see cref="OpenStatus"/> unless it says one;
+	/// in a register with keys, its key from the provider unless it says one (<paramref name="reserve"/> false, a dry run:
+	/// the one it would get, reserving nothing; <paramref name="actor"/>, who reserves it).
 	/// </summary>
 	public static DocChange AddEntry(DocCatalog catalog, Func<string, string> display, string currentDirectory, DocFile file, string title, DocEntryEdit edit,
-		DateTimeOffset now)
+		DateTimeOffset now, string actor = "fx", bool reserve = true)
 	{
 		var change = new DocChange(catalog, display);
 		if (Register(change, file) is not { } register)
@@ -123,11 +125,20 @@ public static partial class DocEditor
 		var relations = Resolve(change, currentDirectory, edit.Relations);
 		if (!change.Ok)
 			return change;
+		var key = edit.Key;
+		if (key is null && DocKeys.Keyed(catalog, file) is { } keyed)
+		{
+			var reserved = DocKeys.Reserve(catalog, file, keyed, register.Sidecar.Entries.Select(e => e.Key).OfType<string>(), actor, title, reserve);
+			key = reserved.Key;
+			if (reserved.Problem is not null)
+				change.Diagnostics.Add(FxDiagnostic.Warning(DocKeys.ProvisionalKey, new(DocKeys.ProvisionalKey, key, reserved.Problem), display(file.Sidecar!),
+					fix: FxFix.Run($"fx doc key {register.Path} --confirm")));
+		}
 		var entry = new DocEntry
 		{
 			Id = DocSidecar.NewId(DocSidecar.ParseInstant(created!)),
 			Name = name,
-			Key = edit.Key,
+			Key = key,
 			Title = title,
 			Status = edit.Status ?? OpenStatus,
 			Summary = edit.Summary,
@@ -185,6 +196,50 @@ public static partial class DocEditor
 			Replace(change, register, entry, entry with { ClosedAt = DocSidecar.Instant(now), Status = status ?? ClosedStatus }, now);
 		return change;
 	}
+
+	/// <summary>
+	/// <c>fx doc key --confirm</c>: the provisional keys of <paramref name="file"/>, reserved now, in order; the register,
+	/// finalized. What each was and what it is, in <paramref name="confirmed"/>.
+	/// </summary>
+	public static DocChange ConfirmKeys(DocCatalog catalog, Func<string, string> display, DocFile file, string actor, DateTimeOffset now, bool reserve,
+		out IReadOnlyList<(string From, string To)> confirmed)
+	{
+		var change = new DocChange(catalog, display);
+		var pairs = new List<(string, string)>();
+		confirmed = pairs;
+		if (Register(change, file) is not { } register)
+			return change;
+		if (DocKeys.Keyed(catalog, file) is not { } keyed)
+		{
+			change.Error(DocKeys.NotKeyed, new(DocKeys.NotKeyed, register.Path), display(ConfigFile(catalog)));
+			return change;
+		}
+		var entries = register.Sidecar.Entries.ToList();
+		var keys = entries.Select(e => e.Key).OfType<string>().Where(k => !DocKeys.IsProvisional(k)).ToList();
+		for (var i = 0; i < entries.Count; i++)
+		{
+			if (entries[i].Key is not { } provisional || !DocKeys.IsProvisional(provisional))
+				continue;
+			var reserved = DocKeys.Reserve(catalog, file, keyed, keys, actor, entries[i].Title, reserve);
+			if (reserved.Provisional)
+			{
+				change.Error(DocKeys.KeyFailed, reserved.Problem!, display(file.Sidecar!));
+				return change;
+			}
+			keys.Add(reserved.Key);
+			pairs.Add((provisional, reserved.Key));
+			entries[i] = entries[i] with { Key = reserved.Key };
+		}
+		if (pairs.Count == 0)
+			change.Diagnostics.Add(FxDiagnostic.Info(Unchanged, new($"{Unchanged}.no-provisional", register.Path)));
+		else if (!Blocked(change, register))
+			Save(change, register, register.Sidecar with { Entries = entries }, now);
+		change.Verify();
+		return change;
+	}
+
+	/// <summary>The full path of the <c>docs.yaml</c> of <paramref name="catalog"/>.</summary>
+	static string ConfigFile(DocCatalog catalog) => Layout.FxLayout.Full(catalog.Root, DocsModule.ConfigFile);
 
 	/// <summary>The identity of the entry <paramref name="selector"/> names (its key, its identity) in any register of the catalog; null if none.</summary>
 	public static string? EntryTarget(DocCatalog catalog, string selector)

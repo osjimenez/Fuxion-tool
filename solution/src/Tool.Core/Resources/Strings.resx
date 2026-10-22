@@ -1132,4 +1132,31 @@
   <data name="docs.invalid-yaml.language" xml:space="preserve">
     <value>The language '{0}' is not one of fx: {1}.</value>
   </data>
+  <data name="docs.not-keyed" xml:space="preserve">
+    <value>{0} uses no keys: declare it in the registers of docs.yaml, with its prefix and its provider.</value>
+  </data>
+  <data name="docs.not-keyed.register" xml:space="preserve">
+    <value>The register {0} of docs.yaml is not a register of the catalog.</value>
+  </data>
+  <data name="docs.key-failed" xml:space="preserve">
+    <value>{0}: the key could not be reserved ({1}).</value>
+  </data>
+  <data name="docs.key-failed.no-remote" xml:space="preserve">
+    <value>the space has no remote '{0}'</value>
+  </data>
+  <data name="docs.key-failed.attempts" xml:space="preserve">
+    <value>too many keys taken at once</value>
+  </data>
+  <data name="docs.provisional-key" xml:space="preserve">
+    <value>{0} is provisional: {1} fx doc key --confirm reserves it later.</value>
+  </data>
+  <data name="docs.provisional-key.pending" xml:space="preserve">
+    <value>The key {0} of {1} is provisional, still to reserve.</value>
+  </data>
+  <data name="docs.invalid-key" xml:space="preserve">
+    <value>The key {0} of {1} does not have its prefix, {2}.</value>
+  </data>
+  <data name="docs.unchanged.no-provisional" xml:space="preserve">
+    <value>{0} has no provisional key.</value>
+  </data>
 </root>

@@ -241,9 +241,16 @@ public static partial class DocChecker
 					Add(FxDiagnostic.Error(InvalidName, new($"{InvalidName}.same-slug", file.Slug, string.Join(", ", same.Where(f => f != file).Select(f => f.Path))),
 						display(file.Markdown ?? file.Sidecar!)));
 			if (only is null)
+			{
+				var config = display(FxLayout.Full(catalog.Root, DocsModule.ConfigFile));
 				foreach (var path in catalog.Config.Bootstrap)
 					if (catalog.Files.FirstOrDefault(f => f.Path == path) is not { Markdown: not null, Sidecar: null })
-						Add(FxDiagnostic.Warning(BootstrapStale, new(BootstrapStale, path), display(FxLayout.Full(catalog.Root, DocsModule.ConfigFile))));
+						Add(FxDiagnostic.Warning(BootstrapStale, new(BootstrapStale, path), config));
+				// the registers with keys of docs.yaml: registers of the catalog
+				foreach (var register in catalog.Config.Registers)
+					if (catalog.Files.FirstOrDefault(f => f.Path == register.Path) is not { } file || _types.GetValueOrDefault(file) != "register")
+						Add(FxDiagnostic.Error(DocKeys.NotKeyed, new($"{DocKeys.NotKeyed}.register", register.Path), config, register.Line));
+			}
 			return new(documents, _diagnostics);
 		}
 
@@ -349,6 +356,14 @@ public static partial class DocChecker
 					Add(FxDiagnostic.Error(InvalidMetadata, new($"{InvalidMetadata}.entry-key", entry.Key, file.Path), sidecarFile, Line($"{at}/key")));
 				if (entry.ClosedAt is not null && DocSidecar.ParseInstant(entry.ClosedAt) < DocSidecar.ParseInstant(entry.CreatedAt))
 					Add(FxDiagnostic.Error(InvalidDates, new($"{InvalidDates}.entry", entry.Name, entry.CreatedAt, entry.ClosedAt), sidecarFile, Line($"{at}/closedAt")));
+				// the keys of a register that uses them: of its prefix, and reserved
+				if (entry.Key is null || DocKeys.Keyed(catalog, file) is not { } keyed)
+					continue;
+				if (!entry.Key.StartsWith($"{keyed.Prefix}-", StringComparison.Ordinal))
+					Add(FxDiagnostic.Error(DocKeys.InvalidKey, new(DocKeys.InvalidKey, entry.Key, file.Path, keyed.Prefix), sidecarFile, Line($"{at}/key")));
+				else if (DocKeys.IsProvisional(entry.Key))
+					Add(FxDiagnostic.Warning(DocKeys.ProvisionalKey, new($"{DocKeys.ProvisionalKey}.pending", entry.Key, file.Path), sidecarFile, Line($"{at}/key"),
+						fix: FxFix.Run($"fx doc key {file.Path} --confirm")));
 			}
 
 			// 5. Its title and its integrity

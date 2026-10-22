@@ -28,19 +28,27 @@ public sealed class DocsCheckTest
 	/// <summary>A space with a catalog in <c>_docs</c>, where documents are added valid unless told otherwise.</summary>
 	internal sealed class Space : IDisposable
 	{
-		public Space(string docs = "schema: 1.0.0\n")
+		/// <param name="root">A folder of someone else (a git repository of a test), left there; by default, one of its own.</param>
+		public Space(string docs = "schema: 1.0.0\n", string? root = null)
 		{
-			Root = TempGitRepository.TempFolder("fx-docs-");
+			_owned = root is null;
+			Root = root ?? TempGitRepository.TempFolder("fx-docs-");
 			Write("_fx/space.yaml", "schema: 1.0.0\nname: notes\n");
 			Write("_fx/docs/docs.yaml", docs);
 		}
+
+		readonly bool _owned;
 
 		public string Root { get; }
 
 		/// <summary>The identity of each document added, by its path in the catalog.</summary>
 		public Dictionary<string, string> Ids { get; } = [];
 
-		public void Dispose() => Directory.Delete(Root, true);
+		public void Dispose()
+		{
+			if (_owned)
+				Directory.Delete(Root, true);
+		}
 
 		public string Full(string relative) => Path.Combine(Root, relative);
 

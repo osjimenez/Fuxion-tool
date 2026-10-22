@@ -1132,4 +1132,31 @@
   <data name="docs.invalid-yaml.language" xml:space="preserve">
     <value>El idioma '{0}' no es uno de fx: {1}.</value>
   </data>
+  <data name="docs.not-keyed" xml:space="preserve">
+    <value>{0} no usa claves: decláralo en los registers de docs.yaml, con su prefijo y su provider.</value>
+  </data>
+  <data name="docs.not-keyed.register" xml:space="preserve">
+    <value>El registro {0} de docs.yaml no es un registro del catálogo.</value>
+  </data>
+  <data name="docs.key-failed" xml:space="preserve">
+    <value>{0}: no se ha podido reservar la clave ({1}).</value>
+  </data>
+  <data name="docs.key-failed.no-remote" xml:space="preserve">
+    <value>el space no tiene el remoto '{0}'</value>
+  </data>
+  <data name="docs.key-failed.attempts" xml:space="preserve">
+    <value>demasiadas claves cogidas a la vez</value>
+  </data>
+  <data name="docs.provisional-key" xml:space="preserve">
+    <value>{0} es provisional: {1} fx doc key --confirm la reserva después.</value>
+  </data>
+  <data name="docs.provisional-key.pending" xml:space="preserve">
+    <value>La clave {0} de {1} es provisional, todavía sin reservar.</value>
+  </data>
+  <data name="docs.invalid-key" xml:space="preserve">
+    <value>La clave {0} de {1} no lleva su prefijo, {2}.</value>
+  </data>
+  <data name="docs.unchanged.no-provisional" xml:space="preserve">
+    <value>{0} no tiene ninguna clave provisional.</value>
+  </data>
 </root>

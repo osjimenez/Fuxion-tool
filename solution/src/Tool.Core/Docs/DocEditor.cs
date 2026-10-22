@@ -67,7 +67,7 @@ public static partial class DocEditor
 	}
 
 	/// <summary>The actor of a change: given, and one of the actors of <c>docs.yaml</c> (plan U, decision 20).</summary>
-	internal static bool Actor(DocChange change, string? actor)
+	public static bool Actor(DocChange change, string? actor)
 	{
 		if (string.IsNullOrWhiteSpace(actor))
 			change.Error(ActorMissing, new(ActorMissing, ActorVariable));

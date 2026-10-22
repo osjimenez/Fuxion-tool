@@ -59,7 +59,8 @@ public static class DocEntryCommand
 			};
 			return console.Run(_ => DocCommand.Write(console, result.GetValue(addDryRun), (catalog, display) =>
 				DocCommand.One(console, catalog, result.GetValue(addRegister)!) is { } register
-					? DocEditor.AddEntry(catalog, display, console.Settings.Directory, register, result.GetValue(title)!, edit, DateTimeOffset.UtcNow)
+					? DocEditor.AddEntry(catalog, display, console.Settings.Directory, register, result.GetValue(title)!, edit, DateTimeOffset.UtcNow,
+						Environment.GetEnvironmentVariable(DocEditor.ActorVariable) ?? "fx", reserve: !result.GetValue(addDryRun))
 					: null));
 		});
 		command.Add(add);

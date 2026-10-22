@@ -120,6 +120,9 @@ public sealed class GitClient
 
 	public string? RemoteUrl(string remote) => Optional("config", "--get", $"remote.{remote}.url");
 
+	/// <summary>Runs git with <paramref name="args"/> in the repository, as every call (no prompt, the timeout): for what has no method of its own.</summary>
+	public ProcessResult Execute(params string[] args) => Run(Root, _timeout, args);
+
 	/// <summary>
 	/// The files of the working tree matching the pathspecs: tracked (except those deleted and not committed yet) and
 	/// untracked ones not ignored; relative to the root, with '/'.

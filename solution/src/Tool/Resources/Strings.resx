@@ -1501,4 +1501,28 @@
   <data name="doc.new.scope" xml:space="preserve">
     <value>What a view is about, from the root of the space: a folder, or the register of a backlog; by default, the catalog.</value>
   </data>
+  <data name="doc.key" xml:space="preserve">
+    <value>The next key of a register that uses them, reserved by its provider (repo: the next of the register, in every branch; git: an atomic reservation on the remote); with --confirm, its provisional keys reserved now.</value>
+  </data>
+  <data name="doc.key.title" xml:space="preserve">
+    <value>What the key is for (it goes in the reservation).</value>
+  </data>
+  <data name="doc.key.confirm" xml:space="preserve">
+    <value>Reserves now the provisional keys of the register.</value>
+  </data>
+  <data name="doc.key.dry-run" xml:space="preserve">
+    <value>Says the key it would give, reserving nothing.</value>
+  </data>
+  <data name="doc.key.provisional" xml:space="preserve">
+    <value>provisional: reserve it later with --confirm</value>
+  </data>
+  <data name="doc.key.would" xml:space="preserve">
+    <value>the one it would give (--dry-run)</value>
+  </data>
+  <data name="doc.key.repo" xml:space="preserve">
+    <value>the next of the register (repo)</value>
+  </data>
+  <data name="doc.key.git" xml:space="preserve">
+    <value>reserved on the remote (git)</value>
+  </data>
 </root>

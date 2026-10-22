@@ -214,6 +214,16 @@ public sealed record JsonFileMove(string From, string To);
 public sealed record JsonEntry(string Id, string Name, string? Key, string Title, string Status, bool Open, string? Summary, IReadOnlyList<string> Tags, string CreatedAt,
 	string? ClosedAt, IReadOnlyList<JsonDocRelation> Relations, IReadOnlyDictionary<string, JsonElement> Fields);
 
+/// <summary>A key of an entry: the one reserved, or provisional; the provisional one it replaces, when confirmed.</summary>
+public sealed record JsonKey(string Key, bool Provisional, string? Replaces);
+
+/// <summary>
+/// <c>fx-doc-key/1</c>: the keys of a register, by its provider (<c>repo</c> or <c>git</c>): the one reserved, or those
+/// confirmed (<c>--confirm</c>); whether something was written (a reservation in git, the register).
+/// </summary>
+public sealed record DocKeyDocument(string Schema, bool Ok, string? Register, string? Provider, IReadOnlyList<JsonKey> Keys, bool Written,
+	IReadOnlyList<JsonDiagnostic> Diagnostics);
+
 /// <summary><c>fx-doc-entries/1</c>: the entries of a register, by its path in the catalog.</summary>
 public sealed record DocEntriesDocument(string Schema, bool Ok, string? Register, IReadOnlyList<JsonEntry> Entries, IReadOnlyList<JsonDiagnostic> Diagnostics);
 
@@ -248,6 +258,7 @@ public sealed record JsonDiagnosticEvent(string Type, JsonDiagnostic Diagnostic)
 [JsonSerializable(typeof(DocSchemasDocument))]
 [JsonSerializable(typeof(DocEditDocument))]
 [JsonSerializable(typeof(DocEntriesDocument))]
+[JsonSerializable(typeof(DocKeyDocument))]
 [JsonSerializable(typeof(JsonStartEvent))]
 [JsonSerializable(typeof(JsonStepEvent))]
 [JsonSerializable(typeof(JsonDiagnosticEvent))]
