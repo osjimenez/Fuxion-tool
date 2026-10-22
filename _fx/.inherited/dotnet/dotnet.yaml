@@ -67,11 +67,6 @@ packages:
   - ids: [EventStore.Client.Grpc.Streams]
     versions:
       - version: 23.3.9
-  - ids: [JsonSchema.Net]
-    versions:
-      - version: 9.4.1
-    applies-to:
-      repositories: [/fuxion/tool]
   - ids: [KubernetesClient]
     versions:
       - version: 21.0.8

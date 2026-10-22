@@ -182,10 +182,20 @@ public sealed class DocsEditTest
 		Assert.Equal([DocChecker.ViewEdited], Codes(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, view)], null, Later)));
 		Assert.Equal([DocEditor.Correction], Codes(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, open)], "A note.", Later)));
 		Assert.True(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, frozen)], "A fix of the text.", Later).Write());
-		// the note, in the language of the user
-		var note = new Core.Results.FxText(DocEditor.Correction, "2026-10-23", "A fix of the text.").ToString();
-		Assert.Equal($"{text}\r\n> {note}\r\n", space.Read($"_docs/{frozen}"));
+		// the note, in the language of the catalog (English by default), whoever runs it
+		Assert.Equal($"{text}\r\n> Annotated correction (2026-10-23): A fix of the text.\r\n", space.Read($"_docs/{frozen}"));
 		Assert.DoesNotContain(space.Problems(), p => p.File == $"_docs/{frozen}");
+	}
+
+	[Fact(DisplayName = "finalize: the note of a correction is in the language of docs.yaml")]
+	public void CorrectionLanguage()
+	{
+		using var space = new Space(Actors + "language: es\n");
+		var frozen = space.Add("adr", "frozen", status: "accepted");
+		var text = space.Read($"_docs/{frozen}") + "Un arreglo.\n";
+		System.IO.File.WriteAllText(space.Full($"_docs/{frozen}"), text);
+		Assert.True(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, frozen)], "Un arreglo del texto.", Later).Write());
+		Assert.Equal($"{text}\n> Corrección anotada (2026-10-23): Un arreglo del texto.\n", space.Read($"_docs/{frozen}"));
 	}
 
 	[Fact(DisplayName = "finalize: a document that cannot be read gives its errors, and nothing is written")]

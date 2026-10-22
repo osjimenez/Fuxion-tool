@@ -1180,4 +1180,61 @@
   <data name="docs.name-taken.branch" xml:space="preserve">
     <value>El nombre {0} ya está en la rama {1}.</value>
   </data>
+  <data name="docs.schema.false" xml:space="preserve">
+    <value>Aquí no se admite ningún valor.</value>
+  </data>
+  <data name="docs.schema.any-of" xml:space="preserve">
+    <value>El valor no tiene ninguna de las formas que se admiten aquí.</value>
+  </data>
+  <data name="docs.schema.one-of" xml:space="preserve">
+    <value>El valor ha de tener exactamente una de las formas que se admiten aquí, y tiene {0}.</value>
+  </data>
+  <data name="docs.schema.not" xml:space="preserve">
+    <value>El valor tiene una forma que aquí no se admite.</value>
+  </data>
+  <data name="docs.schema.type" xml:space="preserve">
+    <value>Se esperaba un valor de tipo {0}, no {1}.</value>
+  </data>
+  <data name="docs.schema.enum" xml:space="preserve">
+    <value>El valor no es ninguno de estos: {0}.</value>
+  </data>
+  <data name="docs.schema.const" xml:space="preserve">
+    <value>El valor ha de ser {0}.</value>
+  </data>
+  <data name="docs.schema.required" xml:space="preserve">
+    <value>Faltan propiedades: {0}.</value>
+  </data>
+  <data name="docs.schema.not-allowed" xml:space="preserve">
+    <value>Esta propiedad no se admite aquí.</value>
+  </data>
+  <data name="docs.schema.property-name" xml:space="preserve">
+    <value>El nombre de propiedad '{0}' no es válido aquí.</value>
+  </data>
+  <data name="docs.schema.min-properties" xml:space="preserve">
+    <value>El objeto tiene menos de {0} propiedades.</value>
+  </data>
+  <data name="docs.schema.min-items" xml:space="preserve">
+    <value>La lista tiene menos de {0} elementos.</value>
+  </data>
+  <data name="docs.schema.unique-items" xml:space="preserve">
+    <value>Los elementos {0} y {1} de la lista son iguales.</value>
+  </data>
+  <data name="docs.schema.unicode" xml:space="preserve">
+    <value>El texto no es Unicode: tiene un sustituto suelto.</value>
+  </data>
+  <data name="docs.schema.pattern" xml:space="preserve">
+    <value>El valor no sigue el patrón {0}.</value>
+  </data>
+  <data name="docs.schema.min-length" xml:space="preserve">
+    <value>El texto tiene menos de {0} caracteres.</value>
+  </data>
+  <data name="docs.schema.max-length" xml:space="preserve">
+    <value>El texto tiene más de {0} caracteres.</value>
+  </data>
+  <data name="docs.schema.format.uuid" xml:space="preserve">
+    <value>El valor no es un UUID.</value>
+  </data>
+  <data name="docs.schema.format.date-time" xml:space="preserve">
+    <value>El valor no es una fecha y hora de RFC 3339.</value>
+  </data>
 </root>

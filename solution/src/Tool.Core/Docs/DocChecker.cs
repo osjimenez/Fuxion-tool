@@ -292,13 +292,8 @@ public static partial class DocChecker
 			foreach (var property in type.Required.Where(p => !json.TryGetProperty(p, out _)))
 				Add(FxDiagnostic.Error(CodeOf($"/{property}"),
 					property == "profile" ? new($"{InvalidProfile}.missing", type.Name, string.Join(", ", type.Profiles)) : new($"{InvalidMetadata}.missing", property), sidecarFile, 1));
-			// the properties that are missing, said above; the rest of the problems, one at each place and at its line: not the
-			// summary of a node whose values say what is wrong ("some additional properties…")
-			var errors = DocsSchemas.Validate(json).Where(e => !(e.Pointer.Length == 0 && e.Keyword == "required")).ToList();
-			foreach (var error in errors
-				         .Where(e => !(e.Keyword is "additionalProperties" or "propertyNames" or "patternProperties" && errors.Any(o => o.Pointer.StartsWith($"{e.Pointer}/", StringComparison.Ordinal))))
-				         .GroupBy(e => e.Pointer)
-				         .Select(g => g.First()))
+			// the properties that are missing, said above; the rest of the problems, one at each place and at its line
+			foreach (var error in DocsSchemas.Validate(json).Where(e => !(e.Pointer.Length == 0 && e.Keyword == "required")).GroupBy(e => e.Pointer).Select(g => g.First()))
 				Add(FxDiagnostic.Error(CodeOf(error.Pointer), Message(error, json, type), sidecarFile, Line(error.Pointer)));
 			if (_diagnostics.Count > before)
 				return null;

@@ -235,7 +235,7 @@ public static partial class DocEditor
 	/// <c>fx doc finalize</c> (the SPEC of the module, 5.3): the documents whose content or metadata changed (of
 	/// <paramref name="files"/>, or of the whole catalog), with their integrity again and <c>updatedAt</c> at
 	/// <paramref name="now"/>; the rest, untouched. A frozen one whose content changed, only with a
-	/// <paramref name="correction"/>, which goes at the end of its Markdown.
+	/// <paramref name="correction"/>, which goes at the end of its Markdown, in the language of the catalog.
 	/// </summary>
 	public static DocChange Finalize(DocCatalog catalog, Func<string, string> display, IReadOnlyList<DocFile>? files, string? correction, DateTimeOffset now)
 	{
@@ -259,7 +259,7 @@ public static partial class DocEditor
 				// the note at the end, with the line ends of the file
 				var text = Encoding.UTF8.GetString(document.Markdown);
 				var newLine = text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
-				var note = new FxText(Correction, now.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), correction.Trim()).ToString();
+				var note = new FxText(Correction, now.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), correction.Trim()).ToString(catalog.Config.Culture);
 				Save(change, document, document.Sidecar, now, $"{text.TrimEnd('\r', '\n')}{newLine}{newLine}> {note}{newLine}");
 				continue;
 			}

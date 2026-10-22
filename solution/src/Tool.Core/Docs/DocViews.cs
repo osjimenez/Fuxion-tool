@@ -49,8 +49,7 @@ public static class DocViews
 			return null;
 		}
 		var scope = FxLayout.Full(catalog.Root, generation.Scope);
-		var culture = catalog.Config.Language == DocsConfig.DefaultLanguage ? CultureInfo.InvariantCulture : CultureInfo.GetCultureInfo(catalog.Config.Language);
-		string T(string key, params object?[] args) => new FxText(key, args).ToString(culture);
+		string T(string key, params object?[] args) => new FxText(key, args).ToString(catalog.Config.Culture);
 		var folder = Path.GetDirectoryName(at)!;
 		string Link(string text, string target) => $"[{Escape(text)}]({Path.GetRelativePath(folder, target).Replace('\\', '/').Replace(" ", "%20")})";
 		var text = new StringBuilder($"# {title}\n\n> {T("docs.view.generated", generation.Recipe, generation.Scope)}\n");

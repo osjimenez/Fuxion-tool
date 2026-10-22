@@ -32,10 +32,13 @@ public sealed record DocsConfig(string Catalog, IReadOnlyList<string> Actors, IR
 	public IReadOnlyList<string> Bootstrap { get; init; } = [];
 
 	/// <summary>
-	/// The language of what fx writes in the catalog (the views), whoever runs it: the same bytes on every machine. One of
-	/// those of fx, <c>en</c> by default.
+	/// The language of what fx writes in the catalog (the views, the note of a correction), whoever runs it: the same bytes
+	/// on every machine. One of those of fx, <c>en</c> by default.
 	/// </summary>
 	public string Language { get; init; } = DefaultLanguage;
+
+	/// <summary>The culture of <see cref="Language"/>, to write the texts of fx in it.</summary>
+	public CultureInfo Culture => Language == DefaultLanguage ? CultureInfo.InvariantCulture : CultureInfo.GetCultureInfo(Language);
 
 	public const string DefaultLanguage = "en";
 
