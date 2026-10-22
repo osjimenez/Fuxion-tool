@@ -38,7 +38,7 @@ static class FxHelp
 
 		var version = typeof(FxHelp).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0];
 		console.Line($"[bold]fx[/] {FxConsole.Escape(version)} [gray]·[/] {FxConsole.Escape(Texts.Get("root"))}");
-		// the full screen, at the top (I-36: fx alone is the help, with fx ui first)
+		// the full screen, at the top: fx alone is the help, with fx ui first
 		console.Line($"[bold]fx ui[/] [gray]·[/] {FxConsole.Escape(Texts.Get("help.ui"))}");
 		console.Line();
 		console.Line($"[bold]{FxConsole.Escape(Texts.Get("help.usage"))}[/] fx <{FxConsole.Escape(Texts.Get("help.command"))}> [[{FxConsole.Escape(Texts.Get("help.options"))}]]");
