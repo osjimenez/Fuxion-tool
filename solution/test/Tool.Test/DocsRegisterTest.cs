@@ -153,6 +153,21 @@ public sealed class DocsRegisterTest
 		Assert.Equal([DocChecker.InvalidName], Codes(Add(space, register, "Otra", new() { Name = "Otra Idea" })));
 		Assert.Equal([DocEditor.UnknownTarget], Codes(Add(space, register, "Otra", new() { Relations = [("related-to", "nothing.md")] })));
 		Assert.Equal([DocChecker.InvalidMetadata], Codes(Add(space, register, "Otra", new() { Status = "En diseño" })));
+		// a long title: its name, cut at a dash to fit a tag
+		const string title = "Las sobrecargas textuales de JsonNamingTranscoder.Transcode, públicas y sin uso: corrompen las claves";
+		Assert.True(Add(space, register, title).Write());
+		Assert.Equal("las-sobrecargas-textuales-de-jsonnamingtranscoder-transcode", Sidecar(space, register).Entries[^1].Name);
+		Assert.DoesNotContain(space.Problems(), p => p.Code == DocChecker.InvalidMetadata);
+	}
+
+	[Theory(DisplayName = "the name of an entry from its title: its slug, cut at its last dash before 64 characters")]
+	[InlineData("Una idea", "una-idea")]
+	[InlineData("Un analizador contra new Error(): Error es un struct, y su constructor sin parámetros no se puede ocultar",
+		"un-analizador-contra-new-error-error-es-un-struct-y-su")]
+	public void EntryName(string title, string name)
+	{
+		Assert.Equal(name, DocEditor.ProposeEntryName(title));
+		Assert.InRange(DocEditor.ProposeEntryName(new string('a', 70)).Length, 1, DocEditor.MaxEntryName);
 	}
 
 	[Fact(DisplayName = "entry set and close: what it says changes, the rest stays; closed once, now")]

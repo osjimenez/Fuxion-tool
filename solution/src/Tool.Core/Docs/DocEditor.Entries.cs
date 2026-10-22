@@ -103,6 +103,22 @@ public static partial class DocEditor
 	/// in a register with keys, its key from the provider unless it says one (<paramref name="reserve"/> false, a dry run:
 	/// the one it would get, reserving nothing; <paramref name="actor"/>, who reserves it).
 	/// </summary>
+	/// <summary>The longest name of an entry: a tag of the standard.</summary>
+	public const int MaxEntryName = 64;
+
+	/// <summary>
+	/// The name a title proposes for an entry: its slug, cut at its last dash before <see cref="MaxEntryName"/>, so a long
+	/// title (the usual in a register) still gives a valid name.
+	/// </summary>
+	public static string ProposeEntryName(string title)
+	{
+		var slug = ProposeSlug(title);
+		if (slug.Length <= MaxEntryName)
+			return slug;
+		var dash = slug.LastIndexOf('-', MaxEntryName);
+		return dash > 0 ? slug[..dash] : slug[..MaxEntryName].TrimEnd('-');
+	}
+
 	public static DocChange AddEntry(DocCatalog catalog, Func<string, string> display, string currentDirectory, DocFile file, string title, DocEntryEdit edit,
 		DateTimeOffset now, string actor = "fx", bool reserve = true)
 	{
@@ -112,7 +128,7 @@ public static partial class DocEditor
 		title = title.Trim();
 		if (title.Length == 0 || title.Contains('\n'))
 			change.Error(InvalidTitle, new(InvalidTitle));
-		var name = edit.Name ?? ProposeSlug(title);
+		var name = edit.Name ?? ProposeEntryName(title);
 		if (!DocChecker.SlugPattern().IsMatch(name))
 			change.Error(DocChecker.InvalidName, new($"{DocChecker.InvalidName}.new-slug", name));
 		else if (FindEntry(register.Sidecar, name) is { } taken && taken.Name == name)

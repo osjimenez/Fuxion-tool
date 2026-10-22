@@ -412,7 +412,7 @@ public static partial class DocAdoption
 				Error(target, "created", createdAt is null ? target.Created : target.Closed);
 				continue;
 			}
-			var name = target.Name ?? DocEditor.ProposeSlug(target.Title ?? "");
+			var name = target.Name ?? DocEditor.ProposeEntryName(target.Title ?? "");
 			if (entries.Any(e => Paths.Equals(e.Register, register) && e.Entry.Name == name) || existing?.Sidecar.Entries.Any(e => e.Name == name) == true)
 				Error(target, "entry-taken", name, target.Register);
 			var id = DocSidecar.NewId(DocSidecar.ParseInstant(createdAt));
