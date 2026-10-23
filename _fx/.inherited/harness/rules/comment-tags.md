@@ -6,6 +6,6 @@ settings and searches the root it is in (in the space, every mounted repository)
 not see comments.
 
 - `ASK` is a question for the agent: answer it.
-- `IDEA` goes to the ideas of the space (`_docs/ideas/`, its **`ideas`** skill: one file per idea, front matter,
-  generated dashboard), but show the user the list with the original text first, and do not remove the comment from
-  the code until the user says so.
+- `IDEA` goes to the register of ideas of the space (`_docs/ideas/REGISTER-ideas.md`, an entry with `fx doc entry
+  add`), but show the user the list with the original text first, and do not remove the comment from the code until
+  the user says so.

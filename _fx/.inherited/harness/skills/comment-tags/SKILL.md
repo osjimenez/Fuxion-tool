@@ -18,7 +18,7 @@ script in this folder, which reads the tags from the ReSharper settings and matc
 - A tag starts an entry: `// IDEA - text…`. An entry can continue on the following comment lines
   (`// - point`, `//    - sub-point`) and may be closed with `// FIN IDEA` (or `FIN ASK`…).
 - `ASK` = a question for the agent: answer it in the conversation.
-- `IDEA` = something to keep. Before moving it to `_docs/ideas/` (a new `I-NN` file, see the `ideas` skill), show the user the list with the
+- `IDEA` = something to keep. Before moving it to the register of ideas (`_docs/ideas/REGISTER-ideas.md`, a new entry with `fx doc entry add`), show the user the list with the
   **original text** and wait; do not remove the comment from the code until the user says so.
 - `PEND`/`TODO` = pending work in that spot; `INFO` = an explanation worth keeping.
 
