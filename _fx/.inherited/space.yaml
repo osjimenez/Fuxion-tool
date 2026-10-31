@@ -2,7 +2,7 @@
 # Generated from: space /fuxion (_fx/space.yaml)
 # Regenerated with: fx sync
 schema: 1.0.0
-requires: 0.9.10
+requires: 0.9.13
 tags:
   - name: dotnet
     description: Builds with .NET.
