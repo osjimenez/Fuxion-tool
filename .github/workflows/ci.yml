@@ -111,10 +111,11 @@ jobs:
           echo "::notice title=Version::$version"
           echo "### Version $version (fx and Fuxion.Tool.Sdk)" >> "$GITHUB_STEP_SUMMARY"
 
+      # -Filter takes no ranges ([0-9] matched nothing, and every runner kept its own): the name, by a regular expression
       - name: The main package of fx, from one runner only
         if: '!matrix.sdk'
         shell: pwsh
-        run: Get-ChildItem artifacts/nupkgs -Filter 'Fuxion.Tool.[0-9]*.nupkg' | Remove-Item
+        run: Get-ChildItem artifacts/nupkgs -Filter 'Fuxion.Tool.*.nupkg' | Where-Object Name -match '^Fuxion\.Tool\.\d' | Remove-Item
 
       # the archives of the release: the executable of each package (the same binary as on nuget.org) with the
       # license; a smoke test with the one of this platform
@@ -200,6 +201,13 @@ jobs:
           version=${sdk##*/Fuxion.Tool.Sdk.}
           echo "version=${version%.nupkg}" >> "$GITHUB_OUTPUT"
           ls -l artifacts/nupkgs artifacts/archives
+
+      # every package whole, before any push: a broken one stops it all, instead of leaving a version half published
+      - name: Check the packages
+        run: |
+          for package in artifacts/nupkgs/*.nupkg; do
+            unzip -tq "$package" > /dev/null || { echo "$package is not a valid package." >&2; exit 1; }
+          done
 
       - name: NuGet login (OIDC, temporary API key)
         uses: NuGet/login@v1
