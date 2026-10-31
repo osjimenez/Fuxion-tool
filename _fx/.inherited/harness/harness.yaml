@@ -5,7 +5,7 @@ schema: 1.0.0
 rules:
   - name: fuxion
     applies-to:
-      tags: [dotnet, public]
+      tags: [fuxion]
   - name: build
     applies-to:
       tags: [fuxion-build]

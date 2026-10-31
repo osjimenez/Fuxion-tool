@@ -4,7 +4,7 @@
 
 ## This repository and fx
 
-This is `tool` (`/fuxion/tool`), a repository of the space `fuxion` (https://github.com/osjimenez/Fuxion-space.git). Tags: `dotnet`, `public`, `fuxion-build`.
+This is `tool` (`/fuxion/tool`), a repository of the space `fuxion` (https://github.com/osjimenez/Fuxion-space.git). Tags: `fuxion`, `dotnet`, `fuxion-build`.
 
 fx (Fuxion.Tool) manages its configuration, in `_fx/`; the skill `fx` says how to use it.
 

@@ -5,12 +5,13 @@ schema: 1.0.0
 space:
   name: tool
   full-name: /fuxion/tool
-  tags: [dotnet, public, fuxion-build]
+  audience: public
+  tags: [fuxion, dotnet, fuxion-build]
 parent:
   full-name: /fuxion
   url: https://github.com/osjimenez/Fuxion-space.git
   ref: main
-  commit: 77b9e4f
+  commit: ed1eede
 files:
   - path: dotnet/default.props
     from: /fuxion

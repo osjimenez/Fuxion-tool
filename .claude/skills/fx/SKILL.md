@@ -45,7 +45,7 @@ In a space with `_fx/docs/`, its catalog (`_docs` by default) follows a document
 
 | Command | What it does | JSON | Changes | Network | `--dry-run` |
 |---|---|---|---|---|---|
-| `fx init` | Make this folder a space: its _fx/space.yaml, with its name, and nothing more. | `fx-manifest-edit/1` | yes |  | yes |
+| `fx init` | Make this folder a space: its _fx/space.yaml, with its name and its audience (public, the widest, written so that it shows), and nothing more. | `fx-manifest-edit/1` | yes |  | yes |
 | `fx sync` | Generate and update what fx owns here and in everything mounted below, from the _fx configuration. | `fx-sync/1` | yes | yes | yes |
 | `fx doctor` | Check, without changing anything, that what fx owns here and below is right. | `fx-doctor/1` |  | yes |  |
 | `fx mount list` | The mounts of mounts.yaml: where, their mode, whether they are required and whether they are here. | `fx-mount-list/1` |  |  |  |
@@ -91,7 +91,7 @@ In a space with `_fx/docs/`, its catalog (`_docs` by default) follows a document
 
 ### `fx init`
 
-Make this folder a space: its _fx/space.yaml, with its name, and nothing more.
+Make this folder a space: its _fx/space.yaml, with its name and its audience (public, the widest, written so that it shows), and nothing more.
 
 - `--name` <string>: Its name (by default, the folder's, in lowercase with '-').
 - `--dry-run`: Show the change, without writing it.

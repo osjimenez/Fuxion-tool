@@ -2,6 +2,7 @@
 # Generated from: space /fuxion (_fx/space.yaml)
 # Regenerated with: fx sync
 schema: 1.0.0
+requires: 0.9.1
 tags:
   - name: dotnet
     description: Builds with .NET.
@@ -9,7 +10,7 @@ tags:
     description: Builds with Fuxion.Tool.Sdk and the shared .NET of the space (_fx/dotnet/).
   - name: uses-fuxion
     description: "Uses Fuxion, with its analyzers in every project."
-  - name: public
-    description: A public repository.
+  - name: fuxion
+    description: "A repository of Fuxion (not a guest, nor someone else's)."
   - name: windows
     description: Has projects that only build on Windows.
