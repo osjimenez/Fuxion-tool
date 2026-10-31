@@ -13,8 +13,8 @@ namespace Fuxion.Tool.Cli.Docs;
 
 /// <summary>
 /// <c>fx doc</c> (plan U; the SPEC of the module docs, 11.1): the catalog of documents of the space. <c>check</c>,
-/// <c>list</c>, <c>show</c> and <c>schema</c> read it; <c>new</c>, <c>finalize</c>, <c>status</c> and <c>relate</c> write
-/// in it, all or nothing.
+/// <c>list</c>, <c>show</c> and <c>schema</c> read it; <c>new</c>, <c>finalize</c>, <c>status</c>, <c>relate</c>,
+/// <c>adopt</c>, <c>move</c> and <c>discard</c> write in it, all or nothing.
 /// </summary>
 public static class DocCommand
 {
@@ -83,14 +83,20 @@ public static class DocCommand
 			return Schema(console, result.GetValue(schemaType));
 		});
 		command.Add(schema);
-		AddWriters(command, global, currentDirectory);
-		command.Add(DocEntryCommand.Create(global, currentDirectory));
-		command.Add(DocKeyCommand.Create(global, currentDirectory));
+		// who makes a change: the same option for every command of the catalog (plan U, decision 20; U6)
+		var actor = new Option<string?>("--actor") { Description = Texts.Get("doc.actor", DocEditor.ActorVariable), HelpName = "actor", Recursive = true };
+		command.Add(actor);
+		AddWriters(command, global, currentDirectory, actor);
+		command.Add(DocEntryCommand.Create(global, currentDirectory, actor));
+		command.Add(DocKeyCommand.Create(global, currentDirectory, actor));
 		return command;
 	}
 
+	/// <summary>The actor of a change: <c>--actor</c>, or the variable <see cref="DocEditor.ActorVariable"/>; null if neither says it.</summary>
+	internal static string? Actor(ParseResult result, Option<string?> actor) => result.GetValue(actor) ?? Environment.GetEnvironmentVariable(DocEditor.ActorVariable);
+
 	/// <summary>The commands that write (the SPEC of the module, 11.1): each one all or nothing, with <c>--dry-run</c>.</summary>
-	static void AddWriters(Command command, GlobalOptions global, string currentDirectory)
+	static void AddWriters(Command command, GlobalOptions global, string currentDirectory, Option<string?> actor)
 	{
 		Option<bool> DryRun() => new("--dry-run") { Description = Texts.Get("doc.dry-run") };
 
@@ -101,17 +107,16 @@ public static class DocCommand
 		var profile = new Option<string?>("--profile") { Description = Texts.Get("doc.new.profile"), HelpName = "profile" };
 		var path = new Option<string?>("--path") { Description = Texts.Get("doc.new.path"), HelpName = "folder" };
 		var tags = new Option<string[]>("--tag") { Description = Texts.Get("doc.new.tag"), HelpName = "tag" };
-		var actor = new Option<string?>("--actor") { Description = Texts.Get("doc.new.actor", DocEditor.ActorVariable), HelpName = "actor" };
 		var recipe = new Option<string?>("--recipe") { Description = Texts.Get("doc.new.recipe"), HelpName = "recipe" };
 		var scope = new Option<string?>("--scope") { Description = Texts.Get("doc.new.scope"), HelpName = "path" };
 		var newDryRun = DryRun();
-		var @new = new Command("new", Texts.Get("doc.new")) { newType, title, slug, profile, path, tags, actor, recipe, scope, newDryRun }.Describe(EditSchema, writes: true);
+		var @new = new Command("new", Texts.Get("doc.new")) { newType, title, slug, profile, path, tags, recipe, scope, newDryRun }.Describe(EditSchema, writes: true);
 		@new.SetAction(result =>
 		{
 			var console = MountCommand.Console(result, global, currentDirectory);
-			return console.Run(_ => Write(console, result.GetValue(newDryRun), (catalog, display) => DocEditor.New(catalog, display, console.Settings.Directory,
+			return console.Run(_ => Write(console, result.GetValue(newDryRun), Actor(result, actor), (catalog, display) => DocEditor.New(catalog, display, console.Settings.Directory,
 				result.GetValue(newType)!, result.GetValue(title)!, result.GetValue(slug), result.GetValue(profile), result.GetValue(path), result.GetValue(tags) ?? [],
-				result.GetValue(actor) ?? Environment.GetEnvironmentVariable(DocEditor.ActorVariable), DateTimeOffset.UtcNow,
+				Actor(result, actor), DateTimeOffset.UtcNow,
 				result.GetValue(recipe) is { } r ? new DocGeneration(r, result.GetValue(scope) ?? catalog.Config.Catalog) : null)));
 		});
 		command.Add(@new);
@@ -124,7 +129,7 @@ public static class DocCommand
 		{
 			var console = MountCommand.Console(result, global, currentDirectory);
 			var selectors = result.GetValue(documents) ?? [];
-			return console.Run(_ => Write(console, result.GetValue(finalizeDryRun), (catalog, display) =>
+			return console.Run(_ => Write(console, result.GetValue(finalizeDryRun), Actor(result, actor), (catalog, display) =>
 				selectors.Length == 0
 					? DocEditor.Finalize(catalog, display, null, result.GetValue(correction), DateTimeOffset.UtcNow)
 					: Select(console, catalog, selectors) is { } files
@@ -140,7 +145,7 @@ public static class DocCommand
 		setStatus.SetAction(result =>
 		{
 			var console = MountCommand.Console(result, global, currentDirectory);
-			return console.Run(_ => Write(console, result.GetValue(statusDryRun), (catalog, display) =>
+			return console.Run(_ => Write(console, result.GetValue(statusDryRun), Actor(result, actor), (catalog, display) =>
 				One(console, catalog, result.GetValue(statusDocument)!) is { } file
 					? DocEditor.SetStatus(catalog, display, file, result.GetValue(status)!, DateTimeOffset.UtcNow)
 					: null));
@@ -157,13 +162,13 @@ public static class DocCommand
 		relate.SetAction(result =>
 		{
 			var console = MountCommand.Console(result, global, currentDirectory);
-			return console.Run(_ => Write(console, result.GetValue(relateDryRun), (catalog, display) =>
+			return console.Run(_ => Write(console, result.GetValue(relateDryRun), Actor(result, actor), (catalog, display) =>
 			{
 				if (One(console, catalog, result.GetValue(source)!) is not { } from)
 					return null;
-				// the target, an entry of a register (its key, its identity), or a document
+				// the target, an entry of a register (its key, its identity, its register#name, its name), or a document
 				var to = result.GetValue(target)!;
-				if (DocEditor.EntryTarget(catalog, to) is { } entry)
+				if (DocEditor.EntryTarget(catalog, to, console.Settings.Directory) is { } entry)
 					return DocEditor.RelateToEntry(catalog, display, from, result.GetValue(kind)!, entry, result.GetValue(remove), DateTimeOffset.UtcNow);
 				return One(console, catalog, to) is { } document
 					? DocEditor.Relate(catalog, display, from, result.GetValue(kind)!, document, result.GetValue(remove), DateTimeOffset.UtcNow)
@@ -179,25 +184,24 @@ public static class DocCommand
 		var adoptStatus = new Option<string?>("--status") { Description = Texts.Get("doc.adopt.status"), HelpName = "status" };
 		var created = new Option<string?>("--created") { Description = Texts.Get("doc.adopt.created"), HelpName = "date" };
 		var manifests = new Option<string[]>("--manifest") { Description = Texts.Get("doc.adopt.manifest"), HelpName = "file" };
-		var adoptActor = new Option<string?>("--actor") { Description = Texts.Get("doc.new.actor", DocEditor.ActorVariable), HelpName = "actor" };
 		var adoptDryRun = DryRun();
 		var adopt = new Command("adopt", Texts.Get("doc.adopt"))
 		{
-			adoptDocuments, adoptType, adoptProfile, adoptStatus, created, manifests, adoptActor, adoptDryRun
+			adoptDocuments, adoptType, adoptProfile, adoptStatus, created, manifests, adoptDryRun
 		}.Describe(EditSchema, writes: true);
 		adopt.SetAction(result =>
 		{
 			var console = MountCommand.Console(result, global, currentDirectory);
 			var selectors = result.GetValue(adoptDocuments) ?? [];
 			var files = result.GetValue(manifests) ?? [];
-			var actor = result.GetValue(adoptActor) ?? Environment.GetEnvironmentVariable(DocEditor.ActorVariable);
+			var by = Actor(result, actor);
 			if (files.Length > 0 && (selectors.Length > 0 || result.GetValue(adoptType) is not null || result.GetValue(adoptProfile) is not null
 			                         || result.GetValue(adoptStatus) is not null || result.GetValue(created) is not null))
 			{
 				console.ErrorLine($"[red]{FxConsole.Escape(Texts.Get("doc.adopt.manifest-alone"))}[/]");
 				return FxConsole.UsageError;
 			}
-			return console.Run(_ => Write(console, result.GetValue(adoptDryRun), (catalog, display) =>
+			return console.Run(_ => Write(console, result.GetValue(adoptDryRun), by, (catalog, display) =>
 			{
 				if (files.Length > 0)
 				{
@@ -213,13 +217,13 @@ public static class DocCommand
 						if (DocAdoption.Read(file, display(file), change.Diagnostics) is { } read)
 							targets.AddRange(read);
 					}
-					return change.Ok ? DocAdoption.Apply(catalog, display, targets, actor, DateTimeOffset.UtcNow) : change;
+					return change.Ok ? DocAdoption.Apply(catalog, display, targets, by, DateTimeOffset.UtcNow) : change;
 				}
 				List<DocFile>? chosen = null;
 				if (selectors.Length > 0 && (chosen = Select(console, catalog, selectors)) is null)
 					return null;
 				return DocAdoption.Bootstrap(catalog, display, chosen, result.GetValue(adoptType), result.GetValue(adoptProfile), result.GetValue(adoptStatus),
-					result.GetValue(created), actor, DateTimeOffset.UtcNow);
+					result.GetValue(created), by, DateTimeOffset.UtcNow);
 			}));
 		});
 		command.Add(adopt);
@@ -231,12 +235,25 @@ public static class DocCommand
 		move.SetAction(result =>
 		{
 			var console = MountCommand.Console(result, global, currentDirectory);
-			return console.Run(_ => Write(console, result.GetValue(moveDryRun), (catalog, display) =>
+			return console.Run(_ => Write(console, result.GetValue(moveDryRun), Actor(result, actor), (catalog, display) =>
 				One(console, catalog, result.GetValue(moveDocument)!) is { } file
 					? DocEditor.Move(catalog, display, file, result.GetValue(folder)!, console.Settings.Directory)
 					: null));
 		});
 		command.Add(move);
+
+		var discardDocument = new Argument<string>("document") { Description = Texts.Get("doc.show.document") };
+		var discardDryRun = DryRun();
+		var discard = new Command("discard", Texts.Get("doc.discard")) { discardDocument, discardDryRun }.Describe(EditSchema, writes: true);
+		discard.SetAction(result =>
+		{
+			var console = MountCommand.Console(result, global, currentDirectory);
+			return console.Run(_ => Write(console, result.GetValue(discardDryRun), Actor(result, actor), (catalog, display) =>
+				One(console, catalog, result.GetValue(discardDocument)!) is { } file
+					? DocEditor.Discard(catalog, display, file, DateTimeOffset.UtcNow)
+					: null));
+		});
+		command.Add(discard);
 	}
 
 	/// <summary>The one document <paramref name="selector"/> names; null (said on stderr) if it names none or several.</summary>
@@ -253,9 +270,10 @@ public static class DocCommand
 	/// <summary>
 	/// A change of the catalog: written (unless <c>--dry-run</c> or with errors: all or nothing) and shown, the diff of
 	/// each file or why nothing changes. <paramref name="work"/> gives null if what it names is not there (a usage error,
-	/// said already).
+	/// said already). An <paramref name="actor"/>, if one is said, one of <c>docs.yaml</c>, whatever the command (plan U,
+	/// U6); those that record it ask for it themselves.
 	/// </summary>
-	internal static int Write(FxConsole console, bool dryRun, Func<DocCatalog, Func<string, string>, DocChange?> work)
+	internal static int Write(FxConsole console, bool dryRun, string? actor, Func<DocCatalog, Func<string, string>, DocChange?> work)
 	{
 		var found = new List<FxDiagnostic>();
 		void Json(DocChange? change, bool written)
@@ -274,7 +292,8 @@ public static class DocCommand
 				Json(null, false);
 			return console.Report(found);
 		}
-		if (work(catalog, Display(catalog)) is not { } change)
+		var check = new DocChange(catalog, Display(catalog));
+		if ((actor is null || DocEditor.Actor(check, actor) ? work(catalog, Display(catalog)) : check) is not { } change)
 			return FxConsole.UsageError;
 		var written = !dryRun && change.Write();
 		if (console.Settings.IsMachine)

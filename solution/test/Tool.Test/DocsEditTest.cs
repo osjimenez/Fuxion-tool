@@ -180,11 +180,61 @@ public sealed class DocsEditTest
 		System.IO.File.AppendAllText(space.Full($"_docs/{view}"), "More.\n");
 		Assert.Equal([DocChecker.FrozenChanged], Codes(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, frozen)], null, Later)));
 		Assert.Equal([DocChecker.ViewEdited], Codes(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, view)], null, Later)));
-		Assert.Equal([DocEditor.Correction], Codes(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, open)], "A note.", Later)));
+		Assert.Equal([DocEditor.Correction], Codes(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, view)], "A note.", Later)));
 		Assert.True(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, frozen)], "A fix of the text.", Later).Write());
 		// the note, in the language of the catalog (English by default), whoever runs it
 		Assert.Equal($"{text}\r\n> Annotated correction (2026-10-23): A fix of the text.\r\n", space.Read($"_docs/{frozen}"));
 		Assert.DoesNotContain(space.Problems(), p => p.File == $"_docs/{frozen}");
+		// an open one may record one too, with or without other edits
+		Assert.True(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, open)], "A note.", Later).Write());
+		Assert.EndsWith("Text.\n\n> Annotated correction (2026-10-23): A note.\n", space.Read($"_docs/{open}"));
+		Assert.DoesNotContain(space.Problems(), p => p.File == $"_docs/{open}");
+	}
+
+	[Fact(DisplayName = "frozen, once HEAD has it frozen: until it is committed, its content is finalized freely")]
+	public void FrozenInHead()
+	{
+		using var git = new TempGitRepository();
+		using var space = new Space(Actors, git.Path);
+		var committed = space.Add("adr", "committed", status: "accepted");
+		var draft = space.Add("adr", "draft");
+		git.CommitAll("two adrs");
+		// born frozen and not committed yet: written, and finalized
+		var born = space.Add("adr", "born", status: "accepted");
+		System.IO.File.AppendAllText(space.Full($"_docs/{born}"), "Written after its adoption.\n");
+		Assert.Contains(space.Problems(), p => p == (DocChecker.Unfinalized, $"_docs/{born}", (int?)null));
+		Assert.True(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, born)], null, Later).Write());
+		// frozen in the working tree only: the same
+		Assert.True(DocEditor.SetStatus(space.Catalog(), Display(space), File(space, draft), "accepted", Later).Write());
+		System.IO.File.AppendAllText(space.Full($"_docs/{draft}"), "Decided.\n");
+		Assert.True(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, draft)], null, Later).Write());
+		// frozen in HEAD: only with a correction
+		System.IO.File.AppendAllText(space.Full($"_docs/{committed}"), "Changed.\n");
+		Assert.Contains(space.Problems(), p => p == (DocChecker.FrozenChanged, $"_docs/{committed}", (int?)null));
+		Assert.Equal([DocChecker.FrozenChanged], Codes(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, committed)], null, Later)));
+		git.CommitAll("frozen now");
+		System.IO.File.AppendAllText(space.Full($"_docs/{draft}"), "Changed.\n");
+		Assert.Equal([DocChecker.FrozenChanged], Codes(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, draft)], null, Later)));
+	}
+
+	[Fact(DisplayName = "a change writes nothing if another process has open a file it changes; the rest of the pair stays as it was")]
+	public void FileLocked()
+	{
+		using var space = new Space(Actors);
+		var frozen = space.Add("adr", "frozen", status: "accepted");
+		var markdown = space.Read($"_docs/{frozen}");
+		System.IO.File.AppendAllText(space.Full($"_docs/{frozen}"), "A fix.\n");
+		var edited = space.Read($"_docs/{frozen}");
+		var sidecar = space.Read($"_docs/{Space.Sidecar(frozen)}");
+		var change = DocEditor.Finalize(space.Catalog(), Display(space), [File(space, frozen)], "A fix of the text.", Later);
+		Assert.True(change.Ok);
+		using (new FileStream(space.Full($"_docs/{Space.Sidecar(frozen)}"), FileMode.Open, FileAccess.Read, FileShare.None))
+		{
+			Assert.False(change.Write());
+			Assert.Equal(DocChange.FileLocked, Assert.Single(change.Diagnostics).Code);
+		}
+		Assert.Equal((edited, sidecar), (space.Read($"_docs/{frozen}"), space.Read($"_docs/{Space.Sidecar(frozen)}")));
+		Assert.NotEqual(markdown, edited);
 	}
 
 	[Fact(DisplayName = "finalize: the note of a correction is in the language of docs.yaml")]
@@ -298,6 +348,68 @@ public sealed class DocsEditTest
 		Assert.Equal([newPlan], DocEditor.Relate(space.Catalog(), Display(space), File(space, newPlan), "supersedes", File(space, plan), false, Later).Documents);
 	}
 
+	[Fact(DisplayName = "relate --remove supersedes: the target back to its status in HEAD, as HEAD has it; if HEAD has it replaced, it stays, with a warning")]
+	public void Unsupersede()
+	{
+		using var git = new TempGitRepository();
+		using var space = new Space(Actors, git.Path);
+		var old = space.Add("adr", "old", status: "accepted");
+		var @new = space.Add("adr", "new", status: "accepted");
+		git.CommitAll("two adrs");
+		var before = space.Read($"_docs/{Space.Sidecar(old)}");
+		Assert.True(DocEditor.Relate(space.Catalog(), Display(space), File(space, @new), "supersedes", File(space, old), false, Later).Write());
+		Assert.Equal("superseded", Sidecar(space, old).Status);
+		Assert.True(DocEditor.Relate(space.Catalog(), Display(space), File(space, @new), "supersedes", File(space, old), true, Later).Write());
+		Assert.Equal(before, space.Read($"_docs/{Space.Sidecar(old)}"));
+		Assert.True(DocEditor.Relate(space.Catalog(), Display(space), File(space, @new), "supersedes", File(space, old), false, Later).Write());
+		git.CommitAll("superseded");
+		var removed = DocEditor.Relate(space.Catalog(), Display(space), File(space, @new), "supersedes", File(space, old), true, Later);
+		Assert.Equal([DocEditor.StillReplaced], Codes(removed));
+		Assert.True(removed.Write());
+		Assert.Equal("superseded", Sidecar(space, old).Status);
+		Assert.Empty(space.Problems());
+	}
+
+	// discard
+
+	[Fact(DisplayName = "discard: a document born since the last commit, gone with its annexes; what its supersedes did, undone")]
+	public void Discard()
+	{
+		using var git = new TempGitRepository();
+		using var space = new Space(Actors, git.Path);
+		var old = space.Add("adr", "old", status: "accepted");
+		var committed = space.Add("adr", "committed");
+		git.CommitAll("two adrs");
+		var before = space.Read($"_docs/{Space.Sidecar(old)}");
+		var @new = space.Add("adr", "new", status: "accepted");
+		var annexes = $"_docs/{@new[..^".md".Length]}";
+		space.Write($"{annexes}/diagram.svg", "<svg/>");
+		Assert.True(DocEditor.Relate(space.Catalog(), Display(space), File(space, @new), "supersedes", File(space, old), false, Later).Write());
+		var change = DocEditor.Discard(space.Catalog(), Display(space), File(space, @new), Later);
+		Assert.Equal([$"_docs/{@new}", $"_docs/{Space.Sidecar(@new)}", $"{annexes}/diagram.svg"], change.Removed.Order());
+		Assert.True(change.Write(), string.Join("; ", change.Diagnostics.Select(d => d.Message.English)));
+		Assert.False(System.IO.File.Exists(space.Full($"_docs/{@new}")));
+		Assert.False(Directory.Exists(space.Full(annexes)));
+		Assert.Equal(before, space.Read($"_docs/{Space.Sidecar(old)}"));
+		Assert.Empty(space.Problems());
+		// not one HEAD has, nor one something points to
+		Assert.Equal([DocEditor.Committed], Codes(DocEditor.Discard(space.Catalog(), Display(space), File(space, committed), Later)));
+		var other = space.Add("adr", "other");
+		var pointing = space.Add("rfc", "pointing", relations: [new("related-to", space.Ids[other])]);
+		Assert.Equal([DocEditor.Referenced], Codes(DocEditor.Discard(space.Catalog(), Display(space), File(space, other), Later)));
+		Assert.Equal(0, DocsCheckTest.Fx(space.Root, "doc", "discard", pointing).ExitCode);
+		Assert.Equal(0, DocsCheckTest.Fx(space.Root, "doc", "discard", other).ExitCode);
+		Assert.Equal(["_records/2026/10/ADR-committed.md", "_records/2026/10/ADR-old.md"], space.Catalog().Files.Select(f => f.Path).Order());
+	}
+
+	[Fact(DisplayName = "discard: without git, nothing is known of what is committed, and nothing is discarded")]
+	public void DiscardWithoutGit()
+	{
+		using var space = new Space(Actors);
+		var adr = space.Add("adr", "new");
+		Assert.Equal([DocEditor.NoHistory], Codes(DocEditor.Discard(space.Catalog(), Display(space), File(space, adr), Later)));
+	}
+
 	// the command line
 
 	[Fact(DisplayName = "fx doc new: --dry-run shows the files and writes nothing; then written, and the catalog is valid")]
@@ -335,6 +447,16 @@ public sealed class DocsEditTest
 		Assert.Equal(2, DocsCheckTest.Fx(space.Root, "doc", "status", "nothing.md", "accepted").ExitCode);
 		Assert.Equal(2, DocsCheckTest.Fx(space.Root, "doc", "relate", rfc, "likes", adr).ExitCode);
 		Assert.Equal(1, DocsCheckTest.Fx(space.Root, "doc", "status", adr, "draft").ExitCode);
+	}
+
+	[Fact(DisplayName = "--actor: an option of fx doc for all its commands, one of docs.yaml whenever it is said; new needs it")]
+	public void CliActor()
+	{
+		using var space = new Space(Actors);
+		Assert.Equal(0, DocsCheckTest.Fx(space.Root, "doc", "--actor", "editor", "new", "adr", "Usar sidecars").ExitCode);
+		Assert.Equal(1, DocsCheckTest.Fx(space.Root, "doc", "finalize", "--actor", "someone").ExitCode);
+		Assert.Contains("Nothing to finalize", DocsCheckTest.Fx(space.Root, "doc", "finalize", "--actor", "editor").Stdout);
+		Assert.Equal(1, DocsCheckTest.Fx(space.Root, "doc", "new", "adr", "Otra").ExitCode);
 	}
 }
 

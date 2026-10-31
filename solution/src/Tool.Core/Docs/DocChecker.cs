@@ -378,9 +378,11 @@ public static partial class DocChecker
 					Add(FxDiagnostic.Error(TitleMismatch, new($"{TitleMismatch}.none", sidecar.Title), markdownFile, 1));
 				else if (title.Text != sidecar.Title)
 					Add(FxDiagnostic.Error(TitleMismatch, new(TitleMismatch, title.Text, sidecar.Title), markdownFile, title.Line));
+				// frozen, once HEAD has it frozen (plan U, U6)
 				if (DocIntegrity.Hash(DocIntegrity.Utf8.GetBytes(content)) != sidecar.Integrity!.Content)
 					Add(type.Name == "view" ? FxDiagnostic.Error(ViewEdited, new(ViewEdited, file.Path), markdownFile, fix: FxFix.Run("fx sync --adopt"))
-						: type.IsFrozen(sidecar.Status) ? FxDiagnostic.Error(FrozenChanged, new(FrozenChanged, file.Path, sidecar.Status), markdownFile,
+						: type.IsFrozen(sidecar.Status) && (_history ??= DocHistory.Of(catalog)).Frozen(file)
+							? FxDiagnostic.Error(FrozenChanged, new(FrozenChanged, file.Path, sidecar.Status), markdownFile,
 							fix: FxFix.Do(new FxText($"{FrozenChanged}.fix", file.Path)))
 						: FxDiagnostic.Warning(Unfinalized, new(Unfinalized, file.Path), markdownFile, fix: FxFix.Run($"fx doc finalize {file.Path}")));
 			}
@@ -412,6 +414,9 @@ public static partial class DocChecker
 
 		/// <summary>The documents of the catalog that can be read, for the views; read once, if a view is checked.</summary>
 		IReadOnlyList<DocDocument>? _all;
+
+		/// <summary>What git has committed of the catalog; asked once, if a frozen document changed.</summary>
+		DocHistory? _history;
 
 		/// <summary>What a kind of relation joins, for its message: "a spec to a design", "anything to an adr".</summary>
 		static string Allowed(DocRelationRule rule)

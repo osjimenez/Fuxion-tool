@@ -59,23 +59,23 @@ public sealed class DocsViewsTest
 
 			### plan
 
-			- [The blocked-one](_records/2026/10/PLAN-blocked-one.md) · `blocked` · 2026-10-21
+			- [The blocked-one](_records/2026/10/PLAN-blocked-one.md) · `blocked`
 
 			## Open
 
 			### adr
 
-			- [The open-one](_records/2026/10/ADR-open-one.md) · `draft` · 2026-10-21
+			- [The open-one](_records/2026/10/ADR-open-one.md) · `draft`
 
 			## In force
 
 			### adr
 
-			- [The accepted-one](_records/2026/10/ADR-accepted-one.md) · `accepted` · 2026-10-21
+			- [The accepted-one](_records/2026/10/ADR-accepted-one.md) · `accepted`
 
 			### design
 
-			- [The the-design](notes/DESIGN-the-design.md) · `active` · 2026-10-21
+			- [The the-design](notes/DESIGN-the-design.md) · `active`
 
 			""".Replace("\r\n", "\n"), space.Read($"_docs/{view}"));
 		Assert.Empty(space.Problems());
@@ -97,15 +97,15 @@ public sealed class DocsViewsTest
 		using var space = Catalog();
 		var records = View(space, "Records", "catalog", DocRecipes.Catalog, "_docs/_records", folder: "notes");
 		var text = space.Read($"_docs/{records}");
-		Assert.Contains("| Document | Type | Status | Updated |\n|---|---|---|---|\n| [The accepted-one](../_records/2026/10/ADR-accepted-one.md) | adr | `accepted` | 2026-10-21 |", text);
+		Assert.Contains("| Document | Type | Status |\n|---|---|---|\n| [The accepted-one](../_records/2026/10/ADR-accepted-one.md) | adr | `accepted` |", text);
 		Assert.Equal(4, text.Split('\n').Count(l => l.StartsWith("| [", StringComparison.Ordinal)));
 		var tagged = space.Read($"_docs/{View(space, "MCP", "catalog", $"{DocRecipes.Catalog}/mcp", "_docs")}");
-		Assert.Contains("| [The the-design](notes/DESIGN-the-design.md) | design | `active` | 2026-10-21 |", tagged);
+		Assert.Contains("| [The the-design](notes/DESIGN-the-design.md) | design | `active` |", tagged);
 		Assert.Single(tagged.Split('\n'), l => l.StartsWith("| [", StringComparison.Ordinal));
 		Assert.Empty(space.Problems());
 	}
 
-	[Fact(DisplayName = "docs.backlog: the open entries of a register by status, in the order of their keys, with their fields and documents; then the closed")]
+	[Fact(DisplayName = "docs.backlog: the open entries of a register by status, in the order of their keys, with their fields and documents (both ways); then the closed")]
 	public void Backlog()
 	{
 		using var space = new Space(Actors);
@@ -117,6 +117,11 @@ public sealed class DocsViewsTest
 		Assert.True(Add("Sin clave", new() { Status = "boceto" }).Write());
 		Assert.True(Add("Uno", new() { Key = "I-1" }).Write());
 		Assert.True(DocEditor.CloseEntry(space.Catalog(), Display(space), File(space, register), "I-1", "hecha", Now).Write());
+		// documents that point to an entry: with those it points to, each once
+		var report = space.Add("report", "the-report", status: "final");
+		var entries = DocChecker.Read(space.Catalog()).Single(d => d.File.Path == register).Sidecar.Entries;
+		Assert.True(DocEditor.RelateToEntry(space.Catalog(), Display(space), File(space, report), "related-to", entries.Single(e => e.Key == "I-2").Id, false, Now).Write());
+		Assert.True(DocEditor.RelateToEntry(space.Catalog(), Display(space), File(space, research), "informs", entries.Single(e => e.Key == "I-10").Id, false, Now).Write());
 		var text = space.Read($"_docs/{View(space, "Ideas board", "catalog", DocRecipes.Backlog, $"_docs/{register}", folder: "ideas")}");
 		Assert.Contains("3 open · 1 closed.", text);
 		Assert.Contains("""
@@ -124,7 +129,7 @@ public sealed class DocsViewsTest
 
 			| Entry | Title | Fields | Documents |
 			|---|---|---|---|
-			| I-2 | Dos | bloque: Hub · espera: I-1 |  |
+			| I-2 | Dos | bloque: Hub · espera: I-1 | [The the-report](../_records/2026/10/REPORT-the-report.md) |
 			| I-10 | Diez | prioridad: 1 | [The faces](../_records/2026/10/RESEARCH-faces.md) |
 
 			## boceto

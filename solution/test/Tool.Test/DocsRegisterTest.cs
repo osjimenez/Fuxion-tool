@@ -188,10 +188,10 @@ public sealed class DocsRegisterTest
 			Status = "en-diseno",
 			Tags = ["b"],
 			Fields = [KeyValuePair.Create<string, JsonElement?>("prioridad", null), KeyValuePair.Create("bloque", (JsonElement?)Json("\"Hub\""))],
-			Relations = [("informs", research), ("depends-on", "otra-idea")]
+			Relations = [("informs", research), ("depends-on", "ninguna-idea")]
 		}, Now);
 		Assert.False(set.Ok);
-		// another entry, by its name: only by its key or identity, as a target
+		// a target that is not there
 		Assert.Equal([DocEditor.UnknownTarget], Codes(set));
 		var other = Sidecar(space, register).Entries[1].Id;
 		Assert.True(DocEditor.SetEntry(space.Catalog(), Display(space), space.Root, File(space, register), "I-7", new()
@@ -225,12 +225,39 @@ public sealed class DocsRegisterTest
 		var (space, register, research) = Ideas();
 		using var _ = space;
 		Assert.True(Add(space, register, "Una idea", new() { Key = "I-7" }).Write());
-		var entry = DocEditor.EntryTarget(space.Catalog(), "I-7")!;
+		var entry = DocEditor.EntryTarget(space.Catalog(), "I-7", space.Root)!;
 		Assert.True(DocEditor.RelateToEntry(space.Catalog(), Display(space), File(space, research), "informs", entry, false, Now).Write());
 		Assert.Equal([new DocRelation("informs", entry)], Sidecar(space, research).Relations);
 		Assert.Empty(space.Problems());
 		var adr = space.Add("rfc", "x");
 		Assert.Equal([DocChecker.InvalidRelation], Codes(DocEditor.RelateToEntry(space.Catalog(), Display(space), File(space, adr), "decided-by", entry, false, Now)));
+	}
+
+	[Fact(DisplayName = "an entry is named by its key, its identity, register#name, or its name alone if no other entry has it")]
+	public void EntryNames()
+	{
+		var (space, register, research) = Ideas();
+		using var _ = space;
+		var debts = space.Add("register", "debts", folder: "notes");
+		Assert.True(Add(space, register, "Una idea").Write());
+		Assert.True(Add(space, register, "Otra idea", new() { Key = "I-7" }).Write());
+		Assert.True(Add(space, debts, "Una idea").Write());
+		var ideas = Sidecar(space, register).Entries;
+		var debt = Sidecar(space, debts).Entries[0];
+		Assert.Equal(ideas[0].Id, DocEditor.EntryTarget(space.Catalog(), $"{register}#una-idea", space.Root));
+		Assert.Equal(debt.Id, DocEditor.EntryTarget(space.Catalog(), $"_docs/{debts}#una-idea", space.Root));
+		Assert.Equal(ideas[1].Id, DocEditor.EntryTarget(space.Catalog(), "otra-idea", space.Root));
+		Assert.Equal(ideas[1].Id, DocEditor.EntryTarget(space.Catalog(), ideas[1].Id, space.Root));
+		// two entries have it; one that is not there
+		Assert.Null(DocEditor.EntryTarget(space.Catalog(), "una-idea", space.Root));
+		Assert.Null(DocEditor.EntryTarget(space.Catalog(), $"{register}#nada", space.Root));
+		// in the relations of an entry, and in fx doc relate
+		Assert.True(Add(space, register, "Una tercera", new() { Relations = [("depends-on", $"{debts}#una-idea")] }).Write());
+		Assert.Equal([new DocRelation("depends-on", debt.Id)], Sidecar(space, register).Entries[2].Relations);
+		Assert.Equal([DocEditor.UnknownTarget], Codes(Add(space, register, "Una cuarta", new() { Relations = [("depends-on", "una-idea")] })));
+		Assert.Equal(0, DocsCheckTest.Fx(space.Root, "doc", "relate", research, "informs", "otra-idea").ExitCode);
+		Assert.Equal([new DocRelation("informs", ideas[1].Id)], Sidecar(space, research).Relations);
+		Assert.Empty(space.Problems());
 	}
 
 	// the manifests
@@ -282,6 +309,11 @@ public sealed class DocsRegisterTest
 			    register: _docs/notes/REGISTER-debts.md
 			    title: Another debt
 			    created: 2026-10-04
+			    relations:
+			      - kind: related-to
+			        to: _docs/notes/REGISTER-debts.md#a-debt
+			      - kind: depends-on
+			        to: _docs/ideas/REGISTER-ideas.md#una-idea-de-enero
 
 			""");
 		var diagnostics = new List<FxDiagnostic>();
@@ -296,6 +328,8 @@ public sealed class DocsRegisterTest
 		Assert.Equal(("hecha", "2026-02-01T00:00:00Z"), (ideas[1].Status, ideas[1].ClosedAt));
 		Assert.Equal([ideas[0].Id, Sidecar(space, existing).Entries[0].Id], ideas[1].Relations.Select(r => r.TargetId).OrderBy(r => r == ideas[0].Id ? 0 : 1));
 		Assert.Equal(["a-debt", "another-debt"], Sidecar(space, existing).Entries.Select(e => e.Name));
+		var debts = Sidecar(space, existing).Entries;
+		Assert.Equal([new DocRelation("depends-on", ideas[1].Id), new DocRelation("related-to", debts[0].Id)], debts[1].Relations.OrderBy(r => r.Kind));
 		Assert.Empty(space.Problems());
 	}
 
@@ -304,6 +338,7 @@ public sealed class DocsRegisterTest
 	[InlineData("  - action: register-entry\n    register: _docs/notes/REGISTER-debts.md\n    title: A debt\n    created: 2026-10-04\n")]
 	[InlineData("  - action: register-entry\n    register: _docs/notes/REGISTER-debts.md\n    key: D-1\n    title: X\n    created: 2026-10-04\n")]
 	[InlineData("  - action: register-entry\n    register: _docs/notes/REGISTER-debts.md\n    title: X\n    created: 2026-10-04\n    relations:\n      - kind: related-to\n        to: I-99\n")]
+	[InlineData("  - action: register-entry\n    register: _docs/notes/REGISTER-debts.md\n    title: X\n    created: 2026-10-04\n    relations:\n      - kind: related-to\n        to: _docs/notes/REGISTER-debts.md#nothing\n")]
 	[InlineData("  - action: register-entry\n    register: _docs/notes/ADR-x.md\n    title: X\n    created: 2026-10-04\n")]
 	public void ManifestRefused(string targets)
 	{

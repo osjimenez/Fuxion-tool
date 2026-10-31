@@ -143,7 +143,10 @@ public sealed class DocsKeysTest
 		var other = space.Add("register", "debts", folder: "notes");
 		Assert.Equal(1, DocsCheckTest.Fx(space.Root, "doc", "key", other, "--actor", "editor").ExitCode);
 		Assert.Equal(1, DocsCheckTest.Fx(space.Root, "doc", "key", Register).ExitCode);
-		Assert.Equal(0, DocsCheckTest.Fx(space.Root, "doc", "entry", "add", Register, "Una idea").ExitCode);
+		// entry add reserves a key: with its actor, as fx doc key
+		Assert.Equal(1, DocsCheckTest.Fx(space.Root, "doc", "entry", "add", Register, "Una idea").ExitCode);
+		Assert.Equal(1, DocsCheckTest.Fx(space.Root, "doc", "entry", "add", Register, "Una idea", "--actor", "someone").ExitCode);
+		Assert.Equal(0, DocsCheckTest.Fx(space.Root, "doc", "entry", "add", Register, "Una idea", "--actor", "editor").ExitCode);
 		Assert.Equal("I-1", Sidecar(space).Entries[0].Key);
 		Assert.Contains("no provisional key", DocsCheckTest.Fx(space.Root, "doc", "key", Register, "--confirm", "--actor", "editor").Stdout);
 	}

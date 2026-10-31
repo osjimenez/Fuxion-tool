@@ -16,10 +16,12 @@ namespace Fuxion.Tool.Core.Docs;
 /// <list type="bullet">
 /// <item><c>docs.status</c>, the dashboard of a folder: what asks for attention, what is open and what is in force, by type;</item>
 /// <item><c>docs.catalog</c>, the documents of a folder (<c>docs.catalog/&lt;tag&gt;</c>, only those with the tag);</item>
-/// <item><c>docs.backlog</c>, the board of a register: its open entries by status, and those closed.</item>
+/// <item><c>docs.backlog</c>, the board of a register: its open entries by status, with the documents they point to and
+/// those that point to them, and those closed.</item>
 /// </list>
 /// The same catalog gives the same bytes: in the language of <c>docs.yaml</c>, whoever runs it, and without the views
-/// (each regeneration changes them).
+/// (each regeneration changes them). Without the date a document was updated either (plan U, U6): a view changes when a
+/// document is born, goes, or changes its title, its status or its place, not each time one is edited.
 /// </summary>
 public static class DocViews
 {
@@ -111,7 +113,7 @@ public static class DocViews
 			{
 				text.Append($"\n### {type.Name}\n\n");
 				foreach (var d in items.Where(d => d.Type == type))
-					text.Append($"- {link(d.Sidecar.Title, d.File.Markdown!)} · `{d.Sidecar.Status}` · {Date(d.Sidecar.UpdatedAt)}\n");
+					text.Append($"- {link(d.Sidecar.Title, d.File.Markdown!)} · `{d.Sidecar.Status}`\n");
 			}
 		}
 		Section("docs.view.status.attention", attention);
@@ -127,9 +129,9 @@ public static class DocViews
 			text.Append($"\n{T("docs.view.none")}\n");
 			return;
 		}
-		text.Append($"\n| {T("docs.view.column.document")} | {T("docs.view.column.type")} | {T("docs.view.column.status")} | {T("docs.view.column.updated")} |\n|---|---|---|---|\n");
+		text.Append($"\n| {T("docs.view.column.document")} | {T("docs.view.column.type")} | {T("docs.view.column.status")} |\n|---|---|---|\n");
 		foreach (var d in documents)
-			text.Append($"| {link(d.Sidecar.Title, d.File.Markdown!)} | {d.Type.Name} | `{d.Sidecar.Status}` | {Date(d.Sidecar.UpdatedAt)} |\n");
+			text.Append($"| {link(d.Sidecar.Title, d.File.Markdown!)} | {d.Type.Name} | `{d.Sidecar.Status}` |\n");
 	}
 
 	/// <summary>The order of the entries: by the number of their key (<c>I-2</c> before <c>I-10</c>), then by their name.</summary>
@@ -156,8 +158,14 @@ public static class DocViews
 		var open = entries.Where(e => e.Open).ToList();
 		var closed = entries.Where(e => !e.Open).ToList();
 		var byId = documents.GroupBy(d => d.Sidecar.Id, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+		// the documents an entry points to, and those that point to it
+		var pointing = documents.SelectMany(d => d.Sidecar.Relations.Select(r => (r.TargetId, Document: d)))
+			.OrderBy(p => p.Document.File.Path, StringComparer.Ordinal)
+			.ToLookup(p => p.TargetId, p => p.Document, StringComparer.OrdinalIgnoreCase);
 		string Documents(DocEntry entry)
-			=> string.Join(", ", entry.Relations.Select(r => byId.GetValueOrDefault(r.TargetId)).OfType<DocDocument>().Select(d => link(d.Sidecar.Title, d.File.Markdown!)));
+			=> string.Join(", ", entry.Relations.Select(r => byId.GetValueOrDefault(r.TargetId)).OfType<DocDocument>().Concat(pointing[entry.Id])
+				.DistinctBy(d => d.Sidecar.Id, StringComparer.OrdinalIgnoreCase)
+				.Select(d => link(d.Sidecar.Title, d.File.Markdown!)));
 		string Fields(DocEntry entry) => Escape(string.Join(" · ", entry.Fields.OrderBy(f => f.Key, StringComparer.Ordinal).Select(f => $"{f.Key}: {Value(f.Value)}")));
 		text.Append($"\n{T("docs.view.backlog.summary", open.Count, closed.Count)}\n");
 		foreach (var status in open.Select(e => e.Status).Distinct().Order(StringComparer.Ordinal))

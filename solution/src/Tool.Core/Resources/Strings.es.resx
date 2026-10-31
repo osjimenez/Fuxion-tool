@@ -893,7 +893,7 @@
     <value>Los metadatos de {0} no cuadran con su hash: ¿editados a mano?</value>
   </data>
   <data name="docs.frozen-changed" xml:space="preserve">
-    <value>{0} está en estado {1}, congelado, y su contenido ha cambiado.</value>
+    <value>{0} está en estado {1}, congelado en HEAD, y su contenido ha cambiado.</value>
   </data>
   <data name="docs.frozen-changed.fix" xml:space="preserve">
     <value>restáuralo (git restore), o anota una corrección: fx doc finalize {0} --correction &lt;nota&gt;</value>
@@ -961,14 +961,32 @@
   <data name="docs.correction" xml:space="preserve">
     <value>Corrección anotada ({0}): {1}</value>
   </data>
-  <data name="docs.correction.not-frozen" xml:space="preserve">
-    <value>{0} está en {1}, sin congelar: se finaliza sin corrección.</value>
+  <data name="docs.correction.view" xml:space="preserve">
+    <value>{0} es una vista: la genera fx sync, y no lleva corrección.</value>
   </data>
   <data name="docs.changed-on-disk" xml:space="preserve">
     <value>{0} ha cambiado en disco mientras se preparaba el cambio: no se ha escrito nada; repítelo.</value>
   </data>
+  <data name="docs.file-locked" xml:space="preserve">
+    <value>{0} está abierto en otro proceso: no se ha escrito nada; ciérralo y repítelo.</value>
+  </data>
+  <data name="docs.write-failed" xml:space="preserve">
+    <value>{0} no se ha podido escribir ({1}): lo que ya se había escrito ha vuelto atrás, y no ha cambiado nada.</value>
+  </data>
   <data name="docs.historical-move" xml:space="preserve">
     <value>{0} es un {1}, histórico: no se mueve.</value>
+  </data>
+  <data name="docs.no-history" xml:space="preserve">
+    <value>{0} no se puede descartar: el catálogo no está en un repositorio de git, y sin él fx no sabe qué tiene commit.</value>
+  </data>
+  <data name="docs.committed" xml:space="preserve">
+    <value>{0} no se puede descartar: HEAD tiene {1}, y lo que tiene commit se deshace con git.</value>
+  </data>
+  <data name="docs.referenced" xml:space="preserve">
+    <value>{0} no se puede descartar: {1} apuntan a él, o a sus entradas; quita antes esas relaciones.</value>
+  </data>
+  <data name="docs.still-replaced" xml:space="preserve">
+    <value>{0} se queda en {1}: HEAD no lo tiene en otro estado; dale el suyo con fx doc status.</value>
   </data>
   <data name="docs.unchanged.move" xml:space="preserve">
     <value>{0} ya está en {1}.</value>
@@ -1061,7 +1079,7 @@
     <value>La clave {0} ya está en {1}.</value>
   </data>
   <data name="docs.unknown-target" xml:space="preserve">
-    <value>'{0}' no es un documento del catálogo (su ruta, su identidad) ni una entrada de un registro (su clave, su identidad).</value>
+    <value>'{0}' no es un documento del catálogo (su ruta, su identidad) ni una entrada de un registro (su clave, su identidad, registro#nombre, o su nombre si ninguna otra lo tiene).</value>
   </data>
   <data name="docs.invalid-relation.kind" xml:space="preserve">
     <value>'{0}' no es una clase de relación: {1}.</value>
@@ -1119,9 +1137,6 @@
   </data>
   <data name="docs.view.column.status" xml:space="preserve">
     <value>Estado</value>
-  </data>
-  <data name="docs.view.column.updated" xml:space="preserve">
-    <value>Actualizado</value>
   </data>
   <data name="docs.view.column.entry" xml:space="preserve">
     <value>Entrada</value>

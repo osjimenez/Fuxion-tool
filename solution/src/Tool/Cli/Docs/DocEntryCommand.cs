@@ -19,7 +19,7 @@ public static class DocEntryCommand
 {
 	public const string ListSchema = "fx-doc-entries/1";
 
-	public static Command Create(GlobalOptions global, string currentDirectory)
+	public static Command Create(GlobalOptions global, string currentDirectory, Option<string?> actor)
 	{
 		var command = new Command("entry", Texts.Get("doc.entry"));
 		Option<bool> DryRun() => new("--dry-run") { Description = Texts.Get("doc.dry-run") };
@@ -57,10 +57,11 @@ public static class DocEntryCommand
 				Created = result.GetValue(created),
 				Tags = result.GetValue(tags) ?? []
 			};
-			return console.Run(_ => DocCommand.Write(console, result.GetValue(addDryRun), (catalog, display) =>
+			var by = DocCommand.Actor(result, actor);
+			return console.Run(_ => DocCommand.Write(console, result.GetValue(addDryRun), by, (catalog, display) =>
 				DocCommand.One(console, catalog, result.GetValue(addRegister)!) is { } register
-					? DocEditor.AddEntry(catalog, display, console.Settings.Directory, register, result.GetValue(title)!, edit, DateTimeOffset.UtcNow,
-						Environment.GetEnvironmentVariable(DocEditor.ActorVariable) ?? "fx", reserve: !result.GetValue(addDryRun))
+					? DocEditor.AddEntry(catalog, display, console.Settings.Directory, register, result.GetValue(title)!, edit, DateTimeOffset.UtcNow, by,
+						reserve: !result.GetValue(addDryRun))
 					: null));
 		});
 		command.Add(add);
@@ -91,7 +92,7 @@ public static class DocEntryCommand
 				Summary = result.GetValue(setSummary),
 				Tags = result.GetValue(setTags) ?? []
 			};
-			return console.Run(_ => DocCommand.Write(console, result.GetValue(setDryRun), (catalog, display) =>
+			return console.Run(_ => DocCommand.Write(console, result.GetValue(setDryRun), DocCommand.Actor(result, actor), (catalog, display) =>
 				DocCommand.One(console, catalog, result.GetValue(setRegister)!) is { } register
 					? DocEditor.SetEntry(catalog, display, console.Settings.Directory, register, result.GetValue(setEntry)!, edit, DateTimeOffset.UtcNow)
 					: null));
@@ -106,7 +107,7 @@ public static class DocEntryCommand
 		close.SetAction(result =>
 		{
 			var console = MountCommand.Console(result, global, currentDirectory);
-			return console.Run(_ => DocCommand.Write(console, result.GetValue(closeDryRun), (catalog, display) =>
+			return console.Run(_ => DocCommand.Write(console, result.GetValue(closeDryRun), DocCommand.Actor(result, actor), (catalog, display) =>
 				DocCommand.One(console, catalog, result.GetValue(closeRegister)!) is { } register
 					? DocEditor.CloseEntry(catalog, display, register, result.GetValue(closeEntry)!, result.GetValue(closeStatus), DateTimeOffset.UtcNow)
 					: null));

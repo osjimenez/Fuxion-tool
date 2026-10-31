@@ -56,7 +56,7 @@
     <value>No network: do not ask the remotes.</value>
   </data>
   <data name="module" xml:space="preserve">
-    <value>Only this module: mounts, dotnet or harness.</value>
+    <value>Only this module: mounts, dotnet, harness or docs.</value>
   </data>
   <data name="doctor.errors" xml:space="preserve">
     <value>{0} error(s)</value>
@@ -428,7 +428,7 @@
     <value>Turn a module off without losing its configuration (enabled: false).</value>
   </data>
   <data name="module.name" xml:space="preserve">
-    <value>The module: mounts, dotnet or harness.</value>
+    <value>The module: mounts, dotnet, harness or docs.</value>
   </data>
   <data name="module.tag" xml:space="preserve">
     <value>The tags of the repositories it goes down to (its applies-to).</value>
@@ -1330,6 +1330,9 @@
   <data name="doc.dry-run" xml:space="preserve">
     <value>Shows what would change, with its diff, without writing.</value>
   </data>
+  <data name="doc.actor" xml:space="preserve">
+    <value>Who makes the change, one of the actors of docs.yaml; by default, the variable {0}. new, adopt and key need it, and entry add when it reserves a key.</value>
+  </data>
   <data name="doc.new" xml:space="preserve">
     <value>Creates a document: its Markdown with its title and its sidecar, in the place of its type.</value>
   </data>
@@ -1351,9 +1354,6 @@
   <data name="doc.new.tag" xml:space="preserve">
     <value>A tag (one per --tag).</value>
   </data>
-  <data name="doc.new.actor" xml:space="preserve">
-    <value>Who makes the change, one of the actors of docs.yaml; by default, the variable {0}.</value>
-  </data>
   <data name="doc.finalize" xml:space="preserve">
     <value>Finalizes documents: their integrity again and updatedAt now, for those that changed.</value>
   </data>
@@ -1361,7 +1361,7 @@
     <value>Documents: paths or identities; none, every one that changed.</value>
   </data>
   <data name="doc.finalize.correction" xml:space="preserve">
-    <value>A correction of a frozen document: the note goes at the end of its Markdown.</value>
+    <value>A correction, with its note at the end of the Markdown: the only way to change a frozen document, and a trace in an open one.</value>
   </data>
   <data name="doc.status" xml:space="preserve">
     <value>Changes the status of a document, if its type allows it, and finalizes it.</value>
@@ -1376,7 +1376,7 @@
     <value>The kind of the relation.</value>
   </data>
   <data name="doc.relate.target" xml:space="preserve">
-    <value>The other document: its path or its identity.</value>
+    <value>The other document (its path or its identity), or an entry (its key, its identity, register#name, or its name if no other entry has it).</value>
   </data>
   <data name="doc.relate.remove" xml:space="preserve">
     <value>Takes the relation out.</value>
@@ -1419,6 +1419,9 @@
   </data>
   <data name="doc.move.folder" xml:space="preserve">
     <value>The folder it goes to (from here, or from the catalog).</value>
+  </data>
+  <data name="doc.discard" xml:space="preserve">
+    <value>Discards a document born since the last commit: its pair, its annexes, and what its supersedes did to their targets.</value>
   </data>
   <data name="doc.edit.moved" xml:space="preserve">
     <value>moved {0} → {1}</value>
@@ -1466,7 +1469,7 @@
     <value>A field: name=value (a JSON value, or text); name= takes it out.</value>
   </data>
   <data name="doc.entry.relation" xml:space="preserve">
-    <value>A relation: kind=target (a document, by its path or identity; an entry, by its key or identity).</value>
+    <value>A relation: kind=target (a document, by its path or identity; an entry, by its key, its identity, register#name, or its name if no other entry has it).</value>
   </data>
   <data name="doc.entry.unrelate" xml:space="preserve">
     <value>A relation it loses: kind=target.</value>

@@ -893,7 +893,7 @@
     <value>The metadata of {0} do not match their hash: edited by hand?</value>
   </data>
   <data name="docs.frozen-changed" xml:space="preserve">
-    <value>{0} is in status {1}, frozen, and its content changed.</value>
+    <value>{0} is in status {1}, frozen in HEAD, and its content changed.</value>
   </data>
   <data name="docs.frozen-changed.fix" xml:space="preserve">
     <value>restore it (git restore), or record a correction: fx doc finalize {0} --correction &lt;note&gt;</value>
@@ -961,14 +961,32 @@
   <data name="docs.correction" xml:space="preserve">
     <value>Annotated correction ({0}): {1}</value>
   </data>
-  <data name="docs.correction.not-frozen" xml:space="preserve">
-    <value>{0} is {1}, not frozen: it is finalized without a correction.</value>
+  <data name="docs.correction.view" xml:space="preserve">
+    <value>{0} is a view: fx sync generates it, and it takes no correction.</value>
   </data>
   <data name="docs.changed-on-disk" xml:space="preserve">
     <value>{0} changed on disk while the change was worked out: nothing was written; run it again.</value>
   </data>
+  <data name="docs.file-locked" xml:space="preserve">
+    <value>{0} is open in another process: nothing was written; close it and run it again.</value>
+  </data>
+  <data name="docs.write-failed" xml:space="preserve">
+    <value>{0} could not be written ({1}): what had been written went back, and nothing changed.</value>
+  </data>
   <data name="docs.historical-move" xml:space="preserve">
     <value>{0} is a {1}, historical: it does not move.</value>
+  </data>
+  <data name="docs.no-history" xml:space="preserve">
+    <value>{0} cannot be discarded: the catalog is not in a git repository, and without one fx does not know what is committed.</value>
+  </data>
+  <data name="docs.committed" xml:space="preserve">
+    <value>{0} cannot be discarded: HEAD has {1}, and what is committed is undone with git.</value>
+  </data>
+  <data name="docs.referenced" xml:space="preserve">
+    <value>{0} cannot be discarded: {1} point to it, or to its entries; take those relations out first.</value>
+  </data>
+  <data name="docs.still-replaced" xml:space="preserve">
+    <value>{0} stays {1}: HEAD does not have it in another status; give it its own with fx doc status.</value>
   </data>
   <data name="docs.unchanged.move" xml:space="preserve">
     <value>{0} is already in {1}.</value>
@@ -1061,7 +1079,7 @@
     <value>The key {0} is taken in {1}.</value>
   </data>
   <data name="docs.unknown-target" xml:space="preserve">
-    <value>'{0}' is not a document of the catalog (its path, its identity) or an entry of a register (its key, its identity).</value>
+    <value>'{0}' is not a document of the catalog (its path, its identity) or an entry of a register (its key, its identity, register#name, or its name if no other entry has it).</value>
   </data>
   <data name="docs.invalid-relation.kind" xml:space="preserve">
     <value>'{0}' is not a kind of relation: {1}.</value>
@@ -1119,9 +1137,6 @@
   </data>
   <data name="docs.view.column.status" xml:space="preserve">
     <value>Status</value>
-  </data>
-  <data name="docs.view.column.updated" xml:space="preserve">
-    <value>Updated</value>
   </data>
   <data name="docs.view.column.entry" xml:space="preserve">
     <value>Entry</value>

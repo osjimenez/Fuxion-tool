@@ -10,8 +10,8 @@ namespace Fuxion.Tool.Core.Docs;
 
 /// <summary>
 /// The operations that write in a catalog (the SPEC of the module, 5.1 and 5.3): <c>new</c>, <c>finalize</c>,
-/// <c>status</c> and <c>relate</c>. Each works out a <see cref="DocChange"/>, checked with the validator of the module;
-/// the command writes it, or shows it (<c>--dry-run</c>).
+/// <c>status</c>, <c>relate</c>, <c>move</c> and <c>discard</c>. Each works out a <see cref="DocChange"/>, checked with
+/// the validator of the module; the command writes it, or shows it (<c>--dry-run</c>).
 /// </summary>
 public static partial class DocEditor
 {
@@ -24,6 +24,10 @@ public static partial class DocEditor
 	public const string Correction = "docs.correction";
 	public const string ViewsBySync = "docs.views-by-sync";
 	public const string HistoricalMove = "docs.historical-move";
+	public const string NoHistory = "docs.no-history";
+	public const string Committed = "docs.committed";
+	public const string Referenced = "docs.referenced";
+	public const string StillReplaced = "docs.still-replaced";
 
 	/// <summary>The environment variable of the actor, when <c>--actor</c> does not say it (plan U, decision 20).</summary>
 	public const string ActorVariable = "FX_DOCS_ACTOR";
@@ -215,7 +219,10 @@ public static partial class DocEditor
 		change.Set(document.Document.File.Sidecar!, finalized.ToJson());
 	}
 
-	/// <summary>A frozen document whose content changed, or a view edited by hand: it cannot be finalized as it is.</summary>
+	/// <summary>
+	/// A frozen document whose content changed, or a view edited by hand: it cannot be finalized as it is. Frozen, once
+	/// HEAD has it frozen (plan U, U6): until it is committed, its content is still a draft of whoever writes it.
+	/// </summary>
 	static bool Blocked(DocChange change, Loaded document)
 	{
 		if (!document.Edited)
@@ -223,7 +230,7 @@ public static partial class DocEditor
 		var file = change.Display(document.Document.File.Markdown!);
 		if (document.Type.Name == "view")
 			change.Diagnostics.Add(FxDiagnostic.Error(DocChecker.ViewEdited, new(DocChecker.ViewEdited, document.Path), file, fix: FxFix.Run("fx sync --adopt")));
-		else if (document.Type.IsFrozen(document.Sidecar.Status))
+		else if (document.Type.IsFrozen(document.Sidecar.Status) && DocHistory.Of(change.Catalog).Frozen(document.Document.File))
 			change.Diagnostics.Add(FxDiagnostic.Error(DocChecker.FrozenChanged, new(DocChecker.FrozenChanged, document.Path, document.Sidecar.Status), file,
 				fix: FxFix.Do(new FxText($"{DocChecker.FrozenChanged}.fix", document.Path))));
 		else
@@ -235,7 +242,8 @@ public static partial class DocEditor
 	/// <c>fx doc finalize</c> (the SPEC of the module, 5.3): the documents whose content or metadata changed (of
 	/// <paramref name="files"/>, or of the whole catalog), with their integrity again and <c>updatedAt</c> at
 	/// <paramref name="now"/>; the rest, untouched. A frozen one whose content changed, only with a
-	/// <paramref name="correction"/>, which goes at the end of its Markdown, in the language of the catalog.
+	/// <paramref name="correction"/>, which goes at the end of its Markdown, in the language of the catalog; an open one may
+	/// record one too.
 	/// </summary>
 	public static DocChange Finalize(DocCatalog catalog, Func<string, string> display, IReadOnlyList<DocFile>? files, string? correction, DateTimeOffset now)
 	{
@@ -251,9 +259,10 @@ public static partial class DocEditor
 			var metadataEdited = DocChecker.Json(file.Sidecar!) is { } json && DocIntegrity.Metadata(json) != document.Sidecar.Integrity!.Metadata;
 			if (correction is not null)
 			{
-				if (!document.Type.IsFrozen(document.Sidecar.Status))
+				// a frozen one needs it; an open one may record one too (plan U, U6); a view, never
+				if (document.Type.Name == "view")
 				{
-					change.Error(Correction, new($"{Correction}.not-frozen", document.Path, document.Sidecar.Status), display(file.Markdown!));
+					change.Error(Correction, new($"{Correction}.view", document.Path), display(file.Markdown!));
 					continue;
 				}
 				// the note at the end, with the line ends of the file
@@ -304,7 +313,8 @@ public static partial class DocEditor
 	/// <summary>
 	/// <c>fx doc relate</c>: a relation of <paramref name="file"/> to <paramref name="target"/>, added or taken out, kept
 	/// in the source only (the metadata model, 8). <c>supersedes</c> also puts the target in its status of the class
-	/// replaced, if its type has one, in the same change. Both, finalized.
+	/// replaced, if its type has one, in the same change; taken out, the target goes back to the status HEAD has it in.
+	/// Both, finalized.
 	/// </summary>
 	public static DocChange Relate(DocCatalog catalog, Func<string, string> display, DocFile file, string kind, DocFile target, bool remove, DateTimeOffset now)
 	{
@@ -329,7 +339,7 @@ public static partial class DocEditor
 				? source.Sidecar.Relations.Where(r => !(r.Kind == kind && string.Equals(r.TargetId, relation.TargetId, StringComparison.OrdinalIgnoreCase))).ToList()
 				: [.. source.Sidecar.Relations, relation];
 			Save(change, source, source.Sidecar with { Relations = relations }, now);
-			// the target of supersedes, replaced
+			// the target of supersedes, replaced; or no longer
 			if (!remove && kind == "supersedes" && other.Type.SupersededStatus is { } replaced && other.Sidecar.Status != replaced)
 			{
 				if (!other.Type.CanMove(other.Sidecar.Status, replaced))
@@ -337,7 +347,82 @@ public static partial class DocEditor
 				else if (!Blocked(change, other))
 					Save(change, other, other.Sidecar with { Status = replaced }, now);
 			}
+			else if (remove && kind == "supersedes")
+				Unsupersede(change, other, source.Sidecar.Id, now);
 		}
+		change.Verify();
+		return change;
+	}
+
+	/// <summary>
+	/// <paramref name="target"/>, no longer superseded by the document <paramref name="by"/> (plan U, U6): if it is in its
+	/// status of the class replaced and no other document supersedes it, back to the status HEAD has it in; as HEAD has it,
+	/// if nothing else of it changed. If HEAD does not have it in another status, it stays, and a warning says so.
+	/// </summary>
+	static void Unsupersede(DocChange change, Loaded target, string by, DateTimeOffset now)
+	{
+		if (target.Type.SupersededStatus is not { } replaced || target.Sidecar.Status != replaced)
+			return;
+		if (DocChecker.Read(change.Catalog).Any(d => !string.Equals(d.Sidecar.Id, by, StringComparison.OrdinalIgnoreCase)
+		                                             && d.Sidecar.Relations.Any(r => r.Kind == "supersedes" && string.Equals(r.TargetId, target.Sidecar.Id, StringComparison.OrdinalIgnoreCase))))
+			return;
+		var sidecar = target.Document.File.Sidecar!;
+		if (DocHistory.Of(change.Catalog).Sidecar(sidecar) is not { } committed || committed.Status == replaced || !target.Type.Statuses.Contains(committed.Status))
+		{
+			change.Diagnostics.Add(FxDiagnostic.Warning(StillReplaced, new(StillReplaced, target.Path, replaced), change.Display(sidecar)));
+			return;
+		}
+		var back = target.Sidecar with { Status = committed.Status };
+		var asCommitted = (back with { UpdatedAt = committed.UpdatedAt }).Seal(target.Content).ToJson();
+		if (asCommitted == committed.ToJson())
+			change.Set(sidecar, asCommitted);
+		else if (!Blocked(change, target))
+			Save(change, target, back, now);
+	}
+
+	/// <summary>
+	/// <c>fx doc discard</c> (plan U, U6): a document born since the last commit, gone as if it had never been: its pair,
+	/// its annexes, and what its <c>supersedes</c> did to their targets, undone. Not one of which HEAD has a file (an
+	/// adopted one has its Markdown there), nor one another document or entry points to; without git, none.
+	/// </summary>
+	public static DocChange Discard(DocCatalog catalog, Func<string, string> display, DocFile file, DateTimeOffset now)
+	{
+		var change = new DocChange(catalog, display);
+		if (Load(change, file) is not { } document)
+			return change;
+		var markdown = display(file.Markdown!);
+		var files = new List<string> { file.Markdown!, file.Sidecar! };
+		var annexes = catalog.Annexes(file);
+		if (FxFiles.DirectoryExists(annexes))
+			files.AddRange(FxFiles.EnumerateFiles(annexes, "*", System.IO.SearchOption.AllDirectories).Order(StringComparer.Ordinal));
+		var history = DocHistory.Of(catalog);
+		if (!history.Known)
+		{
+			change.Error(NoHistory, new(NoHistory, document.Path), markdown);
+			return change;
+		}
+		if (files.FirstOrDefault(history.Has) is { } committed)
+		{
+			change.Error(Committed, new(Committed, document.Path, display(committed)), markdown);
+			return change;
+		}
+		// what points to it, or to its entries
+		var ids = new HashSet<string>(document.Sidecar.Entries.Select(e => e.Id).Append(document.Sidecar.Id), StringComparer.OrdinalIgnoreCase);
+		var documents = DocChecker.Read(catalog);
+		var pointing = documents.Where(d => d.File != file && d.Sidecar.Relations.Concat(d.Sidecar.Entries.SelectMany(e => e.Relations)).Any(r => ids.Contains(r.TargetId)))
+			.Select(d => d.File.Path)
+			.ToList();
+		if (pointing.Count > 0)
+		{
+			change.Error(Referenced, new(Referenced, document.Path, string.Join(", ", pointing)), markdown);
+			return change;
+		}
+		foreach (var relation in document.Sidecar.Relations.Where(r => r.Kind == "supersedes"))
+			if (documents.FirstOrDefault(d => string.Equals(d.Sidecar.Id, relation.TargetId, StringComparison.OrdinalIgnoreCase)) is { } target && Load(change, target.File) is { } other)
+				Unsupersede(change, other, document.Sidecar.Id, now);
+		foreach (var path in files)
+			change.Delete(path);
+		change.Documents.Add(document.Path);
 		change.Verify();
 		return change;
 	}

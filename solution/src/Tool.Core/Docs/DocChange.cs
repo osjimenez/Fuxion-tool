@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using Fuxion.Tool.Core.Layout;
 using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Text;
@@ -24,6 +25,8 @@ public sealed record DocFileMove(string From, string To);
 public sealed class DocChange(DocCatalog catalog, Func<string, string> display)
 {
 	public const string ChangedOnDisk = "docs.changed-on-disk";
+	public const string FileLocked = "docs.file-locked";
+	public const string WriteFailed = "docs.write-failed";
 
 	static readonly StringComparer Paths = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
 
@@ -159,37 +162,155 @@ public sealed class DocChange(DocCatalog catalog, Func<string, string> display)
 		}
 	}
 
+	/// <summary>How many times a file another process has open is tried, and how long it waits between two tries.</summary>
+	const int Tries = 5;
+
+	static readonly TimeSpan Pause = TimeSpan.FromMilliseconds(100);
+
+	/// <summary><paramref name="path"/>, open for this change alone; null if another process has it open, or it is gone.</summary>
+	static FileStream? Hold(string path)
+	{
+		for (var attempt = 1; ; attempt++)
+			try
+			{
+				return new(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+			}
+			catch (IOException) when (attempt < Tries && File.Exists(path))
+			{
+				Thread.Sleep(Pause);
+			}
+			catch (IOException)
+			{
+				return null;
+			}
+	}
+
+	static byte[] ReadAll(FileStream stream)
+	{
+		var bytes = new byte[stream.Length];
+		stream.Position = 0;
+		stream.ReadExactly(bytes);
+		return bytes;
+	}
+
+	static void Replace(FileStream stream, byte[] content)
+	{
+		stream.SetLength(0);
+		stream.Write(content);
+		stream.Flush();
+	}
+
 	/// <summary>
-	/// Does it, if it has no errors and no file it touches changed on disk since it was read; whether it did. A file it
-	/// writes is UTF-8 without a byte order mark, its folder made if missing; a folder a removal leaves empty, in the
-	/// catalog, goes too.
+	/// Does it, if it has no errors and no file it touches changed on disk since it was read; whether it did. All or
+	/// nothing (the SPEC of the module, 14): first it opens, for itself alone, every file it changes that exists, and if
+	/// another process has one open, it writes nothing (<see cref="FileLocked"/>); if writing fails halfway, what it wrote
+	/// goes back to what it was (<see cref="WriteFailed"/>). A file it writes is UTF-8 without a byte order mark, its folder
+	/// made if missing; a folder a removal leaves empty, in the catalog, goes too.
 	/// </summary>
 	public bool Write()
 	{
 		if (!Ok || !Changed)
 			return false;
-		foreach (var (path, (before, _)) in _files)
+		var changes = _files.Where(f => !Same(f.Value.Before, f.Value.After)).Select(f => (Path: f.Key, f.Value.Before, f.Value.After)).ToList();
+		var held = new Dictionary<string, FileStream>(Paths);
+		try
 		{
-			var now = File.Exists(path) ? File.ReadAllBytes(path) : null;
-			if (now is null != before is null || now is not null && !now.AsSpan().SequenceEqual(before))
+			// 1. what each file has: what it had when the change read it; those that exist, held until the end
+			foreach (var (path, (before, _)) in _files)
 			{
-				Error(ChangedOnDisk, new(ChangedOnDisk, display(path)));
+				byte[]? now;
+				if (before is not null && changes.Any(c => Paths.Equals(c.Path, path)))
+				{
+					FileStream? stream;
+					try
+					{
+						stream = Hold(path);
+					}
+					catch (UnauthorizedAccessException ex)
+					{
+						Error(WriteFailed, new(WriteFailed, display(path), ex.Message));
+						return false;
+					}
+					if (stream is null)
+					{
+						Error(File.Exists(path) ? FileLocked : ChangedOnDisk, new(File.Exists(path) ? FileLocked : ChangedOnDisk, display(path)));
+						return false;
+					}
+					held[path] = stream;
+					now = ReadAll(stream);
+				}
+				else
+					now = File.Exists(path) ? File.ReadAllBytes(path) : null;
+				if (!Same(before, now))
+				{
+					Error(ChangedOnDisk, new(ChangedOnDisk, display(path)));
+					return false;
+				}
+			}
+
+			// 2. written: those that exist, then the new ones, then the removals; what fails, undone
+			var done = new List<(string Path, byte[]? Before)>();
+			var current = "";
+			try
+			{
+				foreach (var (path, before, after) in changes.Where(c => c.After is not null).OrderBy(c => c.Before is null))
+				{
+					current = path;
+					if (held.TryGetValue(path, out var stream))
+						Replace(stream, after!);
+					else
+					{
+						Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+						using var created = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+						created.Write(after);
+					}
+					done.Add((path, before));
+				}
+				foreach (var (path, before, _) in changes.Where(c => c.After is null))
+				{
+					current = path;
+					held.Remove(path, out var stream);
+					stream?.Dispose();
+					File.Delete(path);
+					done.Add((path, before));
+				}
+			}
+			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+			{
+				Undo(done, held);
+				Error(WriteFailed, new(WriteFailed, display(current), ex.Message));
 				return false;
 			}
+			foreach (var (path, _, _) in changes.Where(c => c.After is null))
+				for (var folder = Path.GetDirectoryName(path); folder is not null && catalog.Contains(folder) && !Paths.Equals(Path.TrimEndingDirectorySeparator(folder),
+					     Path.TrimEndingDirectorySeparator(catalog.Folder)) && Directory.Exists(folder) && !Directory.EnumerateFileSystemEntries(folder).Any();
+				     folder = Path.GetDirectoryName(folder))
+					Directory.Delete(folder);
+			return true;
 		}
-		foreach (var (path, (_, after)) in _files.Where(f => f.Value.After is null))
+		finally
 		{
-			File.Delete(path);
-			for (var folder = Path.GetDirectoryName(path); folder is not null && catalog.Contains(folder) && !Paths.Equals(Path.TrimEndingDirectorySeparator(folder),
-				     Path.TrimEndingDirectorySeparator(catalog.Folder)) && Directory.Exists(folder) && !Directory.EnumerateFileSystemEntries(folder).Any();
-			     folder = Path.GetDirectoryName(folder))
-				Directory.Delete(folder);
+			foreach (var stream in held.Values)
+				stream.Dispose();
 		}
-		foreach (var (path, (_, after)) in _files.Where(f => f.Value.After is not null))
-		{
-			Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-			File.WriteAllBytes(path, after!);
-		}
-		return true;
+	}
+
+	/// <summary>What <see cref="Write"/> did before it failed, back to what it was, as far as it can.</summary>
+	static void Undo(IEnumerable<(string Path, byte[]? Before)> done, IReadOnlyDictionary<string, FileStream> held)
+	{
+		foreach (var (path, before) in done.Reverse())
+			try
+			{
+				if (held.TryGetValue(path, out var stream))
+					Replace(stream, before!);
+				else if (before is null)
+					File.Delete(path);
+				else
+					File.WriteAllBytes(path, before);
+			}
+			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+			{
+				// what cannot go back stays; the error says which file failed
+			}
 	}
 }

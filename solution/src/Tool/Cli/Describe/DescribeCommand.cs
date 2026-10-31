@@ -108,9 +108,17 @@ public static class DescribeCommand
 			var info = c.Command.Info();
 			return new JsonCommand(c.Name, c.Command.Description ?? "",
 				c.Command.Arguments.Select(a => new JsonArgument(a.Name, a.Description ?? "", Arity(a.Arity))).ToList(),
-				c.Command.Options.Select(Option).ToList(),
+				// its own, and those it takes from a command above it that is not the root (fx doc --actor)
+				c.Command.Options.Concat(Ancestors(c.Command).Where(p => p != root).SelectMany(p => p.Options.Where(o => o.Recursive))).Select(Option).ToList(),
 				info?.Schema, info?.Writes ?? false, info?.Network ?? false, c.Command.HasDryRun(), info?.Interactive ?? false);
 		}).ToList(), global, ExitCodes.Select(code => new JsonExitCode(code, English(() => Texts.Get($"describe.exit-code.{code}")))).ToList(), []);
+	}
+
+	/// <summary>The commands above <paramref name="command"/>, from its parent up.</summary>
+	static IEnumerable<Command> Ancestors(Command command)
+	{
+		for (var parent = command.Parents.OfType<Command>().FirstOrDefault(); parent is not null; parent = parent.Parents.OfType<Command>().FirstOrDefault())
+			yield return parent;
 	}
 
 	static JsonOption Option(Option option)

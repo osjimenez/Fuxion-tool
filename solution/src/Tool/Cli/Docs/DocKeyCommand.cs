@@ -16,19 +16,17 @@ public static class DocKeyCommand
 {
 	public const string Schema = "fx-doc-key/1";
 
-	public static Command Create(GlobalOptions global, string currentDirectory)
+	public static Command Create(GlobalOptions global, string currentDirectory, Option<string?> actor)
 	{
 		var register = new Argument<string>("register") { Description = Texts.Get("doc.entry.register") };
 		var title = new Argument<string?>("title") { Description = Texts.Get("doc.key.title"), Arity = ArgumentArity.ZeroOrOne };
 		var confirm = new Option<bool>("--confirm") { Description = Texts.Get("doc.key.confirm") };
-		var actor = new Option<string?>("--actor") { Description = Texts.Get("doc.new.actor", DocEditor.ActorVariable), HelpName = "actor" };
 		var dryRun = new Option<bool>("--dry-run") { Description = Texts.Get("doc.key.dry-run") };
-		var command = new Command("key", Texts.Get("doc.key")) { register, title, confirm, actor, dryRun }.Describe(Schema, writes: true, network: true);
+		var command = new Command("key", Texts.Get("doc.key")) { register, title, confirm, dryRun }.Describe(Schema, writes: true, network: true);
 		command.SetAction(result =>
 		{
 			var console = MountCommand.Console(result, global, currentDirectory);
-			return console.Run(_ => Key(console, result.GetValue(register)!, result.GetValue(title), result.GetValue(confirm),
-				result.GetValue(actor) ?? Environment.GetEnvironmentVariable(DocEditor.ActorVariable), result.GetValue(dryRun)));
+			return console.Run(_ => Key(console, result.GetValue(register)!, result.GetValue(title), result.GetValue(confirm), DocCommand.Actor(result, actor), result.GetValue(dryRun)));
 		});
 		return command;
 	}

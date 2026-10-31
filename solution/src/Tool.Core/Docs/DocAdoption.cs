@@ -479,6 +479,18 @@ public static partial class DocAdoption
 				change.Error(InvalidManifest, new($"{InvalidManifest}.alias", relation.To), target.File, relation.Line);
 				return null;
 			}
+			// an entry by its register and its name: of the manifests, or of a register of the catalog
+			if (relation.To.LastIndexOf(DocEditor.EntrySeparator) is > 0 and var at)
+			{
+				var register = Full(relation.To[..at]);
+				var name = relation.To[(at + 1)..];
+				if (entries.FirstOrDefault(e => Paths.Equals(e.Register, register) && e.Entry.Name == name).Entry is { } listed)
+					return listed.Id;
+				if (documents.FirstOrDefault(d => Paths.Equals(d.File.Markdown, register))?.Sidecar.Entries.FirstOrDefault(e => e.Name == name) is { } existing)
+					return existing.Id;
+				change.Error(InvalidManifest, new($"{InvalidManifest}.relation-target", relation.To), target.File, relation.Line);
+				return null;
+			}
 			var to = Full(relation.To);
 			if (news.TryGetValue(to, out var known))
 				return known.Id;

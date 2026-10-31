@@ -45,13 +45,33 @@ public static partial class DocEditor
 	/// <summary>The status of an entry that closes, unless it says another.</summary>
 	public const string ClosedStatus = "closed";
 
+	/// <summary>What joins a register and the name of one of its entries: <c>ideas/REGISTER-ideas.md#the-name</c>.</summary>
+	public const char EntrySeparator = '#';
+
 	/// <summary>The entry of <paramref name="register"/> that <paramref name="selector"/> names: its name, its key or its identity.</summary>
 	public static DocEntry? FindEntry(DocSidecar register, string selector)
 		=> register.Entries.FirstOrDefault(e => e.Name == selector || e.Key == selector || string.Equals(e.Id, selector, StringComparison.OrdinalIgnoreCase));
 
 	/// <summary>
-	/// The identity <paramref name="selector"/> names: a document (its path, its identity) or an entry of a register (its
-	/// key, its identity); null if it names none, or several.
+	/// The entry of a register of the catalog that <paramref name="selector"/> names (plan U, U6): its key, its identity, its
+	/// register and its name (<c>ideas/REGISTER-ideas.md#the-name</c>), or its name alone if no other entry has it; null
+	/// if it names none, or several.
+	/// </summary>
+	public static DocEntry? FindEntry(DocCatalog catalog, IReadOnlyList<DocDocument> documents, string selector, string currentDirectory)
+	{
+		var registers = documents.Where(d => d.Sidecar.Entries.Count > 0).ToList();
+		if (registers.SelectMany(d => d.Sidecar.Entries).FirstOrDefault(e => e.Key == selector || string.Equals(e.Id, selector, StringComparison.OrdinalIgnoreCase)) is { } found)
+			return found;
+		if (selector.LastIndexOf(EntrySeparator) is > 0 and var at)
+			return catalog.Select(selector[..at], currentDirectory) is [var file] && registers.FirstOrDefault(d => d.File == file) is { } register
+				? register.Sidecar.Entries.FirstOrDefault(e => e.Name == selector[(at + 1)..])
+				: null;
+		return registers.SelectMany(d => d.Sidecar.Entries).Where(e => e.Name == selector).ToList() is [var only] ? only : null;
+	}
+
+	/// <summary>
+	/// The identity <paramref name="selector"/> names: a document (its path, its identity) or an entry of a register (as
+	/// <see cref="FindEntry(DocCatalog, IReadOnlyList{DocDocument}, string, string)"/> finds it); null if it names none, or several.
 	/// </summary>
 	public static string? Target(DocCatalog catalog, string selector, string currentDirectory, IReadOnlyList<DocDocument>? documents = null)
 	{
@@ -59,7 +79,7 @@ public static partial class DocEditor
 		var ids = documents.GroupBy(d => d.Sidecar.Id, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First().File, StringComparer.OrdinalIgnoreCase);
 		if (catalog.Select(selector, currentDirectory, ids) is [var file] && documents.FirstOrDefault(d => d.File == file) is { } document)
 			return document.Sidecar.Id;
-		return documents.SelectMany(d => d.Sidecar.Entries).FirstOrDefault(e => e.Key == selector || string.Equals(e.Id, selector, StringComparison.OrdinalIgnoreCase))?.Id;
+		return FindEntry(catalog, documents, selector, currentDirectory)?.Id;
 	}
 
 	static Loaded? Register(DocChange change, DocFile file)
@@ -97,12 +117,6 @@ public static partial class DocEditor
 		return result.ToList();
 	}
 
-	/// <summary>
-	/// <c>fx doc entry add</c>: a new entry at the end of <paramref name="file"/>, a register, which is finalized. Its name,
-	/// from its title unless it says one, unique in the register; its status, <see cref="OpenStatus"/> unless it says one;
-	/// in a register with keys, its key from the provider unless it says one (<paramref name="reserve"/> false, a dry run:
-	/// the one it would get, reserving nothing; <paramref name="actor"/>, who reserves it).
-	/// </summary>
 	/// <summary>The longest name of an entry: a tag of the standard.</summary>
 	public const int MaxEntryName = 64;
 
@@ -119,8 +133,14 @@ public static partial class DocEditor
 		return dash > 0 ? slug[..dash] : slug[..MaxEntryName].TrimEnd('-');
 	}
 
+	/// <summary>
+	/// <c>fx doc entry add</c>: a new entry at the end of <paramref name="file"/>, a register, which is finalized. Its name,
+	/// from its title unless it says one, unique in the register; its status, <see cref="OpenStatus"/> unless it says one;
+	/// in a register with keys, its key from the provider unless it says one (<paramref name="reserve"/> false, a dry run:
+	/// the one it would get, reserving nothing; <paramref name="actor"/>, who reserves it, needed then).
+	/// </summary>
 	public static DocChange AddEntry(DocCatalog catalog, Func<string, string> display, string currentDirectory, DocFile file, string title, DocEntryEdit edit,
-		DateTimeOffset now, string actor = "fx", bool reserve = true)
+		DateTimeOffset now, string? actor = null, bool reserve = true)
 	{
 		var change = new DocChange(catalog, display);
 		if (Register(change, file) is not { } register)
@@ -144,7 +164,10 @@ public static partial class DocEditor
 		var key = edit.Key;
 		if (key is null && DocKeys.Keyed(catalog, file) is { } keyed)
 		{
-			var reserved = DocKeys.Reserve(catalog, file, keyed, register.Sidecar.Entries.Select(e => e.Key).OfType<string>(), actor, title, reserve);
+			// who reserves it, as fx doc key (plan U, U6)
+			if (!Actor(change, actor))
+				return change;
+			var reserved = DocKeys.Reserve(catalog, file, keyed, register.Sidecar.Entries.Select(e => e.Key).OfType<string>(), actor!, title, reserve);
 			key = reserved.Key;
 			if (reserved.Problem is not null)
 				change.Diagnostics.Add(FxDiagnostic.Warning(DocKeys.ProvisionalKey, new(DocKeys.ProvisionalKey, key, reserved.Problem), display(file.Sidecar!),
@@ -257,9 +280,12 @@ public static partial class DocEditor
 	/// <summary>The full path of the <c>docs.yaml</c> of <paramref name="catalog"/>.</summary>
 	static string ConfigFile(DocCatalog catalog) => Layout.FxLayout.Full(catalog.Root, DocsModule.ConfigFile);
 
-	/// <summary>The identity of the entry <paramref name="selector"/> names (its key, its identity) in any register of the catalog; null if none.</summary>
-	public static string? EntryTarget(DocCatalog catalog, string selector)
-		=> DocChecker.Read(catalog).SelectMany(d => d.Sidecar.Entries).FirstOrDefault(e => e.Key == selector || string.Equals(e.Id, selector, StringComparison.OrdinalIgnoreCase))?.Id;
+	/// <summary>
+	/// The identity of the entry <paramref name="selector"/> names in any register of the catalog (its key, its identity, its
+	/// register and its name, or its name alone if it is the only one); null if none.
+	/// </summary>
+	public static string? EntryTarget(DocCatalog catalog, string selector, string currentDirectory)
+		=> FindEntry(catalog, DocChecker.Read(catalog), selector, currentDirectory)?.Id;
 
 	/// <summary><c>fx doc relate</c> to an entry of a register: as to a document, but an entry is of the type "entry" for the rules.</summary>
 	public static DocChange RelateToEntry(DocCatalog catalog, Func<string, string> display, DocFile file, string kind, string entryId, bool remove, DateTimeOffset now)

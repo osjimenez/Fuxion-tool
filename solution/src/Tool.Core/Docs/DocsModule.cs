@@ -147,8 +147,15 @@ public static class DocsModule
 			var status = context.Write ? SyncFileStatus.Written : SyncFileStatus.WouldWrite;
 			if (context.Write)
 			{
-				File.WriteAllText(markdown, expected, new UTF8Encoding(false));
-				File.WriteAllText(view.File.Sidecar!, sidecar.ToJson(), new UTF8Encoding(false));
+				// its pair, all or nothing, as every change of the catalog
+				var change = new DocChange(catalog, display);
+				change.Set(markdown, expected!);
+				change.Set(view.File.Sidecar!, sidecar.ToJson());
+				if (!change.Write())
+				{
+					diagnostics.AddRange(change.Diagnostics);
+					status = SyncFileStatus.Refused;
+				}
 			}
 			files.Add(new(display(markdown), status));
 			files.Add(new(display(view.File.Sidecar!), status));
