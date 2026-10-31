@@ -316,8 +316,20 @@
   <data name="space.invalid-config.name" xml:space="preserve">
     <value>Name '{0}': lowercase letters, digits and '-' (like 'acme' or 'my-repo').</value>
   </data>
-  <data name="space.invalid-config.visibility" xml:space="preserve">
-    <value>visibility '{0}': private or public.</value>
+  <data name="space.invalid-config.audience" xml:space="preserve">
+    <value>audience '{0}': one of the catalog of audiences ({1}).</value>
+  </data>
+  <data name="space.invalid-config.audiences" xml:space="preserve">
+    <value>'audiences' must be a list of audiences (name, description), from the widest to the narrowest.</value>
+  </data>
+  <data name="space.invalid-config.audience-entry" xml:space="preserve">
+    <value>Each audience needs its name (name, description).</value>
+  </data>
+  <data name="space.invalid-config.audience-name" xml:space="preserve">
+    <value>The audience '{0}' is not a name: lowercase letters, digits and '-'.</value>
+  </data>
+  <data name="space.invalid-config.duplicate-audience" xml:space="preserve">
+    <value>The audience '{0}' is already in the catalog.</value>
   </data>
   <data name="space.invalid-config.requires" xml:space="preserve">
     <value>requires '{0}': a version major.minor.patch, like 1.4.0.</value>
@@ -342,6 +354,9 @@
   </data>
   <data name="space.tag-redefined" xml:space="preserve">
     <value>The tag '{0}' is already defined above: it stays as it was.</value>
+  </data>
+  <data name="space.audiences-redefined" xml:space="preserve">
+    <value>The audiences are already defined above: they stay as they were.</value>
   </data>
   <data name="space.name-missing" xml:space="preserve">
     <value>This space has no name: its _fx/space.yaml needs one ('{0}' is used meanwhile).</value>
@@ -390,6 +405,18 @@
   </data>
   <data name="mounts.unknown-tag.fix" xml:space="preserve">
     <value>Add it to the tags of _fx/space.yaml, or use one that is there.</value>
+  </data>
+  <data name="mounts.space-audience" xml:space="preserve">
+    <value>'{0}' is a space: its audience is its own ({1}, in its _fx/space.yaml), not the {2} of mounts.yaml.</value>
+  </data>
+  <data name="mounts.space-audience.fix" xml:space="preserve">
+    <value>Take audience out of its mount in _fx/mounts/mounts.yaml, or change it in the _fx/space.yaml of the space.</value>
+  </data>
+  <data name="mounts.unknown-audience" xml:space="preserve">
+    <value>The audience '{0}' of '{1}' is not in the catalog of audiences ({2}).</value>
+  </data>
+  <data name="mounts.unknown-audience.fix" xml:space="preserve">
+    <value>Use one of the audiences of _fx/space.yaml, or add it there.</value>
   </data>
   <data name="space.invalid-parent" xml:space="preserve">
     <value>The configuration of the parent space is not valid.</value>

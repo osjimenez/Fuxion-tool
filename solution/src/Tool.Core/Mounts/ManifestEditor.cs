@@ -52,10 +52,10 @@ public static partial class ManifestEditor
 	public static readonly IReadOnlyList<string> KnownModules = [MountsModule.Name, DotnetModule.Name, Harness.HarnessModule.Name, Docs.DocsModule.Name];
 
 	/// <summary>The keys of a mount, in the order fx writes them.</summary>
-	public static readonly IReadOnlyList<string> MountKeys = ["name", "aliases", "url", "path", "required", "mode", "inherits", "depends-on", "tags"];
+	public static readonly IReadOnlyList<string> MountKeys = ["name", "aliases", "url", "path", "required", "mode", "audience", "inherits", "depends-on", "tags"];
 
 	/// <summary>What <see cref="SetRepository"/> changes (the name is the identity; the tags, <see cref="TagRepository"/>).</summary>
-	public static readonly IReadOnlyList<string> SettableKeys = ["url", "path", "required", "mode", "inherits", "depends-on"];
+	public static readonly IReadOnlyList<string> SettableKeys = ["url", "path", "required", "mode", "audience", "inherits", "depends-on"];
 
 	static readonly IReadOnlyList<string> ListKeys = ["depends-on"];
 
@@ -181,6 +181,7 @@ public static partial class ManifestEditor
 		{
 			"required" or "inherits" => ["true", "false"],
 			"mode" => [.. MountsManifest.Modes],
+			"audience" => [.. new FxNode(root).Config().AudienceCatalog.Select(a => a.Name)],
 			_ => null
 		};
 		if ((!ListKeys.Contains(key) && values.Count > 1) || (allowed is not null && !allowed.Contains(values[0])))
@@ -302,8 +303,9 @@ public static partial class ManifestEditor
 
 	/// <summary>
 	/// <c>fx init</c> (plan spaces, decision 14): the folder at <paramref name="root"/> becomes a space, with its
-	/// <c>_fx/space.yaml</c> and its <paramref name="name"/> (by default, the folder's), and nothing more. Not where there
-	/// is one already; inside a space it is a space of its own, and a mounted one declares what is its own.
+	/// <c>_fx/space.yaml</c>, its <paramref name="name"/> (by default, the folder's) and its audience (the widest,
+	/// public, written so that it shows: the audience ADR), and nothing more. Not where there is one already; inside a
+	/// space it is a space of its own, and a mounted one declares what is its own.
 	/// </summary>
 	public static ManifestChange Init(string root, string? name = null)
 	{
@@ -311,6 +313,7 @@ public static partial class ManifestEditor
 		if (FxFiles.Exists(SpacePath(root)))
 			return s.Error(SpaceExists, new FxText(SpaceExists, FxLayout.ConfigFile));
 		s.Apply(s.Current.AddKey("", "name", name ?? NameOf(root), after: "schema"));
+		s.Apply(s.Current.AddKey("", "audience", SpaceConfig.DefaultAudiences[0].Name, after: "name"));
 		return s.Done();
 	}
 

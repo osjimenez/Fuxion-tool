@@ -191,7 +191,7 @@ public static class SyncEngine
 				.Where(a => a != fullName)
 				.Distinct()
 				.ToList();
-			identity = new(parent.Declaration.Name, fullName, parent.Declaration.Tags, aliases);
+			identity = new(parent.Declaration.Name, fullName, parent.Declaration.Tags, aliases, MountsModule.AudienceOf(node, parent.Declaration, parent.Node.Config()));
 		}
 		var label = isStart && node.HasMounts ? null : identity.Name;
 		var diagnostics = first ?? new FxDiagnostics(context.Progress, label);

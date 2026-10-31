@@ -85,6 +85,8 @@ public static class FxTree
 
 		// what it versions (the paths of its space.yaml) and what it generates and versions (the .gitignore, its solutions)
 		var space = node.OwnConfig();
+		// the audience of each mount (the audience ADR)
+		var config = node.Config();
 		foreach (var path in (space.Paths ?? []).Where(p => !p.Exclude))
 		{
 			var full = node.Full(path.Path);
@@ -104,7 +106,7 @@ public static class FxTree
 		foreach (var state in MountsModule.Repositories(manifest, withStatus: false, copies: copies))
 		{
 			var repo = state.Repository;
-			var childIdentity = new FxIdentity(repo.Name, $"{identity.FullName}/{repo.Name}", repo.Tags, repo.Aliases);
+			var childIdentity = new FxIdentity(repo.Name, $"{identity.FullName}/{repo.Name}", repo.Tags, repo.Aliases, MountsModule.AudienceOf(new FxNode(state.FullPath), repo, config));
 			FxTreeNode child;
 			if (state.Present)
 			{

@@ -196,6 +196,9 @@
   <data name="mount.column.path" xml:space="preserve">
     <value>Ruta</value>
   </data>
+  <data name="mount.column.audience" xml:space="preserve">
+    <value>Audiencia</value>
+  </data>
   <data name="mount.column.mode" xml:space="preserve">
     <value>Modo</value>
   </data>
@@ -323,7 +326,7 @@
     <value>Space</value>
   </data>
   <data name="init" xml:space="preserve">
-    <value>Hace de esta carpeta un space: su _fx/space.yaml, con su nombre, y nada más.</value>
+    <value>Hace de esta carpeta un space: su _fx/space.yaml, con su nombre y su audiencia (public, la más amplia, escrita para que se vea), y nada más.</value>
   </data>
   <data name="init.name" xml:space="preserve">
     <value>Su nombre (por defecto, el de la carpeta, en minúsculas con '-').</value>
@@ -723,6 +726,9 @@
   </data>
   <data name="ui.mount.parkable" xml:space="preserve">
     <value>se puede aparcar</value>
+  </data>
+  <data name="ui.audience" xml:space="preserve">
+    <value>Audiencia</value>
   </data>
   <data name="ui.mode" xml:space="preserve">
     <value>Modo</value>

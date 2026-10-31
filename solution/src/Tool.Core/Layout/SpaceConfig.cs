@@ -11,12 +11,11 @@ namespace Fuxion.Tool.Core.Layout;
 /// <summary>A tag of the catalog: its name and what it means (plan P, decision 21).</summary>
 public sealed record FxTag(string Name, string? Description, int Line = 0);
 
-/// <summary>Whether a space is public or private (plan spaces, decision 23): what may live in it. Undeclared, private.</summary>
-public enum SpaceVisibility
-{
-	Private,
-	Public
-}
+/// <summary>
+/// An audience of the catalog: who may read something (the audience ADR, 31-oct): its name and what it means. The
+/// catalog goes from the widest audience to the narrowest.
+/// </summary>
+public sealed record FxAudience(string Name, string? Description, int Line = 0);
 
 /// <summary>
 /// What the git of the space versions (plan P, decision 8; plan spaces, decision 11): a file, or a folder (ending in
@@ -33,21 +32,41 @@ public sealed record SpaceShare(string Path, string Destination, FxAppliesTo App
 
 /// <summary>
 /// <c>_fx/space.yaml</c>, the descriptor of a space (plan spaces, decisions 3, 11, 19 and 23). <c>name</c>: the name of a
-/// root space (nobody mounts it); in a sub-space, only a proposal. <c>visibility</c>: public or private. <c>requires</c>:
-/// the minimum version of fx. <c>tags</c>: the catalog of tags. <c>paths</c>: what its git versions. <c>shares</c>: what
-/// it gives what it mounts. Only <c>requires</c> and the tags are inherited: a space below adds its own tags, but does
-/// not redefine those from above.
+/// root space (nobody mounts it); in a sub-space, only a proposal. <c>audience</c>: who may read what is its own (one
+/// of the catalog; undeclared, the widest). <c>audiences</c>: the catalog of audiences, from the widest to the narrowest
+/// (undeclared, public and private). <c>requires</c>: the minimum version of fx. <c>tags</c>: the catalog of tags.
+/// <c>paths</c>: what its git versions. <c>shares</c>: what it gives what it mounts. Only <c>requires</c> and the two
+/// catalogs are inherited: a space below adds its own tags, but does not redefine those from above, nor the audiences.
+/// fx only reads, validates and shows the audience; what may be written for each one is for whoever reviews.
 /// </summary>
 public sealed partial record SpaceConfig(
 	string? Name,
 	string? Requires,
 	IReadOnlyList<FxTag> Tags,
-	SpaceVisibility Visibility = SpaceVisibility.Private,
+	string? Audience = null,
 	IReadOnlyList<SpacePath>? Paths = null,
-	IReadOnlyList<SpaceShare>? Shares = null)
+	IReadOnlyList<SpaceShare>? Shares = null,
+	IReadOnlyList<FxAudience>? Audiences = null,
+	int AudienceLine = 0)
 {
 	public const string Invalid = "space.invalid-config";
 	public const string TagRedefined = "space.tag-redefined";
+	public const string AudiencesRedefined = "space.audiences-redefined";
+
+	/// <summary>The catalog of audiences of a space that declares none: public and private.</summary>
+	public static IReadOnlyList<FxAudience> DefaultAudiences { get; } = [new("public", "Anyone."), new("private", "Only its owner, and whom they share it with.")];
+
+	/// <summary>The catalog of audiences in force: the declared one, or public and private.</summary>
+	public IReadOnlyList<FxAudience> AudienceCatalog => Audiences is { Count: > 0 } ? Audiences : DefaultAudiences;
+
+	/// <summary>The widest audience of the catalog: that of what does not declare one.</summary>
+	public string WidestAudience => AudienceCatalog[0].Name;
+
+	/// <summary>The audience of what is its own: the declared one, or the widest.</summary>
+	public string OwnAudience => Audience ?? WidestAudience;
+
+	/// <summary>Whether the catalog of audiences has <paramref name="audience"/>.</summary>
+	public bool KnowsAudience(string audience) => AudienceCatalog.Any(a => string.Equals(a.Name, audience, StringComparison.Ordinal));
 
 	public static SpaceConfig Empty { get; } = new(null, null, []);
 
@@ -70,14 +89,28 @@ public sealed partial record SpaceConfig(
 		var config = Empty;
 		if (reader.Load(text) is { } map)
 		{
-			reader.Keys(map, "schema", "name", "visibility", "requires", "tags", "paths", "shares");
+			reader.Keys(map, "schema", "name", "audience", "audiences", "requires", "tags", "paths", "shares");
 			var name = FxYamlReader.Scalar(map["name"]);
 			if (name is not null && !NamePattern().IsMatch(name))
 				reader.Error(map["name"], "name", name);
-			var visibilityText = FxYamlReader.Scalar(map["visibility"]);
-			var visibility = visibilityText is null or "private" ? SpaceVisibility.Private : visibilityText == "public" ? SpaceVisibility.Public : (SpaceVisibility?)null;
-			if (visibility is null)
-				reader.Error(map["visibility"], "visibility", visibilityText);
+			var audience = FxYamlReader.Scalar(map["audience"]);
+			var audiences = new List<FxAudience>();
+			if (map["audiences"] is YamlSequence audienceList)
+				foreach (var item in audienceList.Items)
+					if (item is YamlMapping entry && FxYamlReader.Scalar(entry["name"]) is { Length: > 0 } audienceName)
+					{
+						reader.Keys(entry, "name", "description");
+						if (!NamePattern().IsMatch(audienceName))
+							reader.Error(entry["name"], "audience-name", audienceName);
+						else if (audiences.Any(a => a.Name == audienceName))
+							reader.Error(entry["name"], "duplicate-audience", audienceName);
+						else
+							audiences.Add(new(audienceName, FxYamlReader.Scalar(entry["description"]), item.Line));
+					}
+					else
+						reader.Error(item, "audience-entry");
+			else if (map["audiences"] is { } notAudiences)
+				reader.Error(notAudiences, "audiences");
 			var requires = FxYamlReader.Scalar(map["requires"]);
 			if (requires is not null && FxYamlReader.Parse(requires) is null)
 				reader.Error(map["requires"], "requires", requires);
@@ -93,7 +126,7 @@ public sealed partial record SpaceConfig(
 						reader.Error(item, "tag");
 			else if (map["tags"] is { } notAList)
 				reader.Error(notAList, "tags");
-			config = new(name, requires, tags, visibility ?? SpaceVisibility.Private, ReadPaths(map, reader), ReadShares(map, reader));
+			config = new(name, requires, tags, audience, ReadPaths(map, reader), ReadShares(map, reader), audiences, map["audience"]?.Line ?? 0);
 		}
 		foreach (var diagnostic in reader.Diagnostics.Concat(config.Validate(file)))
 			diagnostics.Add(diagnostic);
@@ -171,9 +204,10 @@ public sealed partial record SpaceConfig(
 	}
 
 	/// <summary>
-	/// What comes from above with this one on top: the name, the visibility, the paths and the shares are this one's (they
+	/// What comes from above with this one on top: the name, the audience, the paths and the shares are this one's (they
 	/// are not inherited); <c>requires</c>, the highest; the tags, those from above and the new ones of this one (one
-	/// already defined above stays as it was, with a warning in <paramref name="diagnostics"/>).
+	/// already defined above stays as it was, with a warning in <paramref name="diagnostics"/>); the audiences, those
+	/// from above if they declare any (this one's, then, are ignored with a warning). Its audience must be one of them.
 	/// </summary>
 	public static SpaceConfig Merge(SpaceConfig inherited, SpaceConfig own, string file, ICollection<FxDiagnostic>? diagnostics = null)
 	{
@@ -183,7 +217,17 @@ public sealed partial record SpaceConfig(
 				diagnostics?.Add(FxDiagnostic.Warning(TagRedefined, new(TagRedefined, tag.Name), file, tag.Line));
 			else
 				tags.Add(tag);
-		return own with { Requires = Highest(inherited.Requires, own.Requires), Tags = tags };
+		var audiences = own.Audiences;
+		if (inherited.Audiences is { Count: > 0 })
+		{
+			if (own.Audiences is { Count: > 0 } redefined)
+				diagnostics?.Add(FxDiagnostic.Warning(AudiencesRedefined, new(AudiencesRedefined), file, redefined[0].Line));
+			audiences = inherited.Audiences;
+		}
+		var merged = own with { Requires = Highest(inherited.Requires, own.Requires), Tags = tags, Audiences = audiences };
+		if (own.Audience is { } audience && !merged.KnowsAudience(audience))
+			diagnostics?.Add(FxDiagnostic.Error(Invalid, new($"{Invalid}.audience", audience, string.Join(", ", merged.AudienceCatalog.Select(a => a.Name))), file, own.AudienceLine));
+		return merged;
 	}
 
 	static string? Highest(string? a, string? b)
@@ -210,16 +254,19 @@ public sealed partial record SpaceConfig(
 		return match is { Exclude: false };
 	}
 
-	/// <summary>What a sub-space receives in <c>_fx/.inherited/space.yaml</c>: <c>requires</c> and the tags, with the header.</summary>
+	/// <summary>What a sub-space receives in <c>_fx/.inherited/space.yaml</c>: <c>requires</c> and the two catalogs, with the header.</summary>
 	public string ToInheritedYaml(string from)
 	{
+		static YamlValue Named(string name, string? description) => description is null
+			? new YamlValue.Map(("name", name))
+			: new YamlValue.Map(("name", name), ("description", description));
 		var entries = new List<(string, YamlValue)> { ("schema", FxYamlReader.Schema) };
 		if (Requires is not null)
 			entries.Add(("requires", Requires));
+		if (Audiences is { Count: > 0 })
+			entries.Add(("audiences", new YamlValue.Block(Audiences.Select(a => Named(a.Name, a.Description)).ToArray())));
 		if (Tags.Count > 0)
-			entries.Add(("tags", new YamlValue.Block(Tags.Select(t => (YamlValue)(t.Description is null
-				? new YamlValue.Map(("name", t.Name))
-				: new YamlValue.Map(("name", t.Name), ("description", t.Description)))).ToArray())));
+			entries.Add(("tags", new YamlValue.Block(Tags.Select(t => Named(t.Name, t.Description)).ToArray())));
 		return FxHeader.Hash(from) + YamlWriter.Document(new(entries.ToArray()));
 	}
 }

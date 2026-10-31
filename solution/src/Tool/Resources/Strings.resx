@@ -196,6 +196,9 @@
   <data name="mount.column.path" xml:space="preserve">
     <value>Path</value>
   </data>
+  <data name="mount.column.audience" xml:space="preserve">
+    <value>Audience</value>
+  </data>
   <data name="mount.column.mode" xml:space="preserve">
     <value>Mode</value>
   </data>
@@ -323,7 +326,7 @@
     <value>Space</value>
   </data>
   <data name="init" xml:space="preserve">
-    <value>Make this folder a space: its _fx/space.yaml, with its name, and nothing more.</value>
+    <value>Make this folder a space: its _fx/space.yaml, with its name and its audience (public, the widest, written so that it shows), and nothing more.</value>
   </data>
   <data name="init.name" xml:space="preserve">
     <value>Its name (by default, the folder's, in lowercase with '-').</value>
@@ -723,6 +726,9 @@
   </data>
   <data name="ui.mount.parkable" xml:space="preserve">
     <value>can be parked</value>
+  </data>
+  <data name="ui.audience" xml:space="preserve">
+    <value>Audience</value>
   </data>
   <data name="ui.mode" xml:space="preserve">
     <value>Mode</value>

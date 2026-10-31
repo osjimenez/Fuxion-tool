@@ -35,6 +35,9 @@ public sealed class FxNode(string root)
 
 	public FxInherited? Inherited(ICollection<FxDiagnostic>? diagnostics = null) => FxInherited.Load(Root, diagnostics);
 
+	/// <summary>Whether it declares itself a space: it has its own <c>_fx/space.yaml</c> (a repository only inherits one).</summary>
+	public bool IsSpace => FxFiles.Exists(Full(FxLayout.ConfigFile));
+
 	/// <summary>Its own <c>_fx/space.yaml</c>.</summary>
 	public SpaceConfig OwnConfig(ICollection<FxDiagnostic>? diagnostics = null) => SpaceConfig.Load(Root, FxLayout.ConfigFile, diagnostics ?? []);
 

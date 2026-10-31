@@ -26,6 +26,8 @@ public sealed class NestedTest : SampleTree
 		var c1 = FxInherited.Load(Path.Combine(acme.Path, "repo-w1", "repo-c1"))!;
 		Assert.Equal("/acme/repo-w1/repo-c1", c1.Space.FullName);
 		Assert.Equal("/acme/repo-w1", c1.Parent.FullName);
+		// its audience, as its space declares it: undeclared, the widest
+		Assert.Equal("public", c1.Space.Audience);
 		Assert.Equal(Url(_w1Origin), c1.Parent.Url);
 		Assert.Contains(c1.Files, f => f.Path == "dotnet/dotnet.yaml" && f.From.SequenceEqual(["/acme", "/acme/repo-w1"]));
 		Assert.Contains(c1.Files, f => f.Path == "dotnet/default.props" && f.From.SequenceEqual(["/acme"]));
@@ -51,6 +53,28 @@ public sealed class NestedTest : SampleTree
 		Assert.True(acme.Git("check-ignore", "libs/shared/").Length > 0);
 		var doctor = SyncEngine.Doctor(acme.Path, new(Offline: true), cancellationToken: TestContext.Current.CancellationToken).SelectMany(r => r.Diagnostics).ToList();
 		Assert.DoesNotContain(doctor, d => d.Code is MountsModule.UnknownTag or MountsModule.Outdated or "dotnet.outdated");
+	}
+
+	[Fact(DisplayName = "a mounted space keeps its own audience: what the space above says of it does not decide, and the doctor warns")]
+	public void SpaceAudience()
+	{
+		var acme = Acme();
+		var manifest = Path.Combine(acme.Path, "_fx", "mounts", "mounts.yaml");
+		File.WriteAllText(manifest, File.ReadAllText(manifest).Replace("    path: repo-w1\n", "    path: repo-w1\n    audience: private\n"));
+		List<FxDiagnostic> Doctor() => SyncEngine.Doctor(acme.Path, new(Offline: true), cancellationToken: TestContext.Current.CancellationToken).SelectMany(r => r.Diagnostics).ToList();
+
+		// repo-w1 declares none: its own is the widest, not the private acme gives it
+		var warning = Assert.Single(Doctor(), d => d.Code == MountsModule.SpaceAudience);
+		Assert.Equal("repo-w1", warning.Repository);
+		Assert.Empty(Errors(Sync(acme.Path)));
+		Assert.Equal("public", FxInherited.Load(Path.Combine(acme.Path, "repo-w1"))!.Space.Audience);
+
+		// once it declares it, the same: no warning, and its inherited.yaml says it
+		var own = Path.Combine(acme.Path, "repo-w1", "_fx", "space.yaml");
+		File.WriteAllText(own, "audience: private\n" + File.ReadAllText(own));
+		Assert.DoesNotContain(Doctor(), d => d.Code == MountsModule.SpaceAudience);
+		Assert.Empty(Errors(Sync(acme.Path)));
+		Assert.Equal("private", FxInherited.Load(Path.Combine(acme.Path, "repo-w1"))!.Space.Audience);
 	}
 
 	[Fact(DisplayName = "--only: this level alone; what is below stays until a sync without it")]

@@ -7,9 +7,10 @@ namespace Fuxion.Tool.Core.Layout;
 
 /// <summary>
 /// Who a repository (or a space) is: its name, given by whoever declares it; its full name, the chain of names from
-/// the root (<c>/acme/repo-w1/repo-c1</c>, plan P, decision 11); its tags (decision 21) and its old names (decision 12).
+/// the root (<c>/acme/repo-w1/repo-c1</c>, plan P, decision 11); its tags (decision 21), its old names (decision 12)
+/// and its audience, as its space declares it (the audience ADR; null for a root, whose own is in its space.yaml).
 /// </summary>
-public sealed record FxIdentity(string Name, string FullName, IReadOnlyList<string> Tags, IReadOnlyList<string>? Aliases = null)
+public sealed record FxIdentity(string Name, string FullName, IReadOnlyList<string> Tags, IReadOnlyList<string>? Aliases = null, string? Audience = null)
 {
 	/// <summary>Whether <paramref name="fullName"/> (absolute) is this one, by its name or an old one.</summary>
 	public bool Is(string fullName)

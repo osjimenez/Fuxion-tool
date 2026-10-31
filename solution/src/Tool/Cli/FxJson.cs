@@ -65,6 +65,7 @@ public sealed record JsonMount(
 	string Path,
 	bool Required,
 	string Mode,
+	string Audience,
 	bool Mounted,
 	bool Present,
 	bool Parked,

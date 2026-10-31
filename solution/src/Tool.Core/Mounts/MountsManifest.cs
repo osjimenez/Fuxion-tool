@@ -28,6 +28,7 @@ public enum MountMode
 /// <param name="Required">Always mounted: it cannot be parked. Without it, each copy parks it or brings it back.</param>
 /// <param name="Inherits">False for a guest: the space uses it, but it inherits from its own parent.</param>
 /// <param name="Aliases">Its old names (<c>fx mount rename</c>), so that old references keep working.</param>
+/// <param name="Audience">Who may read it, one of the audiences of the space (the audience ADR); without it, the widest: never the space's.</param>
 public sealed record Mount(
 	string Name,
 	string Path,
@@ -38,7 +39,8 @@ public sealed record Mount(
 	IReadOnlyList<string>? DependsOn = null,
 	bool Inherits = true,
 	IReadOnlyList<string>? Aliases = null,
-	int Line = 0);
+	int Line = 0,
+	string? Audience = null);
 
 /// <summary>An invalid <c>mounts.yaml</c>: every problem found, each with its line.</summary>
 public sealed class MountsManifestException(IReadOnlyList<FxDiagnostic> diagnostics)
@@ -136,7 +138,7 @@ public sealed record MountsManifest(string Root, IReadOnlyList<Mount> Mounts)
 					reader.Error(item, "mount-mapping");
 					continue;
 				}
-				reader.Keys(mount, "name", "url", "path", "required", "mode", "tags", "depends-on", "inherits", "aliases");
+				reader.Keys(mount, "name", "url", "path", "required", "mode", "audience", "tags", "depends-on", "inherits", "aliases");
 				var name = FxYamlReader.Scalar(mount["name"]);
 				var path = FxYamlReader.Scalar(mount["path"])?.Replace('\\', '/').Trim('/');
 				if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(path))
@@ -149,7 +151,8 @@ public sealed record MountsManifest(string Root, IReadOnlyList<Mount> Mounts)
 				if (mode is null)
 					reader.Error(mount["mode"], "mode", name, modeText);
 				mounts.Add(new(name, path, FxYamlReader.List(mount["tags"]), FxYamlReader.Scalar(mount["url"]), reader.Bool(mount, "required", false), mode ?? MountMode.Write,
-					FxYamlReader.List(mount["depends-on"]), reader.Bool(mount, "inherits", true), FxYamlReader.List(mount["aliases"]), item.Line));
+					FxYamlReader.List(mount["depends-on"]), reader.Bool(mount, "inherits", true), FxYamlReader.List(mount["aliases"]), item.Line,
+					FxYamlReader.Scalar(mount["audience"])));
 			}
 		else if (map["mounts"] is { } notAList && notAList is not YamlScalar { Value: "" })
 			reader.Error(notAList, "list", "mounts");

@@ -4,6 +4,7 @@ using System.CommandLine;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Fuxion.Tool.Core.Layout;
 using Fuxion.Tool.Core.Mounts;
 using Fuxion.Tool.Core.Results;
 using XenoAtom.Terminal.UI;
@@ -114,6 +115,9 @@ public static class MountCommand
 			=> console.WriteJson(new MountsDocument(schema, FxConsole.Ok(diagnostics), mounts, JsonDiagnostic.From(diagnostics)), c => c.MountsDocument);
 		if (Manifest(console, errors => Json([], errors)) is not { } manifest)
 			return 1;
+		// the audience of each mount (the audience ADR): a mounted space keeps its own
+		var config = new FxNode(manifest.Root).Config();
+		string AudienceOf(Mount mount) => MountsModule.AudienceOf(new FxNode(manifest.FullPath(mount)), mount, config);
 		var repositories = console.WithProgress((progress, cancel) => MountsModule.Repositories(manifest, withStatus, progress, cancel, MountCopies.Survey(manifest.Root)), cancellationToken)
 			.Where(r => !withStatus || r.Mounted)
 			.ToList();
@@ -124,6 +128,7 @@ public static class MountCommand
 				r.Repository.Path,
 				r.Repository.Required,
 				MountsManifest.ModeText(r.Repository.Mode),
+				AudienceOf(r.Repository),
 				r.Mounted,
 				r.Present,
 				r.Parked,
@@ -163,12 +168,13 @@ public static class MountCommand
 		}
 
 		var repoTable = Table(console, Texts.Get("mount.column.mount"), Texts.Get("mount.column.path"), Texts.Get("mount.column.mode"),
-			Texts.Get("mount.column.required"), Texts.Get("mount.column.mounted"), Texts.Get("mount.column.cloned"));
+			Texts.Get("mount.column.audience"), Texts.Get("mount.column.required"), Texts.Get("mount.column.mounted"), Texts.Get("mount.column.cloned"));
 		foreach (var r in repositories)
 			repoTable.AddRow(
 				Cell(console, r.Repository.Name),
 				Cell(console, r.Repository.Path),
 				Cell(console, MountsManifest.ModeText(r.Repository.Mode), r.Repository.Mode == MountMode.Write ? null : "yellow"),
+				Cell(console, AudienceOf(r.Repository)),
 				Cell(console, Texts.Get(r.Repository.Required ? "yes" : "no")),
 				Cell(console, Texts.Get(r.Mounted ? "yes" : "no"), r.Mounted ? "green" : "gray"),
 				Cell(console, Texts.Get(r.Present ? "yes" : r.Parked || r.SupersededBy is not null ? Where(r) : "no"), r.Present ? "green" : NeedsAttention(r) && r.Mounted ? "red" : "gray"));

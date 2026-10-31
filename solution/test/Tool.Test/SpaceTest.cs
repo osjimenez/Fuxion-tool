@@ -131,7 +131,10 @@ public sealed class SpaceTest
 
 	[Theory(DisplayName = "space.yaml: every problem, with its line; a share comes from inside the space and goes inside the repository, out of what is fx's or git's, one per destination")]
 	[InlineData("name: Acme\n", "lowercase letters, digits and '-'")]
-	[InlineData("visibility: internal\n", "private or public")]
+	[InlineData("audiences: x\n", "'audiences' must be a list of audiences")]
+	[InlineData("audiences:\n  - description: x\n", "Each audience needs its name")]
+	[InlineData("audiences:\n  - name: Team\n", "is not a name")]
+	[InlineData("audiences:\n  - name: team\n  - name: team\n", "already in the catalog")]
 	[InlineData("paths:\n  - path: ../x\n", "must be relative, inside the space")]
 	[InlineData("paths:\n  - path: _fx/\n", "is fx's: it is always versioned")]
 	[InlineData("paths:\n  - path: ~$x\n", "is fx's: it is always versioned")]
@@ -173,8 +176,11 @@ public sealed class SpaceTest
 			    url: https://git.acme.example/acme/team.git
 			    path: team
 			    mode: propose-only
+			    audience: private
 			""", strict: true);
 		var w1 = manifest.Mounts[0];
+		Assert.Null(w1.Audience);
+		Assert.Equal("private", manifest.Mounts[2].Audience);
 		Assert.True(w1.Required);
 		Assert.Equal(MountMode.Write, w1.Mode);
 		Assert.Equal(["w1"], w1.Aliases);
@@ -187,14 +193,54 @@ public sealed class SpaceTest
 		Assert.Equal(MountMode.ProposeOnly, manifest.Mounts[2].Mode);
 	}
 
-	[Fact(DisplayName = "space.yaml: its name and visibility, paths as objects, shares")]
+	[Fact(DisplayName = "space.yaml: a catalog of audiences, from the widest; its audience is one of them; a space below inherits it and cannot redefine it")]
+	public void Space_Audiences()
+	{
+		var diagnostics = new List<FxDiagnostic>();
+		var own = SpaceConfig.Read("""
+			schema: 1.0.0
+			audiences:
+			  - name: public
+			  - name: company
+			    description: Anyone in the organization.
+			  - name: team
+			  - name: private
+			audience: team
+			""", FxLayout.ConfigFile, diagnostics);
+		var space = SpaceConfig.Merge(SpaceConfig.Empty, own, FxLayout.ConfigFile, diagnostics);
+		Assert.Empty(diagnostics);
+		Assert.Equal(["public", "company", "team", "private"], space.AudienceCatalog.Select(a => a.Name));
+		Assert.Equal("public", space.WidestAudience);
+		Assert.Equal("team", space.OwnAudience);
+		Assert.True(space.KnowsAudience("company"));
+		Assert.Contains("audiences:\n  - name: public\n  - name: company\n    description: Anyone in the organization.\n", space.ToInheritedYaml("/acme").Replace("\r\n", "\n"));
+
+		// without a catalog: public and private
+		Assert.Equal(["public", "private"], SpaceConfig.Empty.AudienceCatalog.Select(a => a.Name));
+
+		// one that is not in the catalog
+		var unknown = SpaceConfig.Read("schema: 1.0.0\naudience: secret\n", FxLayout.ConfigFile, diagnostics);
+		SpaceConfig.Merge(SpaceConfig.Empty, unknown, FxLayout.ConfigFile, diagnostics);
+		Assert.Contains(diagnostics, d => d.Severity == FxSeverity.Error && d.Message.English.Contains("one of the catalog of audiences (public, private)") && d.Line == 2);
+
+		// below, the catalog from above, and its own catalog ignored with a warning
+		diagnostics.Clear();
+		var below = SpaceConfig.Read("schema: 1.0.0\naudiences:\n  - name: public\n  - name: private\naudience: company\n", FxLayout.ConfigFile, diagnostics);
+		var merged = SpaceConfig.Merge(space, below, FxLayout.ConfigFile, diagnostics);
+		Assert.Equal(4, merged.AudienceCatalog.Count);
+		Assert.Equal("company", merged.OwnAudience);
+		Assert.Contains(diagnostics, d => d.Code == SpaceConfig.AudiencesRedefined && d.Severity == FxSeverity.Warning);
+		Assert.DoesNotContain(diagnostics, d => d.Severity == FxSeverity.Error);
+	}
+
+	[Fact(DisplayName = "space.yaml: its name and audience, paths as objects, shares")]
 	public void Space_Read()
 	{
 		var diagnostics = new List<FxDiagnostic>();
 		var space = SpaceConfig.Read("""
 			schema: 1.0.0
 			name: acme
-			visibility: public
+			audience: private
 			paths:
 			  - path: README.md
 			  - path: _docs/
@@ -213,8 +259,9 @@ public sealed class SpaceTest
 			""", FxLayout.ConfigFile, diagnostics);
 		Assert.Empty(diagnostics);
 		Assert.Equal("acme", space.Name);
-		Assert.Equal(SpaceVisibility.Public, space.Visibility);
-		Assert.Equal(SpaceVisibility.Private, SpaceConfig.Read("schema: 1.0.0\n", FxLayout.ConfigFile, diagnostics).Visibility);
+		Assert.Equal("private", space.OwnAudience);
+		// undeclared, the widest audience: public
+		Assert.Equal("public", SpaceConfig.Read("schema: 1.0.0\n", FxLayout.ConfigFile, diagnostics).OwnAudience);
 		Assert.Equal(4, space.Paths!.Count);
 		Assert.False(space.Paths[1].Worktree);
 		Assert.True(space.Paths[2].Exclude);
@@ -839,7 +886,7 @@ public sealed class SpaceTest
 		lab.Checkout(lab.Head());
 		Directory.CreateDirectory(Path.Combine(ws.Root, "stray", "repo", ".git"));
 		ws.Meta.WriteFile(Path.Combine("notes", "todo.md"), "mine");
-		ws.WriteManifest(("plus", "mandatory", ""), ("lab", "mandatory", "    tags: [unheard]\n"));
+		ws.WriteManifest(("plus", "mandatory", "    audience: secret\n"), ("lab", "mandatory", "    tags: [unheard]\n"));
 		ws.Meta.Git("-C", ws.RepoPath("plus"), "remote", "set-url", "origin", "https://example.invalid/other.git");
 
 		var diagnostics = Diagnostics(Doctor(ws.Root)).ToList();
@@ -851,6 +898,7 @@ public sealed class SpaceTest
 		Assert.Contains(diagnostics, d => d.Code == MountsModule.Orphan && d.Message.English.StartsWith("stray/repo "));
 		Assert.Contains(diagnostics, d => d.Code == MountsModule.NotVersioned && d.Severity == FxSeverity.Info && d.Message.English.StartsWith("notes/ "));
 		Assert.Contains(diagnostics, d => d.Code == MountsModule.UnknownTag && d.Repository == "lab");
+		Assert.Contains(diagnostics, d => d.Code == MountsModule.UnknownAudience && d.Repository == "plus" && d.Severity == FxSeverity.Error);
 		Assert.Contains(diagnostics, d => d.Code == MountsModule.LocalNotIgnored && d.Repository == "plus");
 		// a folder that only holds a repository is not reported
 		Assert.DoesNotContain(diagnostics, d => d.Code == MountsModule.NotVersioned && d.Message.English.StartsWith("plus/"));

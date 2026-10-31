@@ -49,7 +49,7 @@ public sealed record FxInherited(FxIdentity Space, FxInheritedParent Parent, IRe
 				.ToList() ?? [];
 			if (name.Length > 0 && fullName.Length > 0)
 				result = new(
-					new(name, fullName, FxYamlReader.List(space["tags"]), FxYamlReader.List(space["aliases"])),
+					new(name, fullName, FxYamlReader.List(space["tags"]), FxYamlReader.List(space["aliases"]), FxYamlReader.Scalar(space["audience"])),
 					new(FxYamlReader.Scalar(parent["full-name"]) ?? "", FxYamlReader.Scalar(parent["url"]), FxYamlReader.Scalar(parent["ref"]), FxYamlReader.Scalar(parent["commit"])),
 					files, shares);
 		}
@@ -64,6 +64,8 @@ public sealed record FxInherited(FxIdentity Space, FxInheritedParent Parent, IRe
 	public string ToYaml()
 	{
 		var space = new List<(string, YamlValue)> { ("name", Space.Name), ("full-name", Space.FullName) };
+		if (Space.Audience is not null)
+			space.Add(("audience", Space.Audience));
 		if (Space.Tags.Count > 0)
 			space.Add(("tags", Flow(Space.Tags)));
 		if (Space.Aliases is { Count: > 0 } aliases)
@@ -95,6 +97,7 @@ public sealed record FxInherited(FxIdentity Space, FxInheritedParent Parent, IRe
 		=> other is not null
 		   && other.Space.Name == Space.Name && other.Space.FullName == Space.FullName
 		   && other.Space.Tags.SequenceEqual(Space.Tags) && (other.Space.Aliases ?? []).SequenceEqual(Space.Aliases ?? [])
+		   && other.Space.Audience == Space.Audience
 		   && other.Parent.FullName == Parent.FullName && other.Parent.Url == Parent.Url
 		   && other.Files.Count == Files.Count && other.Files.Zip(Files).All(p => p.First.Path == p.Second.Path && p.First.From.SequenceEqual(p.Second.From))
 		   && other.Shares.SequenceEqual(Shares);

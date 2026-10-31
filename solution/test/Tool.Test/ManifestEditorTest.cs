@@ -180,6 +180,7 @@ public sealed class ManifestEditorTest
 		Assert.Contains("    required: true\n    inherits: false\n    tags: [dotnet, public]\n", After(ManifestEditor.SetRepository(ws.Root, "oss", "inherits", ["false"])));
 		Assert.Contains("    required: true\n    depends-on: [plus]\n    tags: [dotnet, public]\n", After(ManifestEditor.SetRepository(ws.Root, "oss", "depends-on", ["plus"])));
 		Assert.DoesNotContain("depends-on", After(ManifestEditor.SetRepository(ws.Root, "plus", "depends-on", [])));
+		Assert.Contains("    audience: private\n", After(ManifestEditor.SetRepository(ws.Root, "plus", "audience", ["private"])));
 
 		// a list, item by item: it keeps its style
 		using var block = new Space(Manifest.Replace("\r\n", "\n").Replace("    depends-on: [oss]\n", "    depends-on:\n      - oss\n")
@@ -193,6 +194,8 @@ public sealed class ManifestEditorTest
 		using var ws = new Space();
 		Assert.Equal(ManifestEditor.UnknownKey, Assert.Single(ManifestEditor.SetRepository(ws.Root, "oss", "name", ["x"]).Diagnostics).Code);
 		Assert.Equal(ManifestEditor.InvalidValue, Assert.Single(ManifestEditor.SetRepository(ws.Root, "oss", "mode", ["always"]).Diagnostics).Code);
+		// an audience that is not in the catalog of the space
+		Assert.Equal(ManifestEditor.InvalidValue, Assert.Single(ManifestEditor.SetRepository(ws.Root, "oss", "audience", ["secret"]).Diagnostics).Code);
 		Assert.Equal(ManifestEditor.InvalidValue, Assert.Single(ManifestEditor.SetRepository(ws.Root, "oss", "url", ["a", "b"]).Diagnostics).Code);
 		Assert.Contains(ManifestEditor.SetRepository(ws.Root, "plus", "depends-on", ["nope"]).Diagnostics, d => d.Code == MountsManifest.InvalidManifest);
 		Directory.CreateDirectory(Path.Combine(ws.Root, "oss", "repo"));
@@ -203,14 +206,14 @@ public sealed class ManifestEditorTest
 
 	// init
 
-	[Fact(DisplayName = "fx init: the folder becomes a space, its space.yaml with its name (the folder's, or --name) and nothing more; not twice")]
+	[Fact(DisplayName = "fx init: the folder becomes a space, its space.yaml with its name (the folder's, or --name) and its audience, and nothing more; not twice")]
 	public void Init()
 	{
 		using var folder = new TempGitRepository();
 		var notes = Directory.CreateDirectory(Path.Combine(folder.Path, "My Notes")).FullName;
 		var run = Fx(notes, "init");
 		Assert.Equal(0, run.ExitCode);
-		Assert.Equal("schema: 1.0.0\nname: my-notes\n", File.ReadAllText(Path.Combine(notes, "_fx", "space.yaml")).Replace("\r\n", "\n"));
+		Assert.Equal("schema: 1.0.0\nname: my-notes\naudience: public\n", File.ReadAllText(Path.Combine(notes, "_fx", "space.yaml")).Replace("\r\n", "\n"));
 		Assert.Equal(["space.yaml"], Directory.EnumerateFileSystemEntries(Path.Combine(notes, "_fx")).Select(Path.GetFileName));
 		var again = Fx(notes, "init", "--name", "notes");
 		Assert.Equal(1, again.ExitCode);

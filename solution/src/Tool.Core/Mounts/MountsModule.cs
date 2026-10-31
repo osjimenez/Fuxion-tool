@@ -51,6 +51,8 @@ public static class MountsModule
 	public const string Unreachable = "mounts.unreachable";
 	public const string UnknownRepository = "mounts.unknown";
 	public const string UnknownTag = "mounts.unknown-tag";
+	public const string UnknownAudience = "mounts.unknown-audience";
+	public const string SpaceAudience = "mounts.space-audience";
 	public const string AliasReference = "space.alias-reference";
 	public const string PullFailed = "mounts.pull-failed";
 	public const string NotParked = "mounts.not-parked";
@@ -265,12 +267,28 @@ public static class MountsModule
 		if (!context.Doctor)
 			return;
 		foreach (var repo in manifest.Mounts)
+		{
 			foreach (var tag in repo.Tags.Where(t => !config.Knows(t)))
 				diagnostics.Add(FxDiagnostic.Warning(UnknownTag, new(UnknownTag, tag, repo.Name), manifestFile, repo.Line, repo.Name, FxFix.Do($"{UnknownTag}.fix")));
+			if (repo.Audience is { } audience && !config.KnowsAudience(audience))
+				diagnostics.Add(FxDiagnostic.Error(UnknownAudience, new(UnknownAudience, audience, repo.Name, string.Join(", ", config.AudienceCatalog.Select(a => a.Name))),
+					manifestFile, repo.Line, repo.Name, FxFix.Do($"{UnknownAudience}.fix")));
+			// a mounted space keeps its own: what mounts.yaml says of it does not decide
+			else if (repo.Audience is { } declared && new FxNode(manifest.FullPath(repo)) is { IsSpace: true } mounted && mounted.Config().OwnAudience is var own && own != declared)
+				diagnostics.Add(FxDiagnostic.Warning(SpaceAudience, new(SpaceAudience, repo.Name, own, declared), manifestFile, repo.Line, repo.Name, FxFix.Do($"{SpaceAudience}.fix")));
+		}
 		AliasReferences(node, identity, manifest, config, context, diagnostics);
 		Walk(node.Root, manifest, config, context, diagnostics);
 		Check(manifest, context, diagnostics);
 	}
+
+	/// <summary>
+	/// The audience of a mount (the audience ADR): a mounted space (its own <c>_fx/space.yaml</c>) keeps its own,
+	/// wherever it is mounted; a repository has the one its space gives it in <c>mounts.yaml</c>, or the widest of the
+	/// catalog of <paramref name="space"/>.
+	/// </summary>
+	public static string AudienceOf(FxNode mounted, Mount mount, SpaceConfig space)
+		=> mounted.IsSpace ? mounted.Config().OwnAudience : mount.Audience ?? space.WidestAudience;
 
 	/// <summary>The paths of the space inside one of its repositories: they are that repository's, not the space's (an error each).</summary>
 	public static IEnumerable<FxDiagnostic> PathsInRepositories(SpaceConfig config, MountsManifest manifest, string configFile)

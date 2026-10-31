@@ -55,13 +55,13 @@ public static class Inheritance
 		var applies = dotnet || harness || child.HasMounts || received.Any;
 		if (applies)
 		{
-			// space.yaml: requires and the catalog, from above and from the parent
+			// space.yaml: requires and the catalogs, from above and from the parent
 			var inheritedConfig = SpaceConfig.Load(parent.Root, FxLayout.InheritedConfigFile, []);
 			var ownConfig = parent.OwnConfig();
 			var from = new List<string>();
-			if (inheritedConfig.Requires is not null || inheritedConfig.Tags.Count > 0)
+			if (inheritedConfig.Requires is not null || inheritedConfig.Tags.Count > 0 || inheritedConfig.Audiences is { Count: > 0 })
 				from.AddRange(FromOf(FxLayout.ConfigName));
-			if (ownConfig.Requires is not null || ownConfig.Tags.Count > 0)
+			if (ownConfig.Requires is not null || ownConfig.Tags.Count > 0 || ownConfig.Audiences is { Count: > 0 })
 				from.Add(parentIdentity.FullName);
 			var merged = SpaceConfig.Merge(inheritedConfig, ownConfig, FxLayout.ConfigFile);
 			expected[FxLayout.ConfigName] = (Encoding.UTF8.GetBytes(merged.ToInheritedYaml(Spaces(from, FxLayout.ConfigFile))), from.Distinct().ToList());

@@ -817,7 +817,7 @@ public sealed partial class UiApp
 		if (node.Declaration is { } declaration)
 		{
 			var tags = declaration.Tags.Count == 0 ? "—" : string.Join(", ", declaration.Tags);
-			lines.Add(Line($"{Esc(Texts.Get("ui.tags"))}: [accent]{Esc(tags)}[/]   {Esc(Texts.Get("ui.mount"))}: {Esc(Texts.Get(declaration.Required ? "ui.mount.required" : "ui.mount.parkable"))}   {Esc(Texts.Get("ui.mode"))}: {Esc(MountsManifest.ModeText(declaration.Mode))}"));
+			lines.Add(Line($"{Esc(Texts.Get("ui.tags"))}: [accent]{Esc(tags)}[/]   {Esc(Texts.Get("ui.mount"))}: {Esc(Texts.Get(declaration.Required ? "ui.mount.required" : "ui.mount.parkable"))}   {Esc(Texts.Get("ui.mode"))}: {Esc(MountsManifest.ModeText(declaration.Mode))}   {Esc(Texts.Get("ui.audience"))}: {Esc(node.Identity?.Audience ?? "")}"));
 		}
 		if (node.Guest)
 			lines.Add(Line($"[muted]{Esc(Texts.Get("ui.guest"))}[/]"));
