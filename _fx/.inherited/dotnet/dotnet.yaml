@@ -57,7 +57,7 @@ imports:
 packages:
   - ids: [Aspire.Hosting.RabbitMQ]
     versions:
-      - version: 13.6.1
+      - version: 13.6.4
   - ids: [Aspire.RabbitMQ.Client.v7]
     versions:
       - version: 9.5.2
@@ -87,7 +87,7 @@ packages:
       - version: 10.11.0
   - ids: [Microsoft.Orleans.EventSourcing, Microsoft.Orleans.Sdk]
     versions:
-      - version: 10.4.0
+      - version: 10.4.2
   - ids: [Microsoft.Reactive.Testing]
     versions:
       - version: 7.0.0
@@ -105,10 +105,10 @@ packages:
       - version: 5.2.0.1603
   - ids: [OpenTelemetry.Exporter.OpenTelemetryProtocol, OpenTelemetry.Extensions.Hosting, OpenTelemetry.Instrumentation.AspNetCore, OpenTelemetry.Instrumentation.Http, OpenTelemetry.Instrumentation.Runtime]
     versions:
-      - version: 1.20.0
+      - version: 1.20.1
   - ids: [Polly]
     versions:
-      - version: 8.8.0
+      - version: 8.9.0
   - ids: [PolySharp]
     versions:
       - version: 1.16.0
@@ -126,10 +126,10 @@ packages:
       - version: 0.57.2
   - ids: [Swashbuckle.AspNetCore]
     versions:
-      - version: 10.3.0
+      - version: 10.3.1
   - ids: [System.CommandLine]
     versions:
-      - version: 2.0.13
+      - version: 2.0.14
   - ids: [System.ComponentModel.Annotations]
     versions:
       - version: 5.0.0
@@ -141,7 +141,7 @@ packages:
       - version: 7.0.0
   - ids: [System.Security.Cryptography.Pkcs]
     versions:
-      - version: 10.0.13
+      - version: 10.0.14
   - ids: [Testcontainers.MongoDb, Testcontainers.MsSql, Testcontainers.XunitV3]
     versions:
       - version: 4.16.0
@@ -156,15 +156,15 @@ packages:
       - version: 4.0.2
   - ids: [Microsoft.AspNetCore.Mvc.Testing, Microsoft.AspNetCore.OpenApi, Microsoft.AspNetCore.SignalR.Client, Microsoft.Bcl.AsyncInterfaces, Microsoft.Extensions.Configuration, Microsoft.Extensions.Configuration.UserSecrets, Microsoft.Extensions.DependencyInjection, Microsoft.Extensions.Hosting, Microsoft.Extensions.Hosting.Abstractions, Microsoft.Extensions.Hosting.WindowsServices, Microsoft.Extensions.Http, Microsoft.Extensions.Logging.Configuration, System.Drawing.Common, System.Management, System.Text.Json]
     versions:
-      - version: 11.0.0-rc.2.26504.105
+      - version: 11.0.0-rc.3.26522.148
         when: $(IsNet11)
-      - version: 10.0.13
+      - version: 10.0.14
         when: $(IsNet10) Or $(IsStandardOrOldFrameworks)
   - ids: [Microsoft.EntityFrameworkCore, Microsoft.EntityFrameworkCore.InMemory, Microsoft.EntityFrameworkCore.Sqlite, Microsoft.EntityFrameworkCore.SqlServer]
     versions:
-      - version: 11.0.0-rc.2.26504.105
+      - version: 11.0.0-rc.3.26522.148
         when: $(IsNet11)
-      - version: 10.0.13
+      - version: 10.0.14
         when: $(IsNet10)
   - ids: [MongoDB.EntityFrameworkCore]
     versions:
