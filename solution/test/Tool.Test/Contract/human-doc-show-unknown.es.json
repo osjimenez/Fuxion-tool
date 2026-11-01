@@ -1,0 +1,14 @@
+{
+  "args": [
+    "doc",
+    "show",
+    "_docs/nope.md",
+    "--lang",
+    "es"
+  ],
+  "exitCode": 2,
+  "stdout": [],
+  "stderr": [
+    "'_docs/nope.md' no nombra ningún documento del catálogo _docs."
+  ]
+}

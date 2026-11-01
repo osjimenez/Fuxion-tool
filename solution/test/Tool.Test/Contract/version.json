@@ -1,0 +1,33 @@
+{
+  "args": [
+    "version",
+    "--output",
+    "json"
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "schema": "fx-version/1",
+    "ok": true,
+    "version": "1.2.1-feature.x.1",
+    "packageVersion": "1.2.1-feature.x.1",
+    "assemblyVersion": "1.2.1.0",
+    "fileVersion": "1.2.1.0",
+    "informationalVersion": "1.2.1-feature.x.1+local",
+    "git": {
+      "repository": "<root>/",
+      "branch": "feature/x",
+      "rule": "feature",
+      "head": "<sha>",
+      "stableTip": "<sha>",
+      "mergeBase": "<sha>",
+      "tag": {
+        "name": "version/1.2.0",
+        "commit": "<sha>"
+      },
+      "commitsSinceTag": 1,
+      "branchCommits": 1
+    },
+    "diagnostics": []
+  },
+  "stderr": []
+}

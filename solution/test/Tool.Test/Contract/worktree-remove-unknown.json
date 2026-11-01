@@ -1,0 +1,29 @@
+{
+  "args": [
+    "worktree",
+    "remove",
+    "nope",
+    "--output",
+    "json"
+  ],
+  "exitCode": 1,
+  "stdout": {
+    "schema": "fx-worktree-remove/1",
+    "ok": false,
+    "branch": "nope",
+    "mounts": [],
+    "modules": [],
+    "diagnostics": [
+      {
+        "code": "worktree.not-found",
+        "severity": "error",
+        "module": "worktree",
+        "message": "There is no worktree of 'nope' around here.",
+        "fix": {
+          "command": "fx worktree list"
+        }
+      }
+    ]
+  },
+  "stderr": []
+}

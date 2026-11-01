@@ -1,0 +1,56 @@
+{
+  "args": [
+    "doc",
+    "list",
+    "--output",
+    "json"
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "schema": "fx-doc-list/1",
+    "ok": true,
+    "catalog": "_docs",
+    "documents": [
+      {
+        "path": "_records/<yyyy>/<mm>/ADR-a-decision.md",
+        "id": "<uuid>",
+        "type": "adr",
+        "status": "draft",
+        "class": "open",
+        "title": "A decision",
+        "tags": [],
+        "createdAt": "<time>",
+        "updatedAt": "<time>",
+        "createdBy": "editor"
+      },
+      {
+        "path": "_records/<yyyy>/<mm>/PLAN-the-plan.md",
+        "id": "<uuid>",
+        "type": "plan",
+        "profile": "contingency",
+        "status": "draft",
+        "class": "open",
+        "title": "The plan",
+        "tags": [],
+        "createdAt": "<time>",
+        "updatedAt": "<time>",
+        "createdBy": "editor"
+      },
+      {
+        "path": "ideas/REGISTER-ideas.md",
+        "id": "<uuid>",
+        "type": "register",
+        "profile": "backlog",
+        "status": "active",
+        "class": "current",
+        "title": "Ideas",
+        "tags": [],
+        "createdAt": "<time>",
+        "updatedAt": "<time>",
+        "createdBy": "editor"
+      }
+    ],
+    "diagnostics": []
+  },
+  "stderr": []
+}

@@ -1,0 +1,14 @@
+{
+  "args": [
+    "mount",
+    "add",
+    "--non-interactive",
+    "--output",
+    "json"
+  ],
+  "exitCode": 2,
+  "stdout": [],
+  "stderr": [
+    "Missing <url>, and there is no terminal to ask for it: fx mount add <url> <path>"
+  ]
+}

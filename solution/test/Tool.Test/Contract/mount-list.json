@@ -1,0 +1,37 @@
+{
+  "args": [
+    "mount",
+    "list",
+    "--output",
+    "json"
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "schema": "fx-mount-list/1",
+    "ok": true,
+    "mounts": [
+      {
+        "name": "plus",
+        "path": "plus/repo",
+        "required": true,
+        "mode": "write",
+        "audience": "public",
+        "mounted": true,
+        "present": true,
+        "parked": false
+      },
+      {
+        "name": "extra",
+        "path": "extra/repo",
+        "required": false,
+        "mode": "write",
+        "audience": "public",
+        "mounted": false,
+        "present": false,
+        "parked": false
+      }
+    ],
+    "diagnostics": []
+  },
+  "stderr": []
+}

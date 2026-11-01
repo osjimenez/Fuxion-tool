@@ -1,0 +1,23 @@
+{
+  "args": [
+    "version",
+    "tag",
+    "nope",
+    "--output",
+    "json"
+  ],
+  "exitCode": 1,
+  "stdout": {
+    "schema": "fx-version-tag/1",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "version.invalid-argument",
+        "severity": "error",
+        "module": "version",
+        "message": "'nope' is not X.Y (two numbers, like 11.3)."
+      }
+    ]
+  },
+  "stderr": []
+}

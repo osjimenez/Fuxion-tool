@@ -1,0 +1,29 @@
+{
+  "args": [
+    "mount",
+    "add",
+    "<origin>",
+    "plus/repo",
+    "--output",
+    "json"
+  ],
+  "exitCode": 1,
+  "stdout": {
+    "schema": "fx-manifest-edit/1",
+    "ok": false,
+    "changed": false,
+    "written": false,
+    "files": [],
+    "diagnostics": [
+      {
+        "code": "mounts.invalid-manifest",
+        "severity": "error",
+        "module": "mounts",
+        "message": "Path 'plus/repo' is used more than once.",
+        "file": "_fx/mounts/mounts.yaml",
+        "line": 11
+      }
+    ]
+  },
+  "stderr": []
+}

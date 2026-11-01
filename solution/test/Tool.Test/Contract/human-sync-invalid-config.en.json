@@ -1,0 +1,19 @@
+{
+  "args": [
+    "sync",
+    "--lang",
+    "en"
+  ],
+  "exitCode": 1,
+  "stdout": [
+    "dotnet: up to date",
+    "written     AGENTS.md",
+    "written     CLAUDE.md",
+    "written     .claude/skills/fx/SKILL.md",
+    "written     .agents/skills/fx/SKILL.md",
+    "harness: 4 file(s) written"
+  ],
+  "stderr": [
+    "error dotnet.invalid-yaml: _fx/dotnet/dotnet.yaml(5): While parsing a flow sequence, did not find expected ',' or ']'."
+  ]
+}

@@ -1,0 +1,186 @@
+{
+  "args": [
+    "schema",
+    "--output",
+    "json"
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "schema": "fx-schemas/1",
+    "ok": true,
+    "schemas": [
+      {
+        "id": "fx-describe/1",
+        "commands": [
+          "fx describe"
+        ]
+      },
+      {
+        "id": "fx-doc-check/1",
+        "commands": [
+          "fx doc check"
+        ]
+      },
+      {
+        "id": "fx-doc-edit/1",
+        "commands": [
+          "fx doc new",
+          "fx doc finalize",
+          "fx doc status",
+          "fx doc relate",
+          "fx doc adopt",
+          "fx doc move",
+          "fx doc discard",
+          "fx doc rename",
+          "fx doc entry add",
+          "fx doc entry set",
+          "fx doc entry close"
+        ]
+      },
+      {
+        "id": "fx-doc-entries/1",
+        "commands": [
+          "fx doc entry list"
+        ]
+      },
+      {
+        "id": "fx-doc-key/1",
+        "commands": [
+          "fx doc key"
+        ]
+      },
+      {
+        "id": "fx-doc-list/1",
+        "commands": [
+          "fx doc list"
+        ]
+      },
+      {
+        "id": "fx-doc-schemas/1",
+        "commands": [
+          "fx doc schema"
+        ]
+      },
+      {
+        "id": "fx-doc-show/1",
+        "commands": [
+          "fx doc show"
+        ]
+      },
+      {
+        "id": "fx-doctor/1",
+        "commands": [
+          "fx doctor"
+        ]
+      },
+      {
+        "id": "fx-events/1",
+        "commands": [
+          "fx <command> --output ndjson"
+        ]
+      },
+      {
+        "id": "fx-manifest-edit/1",
+        "commands": [
+          "fx init",
+          "fx mount add",
+          "fx mount remove",
+          "fx mount tag",
+          "fx mount set",
+          "fx mount rename",
+          "fx module enable",
+          "fx module disable",
+          "fx path add",
+          "fx path remove"
+        ]
+      },
+      {
+        "id": "fx-mount-list/1",
+        "commands": [
+          "fx mount list"
+        ]
+      },
+      {
+        "id": "fx-mount-park/1",
+        "commands": [
+          "fx mount park",
+          "fx mount unpark"
+        ]
+      },
+      {
+        "id": "fx-mount-pull/1",
+        "commands": [
+          "fx mount pull"
+        ]
+      },
+      {
+        "id": "fx-mount-status/1",
+        "commands": [
+          "fx mount status"
+        ]
+      },
+      {
+        "id": "fx-schemas/1",
+        "commands": [
+          "fx schema"
+        ]
+      },
+      {
+        "id": "fx-self-update/1",
+        "commands": [
+          "fx self update"
+        ]
+      },
+      {
+        "id": "fx-sync/1",
+        "commands": [
+          "fx sync"
+        ]
+      },
+      {
+        "id": "fx-version-tag/1",
+        "commands": [
+          "fx version tag"
+        ]
+      },
+      {
+        "id": "fx-version/1",
+        "commands": [
+          "fx version"
+        ]
+      },
+      {
+        "id": "fx-worktree-add/1",
+        "commands": [
+          "fx worktree add"
+        ]
+      },
+      {
+        "id": "fx-worktree-list/1",
+        "commands": [
+          "fx worktree list"
+        ]
+      },
+      {
+        "id": "fx-worktree-mount/1",
+        "commands": [
+          "fx worktree mount"
+        ]
+      },
+      {
+        "id": "fx-worktree-remove/1",
+        "commands": [
+          "fx worktree remove"
+        ]
+      },
+      {
+        "id": "fx-worktree-unmount/1",
+        "commands": [
+          "fx worktree unmount"
+        ]
+      }
+    ],
+    "diagnostics": []
+  },
+  "stderr": []
+}

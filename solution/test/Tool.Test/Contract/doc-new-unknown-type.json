@@ -1,0 +1,31 @@
+{
+  "args": [
+    "doc",
+    "new",
+    "memo",
+    "The catalog",
+    "--actor",
+    "editor",
+    "--output",
+    "json"
+  ],
+  "exitCode": 2,
+  "stdout": [],
+  "stderr": [
+    "Argument 'memo' not recognized. Must be one of:",
+    "\t'adr'",
+    "\t'design'",
+    "\t'plan'",
+    "\t'readme'",
+    "\t'reference'",
+    "\t'register'",
+    "\t'report'",
+    "\t'research'",
+    "\t'rfc'",
+    "\t'rule'",
+    "\t'runbook'",
+    "\t'spec'",
+    "\t'view'",
+    "fx --help lists the commands; fx <command> --help explains one."
+  ]
+}

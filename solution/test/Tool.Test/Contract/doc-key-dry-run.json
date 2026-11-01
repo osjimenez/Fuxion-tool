@@ -1,0 +1,29 @@
+{
+  "args": [
+    "doc",
+    "key",
+    "_docs/ideas/REGISTER-ideas.md",
+    "Another idea",
+    "--actor",
+    "editor",
+    "--dry-run",
+    "--output",
+    "json"
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "schema": "fx-doc-key/1",
+    "ok": true,
+    "register": "ideas/REGISTER-ideas.md",
+    "provider": "repo",
+    "keys": [
+      {
+        "key": "I-2",
+        "provisional": false
+      }
+    ],
+    "written": false,
+    "diagnostics": []
+  },
+  "stderr": []
+}

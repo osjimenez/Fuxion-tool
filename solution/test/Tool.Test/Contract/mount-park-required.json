@@ -1,0 +1,25 @@
+{
+  "args": [
+    "mount",
+    "park",
+    "plus",
+    "--output",
+    "json"
+  ],
+  "exitCode": 1,
+  "stdout": {
+    "schema": "fx-mount-park/1",
+    "ok": false,
+    "mounts": [],
+    "diagnostics": [
+      {
+        "code": "mounts.unknown",
+        "severity": "error",
+        "module": "mounts",
+        "repository": "plus",
+        "message": "'plus' is required: it cannot be parked."
+      }
+    ]
+  },
+  "stderr": []
+}

@@ -1,0 +1,23 @@
+{
+  "args": [
+    "version",
+    "tag",
+    "1.3",
+    "--output",
+    "json"
+  ],
+  "exitCode": 1,
+  "stdout": {
+    "schema": "fx-version-tag/1",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "version.tag-exists",
+        "severity": "error",
+        "module": "version",
+        "message": "The tag 'version/1.3.0' already exists."
+      }
+    ]
+  },
+  "stderr": []
+}

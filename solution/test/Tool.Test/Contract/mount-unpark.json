@@ -1,0 +1,23 @@
+{
+  "args": [
+    "mount",
+    "unpark",
+    "extra",
+    "--output",
+    "json"
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "schema": "fx-mount-park/1",
+    "ok": true,
+    "mounts": [
+      {
+        "name": "extra",
+        "action": "unparked",
+        "detail": "fx sync clones it"
+      }
+    ],
+    "diagnostics": []
+  },
+  "stderr": []
+}

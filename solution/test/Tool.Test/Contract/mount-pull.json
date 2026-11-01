@@ -1,0 +1,21 @@
+{
+  "args": [
+    "mount",
+    "pull",
+    "--output",
+    "json"
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "schema": "fx-mount-pull/1",
+    "ok": true,
+    "mounts": [
+      {
+        "name": "plus",
+        "action": "pulled"
+      }
+    ],
+    "diagnostics": []
+  },
+  "stderr": []
+}

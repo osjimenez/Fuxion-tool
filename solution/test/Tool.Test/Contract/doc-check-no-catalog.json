@@ -1,0 +1,27 @@
+{
+  "args": [
+    "doc",
+    "check",
+    "--output",
+    "json"
+  ],
+  "exitCode": 1,
+  "stdout": {
+    "schema": "fx-doc-check/1",
+    "ok": false,
+    "checked": 0,
+    "withProblems": [],
+    "diagnostics": [
+      {
+        "code": "docs.no-catalog",
+        "severity": "error",
+        "module": "docs",
+        "message": "This space has no catalog of documents (its _fx/docs/ folder, enabled).",
+        "fix": {
+          "command": "fx module enable docs"
+        }
+      }
+    ]
+  },
+  "stderr": []
+}

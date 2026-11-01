@@ -1,0 +1,34 @@
+{
+  "args": [
+    "doc",
+    "new",
+    "design",
+    "The catalog",
+    "--profile",
+    "software",
+    "--actor",
+    "editor",
+    "--output",
+    "json"
+  ],
+  "exitCode": 1,
+  "stdout": {
+    "schema": "fx-doc-edit/1",
+    "ok": false,
+    "changed": false,
+    "written": false,
+    "documents": [],
+    "files": [],
+    "moved": [],
+    "removed": [],
+    "diagnostics": [
+      {
+        "code": "docs.name-taken",
+        "severity": "error",
+        "module": "docs",
+        "message": "DESIGN-the-catalog.md exists already."
+      }
+    ]
+  },
+  "stderr": []
+}

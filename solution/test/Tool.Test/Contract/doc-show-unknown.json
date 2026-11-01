@@ -1,0 +1,14 @@
+{
+  "args": [
+    "doc",
+    "show",
+    "_docs/nope.md",
+    "--output",
+    "json"
+  ],
+  "exitCode": 2,
+  "stdout": [],
+  "stderr": [
+    "'_docs/nope.md' names no document of the catalog _docs."
+  ]
+}

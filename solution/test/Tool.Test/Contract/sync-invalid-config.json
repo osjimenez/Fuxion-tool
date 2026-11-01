@@ -1,0 +1,57 @@
+{
+  "args": [
+    "sync",
+    "--output",
+    "json"
+  ],
+  "exitCode": 1,
+  "stdout": {
+    "schema": "fx-sync/1",
+    "ok": false,
+    "modules": [
+      {
+        "module": "dotnet",
+        "root": "<root>/",
+        "space": "lib",
+        "files": [],
+        "mounts": []
+      },
+      {
+        "module": "harness",
+        "root": "<root>/",
+        "space": "lib",
+        "files": [
+          {
+            "path": "AGENTS.md",
+            "status": "written"
+          },
+          {
+            "path": "CLAUDE.md",
+            "status": "written"
+          },
+          {
+            "path": ".claude/skills/fx/SKILL.md",
+            "status": "written"
+          },
+          {
+            "path": ".agents/skills/fx/SKILL.md",
+            "status": "written"
+          }
+        ],
+        "mounts": []
+      }
+    ],
+    "diagnostics": [
+      {
+        "code": "dotnet.invalid-yaml",
+        "severity": "error",
+        "module": "dotnet",
+        "repository": "lib",
+        "message": "While parsing a flow sequence, did not find expected ',' or ']'.",
+        "file": "_fx/dotnet/dotnet.yaml",
+        "line": 5
+      }
+    ]
+  },
+  "stderr": []
+}

@@ -1,0 +1,20 @@
+{
+  "args": [
+    "doc",
+    "entry",
+    "set",
+    "_docs/ideas/REGISTER-ideas.md",
+    "I-1",
+    "--field",
+    "prioridad",
+    "--actor",
+    "editor",
+    "--output",
+    "json"
+  ],
+  "exitCode": 2,
+  "stdout": [],
+  "stderr": [
+    "'prioridad' is not name=value."
+  ]
+}

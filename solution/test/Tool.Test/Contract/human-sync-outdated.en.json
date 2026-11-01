@@ -1,0 +1,20 @@
+{
+  "args": [
+    "sync",
+    "dotnet",
+    "--dry-run",
+    "--lang",
+    "en"
+  ],
+  "exitCode": 0,
+  "stdout": [
+    "would-write _fx/dotnet/dotnet.g.props",
+    "would-write _fx/dotnet/dotnet.g.targets",
+    "would-write _fx/dotnet/packages.g.props",
+    "would-write _fx/dotnet/projects.g.props",
+    "would-write global.json",
+    "would-write solution/Directory.Packages.props",
+    "dotnet: 6 file(s) would change"
+  ],
+  "stderr": []
+}

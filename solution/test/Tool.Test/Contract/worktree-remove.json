@@ -1,0 +1,25 @@
+{
+  "args": [
+    "worktree",
+    "remove",
+    "feature/x",
+    "--output",
+    "json"
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "schema": "fx-worktree-remove/1",
+    "ok": true,
+    "path": "<space>/_fx/~$worktrees/feature-x/",
+    "branch": "feature/x",
+    "mounts": [
+      {
+        "name": "test",
+        "action": "removed"
+      }
+    ],
+    "modules": [],
+    "diagnostics": []
+  },
+  "stderr": []
+}

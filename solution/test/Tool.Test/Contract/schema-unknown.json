@@ -1,0 +1,13 @@
+{
+  "args": [
+    "schema",
+    "fx-nope/1",
+    "--output",
+    "json"
+  ],
+  "exitCode": 2,
+  "stdout": [],
+  "stderr": [
+    "fx has no schema 'fx-nope/1': fx schema lists them."
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "args": [
+    "doc",
+    "status",
+    "_docs/_records/<yyyy>/<mm>/PLAN-the-plan.md",
+    "in-progress",
+    "--actor",
+    "editor",
+    "--dry-run",
+    "--output",
+    "json"
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "schema": "fx-doc-edit/1",
+    "ok": true,
+    "changed": true,
+    "written": false,
+    "documents": [
+      "_records/<yyyy>/<mm>/PLAN-the-plan.md"
+    ],
+    "files": [
+      {
+        "file": "_docs/_records/<yyyy>/<mm>/PLAN-the-plan.meta.json",
+        "diff": "@@ -4,12 +4,12 @@\n   \"type\": \"plan\",\n   \"profile\": \"contingency\",\n-  \"status\": \"draft\",\n+  \"status\": \"in-progress\",\n   \"title\": \"The plan\",\n   \"createdAt\": \"<time>\",\n-  \"updatedAt\": \"<time>\",\n+  \"updatedAt\": \"<time>\",\n   \"createdBy\": \"editor\",\n   \"integrity\": {\n     \"content\": \"sha256:<digest>\",\n-    \"metadata\": \"sha256:<digest>\"\n+    \"metadata\": \"sha256:<digest>\"\n   }\n }\n"
+      }
+    ],
+    "moved": [],
+    "removed": [],
+    "diagnostics": []
+  },
+  "stderr": []
+}

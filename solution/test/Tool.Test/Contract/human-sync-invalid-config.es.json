@@ -1,0 +1,15 @@
+{
+  "args": [
+    "sync",
+    "--lang",
+    "es"
+  ],
+  "exitCode": 1,
+  "stdout": [
+    "dotnet: al día",
+    "harness: al día"
+  ],
+  "stderr": [
+    "error dotnet.invalid-yaml: _fx/dotnet/dotnet.yaml(5): While parsing a flow sequence, did not find expected ',' or ']'."
+  ]
+}

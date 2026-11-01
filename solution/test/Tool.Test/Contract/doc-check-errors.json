@@ -1,0 +1,50 @@
+{
+  "args": [
+    "doc",
+    "check",
+    "--output",
+    "json"
+  ],
+  "exitCode": 1,
+  "stdout": {
+    "schema": "fx-doc-check/1",
+    "ok": false,
+    "catalog": "_docs",
+    "checked": 4,
+    "withProblems": [
+      "DESIGN-loose.md",
+      "_records/<yyyy>/<mm>/ADR-a-decision.md"
+    ],
+    "diagnostics": [
+      {
+        "code": "docs.missing-sidecar",
+        "severity": "error",
+        "module": "docs",
+        "message": "DESIGN-loose.md has no sidecar, and it is not in the bootstrap list.",
+        "file": "_docs/DESIGN-loose.md",
+        "fix": {
+          "command": "fx doc adopt DESIGN-loose.md"
+        }
+      },
+      {
+        "code": "docs.unfinalized",
+        "severity": "warning",
+        "module": "docs",
+        "message": "_records/<yyyy>/<mm>/ADR-a-decision.md changed after it was finalized.",
+        "file": "_docs/_records/<yyyy>/<mm>/ADR-a-decision.md",
+        "fix": {
+          "command": "fx doc finalize _records/<yyyy>/<mm>/ADR-a-decision.md"
+        }
+      },
+      {
+        "code": "docs.broken-link",
+        "severity": "error",
+        "module": "docs",
+        "message": "The link 'nowhere.md' leads nowhere.",
+        "file": "_docs/_records/<yyyy>/<mm>/ADR-a-decision.md",
+        "line": 4
+      }
+    ]
+  },
+  "stderr": []
+}

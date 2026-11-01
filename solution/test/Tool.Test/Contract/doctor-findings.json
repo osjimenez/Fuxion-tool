@@ -1,0 +1,116 @@
+{
+  "args": [
+    "doctor",
+    "dotnet",
+    "--output",
+    "json"
+  ],
+  "exitCode": 1,
+  "stdout": {
+    "schema": "fx-doctor/1",
+    "ok": false,
+    "modules": [
+      {
+        "module": "dotnet",
+        "root": "<root>/",
+        "space": "lib",
+        "files": [
+          {
+            "path": "_fx/dotnet/dotnet.g.props",
+            "status": "would-write"
+          },
+          {
+            "path": "_fx/dotnet/dotnet.g.targets",
+            "status": "would-write"
+          },
+          {
+            "path": "_fx/dotnet/packages.g.props",
+            "status": "would-write"
+          },
+          {
+            "path": "_fx/dotnet/projects.g.props",
+            "status": "would-write"
+          },
+          {
+            "path": "global.json",
+            "status": "would-write"
+          },
+          {
+            "path": "solution/Directory.Packages.props",
+            "status": "would-write"
+          }
+        ],
+        "mounts": []
+      }
+    ],
+    "diagnostics": [
+      {
+        "code": "dotnet.outdated",
+        "severity": "error",
+        "module": "dotnet",
+        "repository": "lib",
+        "message": "Out of date: fx sync would change it.",
+        "file": "_fx/dotnet/dotnet.g.props",
+        "fix": {
+          "command": "fx sync"
+        }
+      },
+      {
+        "code": "dotnet.outdated",
+        "severity": "error",
+        "module": "dotnet",
+        "repository": "lib",
+        "message": "Out of date: fx sync would change it.",
+        "file": "_fx/dotnet/dotnet.g.targets",
+        "fix": {
+          "command": "fx sync"
+        }
+      },
+      {
+        "code": "dotnet.outdated",
+        "severity": "error",
+        "module": "dotnet",
+        "repository": "lib",
+        "message": "Out of date: fx sync would change it.",
+        "file": "_fx/dotnet/packages.g.props",
+        "fix": {
+          "command": "fx sync"
+        }
+      },
+      {
+        "code": "dotnet.outdated",
+        "severity": "error",
+        "module": "dotnet",
+        "repository": "lib",
+        "message": "Out of date: fx sync would change it.",
+        "file": "_fx/dotnet/projects.g.props",
+        "fix": {
+          "command": "fx sync"
+        }
+      },
+      {
+        "code": "dotnet.outdated",
+        "severity": "error",
+        "module": "dotnet",
+        "repository": "lib",
+        "message": "Out of date: fx sync would change it.",
+        "file": "global.json",
+        "fix": {
+          "command": "fx sync"
+        }
+      },
+      {
+        "code": "dotnet.outdated",
+        "severity": "error",
+        "module": "dotnet",
+        "repository": "lib",
+        "message": "Out of date: fx sync would change it.",
+        "file": "solution/Directory.Packages.props",
+        "fix": {
+          "command": "fx sync"
+        }
+      }
+    ]
+  },
+  "stderr": []
+}

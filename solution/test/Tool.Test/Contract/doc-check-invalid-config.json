@@ -1,0 +1,26 @@
+{
+  "args": [
+    "doc",
+    "check",
+    "--output",
+    "json"
+  ],
+  "exitCode": 1,
+  "stdout": {
+    "schema": "fx-doc-check/1",
+    "ok": false,
+    "checked": 0,
+    "withProblems": [],
+    "diagnostics": [
+      {
+        "code": "docs.invalid-yaml",
+        "severity": "error",
+        "module": "docs",
+        "message": "The catalog ('../out') must be a relative folder of the space, outside _fx/ and not local.",
+        "file": "<root>/_fx/docs/docs.yaml",
+        "line": 2
+      }
+    ]
+  },
+  "stderr": []
+}

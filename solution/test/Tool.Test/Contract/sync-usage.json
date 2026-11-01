@@ -1,0 +1,18 @@
+{
+  "args": [
+    "sync",
+    "nope",
+    "--output",
+    "json"
+  ],
+  "exitCode": 2,
+  "stdout": [],
+  "stderr": [
+    "Argument 'nope' not recognized. Must be one of:",
+    "\t'mounts'",
+    "\t'dotnet'",
+    "\t'harness'",
+    "\t'docs'",
+    "fx --help lists the commands; fx <command> --help explains one."
+  ]
+}

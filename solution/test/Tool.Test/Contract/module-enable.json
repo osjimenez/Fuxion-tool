@@ -1,0 +1,83 @@
+{
+  "args": [
+    "module",
+    "enable",
+    "docs",
+    "--dry-run",
+    "--output",
+    "json"
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "schema": "fx-manifest-edit/1",
+    "ok": true,
+    "changed": true,
+    "written": false,
+    "files": [
+      {
+        "file": "_fx/docs/docs.yaml",
+        "diff": "@@ -0,0 +1,1 @@\n+schema: 1.0.0\n"
+      },
+      {
+        "file": "_fx/space.yaml",
+        "diff": "@@ -1,2 +1,5 @@\n schema: 1.0.0\n name: test\n+paths:\n+  - path: _docs/\n+    worktree: false\n"
+      }
+    ],
+    "diagnostics": [],
+    "sync": [
+      {
+        "module": "mounts",
+        "root": "<space>/",
+        "files": [
+          {
+            "path": ".gitignore",
+            "status": "would-write"
+          }
+        ],
+        "mounts": [
+          {
+            "name": "extra",
+            "action": "would-clone"
+          }
+        ]
+      },
+      {
+        "module": "mounts",
+        "root": "<space>/",
+        "space": "plus",
+        "files": [],
+        "mounts": []
+      },
+      {
+        "module": "harness",
+        "root": "<space>/",
+        "files": [
+          {
+            "path": "AGENTS.md",
+            "status": "unchanged"
+          },
+          {
+            "path": "CLAUDE.md",
+            "status": "unchanged"
+          },
+          {
+            "path": ".claude/skills/fx/SKILL.md",
+            "status": "unchanged"
+          },
+          {
+            "path": ".agents/skills/fx/SKILL.md",
+            "status": "unchanged"
+          }
+        ],
+        "mounts": []
+      },
+      {
+        "module": "docs",
+        "root": "<space>/",
+        "files": [],
+        "mounts": []
+      }
+    ]
+  },
+  "stderr": []
+}

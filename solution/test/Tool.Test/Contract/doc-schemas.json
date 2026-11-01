@@ -1,0 +1,510 @@
+{
+  "args": [
+    "doc",
+    "schema",
+    "--output",
+    "json"
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "schema": "fx-doc-schemas/1",
+    "ok": true,
+    "version": "1.0",
+    "types": [
+      {
+        "name": "adr",
+        "token": "ADR",
+        "temporality": "historical",
+        "statuses": [
+          {
+            "name": "accepted",
+            "class": "current"
+          },
+          {
+            "name": "draft",
+            "class": "open"
+          },
+          {
+            "name": "rescinded",
+            "class": "void"
+          },
+          {
+            "name": "superseded",
+            "class": "replaced"
+          }
+        ],
+        "initialStatus": "draft",
+        "profiles": [],
+        "profileRequired": false,
+        "generation": "none"
+      },
+      {
+        "name": "design",
+        "token": "DESIGN",
+        "temporality": "stable",
+        "statuses": [
+          {
+            "name": "active",
+            "class": "current"
+          },
+          {
+            "name": "deprecated",
+            "class": "replaced"
+          },
+          {
+            "name": "draft",
+            "class": "open"
+          },
+          {
+            "name": "retired",
+            "class": "void"
+          },
+          {
+            "name": "review",
+            "class": "open"
+          }
+        ],
+        "initialStatus": "draft",
+        "profiles": [
+          "data",
+          "infrastructure",
+          "integration",
+          "software"
+        ],
+        "profileRequired": true,
+        "generation": "none"
+      },
+      {
+        "name": "plan",
+        "token": "PLAN",
+        "temporality": "historical",
+        "statuses": [
+          {
+            "name": "blocked",
+            "class": "open"
+          },
+          {
+            "name": "cancelled",
+            "class": "void"
+          },
+          {
+            "name": "completed",
+            "class": "closed"
+          },
+          {
+            "name": "draft",
+            "class": "open"
+          },
+          {
+            "name": "in-progress",
+            "class": "open"
+          },
+          {
+            "name": "ready",
+            "class": "open"
+          }
+        ],
+        "initialStatus": "draft",
+        "profiles": [
+          "contingency",
+          "decommission",
+          "implementation",
+          "migration",
+          "remediation",
+          "rollout",
+          "verification"
+        ],
+        "profileRequired": true,
+        "generation": "none"
+      },
+      {
+        "name": "readme",
+        "token": "README",
+        "temporality": "stable",
+        "statuses": [
+          {
+            "name": "active",
+            "class": "current"
+          },
+          {
+            "name": "retired",
+            "class": "void"
+          }
+        ],
+        "initialStatus": "active",
+        "profiles": [],
+        "profileRequired": false,
+        "generation": "none"
+      },
+      {
+        "name": "reference",
+        "token": "REFERENCE",
+        "temporality": "stable",
+        "statuses": [
+          {
+            "name": "active",
+            "class": "current"
+          },
+          {
+            "name": "deprecated",
+            "class": "replaced"
+          },
+          {
+            "name": "draft",
+            "class": "open"
+          },
+          {
+            "name": "retired",
+            "class": "void"
+          }
+        ],
+        "initialStatus": "draft",
+        "profiles": [
+          "concept",
+          "glossary",
+          "model",
+          "overview"
+        ],
+        "profileRequired": true,
+        "generation": "none"
+      },
+      {
+        "name": "register",
+        "token": "REGISTER",
+        "temporality": "stable",
+        "statuses": [
+          {
+            "name": "active",
+            "class": "current"
+          },
+          {
+            "name": "retired",
+            "class": "void"
+          },
+          {
+            "name": "stale",
+            "class": "current"
+          }
+        ],
+        "initialStatus": "active",
+        "profiles": [
+          "backlog",
+          "debt",
+          "exception",
+          "incident",
+          "inventory",
+          "risk"
+        ],
+        "profileRequired": true,
+        "generation": "allowed"
+      },
+      {
+        "name": "report",
+        "token": "REPORT",
+        "temporality": "historical",
+        "statuses": [
+          {
+            "name": "amended",
+            "class": "current"
+          },
+          {
+            "name": "draft",
+            "class": "open"
+          },
+          {
+            "name": "final",
+            "class": "current"
+          },
+          {
+            "name": "superseded",
+            "class": "replaced"
+          }
+        ],
+        "initialStatus": "draft",
+        "profiles": [
+          "audit",
+          "incident",
+          "maintenance",
+          "migration",
+          "review",
+          "test",
+          "verification"
+        ],
+        "profileRequired": true,
+        "generation": "allowed"
+      },
+      {
+        "name": "research",
+        "token": "RESEARCH",
+        "temporality": "historical",
+        "statuses": [
+          {
+            "name": "abandoned",
+            "class": "void"
+          },
+          {
+            "name": "active",
+            "class": "open"
+          },
+          {
+            "name": "closed",
+            "class": "closed"
+          },
+          {
+            "name": "draft",
+            "class": "open"
+          },
+          {
+            "name": "superseded",
+            "class": "replaced"
+          }
+        ],
+        "initialStatus": "draft",
+        "profiles": [],
+        "profileRequired": false,
+        "generation": "none"
+      },
+      {
+        "name": "rfc",
+        "token": "RFC",
+        "temporality": "historical",
+        "statuses": [
+          {
+            "name": "accepted",
+            "class": "closed"
+          },
+          {
+            "name": "draft",
+            "class": "open"
+          },
+          {
+            "name": "rejected",
+            "class": "void"
+          },
+          {
+            "name": "review",
+            "class": "open"
+          },
+          {
+            "name": "superseded",
+            "class": "replaced"
+          },
+          {
+            "name": "withdrawn",
+            "class": "void"
+          }
+        ],
+        "initialStatus": "draft",
+        "profiles": [],
+        "profileRequired": false,
+        "generation": "none"
+      },
+      {
+        "name": "rule",
+        "token": "RULE",
+        "temporality": "stable",
+        "statuses": [
+          {
+            "name": "active",
+            "class": "current"
+          },
+          {
+            "name": "deprecated",
+            "class": "replaced"
+          },
+          {
+            "name": "draft",
+            "class": "open"
+          },
+          {
+            "name": "retired",
+            "class": "void"
+          },
+          {
+            "name": "review",
+            "class": "open"
+          },
+          {
+            "name": "superseded",
+            "class": "replaced"
+          }
+        ],
+        "initialStatus": "draft",
+        "profiles": [
+          "policy",
+          "standard"
+        ],
+        "profileRequired": true,
+        "generation": "none"
+      },
+      {
+        "name": "runbook",
+        "token": "RUNBOOK",
+        "temporality": "stable",
+        "statuses": [
+          {
+            "name": "active",
+            "class": "current"
+          },
+          {
+            "name": "draft",
+            "class": "open"
+          },
+          {
+            "name": "needs-review",
+            "class": "current"
+          },
+          {
+            "name": "retired",
+            "class": "void"
+          }
+        ],
+        "initialStatus": "draft",
+        "profiles": [],
+        "profileRequired": false,
+        "generation": "none"
+      },
+      {
+        "name": "spec",
+        "token": "SPEC",
+        "temporality": "stable",
+        "statuses": [
+          {
+            "name": "approved",
+            "class": "current"
+          },
+          {
+            "name": "cancelled",
+            "class": "void"
+          },
+          {
+            "name": "draft",
+            "class": "open"
+          },
+          {
+            "name": "implemented",
+            "class": "current"
+          },
+          {
+            "name": "implementing",
+            "class": "current"
+          },
+          {
+            "name": "review",
+            "class": "open"
+          },
+          {
+            "name": "superseded",
+            "class": "replaced"
+          },
+          {
+            "name": "verified",
+            "class": "current"
+          }
+        ],
+        "initialStatus": "draft",
+        "profiles": [
+          "data",
+          "infrastructure",
+          "integration",
+          "procedure",
+          "software"
+        ],
+        "profileRequired": true,
+        "generation": "none"
+      },
+      {
+        "name": "view",
+        "token": "VIEW",
+        "temporality": "stable",
+        "statuses": [
+          {
+            "name": "active",
+            "class": "current"
+          },
+          {
+            "name": "retired",
+            "class": "void"
+          }
+        ],
+        "initialStatus": "active",
+        "profiles": [
+          "catalog",
+          "graph",
+          "query",
+          "status"
+        ],
+        "profileRequired": true,
+        "generation": "required"
+      }
+    ],
+    "relations": [
+      {
+        "name": "amends"
+      },
+      {
+        "name": "constrains"
+      },
+      {
+        "name": "decided-by",
+        "targets": [
+          "adr"
+        ]
+      },
+      {
+        "name": "depends-on"
+      },
+      {
+        "name": "derived-from"
+      },
+      {
+        "name": "governs"
+      },
+      {
+        "name": "implemented-by",
+        "targets": [
+          "plan"
+        ]
+      },
+      {
+        "name": "indexes"
+      },
+      {
+        "name": "informs"
+      },
+      {
+        "name": "operated-by",
+        "targets": [
+          "runbook"
+        ]
+      },
+      {
+        "name": "realized-by",
+        "sources": [
+          "spec"
+        ],
+        "targets": [
+          "design"
+        ]
+      },
+      {
+        "name": "related-to"
+      },
+      {
+        "name": "summarizes",
+        "sources": [
+          "report",
+          "view"
+        ]
+      },
+      {
+        "name": "supersedes"
+      },
+      {
+        "name": "verified-by"
+      }
+    ],
+    "diagnostics": []
+  },
+  "stderr": []
+}

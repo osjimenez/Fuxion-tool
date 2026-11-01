@@ -1,0 +1,25 @@
+{
+  "args": [
+    "mount",
+    "list",
+    "--output",
+    "json"
+  ],
+  "exitCode": 1,
+  "stdout": {
+    "schema": "fx-mount-list/1",
+    "ok": false,
+    "mounts": [],
+    "diagnostics": [
+      {
+        "code": "mounts.invalid-manifest",
+        "severity": "error",
+        "module": "mounts",
+        "message": "While parsing a flow sequence, did not find expected ',' or ']'.",
+        "file": "_fx/mounts/mounts.yaml",
+        "line": 5
+      }
+    ]
+  },
+  "stderr": []
+}

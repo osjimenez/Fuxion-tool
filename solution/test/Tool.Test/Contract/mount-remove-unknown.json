@@ -1,0 +1,28 @@
+{
+  "args": [
+    "mount",
+    "remove",
+    "nope",
+    "--output",
+    "json"
+  ],
+  "exitCode": 1,
+  "stdout": {
+    "schema": "fx-manifest-edit/1",
+    "ok": false,
+    "changed": false,
+    "written": false,
+    "files": [],
+    "diagnostics": [
+      {
+        "code": "mounts.unknown",
+        "severity": "error",
+        "module": "mounts",
+        "repository": "nope",
+        "message": "mounts.yaml has no mount 'nope'.",
+        "file": "_fx/mounts/mounts.yaml"
+      }
+    ]
+  },
+  "stderr": []
+}

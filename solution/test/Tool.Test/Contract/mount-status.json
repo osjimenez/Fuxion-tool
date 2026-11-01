@@ -1,0 +1,33 @@
+{
+  "args": [
+    "mount",
+    "status",
+    "--output",
+    "json"
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "schema": "fx-mount-status/1",
+    "ok": true,
+    "mounts": [
+      {
+        "name": "plus",
+        "path": "plus/repo",
+        "required": true,
+        "mode": "write",
+        "audience": "public",
+        "mounted": true,
+        "present": true,
+        "parked": false,
+        "branch": "main",
+        "detached": false,
+        "upstream": "origin/main",
+        "ahead": 0,
+        "behind": 0,
+        "changes": 0
+      }
+    ],
+    "diagnostics": []
+  },
+  "stderr": []
+}

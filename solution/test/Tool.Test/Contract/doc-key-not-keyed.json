@@ -1,0 +1,28 @@
+{
+  "args": [
+    "doc",
+    "key",
+    "_docs/notes/REGISTER-debts.md",
+    "--actor",
+    "editor",
+    "--output",
+    "json"
+  ],
+  "exitCode": 1,
+  "stdout": {
+    "schema": "fx-doc-key/1",
+    "ok": false,
+    "register": "notes/REGISTER-debts.md",
+    "keys": [],
+    "written": false,
+    "diagnostics": [
+      {
+        "code": "docs.not-keyed",
+        "severity": "error",
+        "module": "docs",
+        "message": "notes/REGISTER-debts.md uses no keys: declare it in the registers of docs.yaml, with its prefix and its provider."
+      }
+    ]
+  },
+  "stderr": []
+}

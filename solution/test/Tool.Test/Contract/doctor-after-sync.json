@@ -1,0 +1,49 @@
+{
+  "args": [
+    "doctor",
+    "dotnet",
+    "--output",
+    "json"
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "schema": "fx-doctor/1",
+    "ok": true,
+    "modules": [
+      {
+        "module": "dotnet",
+        "root": "<root>/",
+        "space": "lib",
+        "files": [
+          {
+            "path": "_fx/dotnet/dotnet.g.props",
+            "status": "unchanged"
+          },
+          {
+            "path": "_fx/dotnet/dotnet.g.targets",
+            "status": "unchanged"
+          },
+          {
+            "path": "_fx/dotnet/packages.g.props",
+            "status": "unchanged"
+          },
+          {
+            "path": "_fx/dotnet/projects.g.props",
+            "status": "unchanged"
+          },
+          {
+            "path": "global.json",
+            "status": "unchanged"
+          },
+          {
+            "path": "solution/Directory.Packages.props",
+            "status": "unchanged"
+          }
+        ],
+        "mounts": []
+      }
+    ],
+    "diagnostics": []
+  },
+  "stderr": []
+}

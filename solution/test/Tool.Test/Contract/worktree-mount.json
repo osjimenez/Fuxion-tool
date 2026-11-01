@@ -1,0 +1,60 @@
+{
+  "args": [
+    "worktree",
+    "mount",
+    "feature/x",
+    "plus",
+    "--output",
+    "json"
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "schema": "fx-worktree-mount/1",
+    "ok": true,
+    "path": "<space>/_fx/~$worktrees/feature-x/",
+    "branch": "feature/x",
+    "mounts": [
+      {
+        "name": "plus",
+        "action": "mounted"
+      }
+    ],
+    "modules": [
+      {
+        "module": "mounts",
+        "root": "<space>/_fx/~$worktrees/feature-x/",
+        "files": [
+          {
+            "path": ".gitignore",
+            "status": "unchanged"
+          }
+        ],
+        "mounts": []
+      },
+      {
+        "module": "mounts",
+        "root": "<space>/_fx/~$worktrees/feature-x/",
+        "space": "plus",
+        "files": [],
+        "mounts": []
+      },
+      {
+        "module": "harness",
+        "root": "<space>/_fx/~$worktrees/feature-x/",
+        "files": [
+          {
+            "path": "AGENTS.md",
+            "status": "unchanged"
+          },
+          {
+            "path": "CLAUDE.md",
+            "status": "unchanged"
+          }
+        ],
+        "mounts": []
+      }
+    ],
+    "diagnostics": []
+  },
+  "stderr": []
+}

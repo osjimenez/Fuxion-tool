@@ -1,0 +1,15 @@
+{
+  "args": [
+    "mount",
+    "add",
+    "<origin>",
+    "plus/repo",
+    "--lang",
+    "en"
+  ],
+  "exitCode": 1,
+  "stdout": [],
+  "stderr": [
+    "error mounts.invalid-manifest: _fx/mounts/mounts.yaml(6): Path 'plus/repo' is used more than once."
+  ]
+}

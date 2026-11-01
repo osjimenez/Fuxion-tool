@@ -1,0 +1,27 @@
+{
+  "args": [
+    "init",
+    "--name",
+    "fresh",
+    "--output",
+    "json"
+  ],
+  "exitCode": 1,
+  "stdout": {
+    "schema": "fx-manifest-edit/1",
+    "ok": false,
+    "changed": false,
+    "written": false,
+    "files": [],
+    "diagnostics": [
+      {
+        "code": "space.exists",
+        "severity": "error",
+        "module": "space",
+        "message": "This folder is already a space: _fx/space.yaml exists.",
+        "file": "_fx/space.yaml"
+      }
+    ]
+  },
+  "stderr": []
+}

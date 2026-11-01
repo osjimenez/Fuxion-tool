@@ -1,0 +1,23 @@
+{
+  "args": [
+    "mount",
+    "list",
+    "--output",
+    "json"
+  ],
+  "exitCode": 1,
+  "stdout": {
+    "schema": "fx-mount-list/1",
+    "ok": false,
+    "mounts": [],
+    "diagnostics": [
+      {
+        "code": "mounts.not-found",
+        "severity": "error",
+        "module": "mounts",
+        "message": "'<root>' is not inside a space that mounts others (no _fx/mounts/ above it)."
+      }
+    ]
+  },
+  "stderr": []
+}

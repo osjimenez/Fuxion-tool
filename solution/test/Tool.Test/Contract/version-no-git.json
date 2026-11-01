@@ -1,0 +1,21 @@
+{
+  "args": [
+    "version",
+    "--output",
+    "json"
+  ],
+  "exitCode": 1,
+  "stdout": {
+    "schema": "fx-version/1",
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "version.repository-not-found",
+        "severity": "error",
+        "module": "version",
+        "message": "Git versioning failed: Git repository not found."
+      }
+    ]
+  },
+  "stderr": []
+}

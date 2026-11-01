@@ -1,0 +1,54 @@
+{
+  "args": [
+    "sync",
+    "--output",
+    "json"
+  ],
+  "exitCode": 1,
+  "stdout": {
+    "schema": "fx-sync/1",
+    "ok": false,
+    "modules": [
+      {
+        "module": "mounts",
+        "root": "<space>/",
+        "files": [],
+        "mounts": []
+      },
+      {
+        "module": "harness",
+        "root": "<space>/",
+        "files": [
+          {
+            "path": "AGENTS.md",
+            "status": "unchanged"
+          },
+          {
+            "path": "CLAUDE.md",
+            "status": "unchanged"
+          },
+          {
+            "path": ".claude/skills/fx/SKILL.md",
+            "status": "unchanged"
+          },
+          {
+            "path": ".agents/skills/fx/SKILL.md",
+            "status": "unchanged"
+          }
+        ],
+        "mounts": []
+      }
+    ],
+    "diagnostics": [
+      {
+        "code": "mounts.invalid-manifest",
+        "severity": "error",
+        "module": "mounts",
+        "message": "While parsing a flow sequence, did not find expected ',' or ']'.",
+        "file": "_fx/mounts/mounts.yaml",
+        "line": 5
+      }
+    ]
+  },
+  "stderr": []
+}

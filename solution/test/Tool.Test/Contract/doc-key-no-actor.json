@@ -1,0 +1,27 @@
+{
+  "args": [
+    "doc",
+    "key",
+    "_docs/ideas/REGISTER-ideas.md",
+    "--output",
+    "json"
+  ],
+  "exitCode": 1,
+  "stdout": {
+    "schema": "fx-doc-key/1",
+    "ok": false,
+    "register": "ideas/REGISTER-ideas.md",
+    "provider": "repo",
+    "keys": [],
+    "written": false,
+    "diagnostics": [
+      {
+        "code": "docs.actor-missing",
+        "severity": "error",
+        "module": "docs",
+        "message": "A change needs its actor: --actor, or the variable FX_DOCS_ACTOR."
+      }
+    ]
+  },
+  "stderr": []
+}

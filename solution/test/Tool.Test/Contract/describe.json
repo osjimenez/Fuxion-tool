@@ -1,0 +1,1758 @@
+{
+  "args": [
+    "describe",
+    "--output",
+    "json"
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "schema": "fx-describe/1",
+    "ok": true,
+    "version": "<fx>",
+    "commands": [
+      {
+        "name": "init",
+        "description": "Make this folder a space: its _fx/space.yaml, with its name and its audience (public, the widest, written so that it shows), and nothing more.",
+        "arguments": [],
+        "options": [
+          {
+            "name": "--name",
+            "aliases": [],
+            "description": "Its name (by default, the folder's, in lowercase with '-').",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--dry-run",
+            "aliases": [],
+            "description": "Show the change, without writing it.",
+            "type": "bool",
+            "required": false
+          }
+        ],
+        "output": "fx-manifest-edit/1",
+        "writes": true,
+        "network": false,
+        "dryRun": true,
+        "interactive": false
+      },
+      {
+        "name": "sync",
+        "description": "Generate and update what fx owns here and in everything mounted below, from the _fx configuration.",
+        "arguments": [
+          {
+            "name": "module",
+            "description": "Only this module: mounts, dotnet, harness or docs.",
+            "arity": "0..1"
+          }
+        ],
+        "options": [
+          {
+            "name": "--dry-run",
+            "aliases": [],
+            "description": "Show what would change, without writing.",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--offline",
+            "aliases": [],
+            "description": "No network: do not fetch the repositories.",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--adopt",
+            "aliases": [],
+            "description": "Take over files written by hand (without the GENERATED header).",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--only",
+            "aliases": [],
+            "description": "Only this root, not what is mounted below it (nor the map of FxReference).",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--parent-ref",
+            "aliases": [],
+            "description": "Read the parent from its remote, on this branch (to try what it gives, without versioning the choice).",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "output": "fx-sync/1",
+        "writes": true,
+        "network": true,
+        "dryRun": true,
+        "interactive": false
+      },
+      {
+        "name": "doctor",
+        "description": "Check, without changing anything, that what fx owns here and below is right.",
+        "arguments": [
+          {
+            "name": "module",
+            "description": "Only this module: mounts, dotnet, harness or docs.",
+            "arity": "0..1"
+          }
+        ],
+        "options": [
+          {
+            "name": "--offline",
+            "aliases": [],
+            "description": "No network: do not ask the remotes.",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--only",
+            "aliases": [],
+            "description": "Only this root, not what is mounted below it (nor the map of FxReference).",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--parent-ref",
+            "aliases": [],
+            "description": "Read the parent from its remote, on this branch (to try what it gives, without versioning the choice).",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "output": "fx-doctor/1",
+        "writes": false,
+        "network": true,
+        "dryRun": false,
+        "interactive": false
+      },
+      {
+        "name": "mount list",
+        "description": "The mounts of mounts.yaml: where, their mode, whether they are required and whether they are here.",
+        "arguments": [],
+        "options": [],
+        "output": "fx-mount-list/1",
+        "writes": false,
+        "network": false,
+        "dryRun": false,
+        "interactive": false
+      },
+      {
+        "name": "mount status",
+        "description": "The mounts here that ask for attention: branch, commits ahead and behind, changes.",
+        "arguments": [],
+        "options": [
+          {
+            "name": "--all",
+            "aliases": [],
+            "description": "Also the mounts that are clean and up to date.",
+            "type": "bool",
+            "required": false
+          }
+        ],
+        "output": "fx-mount-status/1",
+        "writes": false,
+        "network": false,
+        "dryRun": false,
+        "interactive": false
+      },
+      {
+        "name": "mount park",
+        "description": "Park mounts: their clones go to _fx/~$parking/, never deleted.",
+        "arguments": [
+          {
+            "name": "names",
+            "description": "Mounts of mounts.yaml.",
+            "arity": "0..100000"
+          }
+        ],
+        "options": [],
+        "output": "fx-mount-park/1",
+        "writes": true,
+        "network": false,
+        "dryRun": false,
+        "interactive": false
+      },
+      {
+        "name": "mount unpark",
+        "description": "Unpark mounts: a parked one comes back now; fx sync clones what is missing.",
+        "arguments": [
+          {
+            "name": "names",
+            "description": "Mounts of mounts.yaml.",
+            "arity": "0..100000"
+          }
+        ],
+        "options": [],
+        "output": "fx-mount-park/1",
+        "writes": true,
+        "network": false,
+        "dryRun": false,
+        "interactive": false
+      },
+      {
+        "name": "mount pull",
+        "description": "Fast-forward the mounts here that have a clean working tree.",
+        "arguments": [
+          {
+            "name": "names",
+            "description": "Only these mounts (without names, all).",
+            "arity": "0..100000"
+          }
+        ],
+        "options": [],
+        "output": "fx-mount-pull/1",
+        "writes": true,
+        "network": true,
+        "dryRun": false,
+        "interactive": false
+      },
+      {
+        "name": "mount add",
+        "description": "Add a mount to mounts.yaml, where you say; its name comes from the URL unless --name. Nothing is cloned.",
+        "arguments": [
+          {
+            "name": "url",
+            "description": "The URL to clone it from.",
+            "arity": "0..1"
+          },
+          {
+            "name": "path",
+            "description": "Where it is mounted, relative to the space: the layout is yours.",
+            "arity": "0..1"
+          }
+        ],
+        "options": [
+          {
+            "name": "--name",
+            "aliases": [],
+            "description": "Its name (by default, from the URL: Fuxion-docs.git → fuxion-docs).",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--required",
+            "aliases": [],
+            "description": "Required: always there, it cannot be parked (by default, each copy parks it or brings it back).",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--mode",
+            "aliases": [],
+            "description": "Its mode: write (by default), read-only or propose-only.",
+            "type": "string",
+            "values": [
+              "propose-only",
+              "read-only",
+              "write"
+            ],
+            "required": false
+          },
+          {
+            "name": "--guest",
+            "aliases": [],
+            "description": "A guest: the space uses it, but it inherits from its own parent (inherits: false).",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--depends-on",
+            "aliases": [],
+            "description": "The mounts it needs.",
+            "type": "string[]",
+            "required": false
+          },
+          {
+            "name": "--tag",
+            "aliases": [],
+            "description": "Its tags.",
+            "type": "string[]",
+            "required": false
+          },
+          {
+            "name": "--dry-run",
+            "aliases": [],
+            "description": "Show the change, without writing it.",
+            "type": "bool",
+            "required": false
+          }
+        ],
+        "output": "fx-manifest-edit/1",
+        "writes": true,
+        "network": false,
+        "dryRun": true,
+        "interactive": false
+      },
+      {
+        "name": "mount remove",
+        "description": "Take a mount out of mounts.yaml; its clone stays.",
+        "arguments": [
+          {
+            "name": "name",
+            "description": "The mount.",
+            "arity": "0..1"
+          }
+        ],
+        "options": [
+          {
+            "name": "--dry-run",
+            "aliases": [],
+            "description": "Show the change, without writing it.",
+            "type": "bool",
+            "required": false
+          }
+        ],
+        "output": "fx-manifest-edit/1",
+        "writes": true,
+        "network": false,
+        "dryRun": true,
+        "interactive": false
+      },
+      {
+        "name": "mount tag",
+        "description": "Add tags to a mount, or remove them (--remove).",
+        "arguments": [
+          {
+            "name": "name",
+            "description": "The mount.",
+            "arity": "0..1"
+          },
+          {
+            "name": "tags",
+            "description": "The tags.",
+            "arity": "0..100000"
+          }
+        ],
+        "options": [
+          {
+            "name": "--remove",
+            "aliases": [],
+            "description": "Remove the tags instead of adding them.",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--dry-run",
+            "aliases": [],
+            "description": "Show the change, without writing it.",
+            "type": "bool",
+            "required": false
+          }
+        ],
+        "output": "fx-manifest-edit/1",
+        "writes": true,
+        "network": false,
+        "dryRun": true,
+        "interactive": false
+      },
+      {
+        "name": "mount set",
+        "description": "Change a key of a mount: url, path, required, mode, depends-on or inherits.",
+        "arguments": [
+          {
+            "name": "name",
+            "description": "The mount.",
+            "arity": "0..1"
+          },
+          {
+            "name": "key",
+            "description": "The key.",
+            "arity": "0..1"
+          },
+          {
+            "name": "values",
+            "description": "Its value (several, for depends-on).",
+            "arity": "0..100000"
+          }
+        ],
+        "options": [
+          {
+            "name": "--unset",
+            "aliases": [],
+            "description": "Remove the key.",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--dry-run",
+            "aliases": [],
+            "description": "Show the change, without writing it.",
+            "type": "bool",
+            "required": false
+          }
+        ],
+        "output": "fx-manifest-edit/1",
+        "writes": true,
+        "network": false,
+        "dryRun": true,
+        "interactive": false
+      },
+      {
+        "name": "mount rename",
+        "description": "Rename a mount: its references in this space change, and the old name stays in aliases.",
+        "arguments": [
+          {
+            "name": "name",
+            "description": "The mount.",
+            "arity": "0..1"
+          },
+          {
+            "name": "new-name",
+            "description": "The new name.",
+            "arity": "0..1"
+          }
+        ],
+        "options": [
+          {
+            "name": "--dry-run",
+            "aliases": [],
+            "description": "Show the change, without writing it.",
+            "type": "bool",
+            "required": false
+          }
+        ],
+        "output": "fx-manifest-edit/1",
+        "writes": true,
+        "network": false,
+        "dryRun": true,
+        "interactive": false
+      },
+      {
+        "name": "module enable",
+        "description": "Enable a module: create its folder in _fx, or take out its enabled: false; docs, in a space that mounts others, also leaves its catalog out of the worktrees.",
+        "arguments": [
+          {
+            "name": "module",
+            "description": "The module: mounts, dotnet, harness or docs.",
+            "arity": "0..1"
+          }
+        ],
+        "options": [
+          {
+            "name": "--tag",
+            "aliases": [],
+            "description": "The tags of the repositories it goes down to (its applies-to).",
+            "type": "string[]",
+            "required": false
+          },
+          {
+            "name": "--dry-run",
+            "aliases": [],
+            "description": "Show the change, without writing it.",
+            "type": "bool",
+            "required": false
+          }
+        ],
+        "output": "fx-manifest-edit/1",
+        "writes": true,
+        "network": false,
+        "dryRun": true,
+        "interactive": false
+      },
+      {
+        "name": "module disable",
+        "description": "Turn a module off without losing its configuration (enabled: false).",
+        "arguments": [
+          {
+            "name": "module",
+            "description": "The module: mounts, dotnet, harness or docs.",
+            "arity": "0..1"
+          }
+        ],
+        "options": [
+          {
+            "name": "--dry-run",
+            "aliases": [],
+            "description": "Show the change, without writing it.",
+            "type": "bool",
+            "required": false
+          }
+        ],
+        "output": "fx-manifest-edit/1",
+        "writes": true,
+        "network": false,
+        "dryRun": true,
+        "interactive": false
+      },
+      {
+        "name": "path add",
+        "description": "Version a file or a folder (ending in /) of the space, or mark one already there (--exclude, --no-worktree); nothing is created.",
+        "arguments": [
+          {
+            "name": "path",
+            "description": "The path, relative to the space (a folder ends in /).",
+            "arity": "0..1"
+          }
+        ],
+        "options": [
+          {
+            "name": "--exclude",
+            "aliases": [],
+            "description": "An exception inside something versioned (exclude: true).",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--no-worktree",
+            "aliases": [],
+            "description": "Left out of the worktrees of the space (worktree: false).",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--dry-run",
+            "aliases": [],
+            "description": "Show the change, without writing it.",
+            "type": "bool",
+            "required": false
+          }
+        ],
+        "output": "fx-manifest-edit/1",
+        "writes": true,
+        "network": false,
+        "dryRun": true,
+        "interactive": false
+      },
+      {
+        "name": "path remove",
+        "description": "Stop versioning a path; nothing is deleted.",
+        "arguments": [
+          {
+            "name": "path",
+            "description": "The path, relative to the space (a folder ends in /).",
+            "arity": "0..1"
+          }
+        ],
+        "options": [
+          {
+            "name": "--dry-run",
+            "aliases": [],
+            "description": "Show the change, without writing it.",
+            "type": "bool",
+            "required": false
+          }
+        ],
+        "output": "fx-manifest-edit/1",
+        "writes": true,
+        "network": false,
+        "dryRun": true,
+        "interactive": false
+      },
+      {
+        "name": "doc check",
+        "description": "Checks the documents of the catalog, or the ones given: their sidecars, names, places, titles, relations, links and integrity.",
+        "arguments": [
+          {
+            "name": "documents",
+            "description": "Documents: paths (of the Markdown, of the sidecar, or a folder) or identities; none, the whole catalog.",
+            "arity": "0..100000"
+          }
+        ],
+        "options": [
+          {
+            "name": "--branches",
+            "aliases": [],
+            "description": "Also against the remote branches git knows, without network: no path, slug, identity or key of an entry repeated.",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--fetch",
+            "aliases": [],
+            "description": "Fetches the remote branches first (it implies --branches).",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--actor",
+            "aliases": [],
+            "description": "Who makes the change, one of the actors of docs.yaml; by default, the variable FX_DOCS_ACTOR. new, adopt and key need it, and entry add when it reserves a key.",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "output": "fx-doc-check/1",
+        "writes": false,
+        "network": true,
+        "dryRun": false,
+        "interactive": false
+      },
+      {
+        "name": "doc list",
+        "description": "Lists the documents of the catalog, with filters.",
+        "arguments": [],
+        "options": [
+          {
+            "name": "--type",
+            "aliases": [],
+            "description": "Only those of this type.",
+            "type": "string",
+            "values": [
+              "adr",
+              "design",
+              "plan",
+              "readme",
+              "reference",
+              "register",
+              "report",
+              "research",
+              "rfc",
+              "rule",
+              "runbook",
+              "spec",
+              "view"
+            ],
+            "required": false
+          },
+          {
+            "name": "--profile",
+            "aliases": [],
+            "description": "Only those of this profile.",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--status",
+            "aliases": [],
+            "description": "Only those in this status.",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--class",
+            "aliases": [],
+            "description": "Only those whose status is of this class: open, current, closed, replaced or void.",
+            "type": "string",
+            "values": [
+              "closed",
+              "current",
+              "open",
+              "replaced",
+              "void"
+            ],
+            "required": false
+          },
+          {
+            "name": "--tag",
+            "aliases": [],
+            "description": "Only those with this tag.",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--relation",
+            "aliases": [],
+            "description": "Only those with a relation of this kind.",
+            "type": "string",
+            "values": [
+              "amends",
+              "constrains",
+              "decided-by",
+              "depends-on",
+              "derived-from",
+              "governs",
+              "implemented-by",
+              "indexes",
+              "informs",
+              "operated-by",
+              "realized-by",
+              "related-to",
+              "summarizes",
+              "supersedes",
+              "verified-by"
+            ],
+            "required": false
+          },
+          {
+            "name": "--actor",
+            "aliases": [],
+            "description": "Who makes the change, one of the actors of docs.yaml; by default, the variable FX_DOCS_ACTOR. new, adopt and key need it, and entry add when it reserves a key.",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "output": "fx-doc-list/1",
+        "writes": false,
+        "network": false,
+        "dryRun": false,
+        "interactive": false
+      },
+      {
+        "name": "doc show",
+        "description": "Shows a document: its metadata, its relations and the inverse ones.",
+        "arguments": [
+          {
+            "name": "document",
+            "description": "The document: its path or its identity.",
+            "arity": "1"
+          }
+        ],
+        "options": [
+          {
+            "name": "--actor",
+            "aliases": [],
+            "description": "Who makes the change, one of the actors of docs.yaml; by default, the variable FX_DOCS_ACTOR. new, adopt and key need it, and entry add when it reserves a key.",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "output": "fx-doc-show/1",
+        "writes": false,
+        "network": false,
+        "dryRun": false,
+        "interactive": false
+      },
+      {
+        "name": "doc schema",
+        "description": "The types of the documentation standard; with a type, its JSON Schema.",
+        "arguments": [
+          {
+            "name": "type",
+            "description": "A type: its JSON Schema, as fx has it.",
+            "arity": "0..1"
+          }
+        ],
+        "options": [
+          {
+            "name": "--actor",
+            "aliases": [],
+            "description": "Who makes the change, one of the actors of docs.yaml; by default, the variable FX_DOCS_ACTOR. new, adopt and key need it, and entry add when it reserves a key.",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "output": "fx-doc-schemas/1",
+        "writes": false,
+        "network": false,
+        "dryRun": false,
+        "interactive": false
+      },
+      {
+        "name": "doc new",
+        "description": "Creates a document: its Markdown with its title and its sidecar, in the place of its type.",
+        "arguments": [
+          {
+            "name": "type",
+            "description": "Its type.",
+            "arity": "1"
+          },
+          {
+            "name": "title",
+            "description": "Its title, its first H1.",
+            "arity": "1"
+          }
+        ],
+        "options": [
+          {
+            "name": "--slug",
+            "aliases": [],
+            "description": "Its slug; by default, from its title.",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--profile",
+            "aliases": [],
+            "description": "Its profile, if its type has them.",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--path",
+            "aliases": [],
+            "description": "The folder of a stable document (the root of the catalog by default); a historical one goes to _records/ by its date.",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--tag",
+            "aliases": [],
+            "description": "A tag (one per --tag).",
+            "type": "string[]",
+            "required": false
+          },
+          {
+            "name": "--recipe",
+            "aliases": [],
+            "description": "The recipe of a view: docs.status, docs.catalog (docs.catalog/<tag>) or docs.backlog.",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--scope",
+            "aliases": [],
+            "description": "What a view is about, from the root of the space: a folder, or the register of a backlog; by default, the catalog.",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--dry-run",
+            "aliases": [],
+            "description": "Shows what would change, with its diff, without writing.",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--actor",
+            "aliases": [],
+            "description": "Who makes the change, one of the actors of docs.yaml; by default, the variable FX_DOCS_ACTOR. new, adopt and key need it, and entry add when it reserves a key.",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "output": "fx-doc-edit/1",
+        "writes": true,
+        "network": false,
+        "dryRun": true,
+        "interactive": false
+      },
+      {
+        "name": "doc finalize",
+        "description": "Finalizes documents: their integrity again and updatedAt now, for those that changed.",
+        "arguments": [
+          {
+            "name": "documents",
+            "description": "Documents: paths or identities; none, every one that changed.",
+            "arity": "0..100000"
+          }
+        ],
+        "options": [
+          {
+            "name": "--correction",
+            "aliases": [],
+            "description": "A correction, with its note at the end of the Markdown: the only way to change a frozen document, and a trace in an open one.",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--dry-run",
+            "aliases": [],
+            "description": "Shows what would change, with its diff, without writing.",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--actor",
+            "aliases": [],
+            "description": "Who makes the change, one of the actors of docs.yaml; by default, the variable FX_DOCS_ACTOR. new, adopt and key need it, and entry add when it reserves a key.",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "output": "fx-doc-edit/1",
+        "writes": true,
+        "network": false,
+        "dryRun": true,
+        "interactive": false
+      },
+      {
+        "name": "doc status",
+        "description": "Changes the status of a document, if its type allows it, and finalizes it.",
+        "arguments": [
+          {
+            "name": "document",
+            "description": "The document: its path or its identity.",
+            "arity": "1"
+          },
+          {
+            "name": "status",
+            "description": "The new status.",
+            "arity": "1"
+          }
+        ],
+        "options": [
+          {
+            "name": "--dry-run",
+            "aliases": [],
+            "description": "Shows what would change, with its diff, without writing.",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--actor",
+            "aliases": [],
+            "description": "Who makes the change, one of the actors of docs.yaml; by default, the variable FX_DOCS_ACTOR. new, adopt and key need it, and entry add when it reserves a key.",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "output": "fx-doc-edit/1",
+        "writes": true,
+        "network": false,
+        "dryRun": true,
+        "interactive": false
+      },
+      {
+        "name": "doc relate",
+        "description": "Adds a relation from a document to another (or takes it out); supersedes also replaces the target.",
+        "arguments": [
+          {
+            "name": "document",
+            "description": "The document: its path or its identity.",
+            "arity": "1"
+          },
+          {
+            "name": "kind",
+            "description": "The kind of the relation.",
+            "arity": "1"
+          },
+          {
+            "name": "target",
+            "description": "The other document (its path or its identity), or an entry (its key, its identity, register#name, or its name if no other entry has it).",
+            "arity": "1"
+          }
+        ],
+        "options": [
+          {
+            "name": "--remove",
+            "aliases": [],
+            "description": "Takes the relation out.",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--dry-run",
+            "aliases": [],
+            "description": "Shows what would change, with its diff, without writing.",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--actor",
+            "aliases": [],
+            "description": "Who makes the change, one of the actors of docs.yaml; by default, the variable FX_DOCS_ACTOR. new, adopt and key need it, and entry add when it reserves a key.",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "output": "fx-doc-edit/1",
+        "writes": true,
+        "network": false,
+        "dryRun": true,
+        "interactive": false
+      },
+      {
+        "name": "doc adopt",
+        "description": "Adopts documents: Markdown without a sidecar gets it where it is (the bootstrap ones by default); with --manifest, the batches of the adoption manifests, at once.",
+        "arguments": [
+          {
+            "name": "documents",
+            "description": "Markdown without a sidecar; none, those of the bootstrap list.",
+            "arity": "0..100000"
+          }
+        ],
+        "options": [
+          {
+            "name": "--type",
+            "aliases": [],
+            "description": "Its type; by default, what its block of status says, or its name.",
+            "type": "string",
+            "values": [
+              "adr",
+              "design",
+              "plan",
+              "readme",
+              "reference",
+              "register",
+              "report",
+              "research",
+              "rfc",
+              "rule",
+              "runbook",
+              "spec",
+              "view"
+            ],
+            "required": false
+          },
+          {
+            "name": "--profile",
+            "aliases": [],
+            "description": "Its profile, if its type has them.",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--status",
+            "aliases": [],
+            "description": "Its status; by default, what its block of status says, or the initial one of its type.",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--created",
+            "aliases": [],
+            "description": "When it was created (2026-10-21, or an instant); by default, what its block of status says.",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--manifest",
+            "aliases": [],
+            "description": "An adoption manifest (one per --manifest): all of them are applied at once, or none.",
+            "type": "string[]",
+            "required": false
+          },
+          {
+            "name": "--dry-run",
+            "aliases": [],
+            "description": "Shows what would change, with its diff, without writing.",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--actor",
+            "aliases": [],
+            "description": "Who makes the change, one of the actors of docs.yaml; by default, the variable FX_DOCS_ACTOR. new, adopt and key need it, and entry add when it reserves a key.",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "output": "fx-doc-edit/1",
+        "writes": true,
+        "network": false,
+        "dryRun": true,
+        "interactive": false
+      },
+      {
+        "name": "doc move",
+        "description": "Moves a stable document to another folder of the catalog, with its annexes, and rewrites the links to them.",
+        "arguments": [
+          {
+            "name": "document",
+            "description": "The document: its path or its identity.",
+            "arity": "1"
+          },
+          {
+            "name": "folder",
+            "description": "The folder it goes to (from here, or from the catalog).",
+            "arity": "1"
+          }
+        ],
+        "options": [
+          {
+            "name": "--dry-run",
+            "aliases": [],
+            "description": "Shows what would change, with its diff, without writing.",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--actor",
+            "aliases": [],
+            "description": "Who makes the change, one of the actors of docs.yaml; by default, the variable FX_DOCS_ACTOR. new, adopt and key need it, and entry add when it reserves a key.",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "output": "fx-doc-edit/1",
+        "writes": true,
+        "network": false,
+        "dryRun": true,
+        "interactive": false
+      },
+      {
+        "name": "doc discard",
+        "description": "Discards a document born since the last commit: its pair, its annexes, and what its supersedes did to their targets.",
+        "arguments": [
+          {
+            "name": "document",
+            "description": "The document: its path or its identity.",
+            "arity": "1"
+          }
+        ],
+        "options": [
+          {
+            "name": "--dry-run",
+            "aliases": [],
+            "description": "Shows what would change, with its diff, without writing.",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--actor",
+            "aliases": [],
+            "description": "Who makes the change, one of the actors of docs.yaml; by default, the variable FX_DOCS_ACTOR. new, adopt and key need it, and entry add when it reserves a key.",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "output": "fx-doc-edit/1",
+        "writes": true,
+        "network": false,
+        "dryRun": true,
+        "interactive": false
+      },
+      {
+        "name": "doc rename",
+        "description": "Renames a document: another title (its H1 and its sidecar), another name (in its same folder, with its annexes), or both, and rewrites the links to it.",
+        "arguments": [
+          {
+            "name": "document",
+            "description": "The document: its path or its identity.",
+            "arity": "1"
+          }
+        ],
+        "options": [
+          {
+            "name": "--title",
+            "aliases": [],
+            "description": "The new title.",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--slug",
+            "aliases": [],
+            "description": "The new slug of its name (TYPE-slug).",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--dry-run",
+            "aliases": [],
+            "description": "Shows what would change, with its diff, without writing.",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--actor",
+            "aliases": [],
+            "description": "Who makes the change, one of the actors of docs.yaml; by default, the variable FX_DOCS_ACTOR. new, adopt and key need it, and entry add when it reserves a key.",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "output": "fx-doc-edit/1",
+        "writes": true,
+        "network": false,
+        "dryRun": true,
+        "interactive": false
+      },
+      {
+        "name": "doc entry add",
+        "description": "Adds an entry at the end of a register.",
+        "arguments": [
+          {
+            "name": "register",
+            "description": "The register: its path or its identity.",
+            "arity": "1"
+          },
+          {
+            "name": "title",
+            "description": "Its title.",
+            "arity": "1"
+          }
+        ],
+        "options": [
+          {
+            "name": "--name",
+            "aliases": [],
+            "description": "Its name; by default, from its title.",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--status",
+            "aliases": [],
+            "description": "Its status, in lower case with dashes (a new one, open by default).",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--summary",
+            "aliases": [],
+            "description": "Its summary, a few lines.",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--key",
+            "aliases": [],
+            "description": "Its key, if the register uses them (I-20).",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--created",
+            "aliases": [],
+            "description": "When it was born (2026-01-16, or an instant); by default, now.",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--tag",
+            "aliases": [],
+            "description": "A tag (one per --tag).",
+            "type": "string[]",
+            "required": false
+          },
+          {
+            "name": "--field",
+            "aliases": [],
+            "description": "A field of its register: name=value (a JSON value, or text).",
+            "type": "string[]",
+            "required": false
+          },
+          {
+            "name": "--relation",
+            "aliases": [],
+            "description": "A relation: kind=target (a document, by its path or identity; an entry, by its key, its identity, register#name, or its name if no other entry has it).",
+            "type": "string[]",
+            "required": false
+          },
+          {
+            "name": "--dry-run",
+            "aliases": [],
+            "description": "Shows what would change, with its diff, without writing.",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--actor",
+            "aliases": [],
+            "description": "Who makes the change, one of the actors of docs.yaml; by default, the variable FX_DOCS_ACTOR. new, adopt and key need it, and entry add when it reserves a key.",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "output": "fx-doc-edit/1",
+        "writes": true,
+        "network": false,
+        "dryRun": true,
+        "interactive": false
+      },
+      {
+        "name": "doc entry set",
+        "description": "Changes an entry of a register: its title, status, summary, tags, fields and relations.",
+        "arguments": [
+          {
+            "name": "register",
+            "description": "The register: its path or its identity.",
+            "arity": "1"
+          },
+          {
+            "name": "entry",
+            "description": "The entry: its name, its key or its identity.",
+            "arity": "1"
+          }
+        ],
+        "options": [
+          {
+            "name": "--title",
+            "aliases": [],
+            "description": "Its new title.",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--status",
+            "aliases": [],
+            "description": "Its status, in lower case with dashes (a new one, open by default).",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--summary",
+            "aliases": [],
+            "description": "Its summary, a few lines.",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--tag",
+            "aliases": [],
+            "description": "A tag (one per --tag).",
+            "type": "string[]",
+            "required": false
+          },
+          {
+            "name": "--field",
+            "aliases": [],
+            "description": "A field: name=value (a JSON value, or text); name= takes it out.",
+            "type": "string[]",
+            "required": false
+          },
+          {
+            "name": "--relation",
+            "aliases": [],
+            "description": "A relation: kind=target (a document, by its path or identity; an entry, by its key, its identity, register#name, or its name if no other entry has it).",
+            "type": "string[]",
+            "required": false
+          },
+          {
+            "name": "--unrelate",
+            "aliases": [],
+            "description": "A relation it loses: kind=target.",
+            "type": "string[]",
+            "required": false
+          },
+          {
+            "name": "--dry-run",
+            "aliases": [],
+            "description": "Shows what would change, with its diff, without writing.",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--actor",
+            "aliases": [],
+            "description": "Who makes the change, one of the actors of docs.yaml; by default, the variable FX_DOCS_ACTOR. new, adopt and key need it, and entry add when it reserves a key.",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "output": "fx-doc-edit/1",
+        "writes": true,
+        "network": false,
+        "dryRun": true,
+        "interactive": false
+      },
+      {
+        "name": "doc entry close",
+        "description": "Closes an entry of a register, now.",
+        "arguments": [
+          {
+            "name": "register",
+            "description": "The register: its path or its identity.",
+            "arity": "1"
+          },
+          {
+            "name": "entry",
+            "description": "The entry: its name, its key or its identity.",
+            "arity": "1"
+          }
+        ],
+        "options": [
+          {
+            "name": "--status",
+            "aliases": [],
+            "description": "The status it closes in; by default, closed.",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--dry-run",
+            "aliases": [],
+            "description": "Shows what would change, with its diff, without writing.",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--actor",
+            "aliases": [],
+            "description": "Who makes the change, one of the actors of docs.yaml; by default, the variable FX_DOCS_ACTOR. new, adopt and key need it, and entry add when it reserves a key.",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "output": "fx-doc-edit/1",
+        "writes": true,
+        "network": false,
+        "dryRun": true,
+        "interactive": false
+      },
+      {
+        "name": "doc entry list",
+        "description": "Lists the entries of a register.",
+        "arguments": [
+          {
+            "name": "register",
+            "description": "The register: its path or its identity.",
+            "arity": "1"
+          }
+        ],
+        "options": [
+          {
+            "name": "--open",
+            "aliases": [],
+            "description": "Only the open ones.",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--closed",
+            "aliases": [],
+            "description": "Only the closed ones.",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--actor",
+            "aliases": [],
+            "description": "Who makes the change, one of the actors of docs.yaml; by default, the variable FX_DOCS_ACTOR. new, adopt and key need it, and entry add when it reserves a key.",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "output": "fx-doc-entries/1",
+        "writes": false,
+        "network": false,
+        "dryRun": false,
+        "interactive": false
+      },
+      {
+        "name": "doc key",
+        "description": "The next key of a register that uses them, reserved by its provider (repo: the next of the register, in every branch; git: an atomic reservation on the remote); with --confirm, its provisional keys reserved now.",
+        "arguments": [
+          {
+            "name": "register",
+            "description": "The register: its path or its identity.",
+            "arity": "1"
+          },
+          {
+            "name": "title",
+            "description": "What the key is for (it goes in the reservation).",
+            "arity": "0..1"
+          }
+        ],
+        "options": [
+          {
+            "name": "--confirm",
+            "aliases": [],
+            "description": "Reserves now the provisional keys of the register.",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--dry-run",
+            "aliases": [],
+            "description": "Says the key it would give, reserving nothing.",
+            "type": "bool",
+            "required": false
+          },
+          {
+            "name": "--actor",
+            "aliases": [],
+            "description": "Who makes the change, one of the actors of docs.yaml; by default, the variable FX_DOCS_ACTOR. new, adopt and key need it, and entry add when it reserves a key.",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "output": "fx-doc-key/1",
+        "writes": true,
+        "network": true,
+        "dryRun": true,
+        "interactive": false
+      },
+      {
+        "name": "worktree add",
+        "description": "Create a worktree of a branch in the nearest space (or --in), with where you are mounted in it.",
+        "arguments": [
+          {
+            "name": "branch",
+            "description": "The branch.",
+            "arity": "1"
+          }
+        ],
+        "options": [
+          {
+            "name": "--in",
+            "aliases": [],
+            "description": "The space where it goes: one of those above, by name, full name or path.",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--required",
+            "aliases": [],
+            "description": "Also the required mounts of what is mounted, down.",
+            "type": "bool",
+            "required": false
+          }
+        ],
+        "output": "fx-worktree-add/1",
+        "writes": true,
+        "network": true,
+        "dryRun": false,
+        "interactive": false
+      },
+      {
+        "name": "worktree mount",
+        "description": "Mount more of the tree in a worktree: repositories (with the spaces on the way) or paths left out.",
+        "arguments": [
+          {
+            "name": "branch",
+            "description": "The branch.",
+            "arity": "1"
+          },
+          {
+            "name": "targets",
+            "description": "Repositories (name, path or full name) or paths left out.",
+            "arity": "1..100000"
+          }
+        ],
+        "options": [
+          {
+            "name": "--required",
+            "aliases": [],
+            "description": "Also the required mounts of what is mounted, down.",
+            "type": "bool",
+            "required": false
+          }
+        ],
+        "output": "fx-worktree-mount/1",
+        "writes": true,
+        "network": true,
+        "dryRun": false,
+        "interactive": false
+      },
+      {
+        "name": "worktree unmount",
+        "description": "Take repositories out of a worktree (not with uncommitted changes).",
+        "arguments": [
+          {
+            "name": "branch",
+            "description": "The branch.",
+            "arity": "1"
+          },
+          {
+            "name": "repositories",
+            "description": "Repositories (name or path).",
+            "arity": "1..100000"
+          }
+        ],
+        "options": [],
+        "output": "fx-worktree-unmount/1",
+        "writes": true,
+        "network": false,
+        "dryRun": false,
+        "interactive": false
+      },
+      {
+        "name": "worktree list",
+        "description": "The worktrees of the spaces around here.",
+        "arguments": [],
+        "options": [],
+        "output": "fx-worktree-list/1",
+        "writes": false,
+        "network": false,
+        "dryRun": false,
+        "interactive": false
+      },
+      {
+        "name": "worktree remove",
+        "description": "Remove a worktree (not with uncommitted changes); the branches fx created go if git deletes them safely.",
+        "arguments": [
+          {
+            "name": "branch",
+            "description": "The branch.",
+            "arity": "1"
+          }
+        ],
+        "options": [],
+        "output": "fx-worktree-remove/1",
+        "writes": true,
+        "network": false,
+        "dryRun": false,
+        "interactive": false
+      },
+      {
+        "name": "ui",
+        "description": "The space in full screen: its tree, what each node is and what reaches it, the doctor, and acting and editing with the command of each (in a terminal).",
+        "arguments": [],
+        "options": [],
+        "writes": false,
+        "network": false,
+        "dryRun": false,
+        "interactive": true
+      },
+      {
+        "name": "version",
+        "description": "The version this repository would build now, from its git history.",
+        "arguments": [],
+        "options": [
+          {
+            "name": "--explain",
+            "aliases": [],
+            "description": "Show how the version was calculated.",
+            "type": "bool",
+            "required": false
+          }
+        ],
+        "output": "fx-version/1",
+        "writes": false,
+        "network": false,
+        "dryRun": false,
+        "interactive": false
+      },
+      {
+        "name": "version tag",
+        "description": "Create the tag version/X.Y.0 on HEAD to start a new minor or major (local; push it yourself).",
+        "arguments": [
+          {
+            "name": "X.Y",
+            "description": "The new major and minor, like 11.3.",
+            "arity": "0..1"
+          }
+        ],
+        "options": [],
+        "output": "fx-version-tag/1",
+        "writes": true,
+        "network": false,
+        "dryRun": false,
+        "interactive": false
+      },
+      {
+        "name": "self update",
+        "description": "Update fx to its latest release (or the one of --version), as it was installed.",
+        "arguments": [],
+        "options": [
+          {
+            "name": "--version",
+            "aliases": [],
+            "description": "The version to install (also an older one); the latest release, without it.",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "--check",
+            "aliases": [],
+            "description": "Only say whether there is another release; change nothing.",
+            "type": "bool",
+            "required": false
+          }
+        ],
+        "output": "fx-self-update/1",
+        "writes": true,
+        "network": true,
+        "dryRun": false,
+        "interactive": false
+      },
+      {
+        "name": "describe",
+        "description": "fx described by itself: every command, what it outputs and what it does (with --output json, for agents).",
+        "arguments": [],
+        "options": [
+          {
+            "name": "--skill",
+            "aliases": [],
+            "description": "The skill of fx for coding agents (its SKILL.md), made from these same descriptions",
+            "type": "bool",
+            "required": false
+          }
+        ],
+        "output": "fx-describe/1",
+        "writes": false,
+        "network": false,
+        "dryRun": false,
+        "interactive": false
+      },
+      {
+        "name": "schema",
+        "description": "The JSON Schema of an output of fx; without an id, the list of them.",
+        "arguments": [
+          {
+            "name": "id",
+            "description": "The id of the schema (fx-sync/1…).",
+            "arity": "0..1"
+          }
+        ],
+        "options": [],
+        "output": "fx-schemas/1",
+        "writes": false,
+        "network": false,
+        "dryRun": false,
+        "interactive": false
+      }
+    ],
+    "globalOptions": [
+      {
+        "name": "--help",
+        "aliases": [
+          "-?",
+          "-h",
+          "/?",
+          "/h"
+        ],
+        "description": "Show help and usage information",
+        "type": "bool",
+        "required": false
+      },
+      {
+        "name": "--root",
+        "aliases": [],
+        "description": "Folder to act on (the current one by default).",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "--space",
+        "aliases": [
+          "-s"
+        ],
+        "description": "Act on the nearest space that mounts others, itself included, from anywhere inside it.",
+        "type": "bool",
+        "required": false
+      },
+      {
+        "name": "--output",
+        "aliases": [],
+        "description": "human (by default); json, a document; ndjson, events and then the document. Stable, always in English.",
+        "type": "string",
+        "values": [
+          "human",
+          "json",
+          "ndjson"
+        ],
+        "required": false
+      },
+      {
+        "name": "--verbose",
+        "aliases": [
+          "-v"
+        ],
+        "description": "More detail, on stderr.",
+        "type": "bool",
+        "required": false
+      },
+      {
+        "name": "--plain",
+        "aliases": [],
+        "description": "No colors or borders.",
+        "type": "bool",
+        "required": false
+      },
+      {
+        "name": "--non-interactive",
+        "aliases": [],
+        "description": "No questions and no live progress, whatever the terminal (for scripts and CI).",
+        "type": "bool",
+        "required": false
+      },
+      {
+        "name": "--lang",
+        "aliases": [],
+        "description": "Language of the messages: en or es (by default, FX_LANG or the system's).",
+        "type": "string",
+        "values": [
+          "en",
+          "es"
+        ],
+        "required": false
+      }
+    ],
+    "exitCodes": [
+      {
+        "code": 0,
+        "meaning": "Done, without errors (there may be warnings)."
+      },
+      {
+        "code": 1,
+        "meaning": "Done, with errors: the diagnostics say which and how to fix them."
+      },
+      {
+        "code": 2,
+        "meaning": "Wrong usage: an unknown command or option, a missing value, or something fx would ask with no one to ask."
+      },
+      {
+        "code": 130,
+        "meaning": "Cancelled (Ctrl+C)."
+      }
+    ],
+    "diagnostics": []
+  },
+  "stderr": []
+}

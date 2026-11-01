@@ -1,0 +1,37 @@
+{
+  "args": [
+    "doc",
+    "show",
+    "_docs/_records/<yyyy>/<mm>/ADR-a-decision.md",
+    "--output",
+    "json"
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "schema": "fx-doc-show/1",
+    "ok": true,
+    "document": {
+      "path": "_records/<yyyy>/<mm>/ADR-a-decision.md",
+      "id": "<uuid>",
+      "type": "adr",
+      "status": "draft",
+      "class": "open",
+      "title": "A decision",
+      "tags": [],
+      "createdAt": "<time>",
+      "updatedAt": "<time>",
+      "createdBy": "editor"
+    },
+    "relations": [
+      {
+        "kind": "implemented-by",
+        "id": "<uuid>",
+        "path": "_records/<yyyy>/<mm>/PLAN-the-plan.md",
+        "title": "The plan"
+      }
+    ],
+    "inverse": [],
+    "diagnostics": []
+  },
+  "stderr": []
+}

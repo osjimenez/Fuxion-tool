@@ -1,0 +1,22 @@
+{
+  "args": [
+    "sync",
+    "--output",
+    "json"
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "schema": "fx-sync/1",
+    "ok": true,
+    "modules": [],
+    "diagnostics": [
+      {
+        "code": "fx.nothing-to-do",
+        "severity": "info",
+        "module": "fx",
+        "message": "Nothing to do here: no root of fx (no _fx/ nor git repository above it)."
+      }
+    ]
+  },
+  "stderr": []
+}

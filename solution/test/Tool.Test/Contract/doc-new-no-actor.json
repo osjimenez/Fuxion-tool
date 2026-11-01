@@ -1,0 +1,32 @@
+{
+  "args": [
+    "doc",
+    "new",
+    "design",
+    "The catalog",
+    "--profile",
+    "software",
+    "--output",
+    "json"
+  ],
+  "exitCode": 1,
+  "stdout": {
+    "schema": "fx-doc-edit/1",
+    "ok": false,
+    "changed": false,
+    "written": false,
+    "documents": [],
+    "files": [],
+    "moved": [],
+    "removed": [],
+    "diagnostics": [
+      {
+        "code": "docs.actor-missing",
+        "severity": "error",
+        "module": "docs",
+        "message": "A change needs its actor: --actor, or the variable FX_DOCS_ACTOR."
+      }
+    ]
+  },
+  "stderr": []
+}

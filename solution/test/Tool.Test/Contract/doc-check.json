@@ -1,0 +1,18 @@
+{
+  "args": [
+    "doc",
+    "check",
+    "--output",
+    "json"
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "schema": "fx-doc-check/1",
+    "ok": true,
+    "catalog": "_docs",
+    "checked": 3,
+    "withProblems": [],
+    "diagnostics": []
+  },
+  "stderr": []
+}

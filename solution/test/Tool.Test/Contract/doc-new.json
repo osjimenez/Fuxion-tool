@@ -1,0 +1,38 @@
+{
+  "args": [
+    "doc",
+    "new",
+    "design",
+    "The catalog",
+    "--profile",
+    "software",
+    "--actor",
+    "editor",
+    "--output",
+    "json"
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "schema": "fx-doc-edit/1",
+    "ok": true,
+    "changed": true,
+    "written": true,
+    "documents": [
+      "DESIGN-the-catalog.md"
+    ],
+    "files": [
+      {
+        "file": "_docs/DESIGN-the-catalog.md",
+        "diff": "@@ -0,0 +1,1 @@\n+# The catalog\n"
+      },
+      {
+        "file": "_docs/DESIGN-the-catalog.meta.json",
+        "diff": "@@ -0,0 +1,15 @@\n+{\n+  \"schemaVersion\": \"1.0\",\n+  \"id\": \"<uuid>\",\n+  \"type\": \"design\",\n+  \"profile\": \"software\",\n+  \"status\": \"draft\",\n+  \"title\": \"The catalog\",\n+  \"createdAt\": \"<time>\",\n+  \"updatedAt\": \"<time>\",\n+  \"createdBy\": \"editor\",\n+  \"integrity\": {\n+    \"content\": \"sha256:<digest>\",\n+    \"metadata\": \"sha256:<digest>\"\n+  }\n+}\n"
+      }
+    ],
+    "moved": [],
+    "removed": [],
+    "diagnostics": []
+  },
+  "stderr": []
+}

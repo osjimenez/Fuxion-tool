@@ -1,0 +1,76 @@
+{
+  "args": [
+    "mount",
+    "add",
+    "<origin>",
+    "libs/other",
+    "--name",
+    "other",
+    "--dry-run",
+    "--output",
+    "json"
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "schema": "fx-manifest-edit/1",
+    "ok": true,
+    "changed": true,
+    "written": false,
+    "files": [
+      {
+        "file": "_fx/mounts/mounts.yaml",
+        "diff": "@@ -9,2 +9,5 @@\n     path: extra/repo\n     url: <origin>\n+  - name: other\n+    url: <origin>\n+    path: libs/other\n"
+      }
+    ],
+    "diagnostics": [],
+    "sync": [
+      {
+        "module": "mounts",
+        "root": "<space>/",
+        "files": [
+          {
+            "path": ".gitignore",
+            "status": "unchanged"
+          }
+        ],
+        "mounts": [
+          {
+            "name": "extra",
+            "action": "would-clone"
+          }
+        ]
+      },
+      {
+        "module": "mounts",
+        "root": "<space>/",
+        "space": "plus",
+        "files": [],
+        "mounts": []
+      },
+      {
+        "module": "harness",
+        "root": "<space>/",
+        "files": [
+          {
+            "path": "AGENTS.md",
+            "status": "unchanged"
+          },
+          {
+            "path": "CLAUDE.md",
+            "status": "unchanged"
+          },
+          {
+            "path": ".claude/skills/fx/SKILL.md",
+            "status": "unchanged"
+          },
+          {
+            "path": ".agents/skills/fx/SKILL.md",
+            "status": "unchanged"
+          }
+        ],
+        "mounts": []
+      }
+    ]
+  },
+  "stderr": []
+}

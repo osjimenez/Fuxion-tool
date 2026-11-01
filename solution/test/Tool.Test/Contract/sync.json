@@ -1,0 +1,49 @@
+{
+  "args": [
+    "sync",
+    "dotnet",
+    "--output",
+    "json"
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "schema": "fx-sync/1",
+    "ok": true,
+    "modules": [
+      {
+        "module": "dotnet",
+        "root": "<root>/",
+        "space": "lib",
+        "files": [
+          {
+            "path": "_fx/dotnet/dotnet.g.props",
+            "status": "written"
+          },
+          {
+            "path": "_fx/dotnet/dotnet.g.targets",
+            "status": "written"
+          },
+          {
+            "path": "_fx/dotnet/packages.g.props",
+            "status": "written"
+          },
+          {
+            "path": "_fx/dotnet/projects.g.props",
+            "status": "written"
+          },
+          {
+            "path": "global.json",
+            "status": "written"
+          },
+          {
+            "path": "solution/Directory.Packages.props",
+            "status": "written"
+          }
+        ],
+        "mounts": []
+      }
+    ],
+    "diagnostics": []
+  },
+  "stderr": []
+}

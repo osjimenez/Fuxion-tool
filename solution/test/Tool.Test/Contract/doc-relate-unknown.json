@@ -1,0 +1,18 @@
+{
+  "args": [
+    "doc",
+    "relate",
+    "_docs/_records/<yyyy>/<mm>/PLAN-the-plan.md",
+    "depends-on",
+    "_docs/nope.md",
+    "--actor",
+    "editor",
+    "--output",
+    "json"
+  ],
+  "exitCode": 2,
+  "stdout": [],
+  "stderr": [
+    "'_docs/nope.md' names no document of the catalog _docs."
+  ]
+}

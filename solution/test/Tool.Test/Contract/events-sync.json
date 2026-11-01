@@ -1,0 +1,94 @@
+{
+  "args": [
+    "sync",
+    "--output",
+    "ndjson"
+  ],
+  "exitCode": 0,
+  "stdout": [
+    {
+      "type": "start",
+      "schema": "fx-events/1"
+    },
+    {
+      "type": "step-started",
+      "module": "mounts",
+      "repository": "plus",
+      "step": "clone"
+    },
+    {
+      "type": "step-finished",
+      "module": "mounts",
+      "repository": "plus",
+      "step": "clone",
+      "succeeded": true,
+      "elapsedMs": 0
+    },
+    {
+      "type": "step-started",
+      "module": "harness",
+      "step": "generate"
+    },
+    {
+      "type": "step-finished",
+      "module": "harness",
+      "step": "generate",
+      "succeeded": true,
+      "elapsedMs": 0
+    },
+    {
+      "schema": "fx-sync/1",
+      "ok": true,
+      "modules": [
+        {
+          "module": "mounts",
+          "root": "<space>/",
+          "files": [
+            {
+              "path": ".gitignore",
+              "status": "written"
+            }
+          ],
+          "mounts": [
+            {
+              "name": "plus",
+              "action": "cloned"
+            }
+          ]
+        },
+        {
+          "module": "mounts",
+          "root": "<space>/",
+          "space": "plus",
+          "files": [],
+          "mounts": []
+        },
+        {
+          "module": "harness",
+          "root": "<space>/",
+          "files": [
+            {
+              "path": "AGENTS.md",
+              "status": "written"
+            },
+            {
+              "path": "CLAUDE.md",
+              "status": "written"
+            },
+            {
+              "path": ".claude/skills/fx/SKILL.md",
+              "status": "written"
+            },
+            {
+              "path": ".agents/skills/fx/SKILL.md",
+              "status": "written"
+            }
+          ],
+          "mounts": []
+        }
+      ],
+      "diagnostics": []
+    }
+  ],
+  "stderr": []
+}

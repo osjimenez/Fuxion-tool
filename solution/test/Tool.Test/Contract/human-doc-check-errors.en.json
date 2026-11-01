@@ -1,0 +1,17 @@
+{
+  "args": [
+    "doc",
+    "check",
+    "--lang",
+    "en"
+  ],
+  "exitCode": 1,
+  "stdout": [
+    "✗ _records/<yyyy>/<mm>/ADR-a-decision.md",
+    "    ✗ The link 'nowhere.md' leads nowhere. (_docs/_records/<yyyy>/<mm>/ADR-a-decision.md:4 · docs.broken-link)",
+    "    ! _records/<yyyy>/<mm>/ADR-a-decision.md changed after it was finalized. (_docs/_records/<yyyy>/<mm>/ADR-a-decision.md · docs.unfinalized)",
+    "      → fx doc finalize _records/<yyyy>/<mm>/ADR-a-decision.md",
+    "1 document(s) checked: 1 with problems."
+  ],
+  "stderr": []
+}

@@ -1,0 +1,32 @@
+{
+  "args": [
+    "doc",
+    "status",
+    "_docs/_records/<yyyy>/<mm>/PLAN-the-plan.md",
+    "nope",
+    "--actor",
+    "editor",
+    "--output",
+    "json"
+  ],
+  "exitCode": 1,
+  "stdout": {
+    "schema": "fx-doc-edit/1",
+    "ok": false,
+    "changed": false,
+    "written": false,
+    "documents": [],
+    "files": [],
+    "moved": [],
+    "removed": [],
+    "diagnostics": [
+      {
+        "code": "docs.invalid-status",
+        "severity": "error",
+        "module": "docs",
+        "message": "'nope' is not a status of plan: blocked, cancelled, completed, draft, in-progress, ready."
+      }
+    ]
+  },
+  "stderr": []
+}

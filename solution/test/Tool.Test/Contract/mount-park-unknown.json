@@ -1,0 +1,25 @@
+{
+  "args": [
+    "mount",
+    "park",
+    "nope",
+    "--output",
+    "json"
+  ],
+  "exitCode": 1,
+  "stdout": {
+    "schema": "fx-mount-park/1",
+    "ok": false,
+    "mounts": [],
+    "diagnostics": [
+      {
+        "code": "mounts.unknown",
+        "severity": "error",
+        "module": "mounts",
+        "repository": "nope",
+        "message": "mounts.yaml has no mount 'nope'."
+      }
+    ]
+  },
+  "stderr": []
+}

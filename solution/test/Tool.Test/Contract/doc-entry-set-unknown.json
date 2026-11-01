@@ -1,0 +1,35 @@
+{
+  "args": [
+    "doc",
+    "entry",
+    "set",
+    "_docs/ideas/REGISTER-ideas.md",
+    "I-99",
+    "--status",
+    "hecha",
+    "--actor",
+    "editor",
+    "--output",
+    "json"
+  ],
+  "exitCode": 1,
+  "stdout": {
+    "schema": "fx-doc-edit/1",
+    "ok": false,
+    "changed": false,
+    "written": false,
+    "documents": [],
+    "files": [],
+    "moved": [],
+    "removed": [],
+    "diagnostics": [
+      {
+        "code": "docs.unknown-entry",
+        "severity": "error",
+        "module": "docs",
+        "message": "'I-99' is not an entry of ideas/REGISTER-ideas.md: its name, its key or its identity."
+      }
+    ]
+  },
+  "stderr": []
+}

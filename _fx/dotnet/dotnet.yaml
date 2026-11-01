@@ -4,9 +4,10 @@ schema: 1.0.0
 # does not (fx doctor checks it).
 standalone: true
 
-# The Fuxion this repository builds with: a package, as tool references no project of oss (plan K); the 10 until it
-# moves to the 11. Its own, as the oss that plus uses (plan T).
+# The Fuxion this repository builds with: a package, as tool references no project of oss (plan K); the first rc of
+# the 11 with the responses compatible with native AOT, which fx is built on. Its own, as the oss that plus uses
+# (plan T).
 packages:
   - ids: [Fuxion]
     versions:
-      - version: 11.0.0-rc.2.12
+      - version: 11.0.0-rc.3.27

@@ -1,0 +1,24 @@
+{
+  "args": [
+    "init",
+    "--name",
+    "fresh",
+    "--output",
+    "json"
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "schema": "fx-manifest-edit/1",
+    "ok": true,
+    "changed": true,
+    "written": true,
+    "files": [
+      {
+        "file": "_fx/space.yaml",
+        "diff": "@@ -0,0 +1,3 @@\n+schema: 1.0.0\n+name: fresh\n+audience: public\n"
+      }
+    ],
+    "diagnostics": []
+  },
+  "stderr": []
+}

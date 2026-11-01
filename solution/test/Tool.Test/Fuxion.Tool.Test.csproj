@@ -8,6 +8,8 @@
 	<ItemGroup>
 		<!-- the YAML edit engine checks run on copies of real configuration files of fx, in their old format (YamlEditorTest) -->
 		<None Include="YamlFixtures\*.yaml" CopyToOutputDirectory="PreserveNewest" />
+		<!-- what fx gives who uses it, fixed before fx changes inside (ContractTest) -->
+		<None Include="Contract\*.json" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>
 
 	<ItemGroup>

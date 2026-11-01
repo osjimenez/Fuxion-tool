@@ -1,0 +1,19 @@
+{
+  "args": [
+    "doc",
+    "entry",
+    "list",
+    "_docs/ideas/REGISTER-ideas.md",
+    "--output",
+    "json"
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "schema": "fx-doc-entries/1",
+    "ok": true,
+    "register": "ideas/REGISTER-ideas.md",
+    "entries": [],
+    "diagnostics": []
+  },
+  "stderr": []
+}

@@ -1,0 +1,35 @@
+{
+  "args": [
+    "doc",
+    "entry",
+    "add",
+    "_docs/ideas/REGISTER-ideas.md",
+    "An idea",
+    "--status",
+    "boceto",
+    "--actor",
+    "editor",
+    "--output",
+    "json"
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "schema": "fx-doc-edit/1",
+    "ok": true,
+    "changed": true,
+    "written": true,
+    "documents": [
+      "ideas/REGISTER-ideas.md"
+    ],
+    "files": [
+      {
+        "file": "_docs/ideas/REGISTER-ideas.meta.json",
+        "diff": "@@ -7,9 +7,19 @@\n   \"title\": \"Ideas\",\n   \"createdAt\": \"<time>\",\n-  \"updatedAt\": \"<time>\",\n+  \"updatedAt\": \"<time>\",\n   \"createdBy\": \"editor\",\n+  \"entries\": [\n+    {\n+      \"id\": \"<uuid>\",\n+      \"name\": \"an-idea\",\n+      \"key\": \"I-1\",\n+      \"title\": \"An idea\",\n+      \"status\": \"boceto\",\n+      \"createdAt\": \"<time>\"\n+    }\n+  ],\n   \"integrity\": {\n     \"content\": \"sha256:<digest>\",\n-    \"metadata\": \"sha256:<digest>\"\n+    \"metadata\": \"sha256:<digest>\"\n   }\n }\n"
+      }
+    ],
+    "moved": [],
+    "removed": [],
+    "diagnostics": []
+  },
+  "stderr": []
+}
