@@ -105,6 +105,18 @@ public sealed class FxDiagnostics(IFxProgress? progress = null, string? reposito
 			Add(diagnostic);
 	}
 
+	/// <summary>
+	/// The diagnostics of an operation: those of its error, or the warnings of its success. Where the work goes on after a
+	/// part fails, its error becomes a finding of the report, here.
+	/// </summary>
+	public void AddRange<T>(Response<T> response) where T : notnull => AddRange(response.Diagnostics);
+
+	/// <inheritdoc cref="AddRange{T}(Response{T})"/>
+	public void AddRange<T>(ResponseMaybe<T> response) where T : notnull => AddRange(response.Diagnostics);
+
+	/// <summary>The diagnostics of an error.</summary>
+	public void AddRange(Error error) => AddRange(error.Diagnostics);
+
 	public IEnumerator<FxDiagnostic> GetEnumerator()
 	{
 		lock (_gate)

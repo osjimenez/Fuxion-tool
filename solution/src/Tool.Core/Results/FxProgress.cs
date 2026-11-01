@@ -49,6 +49,14 @@ public static class FxProgressExtensions
 	public static T Step<T>(this IFxProgress? progress, string module, string? repository, string name, Func<T> step)
 		=> progress.Step(module, repository, name, step, _ => true);
 
+	/// <summary>A step that fails when its response is an error.</summary>
+	public static Response<T> Step<T>(this IFxProgress? progress, string module, string? repository, string name, Func<Response<T>> step) where T : notnull
+		=> progress.Step(module, repository, name, step, r => r.IsSuccess);
+
+	/// <summary>A step that fails when its response is an error (none is no failure).</summary>
+	public static ResponseMaybe<T> Step<T>(this IFxProgress? progress, string module, string? repository, string name, Func<ResponseMaybe<T>> step) where T : notnull
+		=> progress.Step(module, repository, name, step, r => r.IsSuccess);
+
 	/// <summary>
 	/// Only the steps: for a module run inside another, which collects its diagnostics (and reports them itself, with
 	/// their final paths).

@@ -1300,4 +1300,7 @@
   <data name="docs.main-tree-catalog" xml:space="preserve">
     <value>This worktree leaves the catalog out: fx doc uses that of the main tree, {0}.</value>
   </data>
+  <data name="fx.error" xml:space="preserve">
+    <value>Failed: {0}</value>
+  </data>
 </root>
