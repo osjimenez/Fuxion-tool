@@ -429,11 +429,48 @@ public static partial class DocEditor
 	}
 
 	/// <summary>
-	/// <c>fx doc move</c> (the SPEC of the module, 5.6): a stable document to another folder of the catalog, its pair and its
-	/// annexes, with the links of the catalog to them, and theirs, rewritten. Its name stays; a historical one never moves.
-	/// Moving is not an edit: whatever was clean is sealed again with its <c>updatedAt</c> kept.
+	/// The views that link <paramref name="markdown"/>, a document a move or a rename leaves there, as their recipe makes them
+	/// with the catalog the change leaves: a view is generated, and a new path or a new title changes more than its links (its
+	/// order, its titles). Finalized <paramref name="now"/>, as <c>fx sync</c> does it; one edited by hand is left alone, and
+	/// <see cref="DocChange.Verify"/> says so.
 	/// </summary>
-	public static DocChange Move(DocCatalog catalog, Func<string, string> display, DocFile file, string folder, string currentDirectory)
+	static void Regenerate(DocChange change, string markdown, DateTimeOffset now)
+	{
+		if (!change.Ok)
+			return;
+		var views = new List<(string Markdown, string Text, string Sidecar, string Json)>();
+		using (change.Staged())
+		{
+			var after = DocCatalog.Scan(change.Catalog.Root, change.Catalog.Config);
+			var documents = DocChecker.Read(after);
+			foreach (var view in documents.Where(d => d.Type.Name == "view" && d.Sidecar.Generation is not null))
+			{
+				var current = DocIntegrity.Normalize(FxFiles.ReadAllBytes(view.File.Markdown!));
+				if (!change.Documents.Contains(view.File.Path) && DocLinks.To(current, view.File.Markdown!, [markdown]).Count == 0
+					|| DocIntegrity.Content(current) != view.Sidecar.Integrity!.Content
+					|| DocViews.Generate(after, documents, view.Sidecar.Title, view.Sidecar.Generation!, view.File.Markdown!, out _) is not { } expected
+					|| expected == current)
+					continue;
+				// never before it was created, whatever the clock says
+				var created = DocSidecar.ParseInstant(view.Sidecar.CreatedAt);
+				var sidecar = (view.Sidecar with { UpdatedAt = DocSidecar.Instant(now > created ? now : created) }).Seal(DocIntegrity.Content(expected));
+				views.Add((view.File.Markdown!, expected, view.File.Sidecar!, sidecar.ToJson()));
+			}
+		}
+		foreach (var view in views)
+		{
+			change.Set(view.Markdown, view.Text);
+			change.Set(view.Sidecar, view.Json);
+		}
+	}
+
+	/// <summary>
+	/// <c>fx doc move</c> (the SPEC of the module, 5.6): a stable document to another folder of the catalog, its pair and its
+	/// annexes, with the links of the catalog to them, and theirs, rewritten, and the views that link it made again. Its name
+	/// stays; a historical one never moves. Moving is not an edit: whatever was clean is sealed again with its
+	/// <c>updatedAt</c> kept.
+	/// </summary>
+	public static DocChange Move(DocCatalog catalog, Func<string, string> display, DocFile file, string folder, string currentDirectory, DateTimeOffset now)
 	{
 		var change = new DocChange(catalog, display);
 		if (Load(change, file) is not { } document)
@@ -485,6 +522,7 @@ public static partial class DocEditor
 					change.MoveBytes(annex, to, FxFiles.ReadAllBytes(annex), document: false);
 			}
 		DocLinks.Relink(change, moves);
+		Regenerate(change, markdown, now);
 		change.Verify();
 		return change;
 	}
@@ -492,7 +530,7 @@ public static partial class DocEditor
 	/// <summary>
 	/// <c>fx doc rename</c> (plan U, U6): a document with another <paramref name="title"/> (its H1 and its sidecar), another
 	/// <paramref name="slug"/> (its name and that of its annexes, in its same folder), or both, with the links of the catalog
-	/// to it rewritten. Renaming is not moving: a historical one keeps its folder. A new name is not an edit either: what was
+	/// to it rewritten and the views that link it made again. Renaming is not moving: a historical one keeps its folder. A new name is not an edit either: what was
 	/// clean is sealed again with its <c>updatedAt</c> kept. A new title is, and finalizes it; not in one frozen in HEAD.
 	/// </summary>
 	public static DocChange Rename(DocCatalog catalog, Func<string, string> display, DocFile file, string? title, string? slug, DateTimeOffset now)
@@ -578,6 +616,7 @@ public static partial class DocEditor
 				}
 			DocLinks.Relink(change, moves);
 		}
+		Regenerate(change, markdown, now);
 		change.Verify();
 		return change;
 	}

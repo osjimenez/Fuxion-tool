@@ -237,7 +237,7 @@ public static class DocCommand
 			var console = MountCommand.Console(result, global, currentDirectory);
 			return console.Run(_ => Write(console, result.GetValue(moveDryRun), Actor(result, actor), (catalog, display) =>
 				One(console, catalog, result.GetValue(moveDocument)!) is { } file
-					? DocEditor.Move(catalog, display, file, result.GetValue(folder)!, console.Settings.Directory)
+					? DocEditor.Move(catalog, display, file, result.GetValue(folder)!, console.Settings.Directory, DateTimeOffset.UtcNow)
 					: null));
 		});
 		command.Add(move);

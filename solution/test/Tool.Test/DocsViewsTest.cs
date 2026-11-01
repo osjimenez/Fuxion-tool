@@ -105,6 +105,31 @@ public sealed class DocsViewsTest
 		Assert.Empty(space.Problems());
 	}
 
+	[Fact(DisplayName = "rename and move: the views that link the document, made again in the same change; one edited by hand, never")]
+	public void RenameAndMove()
+	{
+		using var space = Catalog();
+		var records = View(space, "Records", "catalog", DocRecipes.Catalog, "_docs", folder: "notes");
+		string Rows() => string.Join("\n", space.Read($"_docs/{records}").Split('\n').Where(l => l.StartsWith("| [", StringComparison.Ordinal)));
+		// a new name and a new title: another link, another place in the table
+		var change = DocEditor.Rename(space.Catalog(), Display(space), File(space, "_records/2026/10/ADR-open-one.md"), "A first title", "a-first", Now);
+		Assert.True(change.Write(), string.Join("; ", change.Diagnostics.Select(d => $"{d.Code} {d.Message.English}")));
+		Assert.StartsWith("| [A first title](../_records/2026/10/ADR-a-first.md) | adr | `draft` |", Rows());
+		Assert.Empty(space.Problems());
+		// only the title: no link to rewrite, but the view shows it
+		Assert.True(DocEditor.Rename(space.Catalog(), Display(space), File(space, "_records/2026/10/ADR-a-first.md"), "Another title", null, Now).Write());
+		Assert.Contains("| [Another title](../_records/2026/10/ADR-a-first.md) |", Rows());
+		Assert.Empty(space.Problems());
+		Assert.True(DocEditor.Move(space.Catalog(), Display(space), File(space, "notes/DESIGN-the-design.md"), "systems", space.Root, Now).Write());
+		Assert.Contains("| [The the-design](../systems/DESIGN-the-design.md) | design | `active` |", Rows());
+		Assert.Empty(space.Problems());
+		// a view edited by hand is not made again: fx sync --adopt first
+		space.Write($"_docs/{records}", space.Read($"_docs/{records}") + "\nBy hand.\n");
+		var refused = DocEditor.Rename(space.Catalog(), Display(space), File(space, "_records/2026/10/ADR-a-first.md"), null, "first", Now);
+		Assert.False(refused.Write());
+		Assert.True(System.IO.File.Exists(space.Full("_docs/_records/2026/10/ADR-a-first.md")));
+	}
+
 	[Fact(DisplayName = "docs.backlog: the open entries of a register by status, in the order of their keys, with their fields and documents (both ways); then the closed")]
 	public void Backlog()
 	{

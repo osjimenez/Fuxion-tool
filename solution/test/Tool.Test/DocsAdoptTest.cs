@@ -439,7 +439,7 @@ public sealed class DocsAdoptTest
 		space.Write("_docs/notes/DESIGN-x/extra.md", "# Extra\n\nThe [rule](../../norms/RULE-y.md) and [the design](../DESIGN-x.md).\n");
 		var other = space.Add("adr", "uses-x", status: "accepted", body: "It uses [x](../../../notes/DESIGN-x.md) and its [extra](<../../../notes/DESIGN-x/extra.md>).");
 		var before = Sidecar(space, other);
-		var change = DocEditor.Move(space.Catalog(), Display(space), space.Catalog().Files.Single(f => f.Path == design), "systems/core", space.Root);
+		var change = DocEditor.Move(space.Catalog(), Display(space), space.Catalog().Files.Single(f => f.Path == design), "systems/core", space.Root, DateTimeOffset.UtcNow);
 		Assert.True(change.Write(), Ok(change));
 		Assert.False(Directory.Exists(space.Full("_docs/notes")));
 		Assert.Equal("# The x\n\nSee the [rule](../../norms/RULE-y.md#part) and the [diagram](DESIGN-x/diagram.png).\n", space.Read("_docs/systems/core/DESIGN-x.md"));
@@ -459,10 +459,10 @@ public sealed class DocsAdoptTest
 		var design = space.Add("design", "x", folder: "notes");
 		space.Add("design", "x", folder: "taken", stem: "DESIGN-x");
 		DocFile File(string path) => space.Catalog().Files.Single(f => f.Path == path);
-		Assert.Equal([DocEditor.HistoricalMove], Codes(DocEditor.Move(space.Catalog(), Display(space), File(adr), "notes", space.Root)));
-		Assert.Equal([DocEditor.InvalidFolder], Codes(DocEditor.Move(space.Catalog(), Display(space), File(design), "_records/2026/10", space.Root)));
-		Assert.Equal([DocEditor.NameTaken], Codes(DocEditor.Move(space.Catalog(), Display(space), File(design), "taken", space.Root)));
-		var same = DocEditor.Move(space.Catalog(), Display(space), File(design), "notes", space.Root);
+		Assert.Equal([DocEditor.HistoricalMove], Codes(DocEditor.Move(space.Catalog(), Display(space), File(adr), "notes", space.Root, DateTimeOffset.UtcNow)));
+		Assert.Equal([DocEditor.InvalidFolder], Codes(DocEditor.Move(space.Catalog(), Display(space), File(design), "_records/2026/10", space.Root, DateTimeOffset.UtcNow)));
+		Assert.Equal([DocEditor.NameTaken], Codes(DocEditor.Move(space.Catalog(), Display(space), File(design), "taken", space.Root, DateTimeOffset.UtcNow)));
+		var same = DocEditor.Move(space.Catalog(), Display(space), File(design), "notes", space.Root, DateTimeOffset.UtcNow);
 		Assert.Equal((true, false), (same.Ok, same.Changed));
 	}
 

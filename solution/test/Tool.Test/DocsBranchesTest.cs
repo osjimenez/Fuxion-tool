@@ -93,7 +93,7 @@ public sealed class DocsBranchesTest
 		var space = repository.Space;
 		repository.Elsewhere("moved", () =>
 		{
-			var change = DocEditor.Move(space.Catalog(), Display(space), space.Catalog().Files.Single(f => f.Path == "notes/DESIGN-d.md"), "systems", space.Root);
+			var change = DocEditor.Move(space.Catalog(), Display(space), space.Catalog().Files.Single(f => f.Path == "notes/DESIGN-d.md"), "systems", space.Root, DateTimeOffset.UtcNow);
 			Assert.True(change.Write());
 			space.Add("adr", "only-there");
 		});
