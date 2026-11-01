@@ -117,6 +117,16 @@ public sealed class FxDiagnostics(IFxProgress? progress = null, string? reposito
 	/// <summary>The diagnostics of an error.</summary>
 	public void AddRange(Error error) => AddRange(error.Diagnostics);
 
+	/// <summary>
+	/// The value of an operation, its diagnostics taken; <paramref name="fallback"/> if it failed: where the work goes on
+	/// after a part fails, its error is a finding of the report.
+	/// </summary>
+	public T ValueOr<T>(Response<T> response, T fallback) where T : notnull
+	{
+		AddRange(response);
+		return response is T value ? value : fallback;
+	}
+
 	public IEnumerator<FxDiagnostic> GetEnumerator()
 	{
 		lock (_gate)

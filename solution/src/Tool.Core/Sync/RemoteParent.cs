@@ -8,6 +8,7 @@ using System.Threading;
 using Fuxion.Tool.Core.Git;
 using Fuxion.Tool.Core.Layout;
 using Fuxion.Tool.Core.Mounts;
+using Fuxion.Tool.Core.Processes;
 using Fuxion.Tool.Core.Results;
 
 namespace Fuxion.Tool.Core.Sync;
@@ -70,11 +71,12 @@ public static class RemoteParent
 				? GitClient.Discover(folder)!.FetchCheckout(branch, Timeout, cancellationToken)
 				: GitClient.CloneSparse(url, folder, branch, [FxLayout.Folder], Timeout, cancellationToken);
 			// the sources of its shares are outside _fx/ (decision 23): the folders that hold them too
-			if (result.ExitCode == 0 && Shares(folder) is { Count: > 1 } folders)
+			if (result is ProcessResult { ExitCode: 0 } && Shares(folder) is { Count: > 1 } folders)
 				result = GitClient.Discover(folder)!.SparseCheckout(folders, Timeout, cancellationToken);
-			if (result.ExitCode != 0)
+			if (result is not ProcessResult { ExitCode: 0 })
 			{
-				diagnostics.Add(FxDiagnostic.Warning(Unavailable, new($"{Unavailable}.git", url, branch, result.StandardError.Trim())));
+				var reason = result is ProcessResult failed ? failed.StandardError.Trim() : result.Diagnostics[0].Message.English;
+				diagnostics.Add(FxDiagnostic.Warning(Unavailable, new($"{Unavailable}.git", url, branch, reason)));
 				return null;
 			}
 			return (new FxNode(folder), branch);

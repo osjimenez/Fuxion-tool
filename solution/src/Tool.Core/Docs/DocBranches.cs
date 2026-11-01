@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using Fuxion.Tool.Core.Git;
+using Fuxion.Tool.Core.Processes;
 using Fuxion.Tool.Core.Results;
 
 namespace Fuxion.Tool.Core.Docs;
@@ -31,7 +32,8 @@ public static class DocBranches
 		if (GitClient.Discover(catalog.Root) is not { } git)
 			return null;
 		var fetch = git.Fetch(GitClient.DefaultTimeout);
-		return fetch.ExitCode == 0 ? null : FxDiagnostic.Warning(FetchFailed, new(FetchFailed, fetch.StandardError.Trim()));
+		return fetch is ProcessResult { ExitCode: 0 } ? null
+			: FxDiagnostic.Warning(FetchFailed, new(FetchFailed, fetch is ProcessResult failed ? failed.StandardError.Trim() : fetch.Diagnostics[0].Message.English));
 	}
 
 	/// <summary>The documents of the catalog that the remote branches git knows have different from <c>HEAD</c>.</summary>
@@ -42,7 +44,8 @@ public static class DocBranches
 		var folder = Path.GetRelativePath(git.Root, catalog.Folder).Replace('\\', '/');
 		var head = git.Head();
 		var documents = new List<DocBranchDocument>();
-		var refs = git.Execute("for-each-ref", "--format=%(refname)", "refs/remotes").StandardOutput
+		// what git cannot list is no branch to look at
+		var refs = Output(git.Execute("for-each-ref", "--format=%(refname)", "refs/remotes"))
 			.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
 			.Where(r => !r.EndsWith("/HEAD", StringComparison.Ordinal));
 		foreach (var reference in refs)
@@ -50,11 +53,11 @@ public static class DocBranches
 			var changed = head is null
 				? git.Execute("ls-tree", "-r", "--name-only", reference, "--", folder)
 				: git.Execute("diff", "--name-only", "--no-renames", head, reference, "--", folder);
-			foreach (var path in changed.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+			foreach (var path in Output(changed).Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
 				         .Where(p => p.EndsWith(DocSidecar.Extension, StringComparison.Ordinal)))
 			{
 				// removed in the branch: nothing to collide with
-				if (git.Execute("show", $"{reference}:{path}") is not { ExitCode: 0 } show)
+				if (git.Execute("show", $"{reference}:{path}") is not ProcessResult { ExitCode: 0 } show)
 					continue;
 				var (id, type, entries) = Read(show.StandardOutput);
 				if (id is null)
@@ -102,13 +105,16 @@ public static class DocBranches
 	/// document a branch moved: then its old path is no longer in the branch); an entry of the same register with the name
 	/// or the key of another.
 	/// </summary>
+	/// <summary>What git answered, or nothing if it failed.</summary>
+	static string Output(Response<ProcessResult> result) => result is ProcessResult { ExitCode: 0 } done ? done.StandardOutput : "";
+
 	public static IEnumerable<FxDiagnostic> Collisions(DocCatalog catalog, IReadOnlyList<DocDocument> documents, IReadOnlyList<DocBranchDocument> branches,
 		Func<string, string> display)
 	{
 		var git = GitClient.Discover(catalog.Root);
 		var folder = git is null ? "" : Path.GetRelativePath(git.Root, catalog.Folder).Replace('\\', '/');
 		bool InBranch(string branch, string path)
-			=> git?.Execute("cat-file", "-e", $"refs/remotes/{branch}:{folder}/{path[..^".md".Length]}{DocSidecar.Extension}").ExitCode == 0;
+			=> git?.Execute("cat-file", "-e", $"refs/remotes/{branch}:{folder}/{path[..^".md".Length]}{DocSidecar.Extension}") is ProcessResult { ExitCode: 0 };
 		var byPath = documents.ToDictionary(d => d.File.Path, StringComparer.Ordinal);
 		var byId = documents.GroupBy(d => d.Sidecar.Id, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 		foreach (var other in branches)

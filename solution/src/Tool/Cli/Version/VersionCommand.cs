@@ -31,14 +31,10 @@ public static class VersionCommand
 
 	public static int Run(VersionSettings settings, FxConsole console)
 	{
-		VersioningResult result;
-		try
+		var calculated = VersioningInputsFactory.Calculate(new GitVersioningOptions(settings.Global.Directory, FailOnError: true));
+		if (calculated is not VersioningResult result)
 		{
-			result = VersioningInputsFactory.Calculate(new GitVersioningOptions(settings.Global.Directory, FailOnError: true));
-		}
-		catch (VersioningException ex)
-		{
-			FxDiagnostic[] errors = [ex.ToDiagnostic()];
+			var errors = calculated.Diagnostics;
 			if (settings.Global.IsMachine)
 				console.WriteJson(new VersionDocument(Schema, false, null, null, null, null, null, null, JsonDiagnostic.From(errors)), c => c.VersionDocument);
 			return console.Report(errors);

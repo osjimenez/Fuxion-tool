@@ -92,7 +92,7 @@ public static class MountsModule
 			var r = manifest.Mounts[i];
 			var full = manifest.FullPath(r);
 			var present = FxLayout.IsGitRoot(full);
-			var status = present && withStatus ? progress.Step(Name, r.Name, "status", () => GitClient.Discover(full)?.Status(), s => s is not null) : null;
+			var status = present && withStatus ? progress.Step(Name, r.Name, "status", () => GitClient.Discover(full) is { } git && git.Status() is GitStatus s ? s : null, s => s is not null) : null;
 			var mounted = state.IsMounted(r, present);
 			result[i] = new RepositoryState(r, full, mounted, present, status, !present && FxLayout.IsGitRoot(ParkingPath(manifest, r)),
 				mounted ? copies?.SupersededBy(full) : null);
@@ -198,7 +198,7 @@ public static class MountsModule
 				ProcessResult clone;
 				try
 				{
-					clone = progress.Step(Name, name, "clone", () => GitClient.Clone(repo.Repository.Url!, repo.FullPath, CloneTimeout, cancellationToken), c => c.ExitCode == 0);
+					clone = progress.Step(Name, name, "clone", () => ProcessResult.Of(GitClient.Clone(repo.Repository.Url!, repo.FullPath, CloneTimeout, cancellationToken)), c => c.ExitCode == 0);
 				}
 				catch (OperationCanceledException) when (!existed)
 				{
@@ -239,7 +239,7 @@ public static class MountsModule
 			Parallel.For(0, toFetch.Count, new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = cancellationToken }, i =>
 			{
 				var name = toFetch[i].Info.Repository.Name;
-				var fetch = progress.Step(Name, name, "fetch", () => toFetch[i].Git.Fetch(FetchTimeout, cancellationToken), f => f.ExitCode == 0);
+				var fetch = progress.Step(Name, name, "fetch", () => ProcessResult.Of(toFetch[i].Git.Fetch(FetchTimeout, cancellationToken)), f => f.ExitCode == 0);
 				results[i] = fetch.ExitCode == 0 ? new(name, "fetched") : new(name, "fetch-failed", FxText.Plain(fetch.StandardError.Trim()));
 			});
 			foreach (var result in results.OfType<RepositoryAction>())
@@ -431,7 +431,9 @@ public static class MountsModule
 			// its worktrees out of their place, or lost (plan P, decision 30): of the main clones, not inside a worktree
 			if (!inWorktree)
 				WorktreeModule.Check(repo.FullPath, name, diagnostics.Add);
-			if (progress.Step(Name, name, "status", git.Status, _ => true) is not { } status)
+			var read = progress.Step(Name, name, "status", git.Status);
+			diagnostics.AddRange(read.Diagnostics.Select(d => d with { Repository = d.Repository ?? name }));
+			if (read is not GitStatus status)
 				return;
 			if (status.Changes > 0)
 				diagnostics.Add(FxDiagnostic.Warning(Dirty, new(Dirty, name, status.Changes), repository: name));
@@ -448,7 +450,7 @@ public static class MountsModule
 			return;
 		Parallel.ForEach(repositories.Where(r => r.Mounted && r.Repository.Url is not null), new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = cancellationToken }, repo =>
 		{
-			if (progress.Step(Name, repo.Repository.Name, "remote", () => GitClient.LsRemote(repo.Repository.Url!, RemoteTimeout, cancellationToken), r => r.ExitCode == 0).ExitCode != 0)
+			if (progress.Step(Name, repo.Repository.Name, "remote", () => ProcessResult.Of(GitClient.LsRemote(repo.Repository.Url!, RemoteTimeout, cancellationToken)), r => r.ExitCode == 0).ExitCode != 0)
 				diagnostics.Add(FxDiagnostic.Warning(Unreachable, new(Unreachable, repo.Repository.Name, repo.Repository.Url), repository: repo.Repository.Name));
 		});
 	}
@@ -625,7 +627,7 @@ public static class MountsModule
 				actions.Add(new(name, "skipped", new("mounts.action.no-upstream")));
 				continue;
 			}
-			var pull = progress.Step(Name, name, "pull", () => GitClient.Discover(repo.FullPath)!.PullFastForward(TimeSpan.FromMinutes(2), cancellationToken), p => p.ExitCode == 0);
+			var pull = progress.Step(Name, name, "pull", () => ProcessResult.Of(GitClient.Discover(repo.FullPath)!.PullFastForward(TimeSpan.FromMinutes(2), cancellationToken)), p => p.ExitCode == 0);
 			if (pull.ExitCode == 0)
 				actions.Add(new(name, "pulled"));
 			else

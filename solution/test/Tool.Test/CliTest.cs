@@ -4,6 +4,8 @@ using System.CommandLine;
 using System.IO;
 using System.Text.Json;
 using Fuxion.Tool.Cli;
+using System.Net;
+using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Versioning;
 using Xunit;
 
@@ -188,12 +190,12 @@ public sealed class CliTest
 	{
 		using var repo = new TempGitRepository();
 		repo.Commit("c1");
-		Assert.Null(VersionTagger.Highest(repo.Path));
+		Assert.True(VersionTagger.Highest(repo.Path) is None);
 		repo.Tag("version/1.2.0");
 		repo.Commit("c2");
 		repo.Tag("version/1.10.0");
 		repo.Tag("other/9.0.0");
-		Assert.Equal((1, 10), VersionTagger.Highest(repo.Path));
+		Assert.True(VersionTagger.Highest(repo.Path) is System.ValueTuple<int, int> highest && highest == (1, 10));
 	}
 
 	// Parsing

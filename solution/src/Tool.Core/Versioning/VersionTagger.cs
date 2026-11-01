@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using Fuxion.Tool.Core.Git;
 using Fuxion.Tool.Core.Results;
 
@@ -28,39 +30,48 @@ public static class VersionTagger
 		       && int.TryParse(parts[1], out minor);
 	}
 
-	public static CreatedVersionTag Create(string directory, int major, int minor)
+	/// <summary>
+	/// The tag <c>version/X.Y.0</c> on HEAD; an error if there is no repository or no commit
+	/// (<see cref="HttpStatusCode.NotFound"/>), if it exists or is not beyond the highest one
+	/// (<see cref="HttpStatusCode.Conflict"/>), or if git fails.
+	/// </summary>
+	public static Response<CreatedVersionTag> Create(string directory, int major, int minor)
 	{
-		var git = GitClient.Discover(directory)
-		          ?? throw new VersioningException(VersioningErrorCodes.RepositoryNotFound, new(VersioningErrorCodes.RepositoryNotFound, directory));
-		var head = git.Head()
-		           ?? throw new VersioningException(VersioningErrorCodes.NoCommits, new(VersioningErrorCodes.NoCommits));
+		if (GitClient.Discover(directory) is not { } git)
+			return VersioningErrors.Of(VersioningErrorCodes.RepositoryNotFound, new(VersioningErrorCodes.RepositoryNotFound, directory));
+		if (git.Head() is not { } head)
+			return VersioningErrors.Of(VersioningErrorCodes.NoCommits, new(VersioningErrorCodes.NoCommits));
 
 		var name = $"version/{major}.{minor}.0";
 		var requested = new SemanticVersion($"{major}.{minor}.0");
-		if (git.Tags().Any(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase)))
-			throw new VersioningException(TagExists, new(TagExists, name));
+		if (git.Tags() is not IReadOnlyList<GitTag> tags)
+			return (Error)git.Tags();
+		if (tags.Any(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase)))
+			return VersioningErrors.Of(TagExists, new(TagExists, name));
 
-		var highest = HighestTag(git);
+		var highest = HighestTag(tags);
 		if (highest.Version is not null && requested.CompareTo(highest.Version) <= 0)
-			throw new VersioningException(TagNotNewer, new(TagNotNewer, name, highest.Tag!.Name));
+			return VersioningErrors.Of(TagNotNewer, new(TagNotNewer, name, highest.Tag!.Name));
 
-		git.CreateTag(name, head);
-		return new(name, head);
+		return git.CreateTag(name, head) is Error error ? error : new CreatedVersionTag(name, head);
 	}
 
 	/// <summary>
-	/// The major and minor of the highest <c>version/</c> tag, the one a new tag must go beyond; <see langword="null"/>
-	/// if there is none. fx proposes the next minor and the next major from it.
+	/// The major and minor of the highest <c>version/</c> tag, the one a new tag must go beyond; none if there is none.
+	/// fx proposes the next minor and the next major from it. An error if there is no repository, or git fails.
 	/// </summary>
-	public static (int Major, int Minor)? Highest(string directory)
+	public static ResponseMaybe<(int Major, int Minor)> Highest(string directory)
 	{
-		var git = GitClient.Discover(directory)
-		          ?? throw new VersioningException(VersioningErrorCodes.RepositoryNotFound, new(VersioningErrorCodes.RepositoryNotFound, directory));
-		return HighestTag(git).Version is { } version ? ((int)version.Major, (int)version.Minor) : null;
+		if (GitClient.Discover(directory) is not { } git)
+			return VersioningErrors.Of(VersioningErrorCodes.RepositoryNotFound, new(VersioningErrorCodes.RepositoryNotFound, directory));
+		if (git.Tags() is not IReadOnlyList<GitTag> tags)
+			return (Error)git.Tags();
+		return HighestTag(tags).Version is { } version ? ((int)version.Major, (int)version.Minor) : None.Value;
 	}
 
-	static (GitTag? Tag, SemanticVersion? Version) HighestTag(GitClient git)
-		=> git.Tags()
+	static (GitTag? Tag, SemanticVersion? Version) HighestTag(IReadOnlyList<GitTag> tags)
+		=> tags
+
 			.Where(t => t.Name.StartsWith("version/", StringComparison.OrdinalIgnoreCase))
 			.Select(t => SemanticVersion.TryParse(t.Name["version/".Length..], out var v) ? (Tag: (GitTag?)t, Version: (SemanticVersion?)v) : default)
 			.Where(x => x.Version is not null)

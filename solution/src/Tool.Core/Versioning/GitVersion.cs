@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using Fuxion.Tool.Core.Results;
 
 namespace Fuxion.Tool.Core.Versioning;
@@ -56,21 +57,32 @@ public static class VersioningErrorCodes
 }
 
 /// <summary>
-/// A versioning error, with its text for the user (<see cref="Text"/>); its message is that text in English (for
-/// MSBuild and the logs; the versioning ones start with <c>Git versioning failed:</c>, as they always have).
+/// The errors of the versioning: a diagnostic with its text for the user (whose English is what MSBuild and the logs
+/// get; those of the calculation start with <c>Git versioning failed:</c>, as they always have) and its fix when there
+/// is one, in an <see cref="Error"/> of its category.
 /// </summary>
-public sealed class VersioningException(string code, FxText text, Exception? inner = null)
-	: InvalidOperationException(text.English, inner)
+public static class VersioningErrors
 {
-	public string Code { get; } = code;
-
-	public FxText Text { get; } = text;
-
-	/// <summary>The error as a diagnostic, with its fix when there is one.</summary>
-	public FxDiagnostic ToDiagnostic() => FxDiagnostic.Error(Code, Text, fix: Code switch
+	/// <summary>The diagnostic of a versioning problem, with its fix when there is one.</summary>
+	public static FxDiagnostic Diagnostic(string code, FxText text, FxSeverity severity = FxSeverity.Error) => new(code, severity, text)
 	{
-		VersioningErrorCodes.NoTag => new FxFix("fx version tag <X.Y>", new($"{VersioningErrorCodes.NoTag}.fix")),
-		VersionTagger.TagNotNewer => FxFix.Do($"{VersionTagger.TagNotNewer}.fix"),
-		_ => null
-	});
+		Fix = code switch
+		{
+			VersioningErrorCodes.NoTag => new FxFix("fx version tag <X.Y>", new($"{VersioningErrorCodes.NoTag}.fix")),
+			VersionTagger.TagNotNewer => FxFix.Do($"{VersionTagger.TagNotNewer}.fix"),
+			_ => null
+		}
+	};
+
+	/// <summary>
+	/// The error: no repository or no commit, <see cref="HttpStatusCode.NotFound"/>; git that fails,
+	/// <see cref="HttpStatusCode.ServiceUnavailable"/>; the rest (no tag, a tag that is not valid, one that exists),
+	/// <see cref="HttpStatusCode.Conflict"/>.
+	/// </summary>
+	public static Error Of(string code, FxText text) => FxErrors.Of(code switch
+	{
+		VersioningErrorCodes.RepositoryNotFound or VersioningErrorCodes.NoCommits => HttpStatusCode.NotFound,
+		VersioningErrorCodes.GitFailed => HttpStatusCode.ServiceUnavailable,
+		_ => HttpStatusCode.Conflict
+	}, Diagnostic(code, text));
 }

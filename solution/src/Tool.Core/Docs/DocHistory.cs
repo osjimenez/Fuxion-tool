@@ -3,6 +3,8 @@ using System.IO;
 using System.Text.Json;
 using Fuxion.Tool.Core.Git;
 
+using Fuxion.Tool.Core.Processes;
+
 namespace Fuxion.Tool.Core.Docs;
 
 /// <summary>
@@ -36,12 +38,12 @@ public sealed class DocHistory
 
 	/// <summary>Whether <c>HEAD</c> has <paramref name="full"/>; without git, true (everything counts as history).</summary>
 	public bool Has(string full)
-		=> _git is null || _commits && InRepository(full) is { } path && _git.Execute("cat-file", "-e", $"HEAD:{path}").ExitCode == 0;
+		=> _git is null || _commits && InRepository(full) is { } path && _git.Execute("cat-file", "-e", $"HEAD:{path}") is ProcessResult { ExitCode: 0 };
 
 	/// <summary>The sidecar at <paramref name="full"/> as <c>HEAD</c> has it; null if it does not have it, or it cannot be read.</summary>
 	public DocSidecar? Sidecar(string full)
 	{
-		if (_git is null || !_commits || InRepository(full) is not { } path || _git.Execute("show", $"HEAD:{path}") is not { ExitCode: 0 } show)
+		if (_git is null || !_commits || InRepository(full) is not { } path || _git.Execute("show", $"HEAD:{path}") is not ProcessResult { ExitCode: 0 } show)
 			return null;
 		try
 		{

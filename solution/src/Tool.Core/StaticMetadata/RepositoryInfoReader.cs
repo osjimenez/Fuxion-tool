@@ -26,7 +26,7 @@ public static class RepositoryInfoReader
 			var normalizedOrigin = NormalizeOriginUrl(git.RemoteUrl("origin"));
 			var originUrlSha256 = string.IsNullOrWhiteSpace(normalizedOrigin) ? null : ComputeSha256(normalizedOrigin);
 			var head = git.Head();
-			var firstCommit = head is null ? null : git.FirstCommit(head);
+			var firstCommit = head is not null && git.FirstCommit(head) is string first ? first : null;
 			// a detached HEAD is named as LibGit2Sharp named it, so the generated metadata does not change
 			return new(git.CurrentBranch() ?? "(no branch)", head, originUrlSha256, firstCommit, head is null ? null : git.CommitDate(head)?.ToUniversalTime());
 		}

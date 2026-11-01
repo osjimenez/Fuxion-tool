@@ -636,11 +636,12 @@ public sealed partial class UiApp
 			{
 				if (GitClient.Discover(repository.Path) is not { } git)
 					return;
-				var status = git.Status();
+				var status = git.Status() is GitStatus read ? read : null;
 				var commits = git.RecentCommits(5);
 				_toUi.Enqueue(() =>
 				{
-					_status[repository.Path] = status;
+					if (status is not null)
+						_status[repository.Path] = status;
 					_commits[repository.Path] = commits;
 				});
 			});

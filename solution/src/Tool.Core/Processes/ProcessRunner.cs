@@ -1,30 +1,40 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
+using System.Linq;
+using System.Globalization;
+using System.Net;
 using System.Text;
 using System.Threading;
+using Fuxion.Tool.Core.Results;
 
 namespace Fuxion.Tool.Core.Processes;
 
-public sealed record ProcessResult(int ExitCode, string StandardOutput, string StandardError, TimeSpan Elapsed);
-
-public sealed class ProcessException(string message, string command, int? exitCode, string standardError, Exception? inner = null)
-	: Exception(message, inner)
+/// <summary>How a process ended: its exit code (data: the caller decides what it means), its output and its error output, and how long it took.</summary>
+public sealed record ProcessResult(int ExitCode, string StandardOutput, string StandardError, TimeSpan Elapsed)
 {
-	public string Command { get; } = command;
-	/// <summary><see langword="null"/> when the process did not start or timed out.</summary>
-	public int? ExitCode { get; } = exitCode;
-	public string StandardError { get; } = standardError;
+	/// <summary>
+	/// A run as its result, for who reports what failed and goes on: one that did not run is a failed one (exit code
+	/// -1), with the message of its error, in English, as its error output.
+	/// </summary>
+	public static ProcessResult Of(Response<ProcessResult> run)
+		=> run is ProcessResult result ? result : new(-1, "", string.Join(" ", run.Diagnostics.Select(d => d.Message.English)), TimeSpan.Zero);
 }
 
 /// <summary>
 /// The only way the tool launches processes (design §10.4): explicit working directory, a timeout always, UTF-8 output.
-/// A non-zero exit code is not an error here; the caller decides what it means. A cancellation kills the process (and
-/// its children) at once and throws <see cref="OperationCanceledException"/>.
+/// A non-zero exit code is not an error here: it is data, and the caller decides what it means. A process that does not
+/// start is an error (<see cref="HttpStatusCode.ServiceUnavailable"/>), and one that does not end in time too
+/// (<see cref="HttpStatusCode.RequestTimeout"/>). A cancellation kills the process (and its children) at once and throws
+/// <see cref="OperationCanceledException"/>.
 /// </summary>
 public static class ProcessRunner
 {
-	public static ProcessResult Run(
+	public const string NotStarted = "process.not-started";
+	public const string TimedOut = "process.timed-out";
+
+	public static Response<ProcessResult> Run(
 		string fileName,
 		string workingDirectory,
 		IEnumerable<string> arguments,
@@ -55,15 +65,18 @@ public static class ProcessRunner
 
 		var command = Describe(fileName, psi.ArgumentList);
 		var stopwatch = Stopwatch.StartNew();
-		Process process;
+		Process? process;
 		try
 		{
-			process = Process.Start(psi) ?? throw new InvalidOperationException("Process.Start returned null.");
+			process = Process.Start(psi);
 		}
-		catch (Exception ex)
+		catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or PlatformNotSupportedException)
 		{
-			throw new ProcessException($"Could not start '{command}' in '{workingDirectory}': {ex.Message}", command, null, "", ex);
+			return NotStartedError(command, workingDirectory, ex.Message, ex);
 		}
+		if (process is null)
+			return NotStartedError(command, workingDirectory, "no process", null);
+
 
 		using (process)
 		using (cancellationToken.Register(() => Kill(process)))
@@ -75,13 +88,17 @@ public static class ProcessRunner
 			{
 				Kill(process);
 				cancellationToken.ThrowIfCancellationRequested();
-				throw new ProcessException($"'{command}' in '{workingDirectory}' timed out after {timeout.TotalSeconds:0.#} s.", command, null, "");
+				return FxErrors.Of(HttpStatusCode.RequestTimeout,
+					FxDiagnostic.Error(TimedOut, new(TimedOut, command, workingDirectory, timeout.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture))));
 			}
 			process.WaitForExit();
 			cancellationToken.ThrowIfCancellationRequested();
-			return new(process.ExitCode, stdout.Result, stderr.Result, stopwatch.Elapsed);
+			return new ProcessResult(process.ExitCode, stdout.Result, stderr.Result, stopwatch.Elapsed);
 		}
 	}
+
+	static Error NotStartedError(string command, string workingDirectory, string reason, Exception? exception)
+		=> FxErrors.Of(HttpStatusCode.ServiceUnavailable, FxDiagnostic.Error(NotStarted, new(NotStarted, command, workingDirectory, reason)), exception);
 
 	static void Kill(Process process)
 	{
@@ -89,7 +106,7 @@ public static class ProcessRunner
 		{
 			process.Kill(entireProcessTree: true);
 		}
-		catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+		catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
 		{
 			// it has just exited
 		}

@@ -178,7 +178,7 @@ public static partial class DotnetModule
 	static void Generate(FxNode node, GitClient git, FxIdentity identity, DotnetConfig config, string sources, SyncContext context, FxOutputs outputs, FxDiagnostics diagnostics)
 	{
 		var root = node.Root;
-		var buildFiles = git.ListFiles(":(glob)**/*.csproj", ":(glob)**/*.fsproj", ":(glob)**/*.vbproj", ":(glob)**/*.props", ":(glob)**/*.targets")
+		var buildFiles = diagnostics.ValueOr(git.ListFiles(":(glob)**/*.csproj", ":(glob)**/*.fsproj", ":(glob)**/*.vbproj", ":(glob)**/*.props", ":(glob)**/*.targets"), [])
 			.Where(f => !(f.StartsWith("_fx/", StringComparison.OrdinalIgnoreCase) && Path.GetFileName(f).Contains(".g.", StringComparison.OrdinalIgnoreCase)))
 			.ToList();
 		// a space without projects of its own generates nothing for itself (only for its repositories, through them),
@@ -225,7 +225,7 @@ public static partial class DotnetModule
 
 		// 3. The generated files. With central package management (CPM), the versions are PackageVersion items in
 		// packages.g.props; without it, PackageReference Update items in dotnet.g.targets, right after the project file
-		var centralFiles = git.ListFiles(":(glob)**/Directory.Packages.props");
+		var centralFiles = diagnostics.ValueOr(git.ListFiles(":(glob)**/Directory.Packages.props"), []);
 		var centralManagement = centralFiles.Any(f => CentralManagement().IsMatch(Read(root, f)));
 		// a repository of a space that does not build on its own needs it (plan R, proposal 5)
 		var requiresSpace = !config.Standalone && !node.HasMounts && node.Inherited() is not null;
@@ -352,7 +352,7 @@ public static partial class DotnetModule
 			.SelectMany(m => m.Groups["id"].Value.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
 			.ToHashSet(StringComparer.OrdinalIgnoreCase);
 		var restored = 0;
-		foreach (var project in git.ListFiles(":(glob)**/*.csproj"))
+		foreach (var project in diagnostics.ValueOr(git.ListFiles(":(glob)**/*.csproj"), []))
 		{
 			var assets = Path.Combine(root, Path.GetDirectoryName(project) ?? "", "obj", "project.assets.json");
 			if (!FxFiles.Exists(assets))
@@ -398,7 +398,7 @@ public static partial class DotnetModule
 	{
 		var values = config.Variables.Where(v => !v.IsWhen).ToDictionary(v => v.Name, v => v.Value!, StringComparer.OrdinalIgnoreCase);
 		var byId = governed.GroupBy(g => g.Id, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
-		foreach (var project in git.ListFiles(":(glob)**/*.csproj"))
+		foreach (var project in diagnostics.ValueOr(git.ListFiles(":(glob)**/*.csproj"), []))
 		{
 			var text = Read(root, project);
 			var display = outputs.Display(Path.Combine(root, project));

@@ -331,7 +331,11 @@ public static class SyncEngine
 		{
 			if (GitClient.Discover(node.Root) is not { } git || !FxLayout.SameFolder(git.Root, node.Root))
 				continue;
-			foreach (var file in git.ListFiles(":(glob)**/*.csproj", ":(glob)**/*.props", ":(glob)**/*.targets"))
+			var listed = git.ListFiles(":(glob)**/*.csproj", ":(glob)**/*.props", ":(glob)**/*.targets");
+			diagnostics.AddRange(listed);
+			if (listed is not IReadOnlyList<string> files)
+				continue;
+			foreach (var file in files)
 				foreach (var (reference, line) in FxReferences(Path.Combine(git.Root, file)))
 					if (projects.TryGetValue(reference, out var target) && Standalone(target.Path) == false)
 						diagnostics.Add(FxDiagnostic.Error(StandaloneReference, new(StandaloneReference, identity.Name, reference, target.Repository),

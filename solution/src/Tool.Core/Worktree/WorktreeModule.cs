@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using Fuxion.Tool.Core.Git;
+using Fuxion.Tool.Core.Processes;
 using Fuxion.Tool.Core.Layout;
 using Fuxion.Tool.Core.Mounts;
 using Fuxion.Tool.Core.Results;
@@ -138,11 +139,12 @@ public static class WorktreeModule
 
 		// the root: the space (or the repository) in worktree mode
 		var leftOut = space is null ? [] : LeftOut(main);
-		var (added, created) = progress.Step(Name, mainIdentity.Name, "worktree", () => GitClient.Discover(main)!.AddWorktree(root, branch, checkout: leftOut.Count == 0, cancellationToken),
-			r => r.Result.ExitCode == 0);
+		var (run, created) = progress.Step(Name, mainIdentity.Name, "worktree", () => GitClient.Discover(main)!.AddWorktree(root, branch, checkout: leftOut.Count == 0, cancellationToken),
+			r => r.Result is ProcessResult { ExitCode: 0 });
+		var added = ProcessResult.Of(run);
 		if (added.ExitCode != 0)
 			return Fail(FxDiagnostic.Error(AddFailed, new(AddFailed, mainIdentity.Name, added.StandardError.Trim()), repository: mainIdentity.Name));
-		if (leftOut.Count > 0 && GitClient.Discover(root)!.SparseLeaveOut(leftOut, cancellationToken) is { ExitCode: not 0 } sparse)
+		if (leftOut.Count > 0 && ProcessResult.Of(GitClient.Discover(root)!.SparseLeaveOut(leftOut, cancellationToken)) is { ExitCode: not 0 } sparse)
 			diagnostics.Add(FxDiagnostic.Error(AddFailed, new(AddFailed, mainIdentity.Name, sparse.StandardError.Trim()), repository: mainIdentity.Name));
 		actions.Add(new(mainIdentity.Name, "mounted"));
 		var session = new Session(root, new(branch, node.SelfIdentity().Name, leftOut, [new(".", mainIdentity.Name, created)]), actions, diagnostics, progress, cancellationToken);
@@ -283,7 +285,7 @@ public static class WorktreeModule
 						diagnostics.Add(FxDiagnostic.Error(CloneFailed, new(CloneFailed, name, "", "no url"), repository: name));
 						return false;
 					}
-					var clone = progress.Step(Name, name, "clone", () => GitClient.Clone(repository.Url, main, CloneTimeout, cancellationToken), c => c.ExitCode == 0);
+					var clone = progress.Step(Name, name, "clone", () => ProcessResult.Of(GitClient.Clone(repository.Url, main, CloneTimeout, cancellationToken)), c => c.ExitCode == 0);
 					if (clone.ExitCode != 0)
 					{
 						diagnostics.Add(FxDiagnostic.Error(CloneFailed, new(CloneFailed, name, repository.Url, clone.StandardError.Trim()), repository: name));
@@ -293,14 +295,15 @@ public static class WorktreeModule
 				}
 			}
 			var leftOut = MountsManifest.HasMounts(main) ? LeftOut(main) : [];
-			var (added, created) = progress.Step(Name, name, "worktree",
-				() => GitClient.Discover(main)!.AddWorktree(destination, Card.Branch, checkout: leftOut.Count == 0, cancellationToken), r => r.Result.ExitCode == 0);
+			var (run, created) = progress.Step(Name, name, "worktree",
+				() => GitClient.Discover(main)!.AddWorktree(destination, Card.Branch, checkout: leftOut.Count == 0, cancellationToken), r => r.Result is ProcessResult { ExitCode: 0 });
+			var added = ProcessResult.Of(run);
 			if (added.ExitCode != 0)
 			{
 				diagnostics.Add(FxDiagnostic.Error(AddFailed, new(AddFailed, name, added.StandardError.Trim()), repository: name));
 				return false;
 			}
-			if (leftOut.Count > 0 && GitClient.Discover(destination)!.SparseLeaveOut(leftOut, cancellationToken) is { ExitCode: not 0 } sparse)
+			if (leftOut.Count > 0 && ProcessResult.Of(GitClient.Discover(destination)!.SparseLeaveOut(leftOut, cancellationToken)) is { ExitCode: not 0 } sparse)
 				diagnostics.Add(FxDiagnostic.Error(AddFailed, new(AddFailed, name, sparse.StandardError.Trim()), repository: name));
 			Card = Card with
 			{
@@ -319,7 +322,7 @@ public static class WorktreeModule
 			var leftOut = Card.LeftOut.Where(p => p != path).ToList();
 			var own = leftOut.Where(p => p.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && !Card.Worktrees.Any(w => w.Path != owner.Path && w.Path != "."
 				&& p.StartsWith(w.Path + "/", StringComparison.OrdinalIgnoreCase) && w.Path.Length > owner.Path.Length)).Select(p => p[prefix.Length..]).ToList();
-			if (GitClient.Discover(Full(owner.Path))!.SparseLeaveOut(own, cancellationToken) is { ExitCode: not 0 } sparse)
+			if (ProcessResult.Of(GitClient.Discover(Full(owner.Path))!.SparseLeaveOut(own, cancellationToken)) is { ExitCode: not 0 } sparse)
 			{
 				diagnostics.Add(FxDiagnostic.Error(AddFailed, new(AddFailed, owner.Repository, sparse.StandardError.Trim()), repository: owner.Repository));
 				return;
@@ -334,7 +337,7 @@ public static class WorktreeModule
 		/// </summary>
 		public bool Remove(IReadOnlyList<WorktreeMount> mounts)
 		{
-			var dirty = mounts.Where(m => FxLayout.IsGitRoot(Full(m.Path)) && GitClient.Discover(Full(m.Path))?.Status() is { Changes: > 0 }).ToList();
+			var dirty = mounts.Where(m => FxLayout.IsGitRoot(Full(m.Path)) && GitClient.Discover(Full(m.Path)) is { } git && git.Status() is GitStatus { Changes: > 0 }).ToList();
 			if (dirty.Count > 0)
 			{
 				diagnostics.AddRange(dirty.Select(m => FxDiagnostic.Error(Dirty, new(Dirty, m.Repository, m.Path), repository: m.Repository)));
@@ -351,7 +354,7 @@ public static class WorktreeModule
 					continue;
 				}
 				var main = GitClient.Discover(path)?.MainRoot() is { } m ? GitClient.Discover(m) : null;
-				var result = main is null ? null : progress.Step(Name, mount.Repository, "remove", () => main.RemoveWorktree(Path.TrimEndingDirectorySeparator(path)), r => r.ExitCode == 0);
+				var result = main is null ? null : progress.Step(Name, mount.Repository, "remove", () => ProcessResult.Of(main.RemoveWorktree(Path.TrimEndingDirectorySeparator(path))), r => r.ExitCode == 0);
 				if (main is null || result!.ExitCode != 0)
 				{
 					diagnostics.Add(FxDiagnostic.Error(RemoveFailed, new(RemoveFailed, mount.Repository, mount.Path, result?.StandardError.Trim() ?? ""), repository: mount.Repository));
@@ -364,7 +367,7 @@ public static class WorktreeModule
 					LeftOut = Card.LeftOut.Where(p => mount.Path == "." || !p.StartsWith(mount.Path + "/", StringComparison.OrdinalIgnoreCase)).ToList()
 				};
 				actions.Add(new(mount.Repository, "removed"));
-				if (mount.CreatedBranch && main.DeleteBranch(Card.Branch).ExitCode != 0)
+				if (mount.CreatedBranch && main.DeleteBranch(Card.Branch) is not ProcessResult { ExitCode: 0 })
 					diagnostics.Add(FxDiagnostic.Info(BranchKept, new(BranchKept, Card.Branch, mount.Repository), repository: mount.Repository));
 			}
 			return removed;
@@ -397,7 +400,7 @@ public static class WorktreeModule
 		foreach (var root in FxFiles.EnumerateDirectories(folder).Select(FxLayout.Normalize))
 			if (WorktreeCard.Load(root) is { } card)
 				result.Add(new(root, card, withStatus
-					? card.Worktrees.ToDictionary(w => w.Path, w => GitClient.Discover(w.Path == "." ? root : FxLayout.Full(root, w.Path))?.Status().Changes ?? 0)
+					? card.Worktrees.ToDictionary(w => w.Path, w => GitClient.Discover(w.Path == "." ? root : FxLayout.Full(root, w.Path)) is { } git && git.Status() is GitStatus status ? status.Changes : 0)
 					: null));
 		return result;
 	}
@@ -517,15 +520,9 @@ public static class WorktreeModule
 	{
 		if (GitClient.Discover(repository) is not { } git || !FxLayout.SameFolder(git.Root, repository))
 			return;
-		IReadOnlyList<GitWorktree> worktrees;
-		try
-		{
-			worktrees = git.Worktrees();
-		}
-		catch (Processes.ProcessException)
-		{
+		// a git that cannot list them: nothing to check
+		if (git.Worktrees() is not IReadOnlyList<GitWorktree> worktrees)
 			return;
-		}
 		foreach (var worktree in worktrees.Skip(1))
 			if (worktree.Prunable)
 				report(FxDiagnostic.Info(Prunable, new(Prunable, name, worktree.Path), repository: name, fix: FxFix.Run($"git -C {git.Root.TrimEnd('\\', '/')} worktree prune")));

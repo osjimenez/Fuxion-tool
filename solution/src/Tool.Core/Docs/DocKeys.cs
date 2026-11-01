@@ -6,6 +6,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Fuxion.Tool.Core.Git;
+using Fuxion.Tool.Core.Processes;
 using Fuxion.Tool.Core.Results;
 
 namespace Fuxion.Tool.Core.Docs;
@@ -75,17 +76,20 @@ public static class DocKeys
 		if (register.Sidecar is null || GitClient.Discover(catalog.Root) is not { } git)
 			return taken;
 		var path = Path.GetRelativePath(git.Root, register.Sidecar).Replace('\\', '/');
-		var refs = git.Execute("for-each-ref", "--format=%(refname)", "refs/heads", "refs/remotes", References);
+		var refs = Git(git, "for-each-ref", "--format=%(refname)", "refs/heads", "refs/remotes", References);
 		foreach (var reference in refs.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
 			if (reference.StartsWith(References, StringComparison.Ordinal))
 			{
 				if (Number(reference[References.Length..], prefix) is { } reserved)
 					taken.Add(reserved);
 			}
-			else if (git.Execute("show", $"{reference}:{path}") is { ExitCode: 0 } show)
+			else if (Git(git, "show", $"{reference}:{path}") is { ExitCode: 0 } show)
 				taken.UnionWith(Keys(show.StandardOutput).Select(k => Number(k, prefix)).OfType<long>());
 		return taken;
 	}
+
+	/// <summary>git in the repository; one that does not run is a failed command, with its reason as its error output.</summary>
+	static ProcessResult Git(GitClient git, params string[] args) => ProcessResult.Of(git.Execute(args));
 
 	static string Next(string prefix, HashSet<long> taken) => $"{prefix}-{(taken.Count == 0 ? 1 : taken.Max() + 1).ToString(CultureInfo.InvariantCulture)}";
 
@@ -105,7 +109,7 @@ public static class DocKeys
 			return new(Provisional(keyed.Prefix), true, new(KeyFailed, keyed.Path, new FxText($"{KeyFailed}.no-remote", Remote)));
 
 		// what the remote has reserved; without network, a provisional key
-		var remote = git.Execute("ls-remote", Remote, $"{References}*");
+		var remote = Git(git, "ls-remote", Remote, $"{References}*");
 		if (remote.ExitCode != 0)
 			return new(Provisional(keyed.Prefix), true, new(KeyFailed, keyed.Path, FxText.Plain(remote.StandardError.Trim())));
 		foreach (var line in remote.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries))
@@ -119,7 +123,7 @@ public static class DocKeys
 		string tree;
 		try
 		{
-			tree = git.Execute("hash-object", "-t", "tree", "-w", empty).StandardOutput.Trim();
+			tree = Git(git, "hash-object", "-t", "tree", "-w", empty).StandardOutput.Trim();
 		}
 		finally
 		{
@@ -128,14 +132,14 @@ public static class DocKeys
 		for (var attempt = 0; attempt < 50; attempt++)
 		{
 			var key = Next(keyed.Prefix, taken);
-			var commit = git.Execute("-c", $"user.name={actor}", "-c", $"user.email={actor}@fx.invalid", "commit-tree", tree, "-m",
+			var commit = Git(git, "-c", $"user.name={actor}", "-c", $"user.email={actor}@fx.invalid", "commit-tree", tree, "-m",
 				$"fx: {key}, of {keyed.Path}{(title is null ? "" : $": {title}")}");
 			if (commit.ExitCode != 0)
 				return new(Provisional(keyed.Prefix), true, new(KeyFailed, keyed.Path, FxText.Plain(commit.StandardError.Trim())));
-			var push = git.Execute("push", "--quiet", Remote, $"{commit.StandardOutput.Trim()}:{References}{key}", $"--force-with-lease={References}{key}:");
+			var push = Git(git, "push", "--quiet", Remote, $"{commit.StandardOutput.Trim()}:{References}{key}", $"--force-with-lease={References}{key}:");
 			if (push.ExitCode == 0)
 			{
-				git.Execute("update-ref", $"{References}{key}", commit.StandardOutput.Trim());
+				Git(git, "update-ref", $"{References}{key}", commit.StandardOutput.Trim());
 				return new(key, false);
 			}
 			// taken by someone else: the next one; anything else (the network), a provisional key

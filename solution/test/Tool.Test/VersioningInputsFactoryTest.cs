@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Net;
+using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Versioning;
 using Xunit;
 
@@ -14,7 +16,15 @@ namespace Fuxion.Tool.Test;
 public sealed class VersioningInputsFactoryTest
 {
 	static VersioningInputs FromGit(TempGitRepository repo, bool failOnError = true, bool forceCi = false, string? suffix = null)
-		=> VersioningInputsFactory.Create(new(repo.Path, failOnError, forceCi, suffix));
+		=> VersioningInputsFactory.Create(new(repo.Path, failOnError, forceCi, suffix)).SuccessOrThrow();
+
+	/// <summary>The error the version of <paramref name="repo"/> gives: its category, and its one diagnostic.</summary>
+	static (HttpStatusCode Category, FxDiagnostic Diagnostic) Failure(TempGitRepository repo, bool failOnError = true)
+	{
+		var created = VersioningInputsFactory.Create(new(repo.Path, failOnError));
+		Assert.True(created is Error);
+		return (((Error)created).Category, Assert.Single(created.Diagnostics));
+	}
 
 	/// <summary>main with <c>version/1.2.0</c> on the first commit.</summary>
 	static TempGitRepository TaggedMain(string tag = "version/1.2.0")
@@ -235,9 +245,9 @@ public sealed class VersioningInputsFactoryTest
 	{
 		using var ci = CiEnvironment.Local();
 		using var repo = TaggedMain("version/1.2.3");
-		var ex = Assert.Throws<VersioningException>(() => FromGit(repo, failOnError: false));
-		Assert.Equal("Git versioning failed: tag 'version/1.2.3' patch must be 0.", ex.Message);
-		Assert.Equal(VersioningErrorCodes.InvalidTag, ex.Code);
+		var (category, error) = Failure(repo, failOnError: false);
+		Assert.Equal("Git versioning failed: tag 'version/1.2.3' patch must be 0.", error.Message.English);
+		Assert.Equal((VersioningErrorCodes.InvalidTag, HttpStatusCode.Conflict), (error.Code, category));
 	}
 
 	// Errors
@@ -248,9 +258,10 @@ public sealed class VersioningInputsFactoryTest
 		using var ci = CiEnvironment.Local();
 		using var repo = new TempGitRepository();
 		repo.Commit("c1");
-		var ex = Assert.Throws<VersioningException>(() => FromGit(repo));
-		Assert.StartsWith("Git versioning failed: No version tag found for stable branch in repo '", ex.Message);
-		Assert.Equal(VersioningErrorCodes.NoTag, ex.Code);
+		var (category, error) = Failure(repo);
+		Assert.StartsWith("Git versioning failed: No version tag found for stable branch in repo '", error.Message.English);
+		Assert.Equal((VersioningErrorCodes.NoTag, HttpStatusCode.Conflict), (error.Code, category));
+		Assert.NotNull(error.Fix);
 	}
 
 	[Fact(DisplayName = "no version tag: 0.1.0 without failOnError")]
@@ -260,6 +271,9 @@ public sealed class VersioningInputsFactoryTest
 		using var repo = new TempGitRepository();
 		repo.Commit("c1");
 		Assert.Equal(new("0.1.0", "+local"), FromGit(repo, failOnError: false));
+		var warning = Assert.Single(VersioningInputsFactory.Create(new(repo.Path, FailOnError: false)).Diagnostics);
+		Assert.Equal((VersioningErrorCodes.NoTag, FxSeverity.Warning), (warning.Code, warning.Severity));
+		Assert.StartsWith("Git versioning fallback: No version tag found", warning.Message.English);
 	}
 
 	[Fact(DisplayName = "repository without commits: fails")]
@@ -267,9 +281,9 @@ public sealed class VersioningInputsFactoryTest
 	{
 		using var ci = CiEnvironment.Local();
 		using var repo = new TempGitRepository();
-		var ex = Assert.Throws<VersioningException>(() => FromGit(repo));
-		Assert.Equal("Git versioning failed: Git HEAD not available (repository has no commits).", ex.Message);
-		Assert.Equal(VersioningErrorCodes.NoCommits, ex.Code);
+		var (category, error) = Failure(repo);
+		Assert.Equal("Git versioning failed: Git HEAD not available (repository has no commits).", error.Message.English);
+		Assert.Equal((VersioningErrorCodes.NoCommits, HttpStatusCode.NotFound), (error.Code, category));
 	}
 
 	[Fact(DisplayName = "not a repository: fails")]
@@ -277,9 +291,9 @@ public sealed class VersioningInputsFactoryTest
 	{
 		using var ci = CiEnvironment.Local();
 		using var folder = new TempGitRepository(init: false);
-		var ex = Assert.Throws<VersioningException>(() => FromGit(folder));
-		Assert.Equal("Git versioning failed: Git repository not found.", ex.Message);
-		Assert.Equal(VersioningErrorCodes.RepositoryNotFound, ex.Code);
+		var (category, error) = Failure(folder);
+		Assert.Equal("Git versioning failed: Git repository not found.", error.Message.English);
+		Assert.Equal((VersioningErrorCodes.RepositoryNotFound, HttpStatusCode.NotFound), (error.Code, category));
 	}
 
 	// Repository path
@@ -291,7 +305,7 @@ public sealed class VersioningInputsFactoryTest
 		using var repo = TaggedMain();
 		repo.Commit("c2");
 		var sub = Directory.CreateDirectory(Path.Combine(repo.Path, "solution", "src")).FullName;
-		var inputs = VersioningInputsFactory.Create(new(sub, FailOnError: true));
+		var inputs = VersioningInputsFactory.Create(new(sub, FailOnError: true)).SuccessOrThrow();
 		Assert.Equal("1.2.1", inputs.BaseVersion);
 	}
 

@@ -31,37 +31,40 @@ public static class VersionTagCommand
 
 	public static int Run(VersionTagSettings settings, FxConsole console, CancellationToken cancellationToken = default)
 	{
-		CreatedVersionTag created;
-		try
+		var majorMinor = settings.MajorMinor;
+		if (string.IsNullOrWhiteSpace(majorMinor))
 		{
-			var majorMinor = settings.MajorMinor;
-			if (string.IsNullOrWhiteSpace(majorMinor))
-			{
-				if (!console.Capabilities.CanPrompt)
-					return console.Missing("<X.Y>", "fx version tag <X.Y>");
-				// the next minor or the next major of the highest tag
-				var (highestMajor, highestMinor) = VersionTagger.Highest(settings.Global.Directory) ?? (0, 0);
-				string[] next = [$"{highestMajor}.{highestMinor + 1}", $"{highestMajor + 1}.0"];
-				majorMinor = Ask.One(console, Texts.Get("version.tag.ask"), next,
-					v => Texts.Get(v == next[0] ? "version.tag.next-minor" : "version.tag.next-major", v), cancellationToken);
-				Ask.Equivalent(console, $"fx version tag {majorMinor}");
-			}
-			if (!VersionTagger.TryParseMajorMinor(majorMinor, out var major, out var minor))
-				throw new VersioningException(VersionTagger.InvalidArgument, new(VersionTagger.InvalidArgument, majorMinor));
-			created = VersionTagger.Create(settings.Global.Directory, major, minor);
+			if (!console.Capabilities.CanPrompt)
+				return console.Missing("<X.Y>", "fx version tag <X.Y>");
+			// the next minor or the next major of the highest tag (none: 0.0)
+			var highest = VersionTagger.Highest(settings.Global.Directory);
+			if (highest is Error failed)
+				return Failed(settings, console, failed);
+			var (highestMajor, highestMinor) = highest is System.ValueTuple<int, int> found ? found : (0, 0);
+			string[] next = [$"{highestMajor}.{highestMinor + 1}", $"{highestMajor + 1}.0"];
+			majorMinor = Ask.One(console, Texts.Get("version.tag.ask"), next,
+				v => Texts.Get(v == next[0] ? "version.tag.next-minor" : "version.tag.next-major", v), cancellationToken);
+			Ask.Equivalent(console, $"fx version tag {majorMinor}");
 		}
-		catch (VersioningException ex)
-		{
-			FxDiagnostic[] errors = [ex.ToDiagnostic()];
-			if (settings.Global.IsMachine)
-				console.WriteJson(new VersionTagDocument(Schema, false, null, null, JsonDiagnostic.From(errors)), c => c.VersionTagDocument);
-			return console.Report(errors);
-		}
+		var tagged = VersionTagger.TryParseMajorMinor(majorMinor, out var major, out var minor)
+			? VersionTagger.Create(settings.Global.Directory, major, minor)
+			: VersioningErrors.Of(VersionTagger.InvalidArgument, new(VersionTagger.InvalidArgument, majorMinor));
+		if (tagged is not CreatedVersionTag created)
+			return Failed(settings, console, (Error)tagged);
 
 		if (settings.Global.IsMachine)
-			console.WriteJson(new VersionTagDocument(Schema, true, created.Name, created.Commit, []), c => c.VersionTagDocument);
+			console.WriteJson(new VersionTagDocument(Schema, true, created.Name
+, created.Commit, []), c => c.VersionTagDocument);
 		else
 			console.Line($"[green]✓[/] {FxConsole.Escape(Texts.Get("version.tag.created", created.Name, created.Commit[..7]))}");
 		return 0;
+	}
+
+	static int Failed(VersionTagSettings settings, FxConsole console, Error error)
+	{
+		var errors = error.Diagnostics;
+		if (settings.Global.IsMachine)
+			console.WriteJson(new VersionTagDocument(Schema, false, null, null, JsonDiagnostic.From(errors)), c => c.VersionTagDocument);
+		return console.Report(errors);
 	}
 }

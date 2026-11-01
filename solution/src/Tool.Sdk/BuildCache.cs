@@ -10,6 +10,20 @@ namespace Fuxion.Tool.Sdk;
 /// </summary>
 static class BuildCache
 {
+	/// <summary>The value of <paramref name="key"/> for this build, if there is one.</summary>
+	public static bool TryGet<T>(IBuildEngine engine, string key, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out T? value) where T : class
+	{
+		value = engine is IBuildEngine4 engine4 ? engine4.GetRegisteredTaskObject(key, RegisteredTaskObjectLifetime.Build) as T : null;
+		return value is not null;
+	}
+
+	/// <summary>Keeps <paramref name="value"/> as the one of <paramref name="key"/> until the build ends (if the host offers it).</summary>
+	public static void Add<T>(IBuildEngine engine, string key, T value) where T : class
+	{
+		if (engine is IBuildEngine4 engine4)
+			engine4.RegisterTaskObject(key, value, RegisteredTaskObjectLifetime.Build, allowEarlyCollection: false);
+	}
+
 	public static T GetOrAdd<T>(IBuildEngine engine, string key, Func<T> create, out bool cached) where T : class
 	{
 		cached = false;

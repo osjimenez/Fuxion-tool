@@ -86,10 +86,10 @@ public sealed class SdkFixture : IDisposable
 		=> Dotnet(directory, ["build", .. args, "-nologo", "-nodeReuse:false", "--disable-build-servers"]);
 
 	public ProcessResult BuildWithVisualStudio(string directory, params string[] args)
-		=> ProcessRunner.Run(MSBuildExe!, directory, [.. args, "-restore", "-nologo", "-nodeReuse:false"], BuildTimeout, CleanEnvironment());
+		=> ProcessRunner.Run(MSBuildExe!, directory, [.. args, "-restore", "-nologo", "-nodeReuse:false"], BuildTimeout, CleanEnvironment()).SuccessOrThrow();
 
 	static ProcessResult Dotnet(string directory, params string[] args)
-		=> ProcessRunner.Run("dotnet", directory, args, BuildTimeout, CleanEnvironment());
+		=> ProcessRunner.Run("dotnet", directory, args, BuildTimeout, CleanEnvironment()).SuccessOrThrow();
 
 	// The test host runs under dotnet test: its MSBuild and Microsoft.Testing.Platform variables must not leak into
 	// the processes it starts (a nested dotnet test would try to talk to the outer one), and neither must the CI
@@ -128,7 +128,7 @@ public sealed class SdkFixture : IDisposable
 		if (!OperatingSystem.IsWindows() || !File.Exists(vswhere))
 			return null;
 		var result = ProcessRunner.Run(vswhere, TempGitRepository.TempRoot,
-			["-latest", "-prerelease", "-version", $"[{MinimumVisualStudio},", "-requires", "Microsoft.Component.MSBuild", "-find", @"MSBuild\**\Bin\MSBuild.exe"], TimeSpan.FromSeconds(30));
+			["-latest", "-prerelease", "-version", $"[{MinimumVisualStudio},", "-requires", "Microsoft.Component.MSBuild", "-find", @"MSBuild\**\Bin\MSBuild.exe"], TimeSpan.FromSeconds(30)).SuccessOrThrow();
 		return result.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
 			.FirstOrDefault(File.Exists);
 	}

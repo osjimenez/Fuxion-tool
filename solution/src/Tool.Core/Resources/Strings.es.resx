@@ -1324,4 +1324,16 @@
   <data name="yaml.compact-nested" xml:space="preserve">
     <value>'{0}' es un elemento de una secuencia anidada compacta (- - a), que fx no edita.</value>
   </data>
+  <data name="process.not-started" xml:space="preserve">
+    <value>No se pudo arrancar '{0}' en '{1}': {2}</value>
+  </data>
+  <data name="process.timed-out" xml:space="preserve">
+    <value>'{0}' en '{1}' no ha acabado en {2} s.</value>
+  </data>
+  <data name="git.failed" xml:space="preserve">
+    <value>'{0}' ha fallado en '{1}' ({2}): {3}</value>
+  </data>
+  <data name="version.fallback" xml:space="preserve">
+    <value>El versionado con git vuelve a la versión por defecto: {0}</value>
+  </data>
 </root>

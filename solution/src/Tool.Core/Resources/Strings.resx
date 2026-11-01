@@ -1324,4 +1324,16 @@
   <data name="yaml.compact-nested" xml:space="preserve">
     <value>'{0}' is an item of a compact nested sequence (- - a), which fx does not edit.</value>
   </data>
+  <data name="process.not-started" xml:space="preserve">
+    <value>Could not start '{0}' in '{1}': {2}</value>
+  </data>
+  <data name="process.timed-out" xml:space="preserve">
+    <value>'{0}' in '{1}' did not end in {2} s.</value>
+  </data>
+  <data name="git.failed" xml:space="preserve">
+    <value>'{0}' failed in '{1}' ({2}): {3}</value>
+  </data>
+  <data name="version.fallback" xml:space="preserve">
+    <value>Git versioning fallback: {0}</value>
+  </data>
 </root>

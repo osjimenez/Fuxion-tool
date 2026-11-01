@@ -50,7 +50,11 @@ public static class SpacePropsGenerator
 		{
 			if (GitClient.Discover(node.Root) is not { } git || !FxLayout.SameFolder(git.Root, node.Root))
 				continue;
-			foreach (var project in git.ListFiles(":(glob)**/*.csproj", ":(glob)**/*.fsproj", ":(glob)**/*.vbproj").Order(StringComparer.Ordinal))
+			var listed = git.ListFiles(":(glob)**/*.csproj", ":(glob)**/*.fsproj", ":(glob)**/*.vbproj");
+			diagnostics.AddRange(listed);
+			if (listed is not IReadOnlyList<string> files)
+				continue;
+			foreach (var project in files.Order(StringComparer.Ordinal))
 			{
 				var full = Path.GetFullPath(Path.Combine(node.Root, project));
 				var name = Path.GetFileNameWithoutExtension(full);

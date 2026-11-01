@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using Fuxion.Tool.Core.Processes;
+using Fuxion.Tool.Core.Results;
 
 namespace Fuxion.Tool.Core.Git;
 
@@ -50,8 +52,7 @@ public sealed class GitClient
 	{
 		if (!Directory.Exists(path))
 			return null;
-		var result = Run(path, timeout ?? DefaultTimeout, "rev-parse", "--show-toplevel");
-		var top = result.ExitCode == 0 ? result.StandardOutput.Trim() : "";
+		var top = Run(path, timeout ?? DefaultTimeout, "rev-parse", "--show-toplevel") is ProcessResult { ExitCode: 0 } result ? result.StandardOutput.Trim() : "";
 		if (top.Length == 0)
 			return null;
 		var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(top)) + Path.DirectorySeparatorChar;
@@ -71,9 +72,11 @@ public sealed class GitClient
 	public string? RemoteBranchTip(string remote, string branch) => Optional("rev-parse", "--verify", "--quiet", $"refs/remotes/{remote}/{branch}^{{commit}}");
 
 	/// <summary>Every tag that points (directly or through an annotation) to a commit.</summary>
-	public IReadOnlyList<GitTag> Tags()
+	public Response<IReadOnlyList<GitTag>> Tags()
 	{
-		var output = Required("for-each-ref", "--format=%(refname:short)%09%(objecttype)%09%(objectname)%09%(*objecttype)%09%(*objectname)", "refs/tags");
+		var required = Required("for-each-ref", "--format=%(refname:short)%09%(objecttype)%09%(objectname)%09%(*objecttype)%09%(*objectname)", "refs/tags");
+		if (required is not string output)
+			return (Error)required;
 		var tags = new List<GitTag>();
 		foreach (var line in Lines(output))
 		{
@@ -91,44 +94,55 @@ public sealed class GitClient
 	}
 
 	/// <summary>Commits reachable from <paramref name="tip"/>, children before parents and otherwise newest first.</summary>
-	public IReadOnlyList<string> CommitsByDate(string tip) => Lines(Required("rev-list", "--date-order", tip));
+	public Response<IReadOnlyList<string>> CommitsByDate(string tip)
+		=> Required("rev-list", "--date-order", tip) is string output ? Lines(output) : (Error)Required("rev-list", "--date-order", tip);
 
 	/// <summary>Merge commits reachable from <paramref name="tip"/> with their parents, in the same order.</summary>
-	public IReadOnlyList<(string Commit, string[] Parents)> MergesByDate(string tip)
-		=> Lines(Required("rev-list", "--date-order", "--merges", "--parents", tip))
+	public Response<IReadOnlyList<(string Commit, string[] Parents)>> MergesByDate(string tip)
+	{
+		if (Required("rev-list", "--date-order", "--merges", "--parents", tip) is not string output)
+			return (Error)Required("rev-list", "--date-order", "--merges", "--parents", tip);
+		return Lines(output)
 			.Select(line => line.Split(' ', StringSplitOptions.RemoveEmptyEntries))
 			.Select(fields => (fields[0], fields[1..]))
 			.ToList();
+	}
+
 
 	/// <summary>Number of commits reachable from <paramref name="tip"/> and from none of <paramref name="excluded"/>.</summary>
-	public int Count(string tip, params IEnumerable<string> excluded)
-		=> int.Parse(Required(["rev-list", "--count", tip, .. excluded.Select(e => "^" + e)]).Trim());
+	public Response<int> Count(string tip, params IEnumerable<string> excluded)
+	{
+		var required = Required(["rev-list", "--count", tip, .. excluded.Select(e => "^" + e)]);
+		return required is string output ? int.Parse(output.Trim(), System.Globalization.CultureInfo.InvariantCulture) : (Error)required;
+	}
+
 
 	public string? MergeBase(string a, string b) => Optional("merge-base", a, b);
 
 	/// <summary>Whether <paramref name="ancestor"/> is <paramref name="commit"/> or one of its ancestors.</summary>
-	public bool IsAncestor(string ancestor, string commit)
-	{
-		var result = Run(Root, _timeout, "merge-base", "--is-ancestor", ancestor, commit);
-		return result.ExitCode switch
+	public Response<bool> IsAncestor(string ancestor, string commit)
+		=> Run(Root, _timeout, "merge-base", "--is-ancestor", ancestor, commit) switch
 		{
-			0 => true,
-			1 => false,
-			_ => throw Failure(result, ["merge-base", "--is-ancestor", ancestor, commit])
+			ProcessResult { ExitCode: 0 } => true,
+			ProcessResult { ExitCode: 1 } => false,
+			ProcessResult result => Failure(result, ["merge-base", "--is-ancestor", ancestor, commit]),
+			var failed => (Error)failed
 		};
-	}
+
 
 	public string? RemoteUrl(string remote) => Optional("config", "--get", $"remote.{remote}.url");
 
 	/// <summary>Runs git with <paramref name="args"/> in the repository, as every call (no prompt, the timeout): for what has no method of its own.</summary>
-	public ProcessResult Execute(params string[] args) => Run(Root, _timeout, args);
+	public Response<ProcessResult> Execute(params string[] args) => Run(Root, _timeout, args);
 
 	/// <summary>
 	/// The files of the working tree matching the pathspecs: tracked (except those deleted and not committed yet) and
 	/// untracked ones not ignored; relative to the root, with '/'.
 	/// </summary>
-	public IReadOnlyList<string> ListFiles(params string[] pathspecs)
-		=> Required(["ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", .. pathspecs])
+	public Response<IReadOnlyList<string>> ListFiles(params string[] pathspecs)
+		=> Required(["ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", .. pathspecs]) is not string output
+			? (Error)Required(["ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", .. pathspecs])
+			: output
 			.Split('\0', StringSplitOptions.RemoveEmptyEntries)
 			.Distinct(StringComparer.Ordinal)
 			.Where(f => File.Exists(Path.Combine(Root, f)))
@@ -142,9 +156,12 @@ public sealed class GitClient
 			: null;
 
 	/// <summary>Branch, changes and position against the upstream (<c>git status --porcelain --branch</c>).</summary>
-	public GitStatus Status()
+	public Response<GitStatus> Status()
 	{
-		var lines = Required("status", "--porcelain=v1", "--branch").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+		var required = Required("status", "--porcelain=v1", "--branch");
+		if (required is not string output)
+			return (Error)required;
+		var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
 		var header = lines.FirstOrDefault()?.TrimEnd('\r') ?? "## HEAD (no branch)";
 		var detached = header.StartsWith("## HEAD (no branch)", StringComparison.Ordinal);
 		string? branch = null;
@@ -166,29 +183,29 @@ public sealed class GitClient
 					else if (part.StartsWith("behind ", StringComparison.Ordinal)) behind = int.Parse(part[7..]);
 			}
 		}
-		return new(branch, detached, upstream, ahead, behind, lines.Length - 1);
+		return new GitStatus(branch, detached, upstream, ahead, behind, lines.Length - 1);
 	}
 
 	/// <summary><c>git fetch --all --prune</c>, with its own timeout (the network can be slow, or not there).</summary>
-	public ProcessResult Fetch(TimeSpan timeout, CancellationToken cancellationToken = default)
+	public Response<ProcessResult> Fetch(TimeSpan timeout, CancellationToken cancellationToken = default)
 		=> ProcessRunner.Run("git", Root, ["-C", Root, "fetch", "--all", "--prune", "--quiet"], timeout, Environment, cancellationToken);
 
 	/// <summary><c>git pull --ff-only</c>: never a merge, never a rebase.</summary>
-	public ProcessResult PullFastForward(TimeSpan timeout, CancellationToken cancellationToken = default)
+	public Response<ProcessResult> PullFastForward(TimeSpan timeout, CancellationToken cancellationToken = default)
 		=> ProcessRunner.Run("git", Root, ["-C", Root, "pull", "--ff-only", "--quiet"], timeout, Environment, cancellationToken);
 
 	/// <summary>Whether this repository ignores <paramref name="relativePath"/> (<c>git check-ignore</c>).</summary>
 	public bool Ignores(string relativePath)
-		=> Run(Root, _timeout, "check-ignore", "--quiet", "--no-index", relativePath).ExitCode == 0;
+		=> Run(Root, _timeout, "check-ignore", "--quiet", "--no-index", relativePath) is ProcessResult { ExitCode: 0 };
 
 	/// <summary>
 	/// <c>git worktree repair</c>: git keeps absolute paths between a repository and its worktrees; after one of them
 	/// moves, this fixes the links from the end that moved.
 	/// </summary>
-	public ProcessResult RepairWorktrees() => Run(Root, _timeout, "worktree", "repair");
+	public Response<ProcessResult> RepairWorktrees() => Run(Root, _timeout, "worktree", "repair");
 
 	/// <summary><c>git clone</c> (with long paths on), run in the parent folder of <paramref name="path"/>.</summary>
-	public static ProcessResult Clone(string url, string path, TimeSpan timeout, CancellationToken cancellationToken = default)
+	public static Response<ProcessResult> Clone(string url, string path, TimeSpan timeout, CancellationToken cancellationToken = default)
 	{
 		var parent = System.IO.Path.GetDirectoryName(System.IO.Path.TrimEndingDirectorySeparator(path))!;
 		Directory.CreateDirectory(parent);
@@ -196,14 +213,13 @@ public sealed class GitClient
 	}
 
 	/// <summary><c>git ls-remote</c> of a URL: whether it answers, without cloning anything.</summary>
-	public static ProcessResult LsRemote(string url, TimeSpan timeout, CancellationToken cancellationToken = default)
+	public static Response<ProcessResult> LsRemote(string url, TimeSpan timeout, CancellationToken cancellationToken = default)
 		=> ProcessRunner.Run("git", System.IO.Path.GetTempPath(), ["ls-remote", "--quiet", url, "HEAD"], timeout, Environment, cancellationToken);
 
 	/// <summary>The branch HEAD of a remote points to (its default branch), or null if it does not answer.</summary>
 	public static string? DefaultBranch(string url, TimeSpan timeout, CancellationToken cancellationToken = default)
 	{
-		var result = ProcessRunner.Run("git", System.IO.Path.GetTempPath(), ["ls-remote", "--symref", url, "HEAD"], timeout, Environment, cancellationToken);
-		if (result.ExitCode != 0)
+		if (ProcessRunner.Run("git", System.IO.Path.GetTempPath(), ["ls-remote", "--symref", url, "HEAD"], timeout, Environment, cancellationToken) is not ProcessResult { ExitCode: 0 } result)
 			return null;
 		// ref: refs/heads/main	HEAD
 		return Lines(result.StandardOutput).Where(l => l.StartsWith("ref: refs/heads/", StringComparison.Ordinal))
@@ -215,14 +231,14 @@ public sealed class GitClient
 	/// A clone of one branch with only its last commit and only <paramref name="folders"/> (and the files of the root) in
 	/// the working tree: to read another repository's configuration without bringing the rest.
 	/// </summary>
-	public static ProcessResult CloneSparse(string url, string path, string branch, IReadOnlyList<string> folders, TimeSpan timeout, CancellationToken cancellationToken = default)
+	public static Response<ProcessResult> CloneSparse(string url, string path, string branch, IReadOnlyList<string> folders, TimeSpan timeout, CancellationToken cancellationToken = default)
 	{
 		var parent = System.IO.Path.GetDirectoryName(System.IO.Path.TrimEndingDirectorySeparator(path))!;
 		Directory.CreateDirectory(parent);
 		var clone = ProcessRunner.Run("git", parent,
 			["-c", "core.longpaths=true", "clone", "--quiet", "--depth", "1", "--filter=blob:none", "--sparse", "--branch", branch, url, path],
 			timeout, Environment, cancellationToken);
-		return clone.ExitCode != 0
+		return clone is not ProcessResult { ExitCode: 0 }
 			? clone
 			: ProcessRunner.Run("git", path, ["-C", path, "sparse-checkout", "set", .. folders], timeout, Environment, cancellationToken);
 	}
@@ -239,7 +255,7 @@ public sealed class GitClient
 	/// exists; if not, a new one from HEAD. Whether fx created the branch. Without <paramref name="checkout"/>, nothing
 	/// is checked out yet (for a sparse working tree).
 	/// </summary>
-	public (ProcessResult Result, bool CreatedBranch) AddWorktree(string path, string branch, bool checkout, CancellationToken cancellationToken = default)
+	public (Response<ProcessResult> Result, bool CreatedBranch) AddWorktree(string path, string branch, bool checkout, CancellationToken cancellationToken = default)
 	{
 		string[] args = BranchTip(branch) is not null ? [path, branch]
 			: RemoteBranchTip("origin", branch) is not null ? ["--track", "-b", branch, path, $"origin/{branch}"]
@@ -257,32 +273,35 @@ public sealed class GitClient
 	/// relative to it, folders ending in '/'), with sparse patterns of this working tree only; nothing left out, no
 	/// sparse checkout. Then it checks out what is missing.
 	/// </summary>
-	public ProcessResult SparseLeaveOut(IReadOnlyList<string> leftOut, CancellationToken cancellationToken = default)
+	public Response<ProcessResult> SparseLeaveOut(IReadOnlyList<string> leftOut, CancellationToken cancellationToken = default)
 	{
 		var sparse = leftOut.Count == 0
 			? ProcessRunner.Run("git", Root, ["-C", Root, "sparse-checkout", "disable"], TimeSpan.FromMinutes(10), Environment, cancellationToken)
 			: ProcessRunner.Run("git", Root, ["-C", Root, "sparse-checkout", "set", "--no-cone", "/*", .. leftOut.Select(p => $"!/{p}")], TimeSpan.FromMinutes(10), Environment,
 				cancellationToken);
-		return sparse.ExitCode != 0 ? sparse : ProcessRunner.Run("git", Root, ["-c", "core.longpaths=true", "-C", Root, "checkout", "--quiet"], TimeSpan.FromMinutes(10), Environment,
+		return sparse is not ProcessResult { ExitCode: 0 } ? sparse : ProcessRunner.Run("git", Root, ["-c", "core.longpaths=true", "-C", Root, "checkout", "--quiet"], TimeSpan.FromMinutes(10), Environment,
 			cancellationToken);
 	}
 
 	/// <summary><c>git worktree remove</c> of the worktree at <paramref name="path"/>, from this, its main clone (only a clean one).</summary>
-	public ProcessResult RemoveWorktree(string path) => Run(Root, TimeSpan.FromMinutes(2), "worktree", "remove", path);
+	public Response<ProcessResult> RemoveWorktree(string path) => Run(Root, TimeSpan.FromMinutes(2), "worktree", "remove", path);
 
 	/// <summary><c>git worktree prune</c>: forgets the worktrees whose folder is gone.</summary>
-	public ProcessResult PruneWorktrees() => Run(Root, _timeout, "worktree", "prune");
+	public Response<ProcessResult> PruneWorktrees() => Run(Root, _timeout, "worktree", "prune");
 
 	/// <summary><c>git branch -d</c>: only a branch with nothing that is not already in HEAD or in its upstream.</summary>
-	public ProcessResult DeleteBranch(string branch) => Run(Root, _timeout, "branch", "--delete", "--quiet", branch);
+	public Response<ProcessResult> DeleteBranch(string branch) => Run(Root, _timeout, "branch", "--delete", "--quiet", branch);
 
 	/// <summary>The worktrees of this repository, its main working tree first (<c>git worktree list --porcelain</c>).</summary>
-	public IReadOnlyList<GitWorktree> Worktrees()
+	public Response<IReadOnlyList<GitWorktree>> Worktrees()
 	{
+		var required = Required("worktree", "list", "--porcelain");
+		if (required is not string output)
+			return (Error)required;
 		var result = new List<GitWorktree>();
 		string? path = null, branch = null;
 		var prunable = false;
-		foreach (var line in Required("worktree", "list", "--porcelain").Split('\n').Select(l => l.TrimEnd('\r')).Append(""))
+		foreach (var line in output.Split('\n').Select(l => l.TrimEnd('\r')).Append(""))
 		{
 			if (line.StartsWith("worktree ", StringComparison.Ordinal))
 				path = Path.GetFullPath(line[9..]);
@@ -300,14 +319,14 @@ public sealed class GitClient
 	}
 
 	/// <summary>The folders of a sparse working tree (cone mode: they, entire, and the files of the root).</summary>
-	public ProcessResult SparseCheckout(IReadOnlyList<string> folders, TimeSpan timeout, CancellationToken cancellationToken = default)
+	public Response<ProcessResult> SparseCheckout(IReadOnlyList<string> folders, TimeSpan timeout, CancellationToken cancellationToken = default)
 		=> ProcessRunner.Run("git", Root, ["-C", Root, "sparse-checkout", "set", .. folders], timeout, Environment, cancellationToken);
 
 	/// <summary>The last commit of <paramref name="branch"/> of origin, checked out (detached).</summary>
-	public ProcessResult FetchCheckout(string branch, TimeSpan timeout, CancellationToken cancellationToken = default)
+	public Response<ProcessResult> FetchCheckout(string branch, TimeSpan timeout, CancellationToken cancellationToken = default)
 	{
 		var fetch = ProcessRunner.Run("git", Root, ["-C", Root, "fetch", "--quiet", "--depth", "1", "origin", branch], timeout, Environment, cancellationToken);
-		return fetch.ExitCode != 0
+		return fetch is not ProcessResult { ExitCode: 0 }
 			? fetch
 			: ProcessRunner.Run("git", Root, ["-C", Root, "checkout", "--quiet", "--detach", "FETCH_HEAD"], timeout, Environment, cancellationToken);
 	}
@@ -317,32 +336,39 @@ public sealed class GitClient
 		=> Lines(Optional("log", $"-{count}", "--format=%h %ad %s", "--date=short") ?? "");
 
 	/// <summary>Creates a lightweight tag. Local only: nothing is pushed.</summary>
-	public void CreateTag(string name, string commit) => Required("tag", name, commit);
+	public Response<Unit> CreateTag(string name, string commit) => Required("tag", name, commit) is Error error ? error : Unit.Value;
 
 	/// <summary>The commit a reverse topological walk from <paramref name="tip"/> starts with: a root commit.</summary>
-	public string? FirstCommit(string tip) => Lines(Required("rev-list", "--topo-order", "--reverse", tip)).FirstOrDefault();
+	public ResponseMaybe<string> FirstCommit(string tip)
+		=> Required("rev-list", "--topo-order", "--reverse", tip) switch
+		{
+			string output when Lines(output).FirstOrDefault() is { } first => first,
+			string => None.Value,
+			var failed => (Error)failed
+		};
 
+	/// <summary>What git answers, or null if it answers nothing, fails or does not run: for what may not be there.</summary>
 	string? Optional(params string[] args)
-	{
-		var result = Run(Root, _timeout, args);
-		var output = result.StandardOutput.Trim();
-		return result.ExitCode == 0 && output.Length > 0 ? output : null;
-	}
+		=> Run(Root, _timeout, args) is ProcessResult { ExitCode: 0 } result && result.StandardOutput.Trim() is { Length: > 0 } output ? output : null;
 
-	string Required(params string[] args)
-	{
-		var result = Run(Root, _timeout, args);
-		return result.ExitCode == 0 ? result.StandardOutput : throw Failure(result, args);
-	}
+	/// <summary>What git answers; an error (<see cref="HttpStatusCode.ServiceUnavailable"/>) if it fails or does not run.</summary>
+	Response<string> Required(params string[] args)
+		=> Run(Root, _timeout, args) switch
+		{
+			ProcessResult { ExitCode: 0 } result => result.StandardOutput,
+			ProcessResult result => Failure(result, args),
+			var failed => (Error)failed
+		};
 
-	static ProcessResult Run(string directory, TimeSpan timeout, params string[] args)
+	static Response<ProcessResult> Run(string directory, TimeSpan timeout, params string[] args)
 		=> ProcessRunner.Run("git", directory, ["-C", directory, .. args], timeout, Environment);
 
-	ProcessException Failure(ProcessResult result, string[] args)
-	{
-		var command = "git " + string.Join(' ', args);
-		return new($"'{command}' failed in '{Root}' ({result.ExitCode}): {result.StandardError.Trim()}", command, result.ExitCode, result.StandardError);
-	}
+	/// <summary>The code of a git command that failed (<see cref="HttpStatusCode.ServiceUnavailable"/>): its command, where, its exit code and its error.</summary>
+	public const string Failed = "git.failed";
+
+	Error Failure(ProcessResult result, string[] args)
+		=> FxErrors.Of(HttpStatusCode.ServiceUnavailable, FxDiagnostic.Error(Failed, new(Failed, "git " + string.Join(' ', args), Root, result.ExitCode, result.StandardError.Trim())));
+
 
 	static List<string> Lines(string output)
 		=> output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
