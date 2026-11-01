@@ -10,7 +10,7 @@ namespace Fuxion.Tool.Core.Docs;
 
 /// <summary>
 /// The operations that write in a catalog (the SPEC of the module, 5.1 and 5.3): <c>new</c>, <c>finalize</c>,
-/// <c>status</c>, <c>relate</c>, <c>move</c> and <c>discard</c>. Each works out a <see cref="DocChange"/>, checked with
+/// <c>status</c>, <c>relate</c>, <c>move</c>, <c>rename</c> and <c>discard</c>. Each works out a <see cref="DocChange"/>, checked with
 /// the validator of the module; the command writes it, or shows it (<c>--dry-run</c>).
 /// </summary>
 public static partial class DocEditor
@@ -28,6 +28,7 @@ public static partial class DocEditor
 	public const string Committed = "docs.committed";
 	public const string Referenced = "docs.referenced";
 	public const string StillReplaced = "docs.still-replaced";
+	public const string RenameFrozen = "docs.rename-frozen";
 
 	/// <summary>The environment variable of the actor, when <c>--actor</c> does not say it (plan U, decision 20).</summary>
 	public const string ActorVariable = "FX_DOCS_ACTOR";
@@ -484,6 +485,99 @@ public static partial class DocEditor
 					change.MoveBytes(annex, to, FxFiles.ReadAllBytes(annex), document: false);
 			}
 		DocLinks.Relink(change, moves);
+		change.Verify();
+		return change;
+	}
+
+	/// <summary>
+	/// <c>fx doc rename</c> (plan U, U6): a document with another <paramref name="title"/> (its H1 and its sidecar), another
+	/// <paramref name="slug"/> (its name and that of its annexes, in its same folder), or both, with the links of the catalog
+	/// to it rewritten. Renaming is not moving: a historical one keeps its folder. A new name is not an edit either: what was
+	/// clean is sealed again with its <c>updatedAt</c> kept. A new title is, and finalizes it; not in one frozen in HEAD.
+	/// </summary>
+	public static DocChange Rename(DocCatalog catalog, Func<string, string> display, DocFile file, string? title, string? slug, DateTimeOffset now)
+	{
+		var change = new DocChange(catalog, display);
+		if (Load(change, file) is not { } document)
+			return change;
+		var markdownFile = display(file.Markdown!);
+		title = title?.Trim();
+		if (title is not null && (title.Length == 0 || title.Contains('\n') || title.Contains('\r')))
+			change.Error(InvalidTitle, new(InvalidTitle));
+		var newTitle = title is not null && title != document.Sidecar.Title;
+		var newSlug = slug is not null && slug != file.Slug;
+		if (newSlug && (document.Type.Name == "readme" || !DocChecker.SlugPattern().IsMatch(slug!)))
+			change.Error(DocChecker.InvalidName, new($"{DocChecker.InvalidName}.new-slug", slug), markdownFile);
+		if (newTitle && document.Type.IsFrozen(document.Sidecar.Status) && DocHistory.Of(catalog).Frozen(file))
+			change.Error(RenameFrozen, new(RenameFrozen, document.Path, document.Sidecar.Status), markdownFile);
+		if (!change.Ok)
+			return change;
+		if (!newTitle && !newSlug)
+		{
+			change.Diagnostics.Add(FxDiagnostic.Info(Unchanged, new($"{Unchanged}.rename", document.Path)));
+			return change;
+		}
+
+		// where it goes: its folder, with its new name
+		var stem = newSlug ? $"{document.Type.Token}-{slug}" : file.Stem;
+		var path = file.Folder.Length == 0 ? $"{stem}.md" : $"{file.Folder}/{stem}.md";
+		var markdown = catalog.Full(path);
+		var sidecar = markdown[..^".md".Length] + DocSidecar.Extension;
+		var moves = new Dictionary<string, string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+		var annexes = catalog.Annexes(file);
+		if (newSlug)
+		{
+			if (FxFiles.Exists(markdown) || FxFiles.Exists(sidecar))
+				change.Error(NameTaken, new(NameTaken, path));
+			else if (catalog.Files.FirstOrDefault(f => f != file && f.Folder == file.Folder && f.Formal && f.Slug == slug) is { } sameSlug)
+				change.Error(NameTaken, new($"{NameTaken}.slug", slug, sameSlug.Path));
+			else if (catalog.Files.FirstOrDefault(f => f != file && f.Stem == stem) is { } sameName)
+				change.Error(NameTaken, new($"{NameTaken}.name", stem, sameName.Path));
+			else if (DocBranches.Taken(catalog, file.Folder, stem, slug!) is { } branch)
+				change.Error(NameTaken, new($"{NameTaken}.branch", stem, branch));
+			if (!change.Ok)
+				return change;
+			moves[file.Markdown!] = markdown;
+			moves[file.Sidecar!] = sidecar;
+			if (FxFiles.DirectoryExists(annexes))
+				moves[annexes] = markdown[..^".md".Length];
+		}
+
+		var text = Encoding.UTF8.GetString(document.Markdown);
+		var renamed = newTitle ? DocMarkdown.WithTitle(text, title!) : text;
+		if (newSlug)
+			renamed = DocLinks.Rewrite(renamed, file.Markdown!, markdown, moves);
+		byte[] sealedSidecar;
+		if (newTitle)
+		{
+			// a new title is an edit: finalized now, an edit pending with it
+			if (Blocked(change, document))
+				return change;
+			sealedSidecar = Encoding.UTF8.GetBytes((document.Sidecar with { Title = title!, UpdatedAt = DocSidecar.Instant(now) }).Seal(DocIntegrity.Content(renamed)).ToJson());
+		}
+		else
+			sealedSidecar = renamed != text && DocLinks.Resealed(file, renamed) is { } resealed ? Encoding.UTF8.GetBytes(resealed) : FxFiles.ReadAllBytes(file.Sidecar!);
+
+		if (!newSlug)
+		{
+			change.Set(file.Markdown!, renamed);
+			change.SetBytes(file.Sidecar!, sealedSidecar);
+		}
+		else
+		{
+			change.Move(file.Markdown!, markdown, renamed);
+			change.MoveBytes(file.Sidecar!, sidecar, sealedSidecar);
+			if (FxFiles.DirectoryExists(annexes))
+				foreach (var annex in FxFiles.EnumerateFiles(annexes, "*", System.IO.SearchOption.AllDirectories))
+				{
+					var to = DocLinks.Where(annex, moves)!;
+					if (annex.EndsWith(".md", StringComparison.Ordinal))
+						change.Move(annex, to, DocLinks.Rewrite(Encoding.UTF8.GetString(FxFiles.ReadAllBytes(annex)), annex, to, moves), document: false);
+					else
+						change.MoveBytes(annex, to, FxFiles.ReadAllBytes(annex), document: false);
+				}
+			DocLinks.Relink(change, moves);
+		}
 		change.Verify();
 		return change;
 	}

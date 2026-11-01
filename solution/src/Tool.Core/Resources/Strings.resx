@@ -988,8 +988,14 @@
   <data name="docs.still-replaced" xml:space="preserve">
     <value>{0} stays {1}: HEAD does not have it in another status; give it its own with fx doc status.</value>
   </data>
+  <data name="docs.rename-frozen" xml:space="preserve">
+    <value>{0} is in status {1}, frozen in HEAD: its title does not change (its name can).</value>
+  </data>
   <data name="docs.unchanged.move" xml:space="preserve">
     <value>{0} is already in {1}.</value>
+  </data>
+  <data name="docs.unchanged.rename" xml:space="preserve">
+    <value>{0} already has that title and that name.</value>
   </data>
   <data name="docs.unchanged.nothing-to-adopt" xml:space="preserve">
     <value>Nothing to adopt: the bootstrap list is empty.</value>

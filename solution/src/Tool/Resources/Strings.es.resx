@@ -1423,6 +1423,18 @@
   <data name="doc.discard" xml:space="preserve">
     <value>Descarta un documento nacido desde el último commit: su pareja, sus anexos, y lo que su supersedes hizo a sus destinos.</value>
   </data>
+  <data name="doc.rename" xml:space="preserve">
+    <value>Renombra un documento: otro título (su H1 y su sidecar), otro nombre (en su misma carpeta, con sus anexos), o los dos, y reescribe los enlaces a él.</value>
+  </data>
+  <data name="doc.rename.title" xml:space="preserve">
+    <value>El título nuevo.</value>
+  </data>
+  <data name="doc.rename.slug" xml:space="preserve">
+    <value>El slug nuevo de su nombre (TIPO-slug).</value>
+  </data>
+  <data name="doc.rename.nothing" xml:space="preserve">
+    <value>Di qué cambia: --title, --slug, o los dos.</value>
+  </data>
   <data name="doc.edit.moved" xml:space="preserve">
     <value>movido {0} → {1}</value>
   </data>

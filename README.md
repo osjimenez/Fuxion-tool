@@ -160,12 +160,12 @@ Global options: --root <path>, -s|--space, --output human|json|ndjson, -v|--verb
   space's.
   - `fx doc check` checks documents or the whole catalog, as `fx doctor` does; `--branches`, also against the remote
     branches git knows. `fx doc list` and `fx doc show` read it.
-  - `fx doc new`, `finalize`, `status`, `relate`, `move`, `adopt` and `discard` write, each all or nothing: the result
-    is checked as the catalog would be after it, nothing is written if another process has one of its files open, and
-    `--dry-run` shows it without writing. Never edit a sidecar by hand: its hash says so. `fx doc adopt --manifest`
-    applies the batches of adoption manifests at once. A historical document that is no longer open is frozen once
-    that state is committed (in `HEAD`); until then it is finalized like an open one. `fx doc discard` removes a
-    document created since the last commit, if nothing points to it.
+  - `fx doc new`, `finalize`, `status`, `relate`, `move`, `rename`, `adopt` and `discard` write, each all or nothing:
+    the result is checked as the catalog would be after it, nothing is written if another process has one of its files
+    open, and `--dry-run` shows it without writing. Never edit a sidecar by hand: its hash says so. `fx doc adopt
+    --manifest` applies the batches of adoption manifests at once. A historical document that is no longer open is
+    frozen once that state is committed (in `HEAD`); until then it is finalized like an open one. `fx doc discard`
+    removes a document created since the last commit, if nothing points to it.
   - `fx doc entry add|set|close|list` keep the entries of a register, which live in its sidecar; `fx doc key`
     reserves a short key. As the target of a relation, an entry is named by its key, its identity,
     `<register>#<name>`, or its name if no other entry has it.

@@ -988,8 +988,14 @@
   <data name="docs.still-replaced" xml:space="preserve">
     <value>{0} se queda en {1}: HEAD no lo tiene en otro estado; dale el suyo con fx doc status.</value>
   </data>
+  <data name="docs.rename-frozen" xml:space="preserve">
+    <value>{0} está en estado {1}, congelado en HEAD: su título no cambia (su nombre, sí).</value>
+  </data>
   <data name="docs.unchanged.move" xml:space="preserve">
     <value>{0} ya está en {1}.</value>
+  </data>
+  <data name="docs.unchanged.rename" xml:space="preserve">
+    <value>{0} ya tiene ese título y ese nombre.</value>
   </data>
   <data name="docs.unchanged.nothing-to-adopt" xml:space="preserve">
     <value>Nada que adoptar: la lista de arranque está vacía.</value>

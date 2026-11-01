@@ -370,6 +370,68 @@ public sealed class DocsEditTest
 		Assert.Empty(space.Problems());
 	}
 
+	// rename
+
+	[Fact(DisplayName = "rename: a new title and a new name, in its same folder, its annexes with it and the links of the catalog to it rewritten")]
+	public void Rename()
+	{
+		using var space = new Space(Actors);
+		var research = space.Add("research", "old-name", title: "The old title");
+		var annexes = $"_docs/{research[..^".md".Length]}";
+		space.Write($"{annexes}/diagram.md", "# A diagram\n\n[Back](../RESEARCH-old-name.md)\n");
+		var pointing = space.Add("design", "a-design", folder: "notes", body: "See [the research](../_records/2026/10/RESEARCH-old-name.md#a-section).");
+		var change = DocEditor.Rename(space.Catalog(), Display(space), File(space, research), "The new title", "new-name", Later);
+		Assert.True(change.Write(), string.Join("; ", change.Diagnostics.Select(d => d.Message.English)));
+		const string renamed = "_records/2026/10/RESEARCH-new-name.md";
+		Assert.False(System.IO.File.Exists(space.Full($"_docs/{research}")));
+		Assert.StartsWith("# The new title\n", space.Read($"_docs/{renamed}"));
+		Assert.Equal(("The new title", "2026-10-23T10:00:00Z", space.Ids[research]), (Sidecar(space, renamed).Title, Sidecar(space, renamed).UpdatedAt, Sidecar(space, renamed).Id));
+		Assert.Contains("[Back](../RESEARCH-new-name.md)", space.Read("_docs/_records/2026/10/RESEARCH-new-name/diagram.md"));
+		Assert.False(Directory.Exists(space.Full(annexes)));
+		Assert.Contains("(../_records/2026/10/RESEARCH-new-name.md#a-section)", space.Read($"_docs/{pointing}"));
+		Assert.Equal("2026-10-21T10:00:00Z", Sidecar(space, pointing).UpdatedAt);
+		Assert.Empty(space.Problems());
+	}
+
+	[Fact(DisplayName = "rename: only a new name is not an edit (updatedAt kept); a new title of one frozen, never; its name, yes")]
+	public void RenameFrozen()
+	{
+		using var space = new Space(Actors);
+		var adr = space.Add("adr", "decision", status: "accepted");
+		Assert.Equal([DocEditor.RenameFrozen], Codes(DocEditor.Rename(space.Catalog(), Display(space), File(space, adr), "Another title", null, Later)));
+		Assert.True(DocEditor.Rename(space.Catalog(), Display(space), File(space, adr), null, "the-decision", Later).Write());
+		const string renamed = "_records/2026/10/ADR-the-decision.md";
+		Assert.Equal(("The decision", "2026-10-21T10:00:00Z"), (Sidecar(space, renamed).Title, Sidecar(space, renamed).UpdatedAt));
+		Assert.Empty(space.Problems());
+	}
+
+	[Theory(DisplayName = "rename: what it refuses, writing nothing")]
+	[InlineData(null, "Bad_Slug", DocChecker.InvalidName)]
+	[InlineData(null, "taken", DocEditor.NameTaken)]
+	[InlineData(" ", null, DocEditor.InvalidTitle)]
+	public void RenameRefused(string? title, string? slug, string code)
+	{
+		using var space = new Space(Actors);
+		var adr = space.Add("adr", "decision");
+		space.Add("adr", "taken");
+		var change = DocEditor.Rename(space.Catalog(), Display(space), File(space, adr), title, slug, Later);
+		Assert.Contains(code, Codes(change));
+		Assert.False(change.Write());
+		Assert.Equal($"{DocEditor.Unchanged}.rename",
+			Assert.Single(DocEditor.Rename(space.Catalog(), Display(space), File(space, adr), "The decision", "decision", Later).Diagnostics).Message.Key);
+	}
+
+	[Fact(DisplayName = "fx doc rename: --title and --slug; without either, a usage error")]
+	public void CliRename()
+	{
+		using var space = new Space(Actors);
+		var adr = space.Add("adr", "decision");
+		Assert.Equal(2, DocsCheckTest.Fx(space.Root, "doc", "rename", adr).ExitCode);
+		Assert.Equal(0, DocsCheckTest.Fx(space.Root, "doc", "rename", adr, "--title", "A new title", "--slug", "a-new-name").ExitCode);
+		Assert.True(System.IO.File.Exists(space.Full("_docs/_records/2026/10/ADR-a-new-name.md")));
+		Assert.True(DocsCheckTest.Json(space.Root, "fx-doc-check/1", "doc", "check").GetProperty("ok").GetBoolean());
+	}
+
 	// discard
 
 	[Fact(DisplayName = "discard: a document born since the last commit, gone with its annexes; what its supersedes did, undone")]

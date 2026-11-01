@@ -14,7 +14,7 @@ namespace Fuxion.Tool.Cli.Docs;
 /// <summary>
 /// <c>fx doc</c> (plan U; the SPEC of the module docs, 11.1): the catalog of documents of the space. <c>check</c>,
 /// <c>list</c>, <c>show</c> and <c>schema</c> read it; <c>new</c>, <c>finalize</c>, <c>status</c>, <c>relate</c>,
-/// <c>adopt</c>, <c>move</c> and <c>discard</c> write in it, all or nothing.
+/// <c>adopt</c>, <c>move</c>, <c>rename</c> and <c>discard</c> write in it, all or nothing.
 /// </summary>
 public static class DocCommand
 {
@@ -254,6 +254,26 @@ public static class DocCommand
 					: null));
 		});
 		command.Add(discard);
+
+		var renameDocument = new Argument<string>("document") { Description = Texts.Get("doc.show.document") };
+		var renameTitle = new Option<string?>("--title") { Description = Texts.Get("doc.rename.title"), HelpName = "title" };
+		var renameSlug = new Option<string?>("--slug") { Description = Texts.Get("doc.rename.slug"), HelpName = "slug" };
+		var renameDryRun = DryRun();
+		var rename = new Command("rename", Texts.Get("doc.rename")) { renameDocument, renameTitle, renameSlug, renameDryRun }.Describe(EditSchema, writes: true);
+		rename.SetAction(result =>
+		{
+			var console = MountCommand.Console(result, global, currentDirectory);
+			if (result.GetValue(renameTitle) is null && result.GetValue(renameSlug) is null)
+			{
+				console.ErrorLine($"[red]{FxConsole.Escape(Texts.Get("doc.rename.nothing"))}[/]");
+				return FxConsole.UsageError;
+			}
+			return console.Run(_ => Write(console, result.GetValue(renameDryRun), Actor(result, actor), (catalog, display) =>
+				One(console, catalog, result.GetValue(renameDocument)!) is { } file
+					? DocEditor.Rename(catalog, display, file, result.GetValue(renameTitle), result.GetValue(renameSlug), DateTimeOffset.UtcNow)
+					: null));
+		});
+		command.Add(rename);
 	}
 
 	/// <summary>The one document <paramref name="selector"/> names; null (said on stderr) if it names none or several.</summary>

@@ -77,7 +77,7 @@ public static class FxSkill
 			.Append("(historical, no longer open, once that state is committed) only takes a correction: `fx doc finalize <document> --correction ")
 			.Append("<note>`; until then, it is finalized like an open one. Any other document but a view may record a correction too.\n");
 		b.Append("- **Statuses and relations with `fx doc status` and `fx doc relate`**; the entries of a register with ")
-			.Append("`fx doc entry add|set|close`; a short key with `fx doc key`; a stable document moves with `fx doc move`. As the target of ")
+			.Append("`fx doc entry add|set|close`; a short key with `fx doc key`; a stable document moves with `fx doc move`, and any document changes its title or its name with `fx doc rename`. As the target of ")
 			.Append("a relation, an entry is named by its key, its identity, `<register>#<name>`, or its name if no other entry has it.\n");
 		b.Append("- **A document created since the last commit is removed with `fx doc discard <document>`**, never by hand: it also undoes ")
 			.Append("what its `supersedes` did.\n");

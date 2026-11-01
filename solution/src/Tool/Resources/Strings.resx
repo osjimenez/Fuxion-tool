@@ -1423,6 +1423,18 @@
   <data name="doc.discard" xml:space="preserve">
     <value>Discards a document born since the last commit: its pair, its annexes, and what its supersedes did to their targets.</value>
   </data>
+  <data name="doc.rename" xml:space="preserve">
+    <value>Renames a document: another title (its H1 and its sidecar), another name (in its same folder, with its annexes), or both, and rewrites the links to it.</value>
+  </data>
+  <data name="doc.rename.title" xml:space="preserve">
+    <value>The new title.</value>
+  </data>
+  <data name="doc.rename.slug" xml:space="preserve">
+    <value>The new slug of its name (TYPE-slug).</value>
+  </data>
+  <data name="doc.rename.nothing" xml:space="preserve">
+    <value>Say what changes: --title, --slug, or both.</value>
+  </data>
   <data name="doc.edit.moved" xml:space="preserve">
     <value>moved {0} → {1}</value>
   </data>
