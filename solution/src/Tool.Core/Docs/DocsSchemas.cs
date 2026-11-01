@@ -12,7 +12,7 @@ namespace Fuxion.Tool.Core.Docs;
 public sealed record DocsSchemaError(string Pointer, string Keyword, FxText Message);
 
 /// <summary>
-/// The schemas of the documentation standard, inside fx (plan U, ADR "esquemas cerrados, con costuras"): the version 1.0
+/// The schemas of the documentation standard, inside fx: the version 1.0
 /// of the metadata of a document, one schema per type. fx validates the sidecars with them, with its own validator
 /// (<see cref="DocsValidator"/>), and reads from their annotations what its logic needs of each type (<see cref="DocTypes"/>).
 /// </summary>

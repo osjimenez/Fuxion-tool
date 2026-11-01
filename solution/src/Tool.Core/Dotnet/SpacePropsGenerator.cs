@@ -11,11 +11,11 @@ using Fuxion.Tool.Core.Results;
 namespace Fuxion.Tool.Core.Dotnet;
 
 /// <summary>
-/// <c>_fx/dotnet/~$space.props</c> of the highest space on disk (plan P, decision 19 and proposal C): the map
+/// <c>_fx/dotnet/~$space.props</c> of the highest space on disk: the map
 /// Fuxion.Tool.Sdk uses to resolve <c>FxReference</c>. For each project versioned in the mounted repositories (named
 /// by its file, like the package): a <c>FxSpaceProject</c> item, and a <c>ProjectReference</c> built from the
 /// <c>FxReference</c> with that name, so it keeps its metadata, unless the project is of the repository that references
-/// it (its own map resolves it: <c>_FxExternalReference</c>, plan R). Absolute paths: local (<c>~$</c>), generated.
+/// it (its own map resolves it: <c>_FxExternalReference</c>). Absolute paths: local (<c>~$</c>), generated.
 /// </summary>
 public static class SpacePropsGenerator
 {

@@ -9,7 +9,7 @@ using Fuxion.Tool.Core.Results;
 namespace Fuxion.Tool.Cli.Docs;
 
 /// <summary>
-/// <c>fx doc key &lt;register&gt; [&lt;title&gt;]</c> (the SPEC of the module, 5.7): the next key of a register that uses
+/// <c>fx doc key &lt;register&gt; [&lt;title&gt;]</c>: the next key of a register that uses
 /// them, reserved by its provider; with <c>--confirm</c>, its provisional keys reserved now.
 /// </summary>
 public static class DocKeyCommand
@@ -47,7 +47,7 @@ public static class DocKeyCommand
 			return console.Fail((Error)named);
 		var display = DocCommand.Display(catalog);
 		var keyed = DocKeys.Keyed(catalog, file);
-		// the actor, as for every change of the catalog (plan U, decision 20)
+		// the actor, as for every change of the catalog
 		var check = new DocChange(catalog, display);
 		if (keyed is null)
 			diagnostics.Add(FxDiagnostic.Error(DocKeys.NotKeyed, new(DocKeys.NotKeyed, file.Path)));

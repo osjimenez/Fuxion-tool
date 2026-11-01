@@ -13,7 +13,7 @@ using Space = Fuxion.Tool.Test.DocsCheckTest.Space;
 namespace Fuxion.Tool.Test;
 
 /// <summary>
-/// The registers and their entries (plan U, U4 step 6a; decision 18): the entries in the sidecar of the register, checked
+/// The registers and their entries: the entries in the sidecar of the register, checked
 /// with it; <c>fx doc entry add|set|close|list</c>; relations to entries; and <c>register-entry</c> in the manifests.
 /// </summary>
 public sealed class DocsRegisterTest

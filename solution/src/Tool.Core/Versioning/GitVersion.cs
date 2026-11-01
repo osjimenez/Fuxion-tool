@@ -4,7 +4,7 @@ using Fuxion.Tool.Core.Results;
 
 namespace Fuxion.Tool.Core.Versioning;
 
-/// <summary>Which rule of the versioning scheme (design §9) gave the version.</summary>
+/// <summary>Which rule of the versioning scheme gave the version.</summary>
 public enum GitVersionRule
 {
 	/// <summary><c>main</c>/<c>master</c>: <c>X.Y.{commits since the tag}</c>.</summary>
@@ -46,7 +46,7 @@ public sealed record GitVersionDetails(
 /// <summary>A version and, when it comes from git, how it was calculated.</summary>
 public sealed record VersioningResult(VersioningInputs Inputs, GitVersionDetails? Details);
 
-/// <summary>Stable codes of the versioning errors (design §10.4: diagnostics with a code, not text to parse).</summary>
+/// <summary>Stable codes of the versioning errors (diagnostics with a code, not text to parse).</summary>
 public static class VersioningErrorCodes
 {
 	public const string RepositoryNotFound = "version.repository-not-found";

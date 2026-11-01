@@ -6,7 +6,7 @@ using Fuxion.Tool.Core.Results;
 
 namespace Fuxion.Tool.Cli;
 
-// The JSON of fx (plan O, decision 13): a document per command, with a versioned schema, in English, generated at
+// The JSON of fx: a document per command, with a versioned schema, in English, generated at
 // compile time (AOT). Every document is: schema, ok, the command's data, and all the diagnostics with their scope.
 
 public sealed record JsonFix(string? Command, string? Hint);
@@ -98,7 +98,7 @@ public sealed record JsonCommand(string Name, string Description, IReadOnlyList<
 
 public sealed record JsonExitCode(int Code, string Meaning);
 
-/// <summary><c>fx-describe/1</c>: fx described by itself (plan O, decision 12).</summary>
+/// <summary><c>fx-describe/1</c>: fx described by itself.</summary>
 public sealed record DescribeDocument(string Schema, bool Ok, string Version, IReadOnlyList<JsonCommand> Commands, IReadOnlyList<JsonOption> GlobalOptions,
 	IReadOnlyList<JsonExitCode> ExitCodes, IReadOnlyList<JsonDiagnostic> Diagnostics);
 
@@ -168,7 +168,7 @@ public sealed record JsonFileEdit(string File, string Diff);
 public sealed record ManifestEditDocument(string Schema, bool Ok, bool Changed, bool Written, IReadOnlyList<JsonFileEdit> Files, IReadOnlyList<JsonDiagnostic> Diagnostics,
 	IReadOnlyList<JsonModule>? Sync = null);
 
-// The documents of the module docs (plan U): its catalog, checked, listed and shown, and the types of its standard.
+// The documents of the module docs: its catalog, checked, listed and shown, and the types of its standard.
 
 /// <summary>A document of the catalog: its path in it, and what its sidecar says.</summary>
 public sealed record JsonDoc(string Path, string Id, string Type, string? Profile, string Status, string Class, string Title, IReadOnlyList<string> Tags,

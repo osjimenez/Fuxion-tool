@@ -13,20 +13,20 @@ using Fuxion.Tool.Core.Results;
 namespace Fuxion.Tool.Core.Sync;
 
 /// <summary>
-/// What a repository receives from its space, in its <c>_fx/.inherited/</c> (plan P, decisions 14-16): calculated
+/// What a repository receives from its space, in its <c>_fx/.inherited/</c>: calculated
 /// from its parent only, one level up and read-only (the parent's <c>_fx/.inherited/</c> and its own module folders),
 /// already merged (the nearest wins by name), with the repositories of every <c>applies-to</c> made absolute. Nobody
 /// writes in someone else's repository: each one gets this when its own sync runs.
 /// <list type="bullet">
 /// <item><c>space.yaml</c>: <c>requires</c> and the catalog of tags.</item>
 /// <item><c>dotnet/</c>: the merged <c>dotnet.yaml</c> of what is for it (without the solutions) and the files of those imports.</item>
-/// <item><c>harness/</c>: the merged <c>harness.yaml</c> of what is for it, and the files of those rules and skills (plan Q).</item>
+/// <item><c>harness/</c>: the merged <c>harness.yaml</c> of what is for it, and the files of those rules and skills.</item>
 /// <item><c>space/</c>, in a space: the shares, to pass them on (<see cref="SpaceShares"/>).</item>
 /// <item><c>inherited.yaml</c>: who the repository is for its parent, whose it is and where each file comes from,
 /// also the shares it receives, written outside <c>_fx/</c>.</item>
 /// </list>
 /// Only where something applies (a module, a share) or to a space, which passes it on: a repository nothing applies
-/// to gets nothing (plan P, P1, detail 1).
+/// to gets nothing.
 /// </summary>
 public static class Inheritance
 {
@@ -101,7 +101,7 @@ public static class Inheritance
 	}
 
 	/// <summary>
-	/// A space passes the shares on (decision 23): in its <c>.inherited/shares/</c>, the merged entries and their
+	/// A space passes the shares on: in its <c>.inherited/shares/</c>, the merged entries and their
 	/// files, under their destination. Of a share whose source is not there, it keeps what it had.
 	/// </summary>
 	static void Conduit(FxNode child, IReadOnlyList<ShareFlow> flows, FxInherited? existing,
@@ -124,7 +124,7 @@ public static class Inheritance
 	/// <summary>
 	/// The .NET module: the parent's inherited <c>dotnet.yaml</c> with its own on top, what of it is for
 	/// <paramref name="identity"/> (a space: what may be for it or below it), and the files of those imports from both
-	/// folders (its own win by name; plan R, decision 2). Whether it applies.
+	/// folders (its own win by name). Whether it applies.
 	/// </summary>
 	static bool Dotnet(FxNode parent, FxIdentity parentIdentity, FxIdentity identity, bool conduit,
 		SortedDictionary<string, (byte[] Content, IReadOnlyList<string> From)> expected, Func<string, IReadOnlyList<string>> fromOf, FxDiagnostics diagnostics)
@@ -150,7 +150,7 @@ public static class Inheritance
 			return false;
 
 		// only what is for it (a space: what may be for it or below it), and only the files of those imports, what they
-		// import and what travels with them (plan R, decision 2); its own win by name
+		// import and what travels with them; its own win by name
 		var going = conduit ? merged.ForBelow(identity) : merged.ForTarget(identity);
 		var files = new SortedDictionary<string, (byte[] Content, IReadOnlyList<string> From)>(StringComparer.OrdinalIgnoreCase);
 		foreach (var relative in going.Imports.SelectMany(i => i.AllFiles).Distinct(StringComparer.OrdinalIgnoreCase))
@@ -177,8 +177,8 @@ public static class Inheritance
 	}
 
 	/// <summary>
-	/// The harness (plan Q): the parent's inherited <c>harness.yaml</c> with its own on top, and only what is for
-	/// <paramref name="identity"/> (proposal 1: what is only for others, a rule of the space itself, does not reach a
+	/// The harness: the parent's inherited <c>harness.yaml</c> with its own on top, and only what is for
+	/// <paramref name="identity"/> (what is only for others, a rule of the space itself, does not reach a
 	/// public repository): the yaml of that, and the files of its rules and skills. A space gets what may be for it or
 	/// for something below it, to pass it on (<see cref="HarnessConfig.ForBelow"/>). Whether it applies.
 	/// </summary>

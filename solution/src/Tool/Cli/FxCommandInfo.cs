@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 namespace Fuxion.Tool.Cli;
 
 /// <summary>
-/// What <c>fx describe</c> says of a command besides its arguments and options (plan O, decision 12): the schema of its
+/// What <c>fx describe</c> says of a command besides its arguments and options: the schema of its
 /// JSON (<c>--output json</c>), whether it changes something (files, clones, branches, tags), whether it may use the
 /// network, and whether it is interactive (a terminal and a person: no JSON). Whether it takes <c>--dry-run</c> comes
 /// from its options.

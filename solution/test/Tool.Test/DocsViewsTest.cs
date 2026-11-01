@@ -12,7 +12,7 @@ using Space = Fuxion.Tool.Test.DocsCheckTest.Space;
 namespace Fuxion.Tool.Test;
 
 /// <summary>
-/// The views (plan U, U4 step 6b; the SPEC of the module, 5.4): generated from their recipe, the same bytes for the same
+/// The views: generated from their recipe, the same bytes for the same
 /// catalog, in the language of <c>docs.yaml</c>; <c>fx doctor</c> says when one is out of date, and <c>fx sync</c>
 /// regenerates it, never over an edit by hand without <c>--adopt</c>.
 /// </summary>

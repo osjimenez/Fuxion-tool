@@ -8,7 +8,7 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary>The read layer of the core (plan O, O4.3a): the disk, or pending texts in place of its files.</summary>
+/// <summary>The read layer of the core: the disk, or pending texts in place of its files.</summary>
 public sealed class FxFilesTest : IDisposable
 {
 	readonly string _root = Path.Combine(TempGitRepository.TempRoot, $"fx-files-{Guid.NewGuid():N}"[..20]);

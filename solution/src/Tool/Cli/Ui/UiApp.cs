@@ -27,13 +27,13 @@ using XenoAtom.Terminal.UI.Input;
 
 namespace Fuxion.Tool.Cli.Ui;
 
-/// <summary>A line of the list of problems (decision 14.2): its node and its diagnostic.</summary>
+/// <summary>A line of the list of problems: its node and its diagnostic.</summary>
 public sealed record UiProblem(FxTreeNode Node, FxDiagnostic Diagnostic)
 {
 	public override string ToString() => $"{(Diagnostic.Severity == FxSeverity.Error ? "✗" : "!")} {Node.Name} · {Diagnostic.Code} · {Diagnostic.Message}";
 }
 
-/// <summary>A line of the worktrees of a space (decision 14.12): the worktree and its changes, once git says them.</summary>
+/// <summary>A line of the worktrees of a space: the worktree and its changes, once git says them.</summary>
 public sealed record UiWorktree(WorktreeInfo Info, int? Changes)
 {
 	public override string ToString()
@@ -42,7 +42,7 @@ public sealed record UiWorktree(WorktreeInfo Info, int? Changes)
 }
 
 /// <summary>
-/// <c>fx ui</c>, the layer to see (plan O, O4.1, decision 14): the tree of the space on the left (<see cref="FxTree"/>),
+/// <c>fx ui</c>, the layer to see: the tree of the space on the left (<see cref="FxTree"/>),
 /// a panel per kind of node on the right, the marks of the doctor in the tree and its list of problems, and a bar with
 /// the keys. The doctor and git run in the background; what they find reaches the screen on its thread
 /// (<see cref="OnUpdate"/>). From a file it goes to where it comes from (14.3), and a worktree opens as its own tree
@@ -369,7 +369,7 @@ public sealed partial class UiApp
 		_version.Value++;
 	}
 
-	// acting (O4.2): the actions of a node, confirmed, run here with their progress, and their log
+	// acting: the actions of a node, confirmed, run here with their progress, and their log
 
 	/// <summary>What can be done on <paramref name="node"/>, the main action first.</summary>
 	public IReadOnlyList<UiAction> Actions(FxTreeNode node) => UiAction.For(node, _start, _card).Concat(EditActions(node)).ToList();
@@ -578,7 +578,7 @@ public sealed partial class UiApp
 
 	public void ToggleLog() => _logVisible.Value = !_logVisible.Value;
 
-	/// <summary>The log (F8): each command run from fx ui, the last first, with what it did (the decision of the commands log, 14.10).</summary>
+	/// <summary>The log (F8): each command run from fx ui, the last first, with what it did.</summary>
 	Visual LogView()
 	{
 		var lines = new List<string>();
@@ -674,7 +674,7 @@ public sealed partial class UiApp
 	/// <summary>On the thread of the screen: what the background found, and the folders opened that load the rest.</summary>
 	public TerminalLoopResult OnUpdate()
 	{
-		// the quit key of the app, with what it does here: it asks first with changes not written (O4.3b)
+		// the quit key of the app, with what it does here: it asks first with changes not written
 		if (!_quitReplaced && Root.App is { } app)
 		{
 			var quit = app.GlobalCommands.FirstOrDefault(c => c.Id == TerminalApp.DefaultQuitCommandId);
@@ -779,7 +779,7 @@ public sealed partial class UiApp
 		return string.Join(' ', parts);
 	}
 
-	// the panels (decision 14)
+	// the panels
 
 	Visual Panel(FxTreeNode? node) => node?.Kind switch
 	{

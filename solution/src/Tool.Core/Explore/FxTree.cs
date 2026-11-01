@@ -13,7 +13,7 @@ using Fuxion.Tool.Core.Yaml;
 
 namespace Fuxion.Tool.Core.Explore;
 
-/// <summary>Why something reaches a repository, or does not (decision 14.4).</summary>
+/// <summary>Why something reaches a repository, or does not.</summary>
 public enum FxReasonKind
 {
 	/// <summary>It is for everyone (no <c>applies-to</c>).</summary>
@@ -38,12 +38,12 @@ public sealed record FxReason(FxReasonKind Kind, IReadOnlyList<string> Values);
 /// <param name="What"><c>module</c>, <c>import</c>, <c>variable</c>, <c>package</c> or <c>share</c>.</param>
 public sealed record FxApplied(string What, string Name, bool Applies, FxReason Reason, IReadOnlyList<string> From);
 
-/// <summary>A tag of the catalog (plan P, decision 21): whether this root defines it or inherits it, and who has it.</summary>
+/// <summary>A tag of the catalog: whether this root defines it or inherits it, and who has it.</summary>
 public sealed record FxTagInfo(FxTag Tag, bool Own, IReadOnlyList<string> From, IReadOnlyList<string> UsedBy);
 
 /// <summary>
-/// The tree of <c>fx ui</c> (plan O, decision 14), read from disk and from the manifests, never written: from the highest
-/// space on disk (in a worktree, its root; decision 14.11). A space has its <c>_fx/</c>, what it versions, what
+/// The tree of <c>fx ui</c>, read from disk and from the manifests, never written: from the highest
+/// space on disk (in a worktree, its root). A space has its <c>_fx/</c>, what it versions, what
 /// it generates, its repositories (mounted, declared and not on disk, parked) and what nobody declares; a repository,
 /// its <c>_fx/</c>, the shares it receives and its solutions, and the rest of it on demand (14.6). What reaches each one
 /// and why (14.4), the catalog of tags (14.13) and the diagnostics of the doctor on their nodes (14.2).
@@ -85,7 +85,7 @@ public static class FxTree
 
 		// what it versions (the paths of its space.yaml) and what it generates and versions (the .gitignore, its solutions)
 		var space = node.OwnConfig();
-		// the audience of each mount (the audience ADR)
+		// the audience of each mount
 		var config = node.Config();
 		foreach (var path in (space.Paths ?? []).Where(p => !p.Exclude))
 		{
@@ -98,7 +98,7 @@ public static class FxTree
 		var solutions = Solutions(node);
 		foreach (var generated in solutions.Prepend(GitignoreGenerator.FileName).Select(node.Full).Where(File.Exists))
 			Place(tree, FxLayout.Relative(node.Root, generated), FileNode(generated, inherited));
-		// and the files of the coding agents (plan Q), where the paths have not put them already
+		// and the files of the coding agents, where the paths have not put them already
 		foreach (var agent in AgentFiles(node).Where(f => tree.Find(f)?.Path != Clean(f)))
 			Place(tree, FxLayout.Relative(node.Root, agent), FileNode(agent, inherited));
 
@@ -254,7 +254,7 @@ public static class FxTree
 	static string? FindRootOf(string file) => FxLayout.FindRoot(Path.GetDirectoryName(file)!);
 
 	/// <summary>
-	/// Where a file of fx comes from (decision 14.3), the nearest first, and only what is on disk: an inherited file, from
+	/// Where a file of fx comes from, the nearest first, and only what is on disk: an inherited file, from
 	/// the <c>_fx/</c> of the spaces it comes from (a share kept on its way down, from its source); a share, from its
 	/// source in the space that gives it; a generated file, from the yaml it is made of; <c>inherited.yaml</c>, from
 	/// the manifest that declares the root. Nothing for a file by hand or local.
@@ -365,7 +365,7 @@ public static class FxTree
 	static string Last(string relative) => relative.TrimEnd('/').Split('/').Last();
 
 	/// <summary>Puts <paramref name="child"/> at <paramref name="relative"/> under <paramref name="parent"/>, with the folders on the way.</summary>
-	/// <summary>The files of the coding agents a root has (plan Q): <c>AGENTS.md</c>, <c>CLAUDE.md</c>, the rules for Claude and the <c>SKILL.md</c> of each skill.</summary>
+	/// <summary>The files of the coding agents a root has: <c>AGENTS.md</c>, <c>CLAUDE.md</c>, the rules for Claude and the <c>SKILL.md</c> of each skill.</summary>
 	static IEnumerable<string> AgentFiles(FxNode node)
 	{
 		foreach (var file in HarnessModule.Files.Select(node.Full).Where(FxFiles.Exists))
@@ -404,7 +404,7 @@ public static class FxTree
 	}
 
 	/// <summary>
-	/// The rest of a folder or a repository, what does not matter to fx (decision 14.6): its folders and files that the tree
+	/// The rest of a folder or a repository, what does not matter to fx: its folders and files that the tree
 	/// does not have yet, each with whose it is, but <c>.git</c>.
 	/// </summary>
 	public static void LoadMore(FxTreeNode node)
@@ -429,7 +429,7 @@ public static class FxTree
 		node.Sort();
 	}
 
-	// what reaches each node, and why (decision 14.4)
+	// what reaches each node, and why
 
 	/// <summary>Why <paramref name="appliesTo"/> reaches <paramref name="who"/>, or not.</summary>
 	public static FxReason Explain(FxAppliesTo appliesTo, FxIdentity who)
@@ -464,7 +464,7 @@ public static class FxTree
 			foreach (var package in dotnet.Packages)
 				result.Add(new("package", string.Join(", ", package.Ids), package.AppliesTo.Matches(identity), Explain(package.AppliesTo, identity), from));
 		}
-		// the harness (plan Q): fx's own rule and skill, everywhere; then the module and each rule and skill
+		// the harness: fx's own rule and skill, everywhere; then the module and each rule and skill
 		result.Add(new("rule", HarnessModule.Reserved, true, new(FxReasonKind.Everyone, []), ["fx"]));
 		result.Add(new("skill", HarnessModule.Reserved, true, new(FxReasonKind.Everyone, []), ["fx"]));
 		if (Harness(node, identity) is { } harness)
@@ -557,7 +557,7 @@ public static class FxTree
 	public static FxAppliesTo DotnetAppliesTo(FxTreeNode space)
 		=> space.Identity is { } identity && Dotnet(new FxNode(space.Path), identity) is { } dotnet ? dotnet.AppliesTo ?? FxAppliesTo.All : FxAppliesTo.All;
 
-	/// <summary>The catalog of tags of a root (decision 14.13): its own and what it inherits, and the repositories below that have each.</summary>
+	/// <summary>The catalog of tags of a root: its own and what it inherits, and the repositories below that have each.</summary>
 	public static IReadOnlyList<FxTagInfo> Tags(FxTreeNode root)
 	{
 		var node = new FxNode(root.Path);
@@ -573,7 +573,7 @@ public static class FxTree
 		}).ToList();
 	}
 
-	// the doctor, on the tree (decision 14.2)
+	// the doctor, on the tree
 
 	/// <summary>
 	/// Puts each diagnostic of <paramref name="results"/> on its node: the file it names, if any; else the repository it is

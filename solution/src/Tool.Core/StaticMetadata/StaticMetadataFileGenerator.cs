@@ -210,7 +210,7 @@ public static class StaticMetadataFileGenerator
 	}
 
 	// The Versioning section of the JSON, only when there is a version: without it the Json class referenced a
-	// Versioning class that was not generated (a KNOWN BUG of K2.1, fixed in K3.2).
+	// Versioning class that was not generated (a KNOWN BUG when the tool was extracted, fixed since).
 	const string VersioningJson = """
 					"Versioning": {
 						"Version": "{{Versioning.Version}}",
@@ -223,7 +223,7 @@ public static class StaticMetadataFileGenerator
 	""";
 
 	// The build date comes from the request (the caller decides: SOURCE_DATE_EPOCH, the commit date…), so the same
-	// inputs give the same file and it is not rewritten on every build (a KNOWN BUG of K2.1, fixed in K3.2).
+	// inputs give the same file and it is not rewritten on every build (a KNOWN BUG when the tool was extracted, fixed since).
 	static DateTime ParseBuildDate(string value)
 		=> DateTimeOffset.Parse(value, System.Globalization.CultureInfo.InvariantCulture,
 			System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal).UtcDateTime;

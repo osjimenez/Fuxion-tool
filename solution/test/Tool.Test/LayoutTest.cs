@@ -42,7 +42,7 @@ public sealed class LayoutTest
 		Assert.Equal(Path.GetFullPath("x"), FxLayout.Real("x"));
 	}
 
-	// the files of fx, read with their problems (plan fx sobre Responses, phase 2)
+	// the files of fx, read with their problems
 
 	[Fact(DisplayName = "a file of fx: invalid YAML, a document that is not a mapping or a newer schema are a conflict with its own code; no schema, a warning")]
 	public void Reader_Load()

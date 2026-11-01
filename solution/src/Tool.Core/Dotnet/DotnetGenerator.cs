@@ -7,10 +7,10 @@ using Fuxion.Tool.Core.Layout;
 namespace Fuxion.Tool.Core.Dotnet;
 
 /// <summary>
-/// What the .NET module writes in a root's <c>_fx/dotnet/</c> (design §7.3): <c>dotnet.g.props</c> (who the repository
+/// What the .NET module writes in a root's <c>_fx/dotnet/</c>: <c>dotnet.g.props</c> (who the repository
 /// is, the <c>value</c> variables and the <c>props:</c> imports), <c>dotnet.g.targets</c> (the <c>when</c> variables,
 /// their constants and the <c>targets:</c> imports) and <c>packages.g.props</c> (a <c>PackageVersion</c> per id and
-/// version). Text with '\n'; every file starts with the header (plan P, decision 6).
+/// version). Text with '\n'; every file starts with the header.
 /// </summary>
 public static class DotnetGenerator
 {
@@ -19,13 +19,13 @@ public static class DotnetGenerator
 	/// <param name="imports">The props: imports: path relative to <c>_fx/dotnet/</c> and expanded condition (null: always).</param>
 	/// <param name="requiresSpace">
 	/// A repository mounted by a space that does not build on its own (its <c>dotnet.yaml</c> does not say <c>standalone</c>):
-	/// an <c>FxReference</c> that would be a package is an error (plan R, proposal 5), unless the repository says otherwise.
+	/// an <c>FxReference</c> that would be a package is an error, unless the repository says otherwise.
 	/// </param>
 	public static string Props(DotnetConfig config, FxIdentity identity, IReadOnlyList<(string Path, string? Condition)> imports, string sources,
 		bool requiresSpace = false)
 	{
 		var b = Start(sources);
-		// who the repository is, before the imports that may use it (plan P, decision 24)
+		// who the repository is, before the imports that may use it
 		b.Append("\t<PropertyGroup>\n");
 		b.Append($"\t\t<FxRepositoryName>{Escape(identity.Name)}</FxRepositoryName>\n");
 		b.Append($"\t\t<FxRepositoryFullName>{Escape(identity.FullName)}</FxRepositoryFullName>\n");
@@ -97,7 +97,7 @@ public static class DotnetGenerator
 	}
 
 	/// <summary>
-	/// <c>projects.g.props</c> (plan R, decision 1): the projects of the repository by name, as the map of the space
+	/// <c>projects.g.props</c>: the projects of the repository by name, as the map of the space
 	/// does with the mounted ones, so an <c>FxReference</c> to one of them is a <c>ProjectReference</c> also in a clone on
 	/// its own. Paths relative to <c>_fx/dotnet/</c>.
 	/// </summary>

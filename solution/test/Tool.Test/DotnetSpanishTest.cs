@@ -13,11 +13,11 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary>fx in Spanish (plan O, decision 7): the language is of the process, so this test goes alone.</summary>
+/// <summary>fx in Spanish: the language is of the process, so this test goes alone.</summary>
 [Collection(nameof(ProcessCollection))]
 public sealed class DotnetSpanishTest
 {
-	[Fact(DisplayName = "fx in Spanish: the messages and the help are; codes, commands and JSON are not (plan O, decision 7)")]
+	[Fact(DisplayName = "fx in Spanish: the messages and the help are; codes, commands and JSON are not")]
 	public void Cli_Spanish()
 	{
 		using var repo = new DotnetTest.Repo(DotnetTest.DesignYamlOfThisFx);

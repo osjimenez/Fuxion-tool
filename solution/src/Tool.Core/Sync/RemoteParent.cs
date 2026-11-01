@@ -14,7 +14,7 @@ using Fuxion.Tool.Core.Results;
 namespace Fuxion.Tool.Core.Sync;
 
 /// <summary>
-/// The parent of a repository that is not on disk above it, read from its remote (plan P, decision 15 and proposal E):
+/// The parent of a repository that is not on disk above it, read from its remote:
 /// a clone of one branch, with only its last commit and only <c>_fx/</c> (and the sources of its shares), in a cache of the user
 /// (<c>%LOCALAPPDATA%\fx\cache\</c>, or <c>FX_CACHE</c>), brought up to date on each read. Without network
 /// (<c>--offline</c>) the cache is used as it is. Read-only: nobody writes there but fx.
@@ -70,7 +70,7 @@ public static class RemoteParent
 			var result = present
 				? GitClient.Discover(folder)!.FetchCheckout(branch, Timeout, cancellationToken)
 				: GitClient.CloneSparse(url, folder, branch, [FxLayout.Folder], Timeout, cancellationToken);
-			// the sources of its shares are outside _fx/ (decision 23): the folders that hold them too
+			// the sources of its shares are outside _fx/: the folders that hold them too
 			if (result is ProcessResult { ExitCode: 0 } && Shares(folder) is { Count: > 1 } folders)
 				result = GitClient.Discover(folder)!.SparseCheckout(folders, Timeout, cancellationToken);
 			if (result is not ProcessResult { ExitCode: 0 })

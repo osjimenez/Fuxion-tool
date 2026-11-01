@@ -11,7 +11,7 @@ using Fuxion.Tool.Core.Results;
 namespace Fuxion.Tool.Core.Docs;
 
 /// <summary>
-/// The views (the SPEC of the module, 5.4): documents of the type <c>view</c> that <c>fx sync</c> generates from their
+/// The views: documents of the type <c>view</c> that <c>fx sync</c> generates from their
 /// recipe (<c>generation</c>), and nobody edits. Their recipes:
 /// <list type="bullet">
 /// <item><c>docs.status</c>, the dashboard of a folder: what asks for attention, what is open and what is in force, by type;</item>
@@ -20,7 +20,7 @@ namespace Fuxion.Tool.Core.Docs;
 /// those that point to them, and those closed.</item>
 /// </list>
 /// The same catalog gives the same bytes: in the language of <c>docs.yaml</c>, whoever runs it, and without the views
-/// (each regeneration changes them). Without the date a document was updated either (plan U, U6): a view changes when a
+/// (each regeneration changes them). Without the date a document was updated either: a view changes when a
 /// document is born, goes, or changes its title, its status or its place, not each time one is edited.
 /// </summary>
 public static class DocViews

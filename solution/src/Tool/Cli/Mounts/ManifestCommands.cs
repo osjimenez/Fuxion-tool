@@ -15,7 +15,7 @@ using Fuxion.Tool.Core.Text;
 namespace Fuxion.Tool.Cli.Mounts;
 
 /// <summary>
-/// The commands that edit the configuration (plan O, O3.4; plan P): <c>fx mount add|remove|tag|set|rename</c>
+/// The commands that edit the configuration: <c>fx mount add|remove|tag|set|rename</c>
 /// (<c>mounts.yaml</c>), <c>fx path add|remove</c> (<c>space.yaml</c>) and <c>fx module enable|disable</c> (the yaml of a
 /// module), the last two in any space. They show the change as a diff and write it, or only show it (<c>--dry-run</c>); what is missing is asked, with
 /// a person in front (<see cref="Ask"/>). They never touch clones nor folders: <c>fx sync</c> does the rest, and each
@@ -193,7 +193,7 @@ public static class ManifestCommands
 		mount.Add(rename);
 	}
 
-	/// <summary><c>fx init</c>: the folder where it runs becomes a space (plan spaces, decision 14).</summary>
+	/// <summary><c>fx init</c>: the folder where it runs becomes a space.</summary>
 	public static Command CreateInit(GlobalOptions global, string currentDirectory)
 	{
 		var name = new Option<string?>("--name") { Description = Texts.Get("init.name") };
@@ -280,7 +280,7 @@ public static class ManifestCommands
 		return command;
 	}
 
-	// optional for the parser: asked if missing (plan O, O3.3)
+	// optional for the parser: asked if missing
 	static Argument<string?> RepositoryArgument() => new("name") { Description = Texts.Get("mount.name"), Arity = ArgumentArity.ZeroOrOne };
 
 	static Argument<string?> ModuleArgument() => new("module") { Description = Texts.Get("module.name"), Arity = ArgumentArity.ZeroOrOne };

@@ -9,7 +9,7 @@ using Fuxion.Tool.Core.Results;
 namespace Fuxion.Tool.Core.Docs;
 
 /// <summary>
-/// The operations that write in a catalog (the SPEC of the module, 5.1 and 5.3): <c>new</c>, <c>finalize</c>,
+/// The operations that write in a catalog: <c>new</c>, <c>finalize</c>,
 /// <c>status</c>, <c>relate</c>, <c>move</c>, <c>rename</c> and <c>discard</c>. Each works out a <see cref="DocChange"/>, checked with
 /// the validator of the module; the command writes it, or shows it (<c>--dry-run</c>).
 /// </summary>
@@ -30,7 +30,7 @@ public static partial class DocEditor
 	public const string StillReplaced = "docs.still-replaced";
 	public const string RenameFrozen = "docs.rename-frozen";
 
-	/// <summary>The environment variable of the actor, when <c>--actor</c> does not say it (plan U, decision 20).</summary>
+	/// <summary>The environment variable of the actor, when <c>--actor</c> does not say it.</summary>
 	public const string ActorVariable = "FX_DOCS_ACTOR";
 
 	/// <summary>The letters with marks of the Latin alphabets, by the letter a slug writes for them.</summary>
@@ -50,7 +50,7 @@ public static partial class DocEditor
 	}
 
 	/// <summary>
-	/// The slug a title proposes (the layout rule of the standard, 5.2): lower case ASCII letters and digits, its marks
+	/// The slug a title proposes (the layout rule of the standard): lower case ASCII letters and digits, its marks
 	/// taken out (<c>á</c> → <c>a</c>, <c>ñ</c> → <c>n</c>), anything else a single dash. The same on every system.
 	/// </summary>
 	public static string ProposeSlug(string title)
@@ -71,7 +71,7 @@ public static partial class DocEditor
 		return slug.ToString().Trim('-');
 	}
 
-	/// <summary>The actor of a change: given, and one of the actors of <c>docs.yaml</c> (plan U, decision 20).</summary>
+	/// <summary>The actor of a change: given, and one of the actors of <c>docs.yaml</c>.</summary>
 	public static bool Actor(DocChange change, string? actor)
 	{
 		if (string.IsNullOrWhiteSpace(actor))
@@ -137,7 +137,7 @@ public static partial class DocEditor
 				change.Error(NameTaken, new($"{NameTaken}.slug", slug, sameSlug.Path));
 			else if (catalog.Files.FirstOrDefault(f => f.Stem == stem) is { } sameName)
 				change.Error(NameTaken, new($"{NameTaken}.name", stem, sameName.Path));
-			// nor in a remote branch git knows (the SPEC of the module, 5.1)
+			// nor in a remote branch git knows
 			else if (DocBranches.Taken(catalog, relative, stem, slug) is { } branch)
 				change.Error(NameTaken, new($"{NameTaken}.branch", stem, branch));
 		}
@@ -222,7 +222,7 @@ public static partial class DocEditor
 
 	/// <summary>
 	/// A frozen document whose content changed, or a view edited by hand: it cannot be finalized as it is. Frozen, once
-	/// HEAD has it frozen (plan U, U6): until it is committed, its content is still a draft of whoever writes it.
+	/// HEAD has it frozen: until it is committed, its content is still a draft of whoever writes it.
 	/// </summary>
 	static bool Blocked(DocChange change, Loaded document)
 	{
@@ -240,7 +240,7 @@ public static partial class DocEditor
 	}
 
 	/// <summary>
-	/// <c>fx doc finalize</c> (the SPEC of the module, 5.3): the documents whose content or metadata changed (of
+	/// <c>fx doc finalize</c>: the documents whose content or metadata changed (of
 	/// <paramref name="files"/>, or of the whole catalog), with their integrity again and <c>updatedAt</c> at
 	/// <paramref name="now"/>; the rest, untouched. A frozen one whose content changed, only with a
 	/// <paramref name="correction"/>, which goes at the end of its Markdown, in the language of the catalog; an open one may
@@ -261,7 +261,7 @@ public static partial class DocEditor
 			                     && (DocIntegrity.Metadata(json) is not string hash || hash != document.Sidecar.Integrity!.Metadata);
 			if (correction is not null)
 			{
-				// a frozen one needs it; an open one may record one too (plan U, U6); a view, never
+				// a frozen one needs it; an open one may record one too; a view, never
 				if (document.Type.Name == "view")
 				{
 					change.Error(Correction, new($"{Correction}.view", document.Path), display(file.Markdown!));
@@ -290,8 +290,7 @@ public static partial class DocEditor
 	}
 
 	/// <summary>
-	/// <c>fx doc status</c>: the document in <paramref name="status"/>, if its type allows the transition (plan U,
-	/// decision 21), and finalized.
+	/// <c>fx doc status</c>: the document in <paramref name="status"/>, if its type allows the transition, and finalized.
 	/// </summary>
 	public static DocChange SetStatus(DocCatalog catalog, Func<string, string> display, DocFile file, string status, DateTimeOffset now)
 	{
@@ -314,7 +313,7 @@ public static partial class DocEditor
 
 	/// <summary>
 	/// <c>fx doc relate</c>: a relation of <paramref name="file"/> to <paramref name="target"/>, added or taken out, kept
-	/// in the source only (the metadata model, 8). <c>supersedes</c> also puts the target in its status of the class
+	/// in the source only (the metadata model of the standard). <c>supersedes</c> also puts the target in its status of the class
 	/// replaced, if its type has one, in the same change; taken out, the target goes back to the status HEAD has it in.
 	/// Both, finalized.
 	/// </summary>
@@ -357,7 +356,7 @@ public static partial class DocEditor
 	}
 
 	/// <summary>
-	/// <paramref name="target"/>, no longer superseded by the document <paramref name="by"/> (plan U, U6): if it is in its
+	/// <paramref name="target"/>, no longer superseded by the document <paramref name="by"/>: if it is in its
 	/// status of the class replaced and no other document supersedes it, back to the status HEAD has it in; as HEAD has it,
 	/// if nothing else of it changed. If HEAD does not have it in another status, it stays, and a warning says so.
 	/// </summary>
@@ -383,7 +382,7 @@ public static partial class DocEditor
 	}
 
 	/// <summary>
-	/// <c>fx doc discard</c> (plan U, U6): a document born since the last commit, gone as if it had never been: its pair,
+	/// <c>fx doc discard</c>: a document born since the last commit, gone as if it had never been: its pair,
 	/// its annexes, and what its <c>supersedes</c> did to their targets, undone. Not one of which HEAD has a file (an
 	/// adopted one has its Markdown there), nor one another document or entry points to; without git, none.
 	/// </summary>
@@ -466,7 +465,7 @@ public static partial class DocEditor
 	}
 
 	/// <summary>
-	/// <c>fx doc move</c> (the SPEC of the module, 5.6): a stable document to another folder of the catalog, its pair and its
+	/// <c>fx doc move</c>: a stable document to another folder of the catalog, its pair and its
 	/// annexes, with the links of the catalog to them, and theirs, rewritten, and the views that link it made again. Its name
 	/// stays; a historical one never moves. Moving is not an edit: whatever was clean is sealed again with its
 	/// <c>updatedAt</c> kept.
@@ -529,7 +528,7 @@ public static partial class DocEditor
 	}
 
 	/// <summary>
-	/// <c>fx doc rename</c> (plan U, U6): a document with another <paramref name="title"/> (its H1 and its sidecar), another
+	/// <c>fx doc rename</c>: a document with another <paramref name="title"/> (its H1 and its sidecar), another
 	/// <paramref name="slug"/> (its name and that of its annexes, in its same folder), or both, with the links of the catalog
 	/// to it rewritten and the views that link it made again. Renaming is not moving: a historical one keeps its folder. A new name is not an edit either: what was
 	/// clean is sealed again with its <c>updatedAt</c> kept. A new title is, and finalizes it; not in one frozen in HEAD.

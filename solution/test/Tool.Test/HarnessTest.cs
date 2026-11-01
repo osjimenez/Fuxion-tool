@@ -11,7 +11,7 @@ using Xunit;
 namespace Fuxion.Tool.Test;
 
 /// <summary>
-/// The harness of coding agents (plan Q): rules and skills written once in <c>_fx/harness/</c>, which go down with what
+/// The harness of coding agents: rules and skills written once in <c>_fx/harness/</c>, which go down with what
 /// is for each one, and the files each agent reads generated in every root of fx.
 /// </summary>
 public sealed class HarnessTest : SampleTree

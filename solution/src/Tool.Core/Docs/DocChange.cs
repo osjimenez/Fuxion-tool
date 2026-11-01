@@ -19,7 +19,7 @@ public sealed record DocFileChange(string File, IReadOnlyList<DiffHunk> Diff);
 public sealed record DocFileMove(string From, string To);
 
 /// <summary>
-/// A change of a catalog (the SPEC of the module, 14): every file it writes, moves or removes, worked out before
+/// A change of a catalog: every file it writes, moves or removes, worked out before
 /// touching any; checked as the catalog would be with it, and done all at once at the end, or nothing. If a file changed
 /// on disk since it was read, nothing is done either (<see cref="ChangedOnDisk"/>).
 /// </summary>
@@ -203,7 +203,7 @@ public sealed class DocChange(DocCatalog catalog, Func<string, string> display)
 
 	/// <summary>
 	/// Does it, if it has no errors and no file it touches changed on disk since it was read; whether it did. All or
-	/// nothing (the SPEC of the module, 14): first it opens, for itself alone, every file it changes that exists, and if
+	/// nothing: first it opens, for itself alone, every file it changes that exists, and if
 	/// another process has one open, it writes nothing (<see cref="FileLocked"/>); if writing fails halfway, what it wrote
 	/// goes back to what it was (<see cref="WriteFailed"/>). A file it writes is UTF-8 without a byte order mark, its folder
 	/// made if missing; a folder a removal leaves empty, in the catalog, goes too. Its error is also a finding of the change

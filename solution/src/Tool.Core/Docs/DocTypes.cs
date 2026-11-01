@@ -12,7 +12,7 @@ public enum DocTemporality
 	Stable
 }
 
-/// <summary>What a status means to the logic of the module (the SPEC of the module, 13.2).</summary>
+/// <summary>What a status means to the logic of the module.</summary>
 public enum DocStatusClass
 {
 	/// <summary>Being worked on.</summary>
@@ -30,9 +30,9 @@ public enum DocStatusClass
 /// <summary>
 /// A type of document as its schema declares it, with what the logic of the module needs of it: its temporality, its
 /// statuses and the class of each one, its profiles, and whether it takes a <c>generation</c>. Read from the annotations of
-/// the schemas, never from a list in the code (plan U, ADR "esquemas cerrados, con costuras"). <see cref="Required"/>, the
+/// the schemas, never from a list in the code. <see cref="Required"/>, the
 /// properties a sidecar of the type must have: those of the base and its own; <see cref="Attention"/>, its statuses that
-/// ask for attention (the SPEC of the module, 13.2: the status view puts them first).
+/// ask for attention (the status view puts them first).
 /// </summary>
 public sealed record DocType(
 	string Name,
@@ -58,7 +58,7 @@ public sealed record DocType(
 	public bool IsFrozen(string status) => Temporality == DocTemporality.Historical && Classes.TryGetValue(status, out var c) && c != DocStatusClass.Open;
 
 	/// <summary>
-	/// Whether a document of the type may go from <paramref name="from"/> to <paramref name="to"/> (plan U, decision 21):
+	/// Whether a document of the type may go from <paramref name="from"/> to <paramref name="to"/>:
 	/// to another of its statuses, never back to <c>draft</c>, and a frozen one never back to an open one.
 	/// </summary>
 	public bool CanMove(string from, string to)

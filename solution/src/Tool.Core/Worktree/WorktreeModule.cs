@@ -26,7 +26,7 @@ public sealed record WorktreeResult(string? Root, string Branch, IReadOnlyList<R
 public sealed record WorktreeInfo(string Root, WorktreeCard Card, IReadOnlyDictionary<string, int>? Changes = null);
 
 /// <summary>
-/// The worktrees of fx (plan P, decisions 25-29): a branch to work on apart, without touching the main tree. A worktree
+/// The worktrees of fx: a branch to work on apart, without touching the main tree. A worktree
 /// is created in a space (the nearest, or <c>--in</c>), in its <c>_fx/~$worktrees/&lt;branch&gt;/</c>, and its root
 /// is always that space mounted in worktree mode: a <c>git worktree</c> of its main clone, sparse (without the
 /// <c>paths</c> marked <c>worktree: false</c>). Mounting in it is a <c>git worktree add</c> of each repository from its
@@ -57,7 +57,7 @@ public static class WorktreeModule
 
 	static readonly TimeSpan CloneTimeout = TimeSpan.FromMinutes(10);
 
-	/// <summary>Where the worktrees of a repository on its own go (decision 25): <c>FX_WORKTREES</c>, or <c>%LOCALAPPDATA%\fx\worktrees</c>.</summary>
+	/// <summary>Where the worktrees of a repository on its own go: <c>FX_WORKTREES</c>, or <c>%LOCALAPPDATA%\fx\worktrees</c>.</summary>
 	public static string UserFolder
 		=> System.Environment.GetEnvironmentVariable("FX_WORKTREES") is { Length: > 0 } folder
 			? folder
@@ -257,7 +257,7 @@ public static class WorktreeModule
 			if (FxLayout.IsGitRoot(destination))
 				return true;
 			var name = repository.Name;
-			// the highest copy (decision 19): a copy of a repository mounted higher in the worktree is not mounted
+			// the highest copy: a copy of a repository mounted higher in the worktree is not mounted
 			if (repository.Url is { } url)
 			{
 				var height = Height(path);

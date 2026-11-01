@@ -17,7 +17,7 @@ public sealed record ModuleSettings(GlobalSettings Global, string? Module, bool 
 	string? ParentRef = null);
 
 /// <summary>
-/// <c>fx sync [module]</c> and <c>fx doctor [module]</c> (plan P, decision 17 and proposal B): the root of fx where
+/// <c>fx sync [module]</c> and <c>fx doctor [module]</c>: the root of fx where
 /// they run and everything mounted below; with a module, only that one.
 /// </summary>
 public static class SyncCommand
@@ -77,7 +77,7 @@ public static class SyncCommand
 	/// <summary>The version of fx, what <c>fx describe</c> says.</summary>
 	internal static string? Version => Informational?.Split('+')[0];
 
-	/// <summary>The informational version of fx, for <c>requires</c> (plan P, decision 4) and the SDK a tree pins (plan S).</summary>
+	/// <summary>The informational version of fx, for <c>requires</c> and the SDK a tree pins.</summary>
 	internal static string? Informational => typeof(SyncCommand).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
 
 	static int Execute(ModuleSettings settings, FxConsole console, bool doctor, CancellationToken cancellationToken)

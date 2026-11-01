@@ -11,7 +11,7 @@ using Space = Fuxion.Tool.Test.DocsCheckTest.Space;
 namespace Fuxion.Tool.Test;
 
 /// <summary>
-/// What writes in a catalog (plan U, U4 step 4; the SPEC of the module, 5.1 and 5.3): <c>new</c>, <c>finalize</c>,
+/// What writes in a catalog: <c>new</c>, <c>finalize</c>,
 /// <c>status</c> and <c>relate</c>, each all or nothing, checked with the validator of the module; and their commands.
 /// </summary>
 public sealed class DocsEditTest
@@ -522,7 +522,7 @@ public sealed class DocsEditTest
 	}
 }
 
-/// <summary>The actor from the environment (plan U, decision 20): it changes the process, so it runs alone.</summary>
+/// <summary>The actor from the environment: it changes the process, so it runs alone.</summary>
 [Collection(nameof(ProcessCollection))]
 public sealed class DocsActorTest
 {

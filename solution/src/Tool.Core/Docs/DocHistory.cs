@@ -8,7 +8,7 @@ using Fuxion.Tool.Core.Processes;
 namespace Fuxion.Tool.Core.Docs;
 
 /// <summary>
-/// What git has committed of a catalog (plan U, U6): what <c>HEAD</c> has is history; what it does not, still the work of
+/// What git has committed of a catalog: what <c>HEAD</c> has is history; what it does not, still the work of
 /// whoever is writing it. A document is frozen once <c>HEAD</c> has it frozen, and only one that <c>HEAD</c> does not have
 /// can be discarded. Without git nothing is known, and everything counts as history.
 /// </summary>

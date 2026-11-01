@@ -13,7 +13,7 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary>Spaces inside spaces (plan P, P4-P6), on the sample tree: inheritance, --only, guests, the highest copy.</summary>
+/// <summary>Spaces inside spaces, on the sample tree: inheritance, --only, guests, the highest copy.</summary>
 public sealed class NestedTest : SampleTree
 {
 	[Fact(DisplayName = "a tree: each level inherits from its parent, merged; the mandatory repositories of every level are mounted")]

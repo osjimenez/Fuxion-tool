@@ -9,7 +9,7 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary>The static metadata: git information and the generated source (plan K, K2.1).</summary>
+/// <summary>The static metadata: git information and the generated source.</summary>
 public sealed class StaticMetadataTest : IDisposable
 {
 	readonly string _dir = Directory.CreateDirectory(Path.Combine(TempGitRepository.TempRoot, "fx-test-" + Guid.NewGuid().ToString("N")[..12])).FullName;
@@ -109,7 +109,7 @@ public sealed class StaticMetadataTest : IDisposable
 		Assert.False(StaticMetadataFileGenerator.DeleteIfExists(path));
 	}
 
-	// Two bugs that K2.1 pinned as they were (KNOWN BUG) and K3.2 fixed.
+	// Two bugs pinned as they were (KNOWN BUG) when the tool was extracted, and fixed since.
 
 	[Fact(DisplayName = "the build date is the one of the request, so the same request does not rewrite the file")]
 	public void BuildDate_FromRequest()

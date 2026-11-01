@@ -15,7 +15,7 @@ using XenoAtom.Terminal.UI.Styling;
 
 namespace Fuxion.Tool.Cli.Worktree;
 
-/// <summary><c>fx worktree add|mount|unmount|list|remove</c> (plan P, decision 29): a branch to work on apart, in worktrees.</summary>
+/// <summary><c>fx worktree add|mount|unmount|list|remove</c>: a branch to work on apart, in worktrees.</summary>
 public static class WorktreeCommand
 {
 	public static Command Create(GlobalOptions global, string currentDirectory)

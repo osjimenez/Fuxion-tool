@@ -16,7 +16,7 @@ using Xunit;
 namespace Fuxion.Tool.Test;
 
 /// <summary>
-/// The check of the module of the documentation (plan U, U4 step 3; the SPEC of the module, 5.2): each rule of a
+/// The check of the module of the documentation: each rule of a
 /// document and of the catalog, valid and invalid; <c>fx doctor</c>; and <c>fx doc check|list|show|schema</c>.
 /// </summary>
 public sealed class DocsCheckTest

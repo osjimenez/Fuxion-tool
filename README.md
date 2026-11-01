@@ -2,9 +2,7 @@
 
 `fx`, the tool of Fuxion's spaces, and `Fuxion.Tool.Sdk`, the MSBuild SDK shared by the Fuxion repos.
 
-Work in progress: extracted on 06-oct-2026 from Fuxion-plus (with its history) and being rebuilt. The design lives in
-the Fuxion space (`_docs/plans/diseno-workspace-fx.md`, and the spaces in `plan-impl-spaces-reorganizacion-fx.md`);
-this repo follows plan K there.
+Work in progress: extracted on 06-oct-2026 from Fuxion-plus (with its history) and being rebuilt.
 
 ## Install
 
@@ -94,7 +92,7 @@ Global options: --root <path>, -s|--space, --output human|json|ndjson, -v|--verb
   linked. Moving is a rename on the same disk, instant whatever it holds; if something has it open, nothing moves and
   fx says so. Unparking brings it back without cloning. A mount with `required: true` cannot be parked; a new one
   without it starts parked. fx never deletes a clone. Each mount has a `mode`: `write` (the default), `read-only` or
-  `propose-only` (what makes each one hold comes later, plan spaces).
+  `propose-only` (what makes each one hold comes later).
 - **Guests**: a space can mount a repository of another one with `inherits: false`. It uses it (its solution, the
   map), but nothing of the space reaches it: it inherits from its own parent. When a tree has several copies of a
   repository (the same `url`), the highest one is used, guest or not, and `fx sync` parks the others (it brings one
@@ -141,14 +139,14 @@ Global options: --root <path>, -s|--space, --output human|json|ndjson, -v|--verb
   the folder of the solution.
   `fx doctor` also checks that each package has a single owner and that exactly one version applies to every real
   target framework.
-- **`_fx/harness/harness.yaml`**, the harness of coding agents (plan Q): the rules (`rules/<name>.md`, Markdown) and
+- **`_fx/harness/harness.yaml`**, the harness of coding agents: the rules (`rules/<name>.md`, Markdown) and
   skills (`skills/<name>/`, with their `SKILL.md`) of the agents, each with its `applies-to` (which, as in `dotnet.yaml`,
   decides for the root itself too) and, for a rule, its `paths`. They go down to every repository with what is for it,
   in `_fx/.inherited/harness/`. In every root of fx, `fx sync` generates from them `AGENTS.md` (the rule of fx, the
   rules always read, and the index of the rules by path), `CLAUDE.md` (`@AGENTS.md`), `.claude/rules/` (the rules by
   path) and the skills in `.claude/skills/` and `.agents/skills/`, the skill of fx among them. Those files are fx's
   whole: what is there and is not fx's is an error, and `fx sync --adopt` moves it to `_fx/harness/` and declares it.
-- **`_fx/docs/docs.yaml`**, the module `docs` (plan U): a space's catalog of documents, kept to its documentation
+- **`_fx/docs/docs.yaml`**, the module `docs`: a space's catalog of documents, kept to its documentation
   standard. Each document is a pair, its Markdown and its sidecar `TYPE-slug.meta.json` (identity, type, profile,
   status, title, dates, actor, relations and integrity: SHA-256 of the content, and of the metadata in its canonical
   form, RFC 8785), of one of thirteen types (`adr`, `rfc`, `plan`, `spec`, `design`, `register`, `view`…); the
@@ -199,7 +197,7 @@ Global options: --root <path>, -s|--space, --output human|json|ndjson, -v|--verb
   made from the types that write it. They are the source of the skill of fx and of the documentation of the CLI:
   `fx describe --skill` writes the skill (a `SKILL.md` for coding agents, always in English: how an agent runs fx,
   every command with its options and output, the exit codes).
-- **Every root of fx has the skill and the rule of fx** (the harness, plan Q): `fx sync` writes them in every root
+- **Every root of fx has the skill and the rule of fx** (the harness): `fx sync` writes them in every root
   with `_fx/`, the skill in `.claude/skills/fx/` and `.agents/skills/fx/` and the rule at the top of `AGENTS.md`,
   generated and versioned (a space versions them in its `.gitignore`), so that a coding agent working there knows
   how to use fx; a loose clone has them too. The doctor says when they are out of date, and fx never overwrites a file
@@ -343,7 +341,7 @@ CI=true dotnet test --solution FxTool.slnx -c Release --no-build
 **Versions**: this repo versions itself from its `version/X.Y.0` tags, with its own SDK (the same as `fx version`: the
 tag and the commits since give `X.Y.{commits}`).
 
-**Publishing locally** (inside the Fuxion space, design D-36): the package goes to the space's
+**Publishing locally** (inside the Fuxion space): the package goes to the space's
 `~$publish/tool/nupkgs` by itself (its `packable.props`), with the version of git.
 
 ```bash

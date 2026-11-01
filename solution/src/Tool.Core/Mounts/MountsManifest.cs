@@ -9,7 +9,7 @@ using Fuxion.Tool.Core.Yaml;
 
 namespace Fuxion.Tool.Core.Mounts;
 
-/// <summary>What may be done in a mount (plan spaces, decision 13); what makes each one hold comes with them.</summary>
+/// <summary>What may be done in a mount; what makes each one hold comes with them.</summary>
 public enum MountMode
 {
 	/// <summary>Anything: the default.</summary>
@@ -21,14 +21,14 @@ public enum MountMode
 }
 
 /// <summary>
-/// A space this space mounts (plan P, decisions 1, 10-12 and 18; plan spaces, decisions 6 and 20): a repository of code
+/// A space this space mounts: a repository of code
 /// or another space that mounts others. The space that mounts it gives it its name and its tags.
 /// </summary>
 /// <param name="Path">Where, relative to the space, with '/': any folder, at any depth.</param>
 /// <param name="Required">Always mounted: it cannot be parked. Without it, each copy parks it or brings it back.</param>
 /// <param name="Inherits">False for a guest: the space uses it, but it inherits from its own parent.</param>
 /// <param name="Aliases">Its old names (<c>fx mount rename</c>), so that old references keep working.</param>
-/// <param name="Audience">Who may read it, one of the audiences of the space (the audience ADR); without it, the widest: never the space's.</param>
+/// <param name="Audience">Who may read it, one of the audiences of the space; without it, the widest: never the space's.</param>
 public sealed record Mount(
 	string Name,
 	string Path,
@@ -43,9 +43,8 @@ public sealed record Mount(
 	string? Audience = null);
 
 /// <summary>
-/// <c>_fx/mounts/mounts.yaml</c>, the module that makes a space mount others (plan P, decision 3; plan spaces, decision
-/// 6): what it mounts. What its git versions and what it shares are the space's (<c>_fx/space.yaml</c>, plan spaces,
-/// decisions 11 and 19). Nothing about solutions or .NET.
+/// <c>_fx/mounts/mounts.yaml</c>, the module that makes a space mount others: what it mounts. What its git
+/// versions and what it shares are the space's (<c>_fx/space.yaml</c>). Nothing about solutions or .NET.
 /// </summary>
 public sealed record MountsManifest(string Root, IReadOnlyList<Mount> Mounts)
 {

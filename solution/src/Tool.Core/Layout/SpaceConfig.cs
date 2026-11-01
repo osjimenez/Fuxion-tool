@@ -9,30 +9,30 @@ using Fuxion.Tool.Core.Yaml;
 
 namespace Fuxion.Tool.Core.Layout;
 
-/// <summary>A tag of the catalog: its name and what it means (plan P, decision 21).</summary>
+/// <summary>A tag of the catalog: its name and what it means.</summary>
 public sealed record FxTag(string Name, string? Description, int Line = 0);
 
 /// <summary>
-/// An audience of the catalog: who may read something (the audience ADR, 31-oct): its name and what it means. The
+/// An audience of the catalog, who may read something: its name and what it means. The
 /// catalog goes from the widest audience to the narrowest.
 /// </summary>
 public sealed record FxAudience(string Name, string? Description, int Line = 0);
 
 /// <summary>
-/// What the git of the space versions (plan P, decision 8; plan spaces, decision 11): a file, or a folder (ending in
+/// What the git of the space versions: a file, or a folder (ending in
 /// '/'). With <see cref="Exclude"/>, an exception inside something included; with <see cref="Worktree"/> false, a folder
-/// the worktrees of the space leave out unless asked (decision 26).
+/// the worktrees of the space leave out unless asked.
 /// </summary>
 public sealed record SpacePath(string Path, bool Exclude = false, bool Worktree = true, int Line = 0)
 {
 	public bool IsFolder => Path.EndsWith('/');
 }
 
-/// <summary>A file (or folder) the space gives what it mounts (plan P, decision 23; plan spaces, decision 19).</summary>
+/// <summary>A file (or folder) the space gives what it mounts.</summary>
 public sealed record SpaceShare(string Path, string Destination, FxAppliesTo AppliesTo, int Line = 0);
 
 /// <summary>
-/// <c>_fx/space.yaml</c>, the descriptor of a space (plan spaces, decisions 3, 11, 19 and 23). <c>name</c>: the name of a
+/// <c>_fx/space.yaml</c>, the descriptor of a space. <c>name</c>: the name of a
 /// root space (nobody mounts it); in a sub-space, only a proposal. <c>audience</c>: who may read what is its own (one
 /// of the catalog; undeclared, the widest). <c>audiences</c>: the catalog of audiences, from the widest to the narrowest
 /// (undeclared, public and private). <c>requires</c>: the minimum version of fx. <c>tags</c>: the catalog of tags.
@@ -278,7 +278,7 @@ public sealed partial record SpaceConfig(
 
 	/// <summary>
 	/// Whether the worktrees of the space leave <paramref name="relative"/> (a path of the space, with '/') out: it is, or
-	/// is inside, an entry with <c>worktree: false</c> that is not an exclusion (decision 26), as <c>fx worktree add</c> does.
+	/// is inside, an entry with <c>worktree: false</c> that is not an exclusion, as <c>fx worktree add</c> does.
 	/// </summary>
 	public bool LeavesOut(string relative) => (Paths ?? []).Any(p => !p.Worktree && !p.Exclude && Contains(p, relative));
 

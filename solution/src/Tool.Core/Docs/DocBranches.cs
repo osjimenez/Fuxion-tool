@@ -16,7 +16,7 @@ public sealed record DocBranchEntry(string Id, string Name, string? Key);
 public sealed record DocBranchDocument(string Branch, string Path, string Id, string? Type, IReadOnlyList<DocBranchEntry> Entries);
 
 /// <summary>
-/// The catalog against the remote branches git knows (the SPEC of the module, 5.2, <c>--branches</c>): what another branch
+/// The catalog against the remote branches git knows (<c>--branches</c>): what another branch
 /// creates must not collide with what is here, so that joining them gives a valid catalog. Without network (git has them
 /// already; <c>--fetch</c> brings them first). Only what each branch has different from <c>HEAD</c> is read: what is the
 /// same cannot collide.

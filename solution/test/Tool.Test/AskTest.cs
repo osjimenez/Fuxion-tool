@@ -11,7 +11,7 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary>The questions of fx (plan O, O3.3), on an in-memory terminal: keys in, the answer out.</summary>
+/// <summary>The questions of fx, on an in-memory terminal: keys in, the answer out.</summary>
 [Collection(nameof(TerminalCollection))]
 public sealed class AskTest
 {

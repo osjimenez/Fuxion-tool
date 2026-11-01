@@ -6,10 +6,10 @@ using Fuxion.Tool.Core.Layout;
 namespace Fuxion.Tool.Core.Harness;
 
 /// <summary>
-/// A rule of <c>harness.yaml</c> (plan Q): Markdown for the coding agents, in <c>rules/&lt;name&gt;.md</c> of the folder of
+/// A rule of <c>harness.yaml</c>: Markdown for the coding agents, in <c>rules/&lt;name&gt;.md</c> of the folder of
 /// the module that declares it. Without <c>paths</c>, it goes in <c>AGENTS.md</c> (always read); with them, in
-/// <c>.claude/rules/&lt;name&gt;.md</c>, read when the agent works on those files, and in the index of <c>AGENTS.md</c>
-/// (decision 5). <c>Base</c> is that folder, relative to the root (<c>_fx/harness</c>, or <c>_fx/.inherited/harness</c>
+/// <c>.claude/rules/&lt;name&gt;.md</c>, read when the agent works on those files, and in the index of <c>AGENTS.md</c>.
+/// <c>Base</c> is that folder, relative to the root (<c>_fx/harness</c>, or <c>_fx/.inherited/harness</c>
 /// for what it inherits).
 /// </summary>
 public sealed record HarnessRule(string Name, IReadOnlyList<string> Paths, FxAppliesTo AppliesTo, string Source, int Line, string Base = "")
@@ -20,7 +20,7 @@ public sealed record HarnessRule(string Name, IReadOnlyList<string> Paths, FxApp
 	public string File => $"{Base}/{HarnessModule.RulesFolder}/{Name}.md";
 }
 
-/// <summary>A skill of <c>harness.yaml</c> (plan Q): the folder <c>skills/&lt;name&gt;/</c>, with its <c>SKILL.md</c> and whatever else it needs.</summary>
+/// <summary>A skill of <c>harness.yaml</c>: the folder <c>skills/&lt;name&gt;/</c>, with its <c>SKILL.md</c> and whatever else it needs.</summary>
 public sealed record HarnessSkill(string Name, FxAppliesTo AppliesTo, string Source, int Line, string Base = "")
 {
 	/// <summary>Its folder, relative to the root.</summary>
@@ -28,9 +28,9 @@ public sealed record HarnessSkill(string Name, FxAppliesTo AppliesTo, string Sou
 }
 
 /// <summary>
-/// <c>_fx/harness/harness.yaml</c> (plan Q): the rules and skills of the coding agents, each with its <c>applies-to</c>,
+/// <c>_fx/harness/harness.yaml</c>: the rules and skills of the coding agents, each with its <c>applies-to</c>,
 /// which go down to the repositories of <see cref="AppliesTo"/> (everyone, without it). As in <c>dotnet.yaml</c>, the
-/// <c>applies-to</c> of an item also decides whether it is for the root that declares it (decision 3).
+/// <c>applies-to</c> of an item also decides whether it is for the root that declares it.
 /// </summary>
 public sealed record HarnessConfig(IReadOnlyList<HarnessRule> Rules, IReadOnlyList<HarnessSkill> Skills)
 {
@@ -44,7 +44,7 @@ public sealed record HarnessConfig(IReadOnlyList<HarnessRule> Rules, IReadOnlyLi
 	public bool IsEmpty => Rules.Count == 0 && Skills.Count == 0;
 
 	/// <summary>
-	/// What comes from above with <paramref name="own"/> on top: the nearest wins by name (proposal 2). The order is the
+	/// What comes from above with <paramref name="own"/> on top: the nearest wins by name. The order is the
 	/// one of <c>AGENTS.md</c>: what is inherited first, then its own, each in the order of its list.
 	/// </summary>
 	public static HarnessConfig Combine(HarnessConfig inherited, HarnessConfig own)
@@ -66,7 +66,7 @@ public sealed record HarnessConfig(IReadOnlyList<HarnessRule> Rules, IReadOnlyLi
 	};
 
 	/// <summary>
-	/// What may be for the space <paramref name="who"/> or for something below it (proposal 1): by tags (its
+	/// What may be for the space <paramref name="who"/> or for something below it: by tags (its
 	/// repositories have tags its parent does not know), for everyone, or naming it or a repository below it.
 	/// </summary>
 	public HarnessConfig ForBelow(FxIdentity who) => this with

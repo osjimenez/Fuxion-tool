@@ -7,14 +7,14 @@ namespace Fuxion.Tool.Core.Sync;
 /// <param name="Module">Only this module (<c>space</c>, <c>dotnet</c>); all of them, without it.</param>
 /// <param name="FxVersion">
 /// The version of fx that runs (its informational version, <see cref="Layout.FxToolVersion"/>), for <c>requires</c>
-/// (decision 4) and for the <c>Fuxion.Tool.Sdk</c> the tree pins (plan S); none: not checked.
+/// and for the <c>Fuxion.Tool.Sdk</c> the tree pins; none: not checked.
 /// </param>
 /// <param name="OnlyHere">Only the root where it runs, not what is mounted below it (<c>--only</c>).</param>
 /// <param name="ParentRef">
 /// The branch of the parent to read, from its remote (<c>--parent-ref</c>): to try what another branch of it gives,
 /// without versioning that choice anywhere.
 /// </param>
-/// <param name="Skill">The skill of fx for coding agents (its <c>SKILL.md</c>, made by the CLI from its commands): written in every root of fx (plan O, O5.1). Without it, nothing is written.</param>
+/// <param name="Skill">The skill of fx for coding agents (its <c>SKILL.md</c>, made by the CLI from its commands): written in every root of fx. Without it, nothing is written.</param>
 public sealed record SyncOptions(bool DryRun = false, bool Offline = false, bool Adopt = false, string? Module = null, string? FxVersion = null,
 	bool OnlyHere = false, string? ParentRef = null, string? Skill = null);
 
@@ -30,7 +30,7 @@ public sealed record SyncContext(string DisplayRoot, bool Write, bool Adopt, boo
 	/// <summary>Only the root where it runs (<c>--only</c>).</summary>
 	public bool OnlyHere { get; init; }
 
-	/// <summary>The skill of fx, to write in every root of fx (plan O, O5.1); null, nothing.</summary>
+	/// <summary>The skill of fx, to write in every root of fx; null, nothing.</summary>
 	public string? Skill { get; init; }
 
 	public bool Runs(string module) => Only is null || Only == module;

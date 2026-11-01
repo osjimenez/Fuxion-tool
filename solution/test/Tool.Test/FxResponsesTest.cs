@@ -9,8 +9,8 @@ using Xunit;
 namespace Fuxion.Tool.Test;
 
 /// <summary>
-/// The helpers of fx over the responses of Fuxion (plan <i>fx sobre Responses</i>, phase 1; ADR <i>Los diagnósticos de
-/// fx en las Responses</i>): the error of an operation, its outcome, its diagnostics read back, the collector and the steps.
+/// The helpers of fx over the responses of Fuxion: the error of an operation, its outcome, its diagnostics read back,
+/// the collector and the steps.
 /// </summary>
 public sealed class FxResponsesTest
 {

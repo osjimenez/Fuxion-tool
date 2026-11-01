@@ -8,7 +8,7 @@ using Fuxion.Tool.Core.Results;
 namespace Fuxion.Tool.Core.Layout;
 
 /// <summary>
-/// A root of fx on disk: a repository or a space (plan P, decision 1). It knows itself by its
+/// A root of fx on disk: a repository or a space. It knows itself by its
 /// <c>_fx/.inherited/inherited.yaml</c> (what its space said last time) or, if nobody declares it, by the
 /// <c>name</c> of its <c>_fx/space.yaml</c>.
 /// </summary>
@@ -59,7 +59,7 @@ public sealed class FxNode(string root)
 
 	/// <summary>
 	/// Who it is when nobody on disk declares it: what its space said last time, or its own name as a root. A root
-	/// without a name gets its folder's (<see cref="ReadSelfIdentity"/> says it is an error: a root needs one, decision 4).
+	/// without a name gets its folder's (<see cref="ReadSelfIdentity"/> says it is an error: a root needs one).
 	/// </summary>
 	public FxIdentity SelfIdentity() => ReadSelfIdentity() is FxIdentity identity ? identity : FolderIdentity;
 
@@ -83,7 +83,7 @@ public sealed class FxNode(string root)
 	/// <summary>
 	/// The space on disk that declares it as its own (not as a guest), with that declaration: the nearest above
 	/// that does. A guest declaration is skipped: its parent is further up. The root of a worktree is its main clone in
-	/// worktree mode: its parent is that one's, in the main tree (plan P, decision 28).
+	/// worktree mode: its parent is that one's, in the main tree.
 	/// </summary>
 	public (FxNode Space, MountsManifest Manifest, Mount Declaration)? FindParent()
 	{

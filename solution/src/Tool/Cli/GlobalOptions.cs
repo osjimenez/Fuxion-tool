@@ -16,7 +16,7 @@ public enum OutputFormat
 	Ndjson
 }
 
-/// <summary>The options every command accepts (design §10.2), already bound.</summary>
+/// <summary>The options every command accepts, already bound.</summary>
 /// <param name="Directory">Where the command acts: <c>--root</c>, or the current directory.</param>
 public sealed record GlobalSettings(string Directory, OutputFormat Output, bool Verbose, bool Plain, bool NonInteractive = false)
 {
@@ -48,7 +48,7 @@ public sealed class GlobalOptions
 		Recursive = true
 	};
 
-	/// <summary>No questions and no live region, whatever the terminal (plan O, decision 4).</summary>
+	/// <summary>No questions and no live region, whatever the terminal.</summary>
 	public Option<bool> NonInteractive { get; } = new("--non-interactive")
 	{
 		Description = Texts.Get("option.non-interactive"),

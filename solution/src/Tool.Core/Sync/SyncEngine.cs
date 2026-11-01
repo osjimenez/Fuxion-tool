@@ -15,7 +15,7 @@ using Fuxion.Tool.Core.Results;
 namespace Fuxion.Tool.Core.Sync;
 
 /// <summary>
-/// <c>fx sync</c> and <c>fx doctor</c> (plan P, decision 17): on the root of fx where they run and everything mounted
+/// <c>fx sync</c> and <c>fx doctor</c>: on the root of fx where they run and everything mounted
 /// below, never above. Each root first gets what it inherits from its parent (one level up, read-only), then the
 /// space mounts its repositories and each one does the same; the solutions are composed on the way back, from the
 /// bottom up. It never commits, never pushes, never overwrites a file without the header.
@@ -63,8 +63,8 @@ public static class SyncEngine
 		using var staged = write ? null : FxFiles.Overlay([]);
 		var first = new FxDiagnostics(progress);
 
-		// a fx older than the one this tree requires reads, but writes nothing (decision 4); so does one older than the
-		// Fuxion.Tool.Sdk the tree builds with, which a newer fx pinned: they are released together (plan S)
+		// a fx older than the one this tree requires reads, but writes nothing; so does one older than the
+		// Fuxion.Tool.Sdk the tree builds with, which a newer fx pinned: they are released together
 		var read = start.ReadConfig();
 		first.AddRange(read);
 		var config = read is SpaceConfig valid ? valid : start.Config();
@@ -96,8 +96,8 @@ public static class SyncEngine
 		var run = new Run_(start, context);
 		Process(run, start, parent, first);
 
-		// The map of FxReference: only the highest space on disk makes it (decision 19), from all it has mounted; in a
-		// worktree, its root (a closed tree, decision 28)
+		// The map of FxReference: only the highest space on disk makes it, from all it has mounted; in a
+		// worktree, its root (a closed tree)
 		if (!options.OnlyHere && start.HasMounts && start.HasModule(DotnetModule.Name) && context.Runs(DotnetModule.Name)
 		    && MountCopies.Top(start.Root) is { } top && FxLayout.SameFolder(top, start.Root))
 		{
@@ -246,16 +246,16 @@ public static class SyncEngine
 		}
 		run.Mounted.Add((node, identity, own));
 
-		// 4. The files of the coding agents (plan Q): in every root of fx, with the rule and the skill of fx, so that whoever
-		// works in it knows how to use fx (plan O, O5.1)
+		// 4. The files of the coding agents: in every root of fx, with the rule and the skill of fx, so that whoever
+		// works in it knows how to use fx
 		if (context.Runs(HarnessModule.Name) && HarnessModule.Run(node, identity, label, context) is { } harness)
 			run.Results.Add(harness);
 
-		// 4b. Its catalog of documents (plan U), in the doctor: each root has its own, nothing goes down
+		// 4b. Its catalog of documents, in the doctor: each root has its own, nothing goes down
 		if (context.Runs(Docs.DocsModule.Name) && Docs.DocsModule.Run(node, label, context) is { } docs)
 			run.Results.Add(docs);
 
-		// 5. What the space generates, if it mounts others or declares paths (plan spaces): its .gitignore, a whitelist of
+		// 5. What the space generates, if it mounts others or declares paths: its .gitignore, a whitelist of
 		// what it versions (its paths, its solutions, the shares it receives, and the files of the agents, always); its own
 		// shares, checked; and what only the module of the mounts checks
 		if (context.Runs(MountsModule.Name) && (manifest is not null || (!node.HasMounts && node.OwnConfig().Paths is { Count: > 0 })))
@@ -279,7 +279,7 @@ public static class SyncEngine
 	}
 
 	/// <summary>
-	/// A guest (decision 18): the space uses it, so its projects go into the map, but it inherits from its own parent
+	/// A guest: the space uses it, so its projects go into the map, but it inherits from its own parent
 	/// and nothing of it is processed here. Its own .NET configuration is read, for the doctor.
 	/// </summary>
 	static void Guest(Run_ run, MountsManifest manifest, FxIdentity space, Mount repository)
@@ -293,9 +293,9 @@ public static class SyncEngine
 	}
 
 	/// <summary>
-	/// A standalone repository (it builds without the space, design D-2) cannot reference a project of a repository
+	/// A standalone repository (it builds without the space) cannot reference a project of a repository
 	/// that is not: outside the space that reference would have to be a package, and that repository publishes
-	/// none (design §6). <c>SpaceOnly="true"</c> references only exist in the space by definition.
+	/// none. <c>SpaceOnly="true"</c> references only exist in the space by definition.
 	/// </summary>
 	static void CheckStandalone(Run_ run, IReadOnlyDictionary<string, (string Path, string Repository)> projects, FxDiagnostics diagnostics)
 	{

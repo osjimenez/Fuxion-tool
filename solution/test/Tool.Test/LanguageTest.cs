@@ -15,7 +15,7 @@ namespace Fuxion.Tool.Test;
 
 static class TestLanguage
 {
-	/// <summary>The tests run in English, whatever the language of the machine (plan O, decision 7).</summary>
+	/// <summary>The tests run in English, whatever the language of the machine.</summary>
 	[ModuleInitializer]
 	internal static void English()
 	{
@@ -24,7 +24,7 @@ static class TestLanguage
 	}
 }
 
-/// <summary>The languages of fx (plan O, O2.4): which one, and that every text is in both.</summary>
+/// <summary>The languages of fx: which one, and that every text is in both.</summary>
 [Collection(nameof(ProcessCollection))]
 public sealed partial class LanguageTest
 {

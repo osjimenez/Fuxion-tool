@@ -10,7 +10,7 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary>Fuxion.Tool.Sdk used by real projects (plan K, K3.2): each test builds a sample repository.</summary>
+/// <summary>Fuxion.Tool.Sdk used by real projects: each test builds a sample repository.</summary>
 public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 {
 	const string UsesMetadata = """
@@ -32,7 +32,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 		""";
 
 	/// <summary>
-	/// The local publishing of a company (plan P, decision 24): a plain props that sets PackageOutputPath with the
+	/// The local publishing of a company: a plain props that sets PackageOutputPath with the
 	/// SDK's properties; fx has nothing to do with it.
 	/// </summary>
 	const string PublishProps = """
@@ -285,7 +285,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 	[Fact(DisplayName = "dotnet.yaml imports: a project that only declares IsTestProject is an xUnit v3 test; PolySharp where a variable says")]
 	public void Imports()
 	{
-		// The repo's conventions are plain MSBuild files; dotnet.yaml says where they go (plan N, decision 15)
+		// The repo's conventions are plain MSBuild files; dotnet.yaml says where they go
 		using var repo = CentralPackages("");
 		repo.WriteFile(Path.Combine("_fx", "dotnet", "dotnet.yaml"), """
 			variables:
@@ -559,7 +559,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 				public static string Version => Lib.Info.Version + Helper.Help.Text;
 			}
 			""");
-		// a project of the same repository, also by name (plan R, decision 1)
+		// a project of the same repository, also by name
 		app.WriteFile(Path.Combine("solution", "src", "Helper", "Helper.csproj"), """
 			<Project Sdk="Microsoft.NET.Sdk">
 				<PropertyGroup>
@@ -618,7 +618,7 @@ public sealed class SdkTest(SdkFixture fixture) : IClassFixture<SdkFixture>
 	{
 		Assert.SkipWhen(fixture.MSBuildExe is null, $"Visual Studio {SdkFixture.MinimumVisualStudio} or later (MSBuild.exe) is not installed");
 		Assert.SkipWhen(Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true",
-			"The Visual Studio of the CI runner cannot load the tasks on its .NET task host (idea I-63)");
+			"The Visual Studio of the CI runner cannot load the tasks on its .NET task host");
 		using var repo = Sample();
 		// net10.0 only: the stable Visual Studio of a CI runner uses the stable .NET SDK, which cannot build net11.0
 		Succeeded(fixture.BuildWithVisualStudio(Lib(repo), "-p:TargetFrameworks=net10.0"));

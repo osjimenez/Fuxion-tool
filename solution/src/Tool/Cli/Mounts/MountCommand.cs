@@ -13,7 +13,7 @@ using XenoAtom.Terminal.UI.Styling;
 
 namespace Fuxion.Tool.Cli.Mounts;
 
-/// <summary><c>fx mount list|status|park|unpark|pull</c> (design §10.2; plan spaces, decision 18): the mounts of the space.</summary>
+/// <summary><c>fx mount list|status|park|unpark|pull</c>: the mounts of the space.</summary>
 public static class MountCommand
 {
 	public const string ListSchema = "fx-mount-list/1";
@@ -36,7 +36,7 @@ public static class MountCommand
 
 		foreach (var parked in new[] { true, false })
 		{
-			// optional for the parser: asked if missing (plan O, O3.3)
+			// optional for the parser: asked if missing
 			var names = new Argument<string[]>("names") { Description = Texts.Get("mount.names"), Arity = ArgumentArity.ZeroOrMore };
 			var park = new Command(parked ? "park" : "unpark", Texts.Get(parked ? "mount.park" : "mount.unpark"))
 			{
@@ -54,7 +54,7 @@ public static class MountCommand
 		var pull = new Command("pull", Texts.Get("mount.pull")) { only }.Describe(PullSchema, writes: true, network: true);
 		pull.SetAction((result, cancellationToken) => Run(result, global, currentDirectory, (console, token) => Pull(console, result.GetValue(only) ?? [], token), cancellationToken));
 		command.Add(pull);
-		// the ones that edit mounts.yaml (plan O, O3.4)
+		// the ones that edit mounts.yaml
 		ManifestCommands.AddTo(command, global, currentDirectory);
 		return command;
 	}
@@ -103,7 +103,7 @@ public static class MountCommand
 		var found = MountsModule.Find(console.Settings.Directory);
 		if (found is not MountsManifest manifest)
 			return console.Fail((Error)found, errors => Json([], errors));
-		// the audience of each mount (the audience ADR): a mounted space keeps its own
+		// the audience of each mount: a mounted space keeps its own
 		var config = new FxNode(manifest.Root).Config();
 		string AudienceOf(Mount mount) => MountsModule.AudienceOf(new FxNode(manifest.FullPath(mount)), mount, config);
 		var repositories = console.WithProgress((progress, cancel) => MountsModule.Repositories(manifest, withStatus, progress, cancel, MountCopies.Survey(manifest.Root)), cancellationToken)
@@ -132,7 +132,7 @@ public static class MountCommand
 
 		if (withStatus)
 		{
-			// only what asks for attention, unless --all (plan O, decision 8)
+			// only what asks for attention, unless --all
 			var shown = all ? repositories : repositories.Where(NeedsAttention).ToList();
 			if (shown.Count > 0)
 			{

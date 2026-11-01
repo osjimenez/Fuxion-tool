@@ -9,9 +9,9 @@ using Fuxion.Tool.Core.Yaml;
 namespace Fuxion.Tool.Core.Mounts;
 
 /// <summary>
-/// <c>_fx/mounts/~$state.yaml</c>: what this copy has parked. Local, not versioned. The rules (from EnergIA; plan
-/// spaces, decision 20): a required mount is always there; a clone that is already there and has no entry is adopted;
-/// a new mount without one starts parked; parking never deletes anything.
+/// <c>_fx/mounts/~$state.yaml</c>: what this copy has parked. Local, not versioned. The rules: a required mount is
+/// always there; a clone that is already there and has no entry is adopted; a new mount without one starts parked;
+/// parking never deletes anything.
 /// </summary>
 public sealed record MountsState(IReadOnlyDictionary<string, bool> Parked)
 {

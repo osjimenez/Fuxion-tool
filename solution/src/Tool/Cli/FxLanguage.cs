@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 namespace Fuxion.Tool.Cli;
 
 /// <summary>
-/// The language of fx's messages (plan O, decision 7), English or Spanish: <c>--lang</c>, then <c>FX_LANG</c>, then the
+/// The language of fx's messages, English or Spanish: <c>--lang</c>, then <c>FX_LANG</c>, then the
 /// system's, then English. Only the messages to the user: codes, commands and JSON are always English. The formats
 /// (numbers, dates) stay invariant, so that nothing fx generates depends on the regional settings.
 /// </summary>

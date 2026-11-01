@@ -22,7 +22,7 @@ public sealed record ReceivedShares(IReadOnlyDictionary<string, SharedFile> File
 }
 
 /// <summary>
-/// The shares (plan P, decision 23): files a space gives the repositories below it, outside <c>_fx/</c>, at their
+/// The shares: files a space gives the repositories below it, outside <c>_fx/</c>, at their
 /// <c>destination</c>, versioned there. They go down level by level like the rest of what is inherited: a space in
 /// between keeps them in its <c>_fx/.inherited/shares/</c> (the merged entries in <c>shares.yaml</c> and the
 /// files, under their destination) to pass them on, and a repository they apply to receives them. A received file is

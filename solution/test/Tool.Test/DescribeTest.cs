@@ -9,7 +9,7 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary><c>fx describe</c>, <c>fx schema</c> and the exit codes (plan O, O3.6): fx described by itself.</summary>
+/// <summary><c>fx describe</c>, <c>fx schema</c> and the exit codes: fx described by itself.</summary>
 [Collection(nameof(ProcessCollection))]
 public sealed class DescribeTest
 {
@@ -70,7 +70,7 @@ public sealed class DescribeTest
 		}
 	}
 
-	[Fact(DisplayName = "fx describe --skill: the skill of fx for agents (O5), from the same descriptions; every command, the rules, in English")]
+	[Fact(DisplayName = "fx describe --skill: the skill of fx for agents, from the same descriptions; every command, the rules, in English")]
 	public void Describe_Skill()
 	{
 		var (exitCode, skill, _) = Run(TempGitRepository.TempRoot, "describe", "--skill", "--lang", "es");

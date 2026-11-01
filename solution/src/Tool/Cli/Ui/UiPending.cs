@@ -9,11 +9,11 @@ using Fuxion.Tool.Core.Text;
 
 namespace Fuxion.Tool.Cli.Ui;
 
-/// <summary>An edit waiting to be applied: the command of the CLI that does the same (decision 10) and how to make it again.</summary>
+/// <summary>An edit waiting to be applied: the command of the CLI that does the same and how to make it again.</summary>
 public sealed record UiEdit(string Command, Func<IReadOnlyList<ManifestChange>> Make);
 
 /// <summary>
-/// The changes of <c>fx ui</c> that are not written yet (plan O, O4.3b; decision 14.9). Each edit is made over the
+/// The changes of <c>fx ui</c> that are not written yet. Each edit is made over the
 /// ones before it, through the read layer of the core (<see cref="FxFiles"/>), so it reads what they left; it is kept
 /// if it is valid and changes something. <see cref="Overlay"/> puts them in place of the disk, to tell what
 /// <c>fx sync</c> would do with them; <see cref="Apply"/> writes them, unless a file changed on disk meanwhile.

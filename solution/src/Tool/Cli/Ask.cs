@@ -13,10 +13,10 @@ using XenoAtom.Terminal.UI.Input;
 namespace Fuxion.Tool.Cli;
 
 /// <summary>
-/// The questions fx asks for what a command misses, as gh does (plan O, O3.3: the tool adapts to where it runs). Only
+/// The questions fx asks for what a command misses, as gh does (the tool adapts to where it runs). Only
 /// with a person in front (<see cref="TerminalCapabilities.CanPrompt"/>); elsewhere the command says what is missing
 /// and ends with <see cref="FxConsole.UsageError"/>. Inline lists of XenoAtom, not its prompts: its list prompt opens
-/// a popup, which only works full screen, and in its multiple one the list keeps Enter for itself (plan O, O1). Esc
+/// a popup, which only works full screen, and in its multiple one the list keeps Enter for itself. Esc
 /// (the quit key of XenoAtom's inline regions, replaced) and Ctrl+C cancel (<see cref="OperationCanceledException"/>):
 /// Ctrl+C as a key, or as the signal that cancels the token of the command. The answer stays as a line on stderr.
 /// </summary>

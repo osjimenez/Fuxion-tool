@@ -9,7 +9,7 @@ using Fuxion.Tool.Cli.Version;
 
 namespace Fuxion.Tool.Cli;
 
-/// <summary>The <c>fx</c> command line (design §10.2). Writers and directory come in, so tests run it in process.</summary>
+/// <summary>The <c>fx</c> command line. Writers and directory come in, so tests run it in process.</summary>
 public static class FxApp
 {
 	public static RootCommand Build(string currentDirectory)
@@ -32,7 +32,7 @@ public static class FxApp
 		foreach (var command in Describe.DescribeCommand.Create(global, currentDirectory))
 			root.Add(command);
 		global.AddTo(root);
-		// fx alone, and fx --help: fx's own help (plan O, O3.3); fx alone is not an error
+		// fx alone, and fx --help: fx's own help; fx alone is not an error
 		int Help(ParseResult result)
 			=> FxHelp.Write(new(result.InvocationConfiguration.Output, result.InvocationConfiguration.Error, global.Bind(result, currentDirectory)), root, global);
 		root.SetAction(Help);

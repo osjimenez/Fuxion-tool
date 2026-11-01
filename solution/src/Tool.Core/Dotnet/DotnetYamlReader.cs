@@ -172,7 +172,7 @@ public static partial class DotnetYamlReader
 				var when = FxYamlReader.Scalar(versionMap["when"]) is { Length: > 0 } w ? w : null;
 				if (when is null && versionList.Items.Count > 1)
 				{
-					// D-32: no "the rest": a new framework would silently get a wrong version. A single version is for all.
+					// no "the rest": a new framework would silently get a wrong version. A single version is for all.
 					reader.Error(v, "package-when", string.Join(", ", ids), version);
 					continue;
 				}

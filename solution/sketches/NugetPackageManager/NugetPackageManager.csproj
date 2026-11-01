@@ -12,7 +12,7 @@
 		<PackageReference Include="Microsoft.Extensions.Configuration" />
 		<PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" />
 		<PackageReference Include="Spectre.Console" />
-		<!-- Needs Fuxion 11 (Responses); until one is published this project is in no solution (plan K) -->
+		<!-- Needs Fuxion 11 (Responses); until one is published this project is in no solution -->
 		<PackageReference Include="Fuxion" />
 	</ItemGroup>
 

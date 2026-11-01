@@ -9,7 +9,7 @@ using SharpYaml.Events;
 
 namespace Fuxion.Tool.Core.Yaml;
 
-/// <summary>A YAML node with its position in the text (plan O, decision 11: the one YAML reader of fx).</summary>
+/// <summary>A YAML node with its position in the text (the one YAML reader of fx).</summary>
 public abstract class YamlNode
 {
 	/// <summary>The mapping or sequence that contains it.</summary>

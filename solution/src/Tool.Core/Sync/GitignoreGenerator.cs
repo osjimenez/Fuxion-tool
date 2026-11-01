@@ -9,11 +9,11 @@ using Fuxion.Tool.Core.Mounts;
 namespace Fuxion.Tool.Core.Sync;
 
 /// <summary>
-/// The <c>.gitignore</c> of a space (plan P, decision 7): a whitelist. Nothing is versioned, at any depth, except
+/// The <c>.gitignore</c> of a space: a whitelist. Nothing is versioned, at any depth, except
 /// fx's configuration, the <c>paths</c> of its <c>space.yaml</c>, what the modules generate and version (the solutions) and what
 /// the space receives from above (the shares); then
 /// the exclusions, the repositories that fall inside versioned folders, and the local files. A path deep inside also
-/// brings its folders above (git does not look inside an ignored folder; plan P, P1, detail 5).
+/// brings its folders above (git does not look inside an ignored folder).
 /// </summary>
 public static class GitignoreGenerator
 {
@@ -42,7 +42,7 @@ public static class GitignoreGenerator
 		}
 
 		b.Append('\n');
-		b.Append("# Always: the configuration of fx, and the files of the coding agents it generates (plan Q)\n");
+		b.Append("# Always: the configuration of fx, and the files of the coding agents it generates\n");
 		b.Append("!/.gitignore\n");
 		b.Append($"!/{FxLayout.Folder}/\n");
 		b.Append($"!/{FxLayout.Folder}/**\n");

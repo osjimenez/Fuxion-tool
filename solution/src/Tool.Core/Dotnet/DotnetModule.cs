@@ -15,12 +15,12 @@ using Fuxion.Tool.Core.Sync;
 namespace Fuxion.Tool.Core.Dotnet;
 
 /// <summary>
-/// The .NET module of fx in one root (design §7.2, §7.3; plan P): from what it inherits
+/// The .NET module of fx in one root: from what it inherits
 /// (<c>_fx/.inherited/dotnet/dotnet.yaml</c>, if it is for this root) and its own <c>_fx/dotnet/dotnet.yaml</c> on
 /// top, it generates <c>_fx/dotnet/dotnet.g.props</c>, <c>dotnet.g.targets</c> and <c>packages.g.props</c>, the
 /// <c>msbuild-sdks</c> of <c>global.json</c> and the solutions the root declares. <c>fx doctor</c> checks the same with
-/// the same code, plus the single owner of each package (D-16) and the coverage of the conditions (D-32). A space
-/// generates its <c>.g.*</c> only if it has projects of its own (plan P, P1, detail 3).
+/// the same code, plus the single owner of each package and the coverage of the conditions. A space
+/// generates its <c>.g.*</c> only if it has projects of its own.
 /// </summary>
 public static partial class DotnetModule
 {
@@ -38,7 +38,7 @@ public static partial class DotnetModule
 	/// <summary>Where the module writes, relative to a root.</summary>
 	public const string Folder = "_fx/dotnet";
 
-	/// <summary>The projects of the repository by name (plan R, decision 1), versioned so a clone on its own has it.</summary>
+	/// <summary>The projects of the repository by name, versioned so a clone on its own has it.</summary>
 	public const string ProjectsFile = "_fx/dotnet/projects.g.props";
 
 	public static readonly string ConfigFile = FxLayout.ModuleFile(Name);
@@ -173,7 +173,7 @@ public static partial class DotnetModule
 
 	/// <summary>
 	/// A file of the root's own <c>_fx/dotnet/</c> that no import names (as a file to import or one that travels with it,
-	/// <c>files:</c>): it reaches no repository (plan R, decision 2).
+	/// <c>files:</c>): it reaches no repository.
 	/// </summary>
 	static void CheckUnlisted(FxNode node, DotnetConfig own, FxOutputs outputs, FxDiagnostics diagnostics)
 	{
@@ -232,7 +232,7 @@ public static partial class DotnetModule
 			return;
 		}
 
-		// 2. Only the packages the repo uses (design §7.3): in its projects and in what dotnet.yaml imports, directly or
+		// 2. Only the packages the repo uses: in its projects and in what dotnet.yaml imports, directly or
 		// through FxReference (a package outside the space)
 		var used = buildFiles
 			.SelectMany(f => { var text = Read(root, f); return PackageReference().Matches(text).Concat(FxReference().Matches(text)); })
@@ -247,7 +247,7 @@ public static partial class DotnetModule
 		// packages.g.props; without it, PackageReference Update items in dotnet.g.targets, right after the project file
 		var centralFiles = diagnostics.ValueOr(git.ListFiles(":(glob)**/Directory.Packages.props"), []);
 		var centralManagement = centralFiles.Any(f => CentralManagement().IsMatch(Read(root, f)));
-		// a repository of a space that does not build on its own needs it (plan R, proposal 5)
+		// a repository of a space that does not build on its own needs it
 		var requiresSpace = !config.Standalone && !node.HasMounts && node.Inherited() is not null;
 		outputs.Generated(Path.Combine(root, Folder, "dotnet.g.props"), DotnetGenerator.Props(config, identity, propsImports, sources, requiresSpace));
 		outputs.Generated(Path.Combine(root, Folder, "dotnet.g.targets"),
@@ -256,7 +256,7 @@ public static partial class DotnetModule
 			outputs.Generated(Path.Combine(root, Folder, "packages.g.props"), DotnetGenerator.Packages(packages, sources));
 		else
 			outputs.Delete(Path.Combine(root, Folder, "packages.g.props"));
-		// its projects by name, for an FxReference inside the repository (plan R, decision 1)
+		// its projects by name, for an FxReference inside the repository
 		var projects = SpacePropsGenerator.Projects([(node, identity)], diagnostics)
 			.OrderBy(p => p.Key, StringComparer.OrdinalIgnoreCase)
 			.Select(p => (p.Key, Path.GetRelativePath(node.Full(Folder), p.Value.Path).Replace('\\', '/')))
@@ -351,7 +351,7 @@ public static partial class DotnetModule
 		outputs.Files.Add(new(outputs.Display(path), outputs.Write ? SyncFileStatus.Written : SyncFileStatus.WouldWrite));
 	}
 
-	// D-16: each id has a single owner, the yaml or the repo's Directory.Packages.props
+	// each id has a single owner, the yaml or the repo's Directory.Packages.props
 	static void CheckOwners(string root, IReadOnlyList<string> centralFiles, List<(string Id, string Version, string? Condition)> packages, FxOutputs outputs, FxDiagnostics diagnostics)
 	{
 		var governedIds = packages.Select(p => p.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -413,7 +413,7 @@ public static partial class DotnetModule
 					diagnostics.Add(FxDiagnostic.Warning(IgnoredVersion, new(IgnoredVersion, id), outputs.Display(Path.Combine(root, file)), fix: FxFix.Do($"{IgnoredVersion}.fix")));
 	}
 
-	// D-32: for every real target framework of a project that references a governed package, exactly one version matches
+	// for every real target framework of a project that references a governed package, exactly one version matches
 	static void CheckCoverage(string root, GitClient git, DotnetConfig config, List<(string Id, string Version, string? Condition)> governed, FxOutputs outputs, FxDiagnostics diagnostics)
 	{
 		var values = config.Variables.Where(v => !v.IsWhen).ToDictionary(v => v.Name, v => v.Value!, StringComparer.OrdinalIgnoreCase);

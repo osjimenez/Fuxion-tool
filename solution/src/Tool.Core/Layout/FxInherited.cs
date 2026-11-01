@@ -14,11 +14,11 @@ public sealed record FxInheritedParent(string FullName, string? Url, string? Ref
 /// <summary>A file of <c>_fx/.inherited/</c> (relative to it) and the roots it comes from (several: merged).</summary>
 public sealed record FxInheritedFile(string Path, IReadOnlyList<string> From);
 
-/// <summary>A file of the space, outside <c>_fx/</c>, that is fx's: a share (plan P, decision 23).</summary>
+/// <summary>A file of the space, outside <c>_fx/</c>, that is fx's: a share.</summary>
 public sealed record FxInheritedShare(string Destination, string From);
 
 /// <summary>
-/// <c>_fx/.inherited/inherited.yaml</c> (plan P, decision 14): the space as its parent mounts it, whose it
+/// <c>_fx/.inherited/inherited.yaml</c>: the space as its parent mounts it, whose it
 /// is, and what fx put in <c>_fx/.inherited/</c> (and outside, the shares), each with where it comes from. Generated.
 /// </summary>
 public sealed record FxInherited(FxIdentity Space, FxInheritedParent Parent, IReadOnlyList<FxInheritedFile> Files, IReadOnlyList<FxInheritedShare> Shares)

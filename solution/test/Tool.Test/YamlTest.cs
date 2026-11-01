@@ -6,7 +6,7 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary>The one YAML reader of fx, on SharpYaml's parser (plan O, O2.1).</summary>
+/// <summary>The one YAML reader of fx, on SharpYaml's parser.</summary>
 public sealed class YamlTest
 {
 	[Fact]

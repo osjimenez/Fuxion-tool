@@ -4,7 +4,7 @@ using Fuxion.Tool.Core.Layout;
 
 namespace Fuxion.Tool.Core.Self;
 
-/// <summary>How the fx that runs was installed, which says how it is updated (plan S).</summary>
+/// <summary>How the fx that runs was installed, which says how it is updated.</summary>
 public enum FxInstallKind
 {
 	/// <summary>From a release on GitHub (the install scripts, or its archive by hand): fx updates itself.</summary>

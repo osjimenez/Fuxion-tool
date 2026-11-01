@@ -13,11 +13,10 @@ using Fuxion.Tool.Core.Worktree;
 namespace Fuxion.Tool.Core.Docs;
 
 /// <summary>
-/// The module of the documentation of fx (plan U; its SPEC, <c>_docs/fx/SPEC-modulo-docs.md</c>): the catalog of a space,
-/// by the documentation standard (<c>_docs/_governance/</c>). Each document is a pair, its Markdown and its sidecar
+/// The module of the documentation of fx: the catalog of a space, by the documentation standard. Each document is a pair, its Markdown and its sidecar
 /// <c>.meta.json</c>, with its identity, its integrity and its relations; the module creates, checks, finalizes, adopts and
 /// moves them, and generates the views. Its configuration is <c>_fx/docs/docs.yaml</c>; it does not go down: each space has
-/// its own catalog. A space that mounts others leaves it out of its worktrees (I-58): what is not of a change does not go
+/// its own catalog. A space that mounts others leaves it out of its worktrees: what is not of a change does not go
 /// with a branch, and from a worktree <c>fx doc</c> uses the catalog of the main tree, the one every branch shares.
 /// </summary>
 public static class DocsModule
@@ -51,7 +50,7 @@ public static class DocsModule
 	/// <summary>
 	/// The catalog of the commands run in <paramref name="directory"/>: that of the nearest root of fx that has one, from
 	/// there up (a repository mounted in a space uses the one of the space, if it has none). In a worktree that leaves it
-	/// out, that of its main tree (I-58), said in an info. An error if there is none (<see cref="HttpStatusCode.NotFound"/>)
+	/// out, that of its main tree, said in an info. An error if there is none (<see cref="HttpStatusCode.NotFound"/>)
 	/// or a <c>docs.yaml</c> on the way is invalid (<see cref="HttpStatusCode.Conflict"/>); the warnings found, with it.
 	/// </summary>
 	public static Response<DocCatalog> Find(string directory)
@@ -88,7 +87,7 @@ public static class DocsModule
 
 	/// <summary>
 	/// Whether the root of fx at <paramref name="root"/> is in a worktree of fx that leaves its catalog out (its card, a
-	/// path with <c>worktree: false</c>; I-58): there the catalog is that of the main tree. Not one brought back with
+	/// path with <c>worktree: false</c>): there the catalog is that of the main tree. Not one brought back with
 	/// <c>fx worktree mount</c>.
 	/// </summary>
 	static bool LeftOut(string root, DocsConfig config)
@@ -102,7 +101,7 @@ public static class DocsModule
 	/// <summary>
 	/// The entry of <c>paths</c> that versions the catalog of <paramref name="node"/>, if it is a space that mounts others and
 	/// does not leave it out of its worktrees (no <c>worktree: false</c>): each worktree would carry a copy of the catalog,
-	/// on its branch (I-58). Null if it leaves it out, or does not version it.
+	/// on its branch. Null if it leaves it out, or does not version it.
 	/// </summary>
 	static SpacePath? InWorktrees(FxNode node, DocsConfig config)
 	{
@@ -115,7 +114,7 @@ public static class DocsModule
 
 	/// <summary>
 	/// The catalog of <paramref name="node"/>, if it has one: in <c>fx doctor</c>, its check; in <c>fx sync</c>, its views
-	/// generated (the SPEC of the module, 11.3). In a worktree that leaves it out, nothing: it is that of the main tree.
+	/// generated. In a worktree that leaves it out, nothing: it is that of the main tree.
 	/// </summary>
 	public static FxModuleResult? Run(FxNode node, string? repository, SyncContext context)
 	{
@@ -138,7 +137,7 @@ public static class DocsModule
 				var catalog = DocCatalog.Scan(node.Root, config);
 				if (context.Doctor)
 				{
-					// a catalog in every worktree, on the branch of each (I-58): out of them, with the command that does it
+					// a catalog in every worktree, on the branch of each: out of them, with the command that does it
 					if (InWorktrees(node, config) is { } entry)
 						diagnostics.Add(FxDiagnostic.Warning(CatalogInWorktrees, new(CatalogInWorktrees, $"{config.Catalog}/"), Display(node.Full(FxLayout.ConfigFile)),
 							entry.Line > 0 ? entry.Line : null, fix: FxFix.Run($"fx path add {config.Catalog}/ --no-worktree")));

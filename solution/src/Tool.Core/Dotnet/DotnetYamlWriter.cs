@@ -6,7 +6,7 @@ using Fuxion.Tool.Core.Yaml;
 namespace Fuxion.Tool.Core.Dotnet;
 
 /// <summary>
-/// Writes the <c>dotnet.yaml</c> a repository receives in <c>_fx/.inherited/dotnet/</c> (plan P, decision 16): what
+/// Writes the <c>dotnet.yaml</c> a repository receives in <c>_fx/.inherited/dotnet/</c>: what
 /// goes down, already merged, with the repositories of every <c>applies-to</c> absolute. Without what does not go
 /// down (the solutions, <c>standalone</c>, <c>enabled</c>) and without comments.
 /// </summary>

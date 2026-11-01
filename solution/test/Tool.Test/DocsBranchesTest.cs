@@ -9,7 +9,7 @@ using Space = Fuxion.Tool.Test.DocsCheckTest.Space;
 namespace Fuxion.Tool.Test;
 
 /// <summary>
-/// The catalog against the remote branches (plan U, U4 step 6d; the SPEC of the module, 5.1 and 5.2): what another branch
+/// The catalog against the remote branches: what another branch
 /// creates must not collide with what is here; <c>fx doc check --branches</c> and <c>--fetch</c>, and <c>new</c>.
 /// </summary>
 public sealed class DocsBranchesTest

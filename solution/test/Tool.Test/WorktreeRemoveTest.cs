@@ -13,7 +13,7 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary>The worktrees of fx (plan P, P7), on the sample tree: unmounting and removing them, the doctor and the command line.</summary>
+/// <summary>The worktrees of fx, on the sample tree: unmounting and removing them, the doctor and the command line.</summary>
 public sealed class WorktreeRemoveTest : SampleTree
 {
 	[Fact(DisplayName = "unmount and remove: not with uncommitted changes; the branches fx created go if git deletes them safely, one with new commits stays")]

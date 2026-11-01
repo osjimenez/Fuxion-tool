@@ -17,7 +17,7 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary><c>fx ui</c>, the layer to see (plan O, O4.1b): the tree, the doctor, the panels, going to an origin, worktrees.</summary>
+/// <summary><c>fx ui</c>, the layer to see: the tree, the doctor, the panels, going to an origin, worktrees.</summary>
 public sealed class UiTest : UiTree
 {
 	[Fact(DisplayName = "the first frame: the tree from the highest space, the node where it starts, the panel of the space and the keys")]

@@ -6,13 +6,13 @@ using Fuxion.Tool.Core.Git;
 
 namespace Fuxion.Tool.Core.StaticMetadata;
 
-/// <param name="CommitDateUtc">Committer date of HEAD: the build date of a reproducible build (plan K, K3.2).</param>
+/// <param name="CommitDateUtc">Committer date of HEAD: the build date of a reproducible build.</param>
 public sealed record RepositoryInfo(string? Branch, string? Commit, string? OriginUrlSHA256, string? FirstCommit, DateTimeOffset? CommitDateUtc = null)
 {
 	public static RepositoryInfo None { get; } = new(null, null, null, null);
 }
 
-// Moved from the metadata command (plan K, K2.1) so it can be tested; on the git executable since K2.2.
+// Moved from the metadata command so it can be tested; it runs the git executable.
 public static class RepositoryInfoReader
 {
 	public static RepositoryInfo TryRead(string? repositoryPath)

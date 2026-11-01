@@ -26,8 +26,8 @@ public sealed class UiField(string key, string label, string? text = null, bool?
 }
 
 /// <summary>
-/// A form of <c>fx ui</c> (plan O, O4.3b): its fields and the edits they make, each with the command that does the
-/// same (decision 10). The edits go to the pending changes; nothing is written until they are applied.
+/// A form of <c>fx ui</c>: its fields and the edits they make, each with the command that does the
+/// same. The edits go to the pending changes; nothing is written until they are applied.
 /// </summary>
 public sealed class UiForm(string title, IReadOnlyList<UiField> fields, Func<UiForm, IReadOnlyList<UiEdit>> edits, string? file = null)
 {

@@ -14,7 +14,7 @@ using Space = Fuxion.Tool.Test.DocsCheckTest.Space;
 namespace Fuxion.Tool.Test;
 
 /// <summary>
-/// The contract of fx with who uses it (plan <i>fx sobre Responses</i>, phase 0): for each document of
+/// The contract of fx with who uses it: for each document of
 /// <c>--output json</c>, a success and the failures that have their own way, with its exit code; the events of
 /// <c>--output ndjson</c>; and the lines of the diagnostics for people (<see cref="ContractProcessTest"/>). Each run is
 /// compared with its file in <c>Contract/</c>, with the paths, the versions, the commits, the identities and the times

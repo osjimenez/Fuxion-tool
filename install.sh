@@ -1,5 +1,5 @@
 #!/bin/sh
-# Installs fx, the tool of Fuxion's spaces, from the releases of Fuxion-tool on GitHub (plan S):
+# Installs fx, the tool of Fuxion's spaces, from the releases of Fuxion-tool on GitHub:
 #
 #   curl -fsSL https://raw.githubusercontent.com/osjimenez/Fuxion-tool/main/install.sh | sh
 #

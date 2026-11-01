@@ -14,7 +14,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- the schemas of the documentation standard, inside fx (plan U, ADR "esquemas cerrados, con costuras"), checked by its own validator (Docs/DocsValidator.cs) -->
+		<!-- the schemas of the documentation standard, inside fx, checked by its own validator (Docs/DocsValidator.cs) -->
 		<EmbeddedResource Include="Docs\Schemas\**\*.json" LogicalName="docs/schemas/%(RecursiveDir)%(Filename)%(Extension)" />
 	</ItemGroup>
 

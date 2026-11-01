@@ -15,7 +15,7 @@ using XenoAtom.Terminal.UI.Input;
 namespace Fuxion.Tool.Cli;
 
 /// <summary>
-/// The live region of fx (plan O, decision 9): a spinner per step that is running, at the bottom. The long steps
+/// The live region of fx: a spinner per step that is running, at the bottom. The long steps
 /// (clone, fetch, pull, remote) and the failed ones stay as lines above it when they finish; the rest only pass by.
 /// The core reports from its threads; the UI thread drains the events (<see cref="Update"/>): XenoAtom only takes
 /// changes from it. Ctrl+C is a key while the region lives (the library reads it as input): a global command of the

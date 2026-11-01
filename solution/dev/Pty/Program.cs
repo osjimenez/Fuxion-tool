@@ -1,4 +1,4 @@
-// A harness to try fx in a real terminal without a person (Windows only; plan O, O3.2): it runs a command in a
+// A harness to try fx in a real terminal without a person (Windows only): it runs a command in a
 // pseudoconsole (ConPTY), as a terminal would, types keys once some text appears or some time passes, and prints what
 // the terminal received, with the escapes made visible, or pictures of the screen.
 //

@@ -12,12 +12,12 @@ using Fuxion.Tool.Core.Yaml;
 namespace Fuxion.Tool.Core.Harness;
 
 /// <summary>
-/// The harness of coding agents (plan Q, design §12): the rules and skills of <c>_fx/harness/</c> (and what the root
+/// The harness of coding agents: the rules and skills of <c>_fx/harness/</c> (and what the root
 /// inherits in <c>_fx/.inherited/harness/</c>) become, at the root, the files each agent reads: <c>AGENTS.md</c> (the
 /// rule of fx and the rules always read, with the index of the rules by path), <c>CLAUDE.md</c> (<c>@AGENTS.md</c>),
 /// <c>.claude/rules/</c> (the rules by path) and the skills in <c>.claude/skills/</c> and <c>.agents/skills/</c>, the one
-/// of fx among them. In every root of fx, with or without <c>harness.yaml</c> (proposal 7). Those files and folders are
-/// fx's whole (D-28): what is in them and is not fx's is an error, and <c>--adopt</c> moves it to <c>_fx/harness/</c>.
+/// of fx among them. In every root of fx, with or without <c>harness.yaml</c>. Those files and folders are
+/// fx's whole: what is in them and is not fx's is an error, and <c>--adopt</c> moves it to <c>_fx/harness/</c>.
 /// </summary>
 public static class HarnessModule
 {
@@ -58,7 +58,7 @@ public static class HarnessModule
 
 	/// <summary>
 	/// The configuration of <paramref name="node"/> (who is <paramref name="identity"/>): what it inherits, if the module is
-	/// for it, with its own on top, only what is for it (decision 3); where it comes from; and its own, whole. An error
+	/// for it, with its own on top, only what is for it; where it comes from; and its own, whole. An error
 	/// (<see cref="HttpStatusCode.Conflict"/>) if its <c>harness.yaml</c> is not valid, with all found up to it.
 	/// </summary>
 	public static Response<(HarnessConfig Config, string Sources, HarnessConfig Own)> Configuration(FxNode node, FxIdentity identity)
@@ -287,7 +287,7 @@ public static class HarnessModule
 	}
 
 	/// <summary>
-	/// <c>--adopt</c> (D-28, proposal 8): an <c>AGENTS.md</c> or <c>CLAUDE.md</c> written by hand becomes the rule
+	/// <c>--adopt</c>: an <c>AGENTS.md</c> or <c>CLAUDE.md</c> written by hand becomes the rule
 	/// <c>agents-adopted</c> or <c>claude-adopted</c>, a rule of <c>.claude/rules/</c> a rule with its <c>paths</c>, and a
 	/// skill a skill of <c>_fx/harness/skills/</c>; all of them declared in <c>harness.yaml</c>. Returns what was adopted,
 	/// relative to the root, for the cleaning to remove what does not come back.

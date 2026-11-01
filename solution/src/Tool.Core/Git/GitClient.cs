@@ -18,7 +18,7 @@ public sealed record GitStatus(string? Branch, bool Detached, string? Upstream, 
 public sealed record GitWorktree(string Path, string? Branch, bool Prunable);
 
 /// <summary>
-/// Reads a repository with the git executable (design D-25): the same behavior as the user's git (configuration,
+/// Reads a repository with the git executable: the same behavior as the user's git (configuration,
 /// worktrees, credentials) and no native library. Every call runs <c>git -C &lt;root&gt;</c> with a timeout.
 /// </summary>
 public sealed class GitClient
@@ -250,7 +250,7 @@ public sealed class GitClient
 			: null;
 
 	/// <summary>
-	/// <c>git worktree add</c> of <paramref name="branch"/> at <paramref name="path"/> (plan P, decision 26), with long
+	/// <c>git worktree add</c> of <paramref name="branch"/> at <paramref name="path"/>, with long
 	/// paths on: the local branch, if there is one; if not, a new one that follows <c>origin/&lt;branch&gt;</c>, if that
 	/// exists; if not, a new one from HEAD. Whether fx created the branch. Without <paramref name="checkout"/>, nothing
 	/// is checked out yet (for a sparse working tree).
@@ -269,7 +269,7 @@ public sealed class GitClient
 	}
 
 	/// <summary>
-	/// What of this working tree is checked out (plan P, decision 26): all but <paramref name="leftOut"/> (paths
+	/// What of this working tree is checked out: all but <paramref name="leftOut"/> (paths
 	/// relative to it, folders ending in '/'), with sparse patterns of this working tree only; nothing left out, no
 	/// sparse checkout. Then it checks out what is missing.
 	/// </summary>

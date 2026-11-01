@@ -23,7 +23,7 @@ public sealed record ProcessResult(int ExitCode, string StandardOutput, string S
 }
 
 /// <summary>
-/// The only way the tool launches processes (design §10.4): explicit working directory, a timeout always, UTF-8 output.
+/// The only way the tool launches processes: explicit working directory, a timeout always, UTF-8 output.
 /// A non-zero exit code is not an error here: it is data, and the caller decides what it means. A process that does not
 /// start is an error (<see cref="HttpStatusCode.ServiceUnavailable"/>), and one that does not end in time too
 /// (<see cref="HttpStatusCode.RequestTimeout"/>). A cancellation kills the process (and its children) at once and throws

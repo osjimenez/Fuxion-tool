@@ -21,7 +21,7 @@ public sealed record DocGeneration(string Recipe, string Scope);
 public sealed record DocHashes(string Content, string Metadata);
 
 /// <summary>
-/// An entry of a register (plan U, decision 18): what it follows over time, kept in the sidecar of the register. It goes
+/// An entry of a register: what it follows over time, kept in the sidecar of the register. It goes
 /// by its name; its identity, for the relations; its key, if the register uses them (the <c>I-NN</c> of today). Its
 /// fields are those of its register (a priority, a block…), sorted by name when written.
 /// </summary>

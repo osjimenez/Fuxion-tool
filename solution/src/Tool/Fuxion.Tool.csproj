@@ -5,13 +5,13 @@
 		<TargetFramework>$(LatestCoreFramework)</TargetFramework>
 		<PackAsTool>true</PackAsTool>
 		<ToolCommandName>fx</ToolCommandName>
-		<!-- the executable is fx (fx.exe), as the command (design D-24) -->
+		<!-- the executable is fx (fx.exe), as the command -->
 		<AssemblyName>fx</AssemblyName>
 		<PackageId>Fuxion.Tool</PackageId>
 		<Description>fx, the tool of Fuxion's spaces: what they mount, the shared build of .NET (with Fuxion.Tool.Sdk), the instructions for the coding agents and the versions, from the configuration in _fx/. A native executable for each platform.</Description>
-		<!-- native AOT, a single file (design §11) -->
+		<!-- native AOT, a single file -->
 		<PublishAot>true</PublishAot>
-		<!-- a dotnet tool per platform (plan S, decision 2): `dotnet pack` makes the main package, which points to the
+		<!-- a dotnet tool per platform: `dotnet pack` makes the main package, which points to the
 		     others; `dotnet pack -r <rid>` the one of each platform, on its own operating system (AOT does not cross them) -->
 		<ToolPackageRuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx-arm64;osx-x64</ToolPackageRuntimeIdentifiers>
 		<!-- the restore of the main package needs them too (they must contain ToolPackageRuntimeIdentifiers) -->
@@ -23,7 +23,7 @@
 		<!-- what a user of fx uses is its commands, not these classes: no XML documentation (packable.props turns it on) -->
 		<GenerateDocumentationFile>false</GenerateDocumentationFile>
 		<InvariantGlobalization>true</InvariantGlobalization>
-		<!-- English and Spanish (plan O, decision 7): without the culture data (invariant), but with the cultures by
+		<!-- English and Spanish: without the culture data (invariant), but with the cultures by
 		     name, so that ResourceManager finds the Spanish texts (compiled into the exe); only these two languages of
 		     the packages' resources (System.CommandLine has many) -->
 		<PredefinedCulturesOnly>false</PredefinedCulturesOnly>

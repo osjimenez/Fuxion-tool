@@ -29,7 +29,7 @@ public sealed record ManifestChange(string File, string Before, YamlEditor After
 }
 
 /// <summary>
-/// The commands that edit the configuration of a space (plan O, O3.4; plan P): <c>fx mount add|remove|tag|set|rename</c> edit
+/// The commands that edit the configuration of a space: <c>fx mount add|remove|tag|set|rename</c> edit
 /// <c>_fx/mounts/mounts.yaml</c>, <c>fx init</c> and <c>fx path add|remove</c> its <c>_fx/space.yaml</c>; <c>fx module enable|disable</c>,
 /// the yaml of the module (creating its folder, or <c>enabled: false</c>). Each changes only what it must and keeps the rest of
 /// the file, comments included. The result is validated as the file is read (strict): a change that would leave it
@@ -206,7 +206,7 @@ public static partial class ManifestEditor
 	}
 
 	/// <summary>
-	/// Renames a repository (plan P, decision 12): its name, the references to it in this space
+	/// Renames a repository: its name, the references to it in this space
 	/// (<c>depends-on</c>, the <c>applies-to</c> of the shares and of the modules: relative ones, and absolute ones from
 	/// this space), and its old name in <c>aliases</c>, so that the references elsewhere keep working while they
 	/// change. The clone is not moved. One change per file it touches, the manifest first.
@@ -271,7 +271,7 @@ public static partial class ManifestEditor
 	}
 
 	/// <summary>
-	/// Something the git of the space versions (<c>paths</c> of its <c>space.yaml</c>, plan spaces, decision 11): a file,
+	/// Something the git of the space versions (<c>paths</c> of its <c>space.yaml</c>): a file,
 	/// or a folder ending in '/'; with <paramref name="exclude"/>, an exception inside something included; without
 	/// <paramref name="worktree"/>, left out of the worktrees. One already there takes what is asked of it
 	/// (<c>exclude: true</c>, <c>worktree: false</c>) and keeps the rest. Only the descriptor: nothing is created.
@@ -317,9 +317,9 @@ public static partial class ManifestEditor
 	}
 
 	/// <summary>
-	/// <c>fx init</c> (plan spaces, decision 14): the folder at <paramref name="root"/> becomes a space, with its
+	/// <c>fx init</c>: the folder at <paramref name="root"/> becomes a space, with its
 	/// <c>_fx/space.yaml</c>, its <paramref name="name"/> (by default, the folder's) and its audience (the widest,
-	/// public, written so that it shows: the audience ADR), and nothing more. Not where there is one already; inside a
+	/// public, written so that it shows), and nothing more. Not where there is one already; inside a
 	/// space it is a space of its own, and a mounted one declares what is its own.
 	/// </summary>
 	public static ManifestChange Init(string root, string? name = null)
@@ -337,7 +337,7 @@ public static partial class ManifestEditor
 		=> NotNameChars().Replace(Path.GetFileName(Path.TrimEndingDirectorySeparator(folder)).ToLowerInvariant(), "-").Trim('-') is { Length: > 0 } name ? name : "space";
 
 	/// <summary>
-	/// Enables a module (plan P, decision 2): creates its folder with its yaml, or takes out its <c>enabled: false</c>.
+	/// Enables a module: creates its folder with its yaml, or takes out its <c>enabled: false</c>.
 	/// With <paramref name="tags"/>, its <c>applies-to</c> (who it goes down to).
 	/// </summary>
 	public static ManifestChange EnableModule(string root, string module, IReadOnlyList<string> tags)
@@ -372,7 +372,7 @@ public static partial class ManifestEditor
 
 	/// <summary>
 	/// <c>fx module enable</c>: the module (<see cref="EnableModule"/>) and what goes with it. <c>docs</c>, in a space that
-	/// mounts others (whose worktrees leave paths out), also leaves its catalog out of the worktrees (I-58): its folder in
+	/// mounts others (whose worktrees leave paths out), also leaves its catalog out of the worktrees: its folder in
 	/// <c>paths</c> with <c>worktree: false</c>, or that flag on the entry that is there; not if it is left out already,
 	/// nor if an exclusion keeps it out of the git of the space. One change per file.
 	/// </summary>
@@ -411,7 +411,7 @@ public static partial class ManifestEditor
 	public const string InvalidYaml = "fx.invalid-yaml";
 
 	/// <summary>
-	/// The text of a configuration file of fx, replaced by hand (<c>fx ui</c>, its raw YAML; plan O, O4.3c), validated
+	/// The text of a configuration file of fx, replaced by hand (<c>fx ui</c>, its raw YAML), validated
 	/// as fx reads it: the manifest strict, the yaml of the .NET module, <c>space.yaml</c>; any other file, as YAML. The
 	/// byte order mark of the file, if it had one, stays.
 	/// </summary>

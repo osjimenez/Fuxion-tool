@@ -4,7 +4,7 @@ using System.Linq;
 namespace Fuxion.Tool.Cli;
 
 /// <summary>
-/// What fx can do with the terminal it runs in (plan O, decision 4), each one apart, as the Aspire CLI does: ask
+/// What fx can do with the terminal it runs in, each one apart, as the Aspire CLI does: ask
 /// (prompts), animate (a live region that redraws itself) and use colours. A CI log shows colours but cannot animate
 /// or answer; a pipe or a coding agent, none of them. The explicit options always win: <c>--non-interactive</c>, no
 /// asking nor animating; <c>--plain</c>, no colours; <c>--output json|ndjson</c>, none of the three.

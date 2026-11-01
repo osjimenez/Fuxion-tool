@@ -17,8 +17,7 @@ namespace Fuxion.Tool.Core.Docs;
 public sealed record DocManifestRelation(string Kind, string To, int Line);
 
 /// <summary>
-/// A target of an adoption manifest (the skill <c>doc-adoption</c>; the SPEC of the module, 12.4): what becomes of a
-/// source. Its paths, from the root of the space. Its notes, reasons and the like are for people, not for the module.
+/// A target of an adoption manifest: what becomes of a source. Its paths, from the root of the space. Its notes, reasons and the like are for people, not for the module.
 /// </summary>
 /// <param name="File">The manifest, as the diagnostics show it.</param>
 public sealed record DocManifestTarget(string Action, IReadOnlyList<string> From, string File, int Line)
@@ -57,7 +56,7 @@ public sealed record DocManifestTarget(string Action, IReadOnlyList<string> From
 }
 
 /// <summary>
-/// The adoption (the SPEC of the module, 5.5): the documents of the bootstrap regime, which get their sidecar where they
+/// The adoption: the documents of the bootstrap regime, which get their sidecar where they
 /// are; and the batches of the manifests, applied at once, all or nothing.
 /// </summary>
 public static partial class DocAdoption
@@ -299,7 +298,7 @@ public static partial class DocAdoption
 	}
 
 	/// <summary>
-	/// <c>fx doc adopt --manifest</c>: every target of the manifests at once, all or nothing (the SPEC of the module, 5.5).
+	/// <c>fx doc adopt --manifest</c>: every target of the manifests at once, all or nothing.
 	/// <c>adopt</c> moves a source of the catalog to its path, with its annexes (the folder named like it, next to it; one
 	/// from outside, as a mount that is read only, is copied),
 	/// its H1 as its title; <c>extract</c> makes a document of some sections of a source, which stays as it was;

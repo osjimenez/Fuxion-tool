@@ -67,7 +67,7 @@ public static partial class HarnessYamlReader
 		}
 	}
 
-	/// <summary>The name of a rule or a skill: a valid file name, and not <c>fx</c>, which is fx's own (proposal 7).</summary>
+	/// <summary>The name of a rule or a skill: a valid file name, and not <c>fx</c>, which is fx's own.</summary>
 	static string? Name(YamlMapping map, YamlNode node, string kind, FxYamlReader reader)
 	{
 		var name = FxYamlReader.Scalar(map["name"]);

@@ -9,10 +9,10 @@ using System.Reflection;
 namespace Fuxion.Tool.Cli;
 
 /// <summary>
-/// The help of <c>fx</c> alone and of <c>fx --help</c> (plan O, O3.3): the commands by what they are about, each with
+/// The help of <c>fx</c> alone and of <c>fx --help</c>: the commands by what they are about, each with
 /// its arguments and what it does, the options every command takes and where to look next. Generated from the
 /// commands themselves, so it does not go stale; the help of each command is still System.CommandLine's. On stdout,
-/// with colours where they can be shown. <c>fx ui</c> will head it when it exists (O4).
+/// with colours where they can be shown. <c>fx ui</c> will head it when it exists.
 /// </summary>
 static class FxHelp
 {

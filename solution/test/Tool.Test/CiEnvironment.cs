@@ -30,7 +30,7 @@ public sealed class CiEnvironment : IDisposable
 /// <summary>
 /// The tests that change the process: its environment variables (CI, GITHUB_ACTIONS, FX_CACHE, FX_WORKTREES, FX_LANG) or
 /// its language (fx in Spanish sets the culture of every thread). They go alone, after the rest, which run in parallel,
-/// a class at a time (I-44).
+/// a class at a time.
 /// </summary>
 [CollectionDefinition(nameof(ProcessCollection), DisableParallelization = true)]
 public sealed class ProcessCollection;

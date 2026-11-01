@@ -10,7 +10,7 @@ namespace Fuxion.Tool.Core.Layout;
 
 /// <summary>
 /// The reading of one of fx's YAML files: the problems found, each with its line (<c>&lt;code&gt;.&lt;key&gt;</c>
-/// texts), and its <c>schema</c> (plan P, decision 5 and proposal G). Each file has its own version, semver: with the
+/// texts), and its <c>schema</c>. Each file has its own version, semver: with the
 /// major fx knows it is read; with a higher major it is not (an error: a newer fx is needed); with a higher minor it is
 /// read and its unknown keys are warnings; otherwise an unknown key is an error. Without <c>schema</c>, a warning.
 /// </summary>

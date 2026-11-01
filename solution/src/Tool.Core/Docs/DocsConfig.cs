@@ -10,13 +10,13 @@ using Fuxion.Tool.Core.Yaml;
 
 namespace Fuxion.Tool.Core.Docs;
 
-/// <summary>A register that uses short keys (the SPEC of the module, 5.7): its prefix and the provider that reserves them.</summary>
+/// <summary>A register that uses short keys: its prefix and the provider that reserves them.</summary>
 /// <param name="Path">The register, relative to the catalog.</param>
 /// <param name="Provider"><c>repo</c> (the next free one in the catalog) or <c>git</c> (an atomic reservation on the remote).</param>
 public sealed record DocsKeyedRegister(string Path, string Prefix, string Provider, int Line);
 
 /// <summary>
-/// <c>_fx/docs/docs.yaml</c>, the module of the documentation of a space (plan U): where its catalog is, who may be the
+/// <c>_fx/docs/docs.yaml</c>, the module of the documentation of a space: where its catalog is, who may be the
 /// actor of a change, and the registers that use short keys. A space without the folder <c>_fx/docs/</c> has no catalog;
 /// without the file, the defaults.
 /// </summary>
@@ -27,7 +27,7 @@ public sealed record DocsConfig(string Catalog, IReadOnlyList<string> Actors, IR
 	public bool Enabled { get; init; } = true;
 
 	/// <summary>
-	/// The documents of the bootstrap regime (the standard, DESIGN §12): Markdown without a sidecar yet, relative to the
+	/// The documents of the bootstrap regime of the standard: Markdown without a sidecar yet, relative to the
 	/// catalog, that the module adopts and takes out of the list. Any other Markdown without its sidecar is an error.
 	/// </summary>
 	public IReadOnlyList<string> Bootstrap { get; init; } = [];

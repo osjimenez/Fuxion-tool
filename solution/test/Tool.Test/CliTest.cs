@@ -11,7 +11,7 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary>The fx command line, run in process (plan K, K2.3).</summary>
+/// <summary>The fx command line, run in process.</summary>
 [Collection(nameof(ProcessCollection))]
 public sealed class CliTest
 {
@@ -174,7 +174,7 @@ public sealed class CliTest
 		Assert.Equal("", repo.Git("tag", "--list"));
 	}
 
-	[Fact(DisplayName = "version tag without X.Y and no terminal to ask for it: what is missing, exit code 2 (plan O, O3.3)")]
+	[Fact(DisplayName = "version tag without X.Y and no terminal to ask for it: what is missing, exit code 2")]
 	public void Tag_Missing()
 	{
 		using var repo = new TempGitRepository();
@@ -217,7 +217,7 @@ public sealed class CliTest
 		Assert.Contains("'nosuch'", run.Err);
 	}
 
-	[Fact(DisplayName = "fx alone and fx --help: fx's help, with every command and the global options (plan O, O3.3)")]
+	[Fact(DisplayName = "fx alone and fx --help: fx's help, with every command and the global options")]
 	public void Help()
 	{
 		var alone = Fx(TempGitRepository.TempRoot);
@@ -228,7 +228,7 @@ public sealed class CliTest
 		Assert.Contains("  version tag [<X.Y>]", alone.Out);
 		Assert.Contains("  -v, --verbose", alone.Out);
 		Assert.Contains("  --output <format>", alone.Out);
-		// generated from the commands: none is missing; fx ui, at the top (plan O, O4)
+		// generated from the commands: none is missing; fx ui, at the top
 		foreach (var command in Commands(FxApp.Build(TempGitRepository.TempRoot), ""))
 			Assert.Contains(command == "ui" ? "fx ui · " : $"  {command}", alone.Out);
 		Assert.True(alone.Out.IndexOf("fx ui · ", StringComparison.Ordinal) < alone.Out.IndexOf("Usage:", StringComparison.Ordinal));

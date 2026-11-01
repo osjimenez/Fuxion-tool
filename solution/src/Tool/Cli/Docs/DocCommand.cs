@@ -12,7 +12,7 @@ using XenoAtom.Terminal.UI.Controls;
 namespace Fuxion.Tool.Cli.Docs;
 
 /// <summary>
-/// <c>fx doc</c> (plan U; the SPEC of the module docs, 11.1): the catalog of documents of the space. <c>check</c>,
+/// <c>fx doc</c>: the catalog of documents of the space. <c>check</c>,
 /// <c>list</c>, <c>show</c> and <c>schema</c> read it; <c>new</c>, <c>finalize</c>, <c>status</c>, <c>relate</c>,
 /// <c>adopt</c>, <c>move</c>, <c>rename</c> and <c>discard</c> write in it, all or nothing.
 /// </summary>
@@ -83,7 +83,7 @@ public static class DocCommand
 			return Schema(console, result.GetValue(schemaType));
 		});
 		command.Add(schema);
-		// who makes a change: the same option for every command of the catalog (plan U, decision 20; U6)
+		// who makes a change: the same option for every command of the catalog
 		var actor = new Option<string?>("--actor") { Description = Texts.Get("doc.actor", DocEditor.ActorVariable), HelpName = "actor", Recursive = true };
 		command.Add(actor);
 		AddWriters(command, global, currentDirectory, actor);
@@ -95,7 +95,7 @@ public static class DocCommand
 	/// <summary>The actor of a change: <c>--actor</c>, or the variable <see cref="DocEditor.ActorVariable"/>; null if neither says it.</summary>
 	internal static string? Actor(ParseResult result, Option<string?> actor) => result.GetValue(actor) ?? Environment.GetEnvironmentVariable(DocEditor.ActorVariable);
 
-	/// <summary>The commands that write (the SPEC of the module, 11.1): each one all or nothing, with <c>--dry-run</c>.</summary>
+	/// <summary>The commands that write: each one all or nothing, with <c>--dry-run</c>.</summary>
 	static void AddWriters(Command command, GlobalOptions global, string currentDirectory, Option<string?> actor)
 	{
 		Option<bool> DryRun() => new("--dry-run") { Description = Texts.Get("doc.dry-run") };
@@ -301,8 +301,8 @@ public static class DocCommand
 	/// <summary>
 	/// A change of the catalog: written (unless <c>--dry-run</c> or with errors: all or nothing) and shown, the diff of
 	/// each file or why nothing changes. <paramref name="work"/> gives an error if what it names is not there (a usage error,
-	/// <see cref="FxConsole.BadRequest"/>). An <paramref name="actor"/>, if one is said, one of <c>docs.yaml</c>, whatever the command (plan U,
-	/// U6); those that record it ask for it themselves.
+	/// <see cref="FxConsole.BadRequest"/>). An <paramref name="actor"/>, if one is said, one of <c>docs.yaml</c>, whatever the command;
+	/// those that record it ask for it themselves.
 	/// </summary>
 	internal static int Write(FxConsole console, bool dryRun, string? actor, Func<DocCatalog, Func<string, string>, Response<DocChange>> work)
 	{
@@ -365,7 +365,7 @@ public static class DocCommand
 
 	/// <summary>
 	/// The documents the selectors name, each with what it names; a usage error (<see cref="FxConsole.BadRequest"/>) if
-	/// one names none (the SPEC of the module, 14).
+	/// one names none.
 	/// </summary>
 	static Response<List<DocFile>> Select(FxConsole console, DocCatalog catalog, IEnumerable<string> selectors)
 	{
@@ -424,7 +424,7 @@ public static class DocCommand
 			return FxConsole.ExitCode(diagnostics);
 		}
 
-		// for people: a line per document with problems, its problems below, and a summary (the SPEC of the module, 11.4)
+		// for people: a line per document with problems, its problems below, and a summary
 		var shown = diagnostics.Where(d => d.Severity != FxSeverity.Info || console.Settings.Verbose).ToList();
 		void Problems(IEnumerable<FxDiagnostic> own)
 		{

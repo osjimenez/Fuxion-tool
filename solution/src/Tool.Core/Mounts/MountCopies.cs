@@ -11,7 +11,7 @@ namespace Fuxion.Tool.Core.Mounts;
 public sealed record RepositoryCopy(string FullName, string FullPath, int Height, string Space, int Line);
 
 /// <summary>
-/// The copies of the same repository in a tree (plan P, decision 19): the declarations mounted in the spaces on
+/// The copies of the same repository in a tree: the declarations mounted in the spaces on
 /// disk, from the highest space down, and the same repository is the same <c>url</c>. The highest copy is the one
 /// used, guest or not; the others are superseded, and the space that declares them parks them. Two copies at the
 /// top, at the same height, are an error: fx cannot tell which one to use, and parks none of them. Read-only: it reads

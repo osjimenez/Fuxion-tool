@@ -14,7 +14,7 @@ public static class VersionTagCommand
 
 	public static Command Create(GlobalOptions global, string currentDirectory)
 	{
-		// optional for the parser: asked if missing (plan O, O3.3)
+		// optional for the parser: asked if missing
 		var majorMinor = new Argument<string>("X.Y") { Description = Texts.Get("version.tag.argument"), Arity = ArgumentArity.ZeroOrOne };
 		var command = new Command("tag", Texts.Get("version.tag"))
 		{

@@ -10,7 +10,7 @@ using System.Threading;
 namespace Fuxion.Tool.Core.Layout;
 
 /// <summary>
-/// How the core reads its files and walks its folders (plan O, O4.3a): from the disk, unless an overlay is in place
+/// How the core reads its files and walks its folders: from the disk, unless an overlay is in place
 /// for the current flow of work (<see cref="Overlay"/>, carried by tasks and parallel loops). Then the files of the
 /// overlay, by full path, are read with their content (or are gone, if it removes them), and their folders exist and
 /// list them. Without one, each method is the one of <see cref="File"/> or <see cref="Directory"/>.

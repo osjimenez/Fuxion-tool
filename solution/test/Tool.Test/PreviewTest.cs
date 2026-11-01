@@ -12,7 +12,7 @@ using Xunit;
 namespace Fuxion.Tool.Test;
 
 /// <summary>
-/// What <c>fx sync</c> would do with changes not written yet (plan O, O4.3a): the core reads them through
+/// What <c>fx sync</c> would do with changes not written yet: the core reads them through
 /// <see cref="FxFiles"/>, and a dry run says what it would do with the repositories instead of what is wrong.
 /// </summary>
 public sealed class PreviewTest : SampleTree

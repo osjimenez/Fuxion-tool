@@ -24,7 +24,7 @@ namespace Fuxion.Tool.Core.Self;
 public sealed record SelfUpdateResult(FxInstall Install, string Current, string? Release, bool Updated, string? Command, IReadOnlyList<FxDiagnostic> Diagnostics);
 
 /// <summary>
-/// <c>fx self update</c> (plan S): fx installed from a release updates itself from another one, as the install scripts
+/// <c>fx self update</c>: fx installed from a release updates itself from another one, as the install scripts
 /// do (the archive of its platform, checked against <c>SHA256SUMS</c>); a tool of dotnet and dnx are updated with
 /// dotnet, which cannot replace the executable that runs on Windows, so fx says the command.
 /// </summary>

@@ -11,7 +11,7 @@ using Xunit;
 namespace Fuxion.Tool.Test;
 
 /// <summary>
-/// The module of the documentation (plan U, U4): the schemas of the standard inside fx, the types they declare, the
+/// The module of the documentation: the schemas of the standard inside fx, the types they declare, the
 /// validation of a sidecar against them, and <c>docs.yaml</c>.
 /// </summary>
 public sealed class DocsTest

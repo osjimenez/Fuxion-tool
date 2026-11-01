@@ -21,7 +21,7 @@ using XenoAtom.Terminal.UI.Styling;
 namespace Fuxion.Tool.Cli.Describe;
 
 /// <summary>
-/// <c>fx describe</c> and <c>fx schema</c> (plan O, decision 12): fx described by itself, for agents, the skill of fx,
+/// <c>fx describe</c> and <c>fx schema</c>: fx described by itself, for agents, the skill of fx,
 /// the documentation of the CLI and, later, MCP. <c>fx describe</c> gives every command with its arguments, its options,
 /// the schema of its JSON, whether it changes something, uses the network or takes <c>--dry-run</c>, and the exit codes;
 /// <c>fx schema &lt;id&gt;</c>, the JSON Schema of an output, made from the types that write it. Always in English, as the
@@ -34,7 +34,7 @@ public static class DescribeCommand
 	public const string EventsSchema = "fx-events/1";
 	const string UnknownSchema = "fx.unknown-schema";
 
-	/// <summary>The exit codes of fx (plan O, O3.1): the same for every command; what each means, in <c>describe.exit-code.&lt;code&gt;</c>.</summary>
+	/// <summary>The exit codes of fx: the same for every command; what each means, in <c>describe.exit-code.&lt;code&gt;</c>.</summary>
 	public static readonly IReadOnlyList<int> ExitCodes = [0, 1, FxConsole.UsageError, FxConsole.Cancelled];
 
 	public static IEnumerable<Command> Create(GlobalOptions global, string currentDirectory)
@@ -44,7 +44,7 @@ public static class DescribeCommand
 		describe.SetAction(result =>
 		{
 			var console = MountCommand.Console(result, global, currentDirectory);
-			// the skill of fx (O5): its SKILL.md, as it is, on stdout
+			// the skill of fx: its SKILL.md, as it is, on stdout
 			if (result.GetValue(skill))
 			{
 				console.Raw(FxSkill.Render(Document(currentDirectory)).TrimEnd('\n'));

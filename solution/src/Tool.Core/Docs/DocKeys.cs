@@ -15,8 +15,7 @@ namespace Fuxion.Tool.Core.Docs;
 public sealed record DocKey(string Key, bool Provisional, FxText? Problem = null);
 
 /// <summary>
-/// The short keys of the entries of a register (the SPEC of the module, 5.7; the ADR "claves con provider opcional"):
-/// only for the registers of <c>docs.yaml</c> that declare a prefix and a provider.
+/// The short keys of the entries of a register, optional and with a provider: only for the registers of <c>docs.yaml</c> that declare a prefix and a provider.
 /// <list type="bullet">
 /// <item><c>repo</c>: the next after the highest of the register, here and in every branch git has (local, and remote
 /// already fetched). Without network: two people offline can take the same one, and the check sees it when they join.</item>

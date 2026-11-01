@@ -26,7 +26,7 @@ public sealed record DocFile(string Folder, string Stem, string? Markdown, strin
 }
 
 /// <summary>
-/// The catalog of a space (the SPEC of the module, 13.1): the folder of <c>docs.yaml</c> with every document in it. Its
+/// The catalog of a space: the folder of <c>docs.yaml</c> with every document in it. Its
 /// folders that start with '.' or are local (<c>~$</c>) are not part of it, nor the files that are not Markdown or sidecars.
 /// </summary>
 public sealed class DocCatalog
@@ -52,7 +52,7 @@ public sealed class DocCatalog
 
 	/// <summary>
 	/// The folder the catalog has in the worktree where the command runs, when that worktree leaves it out and this is
-	/// the catalog of the main tree (I-58): a path into it names the same one here. None, elsewhere.
+	/// the catalog of the main tree: a path into it names the same one here. None, elsewhere.
 	/// </summary>
 	public string? WorktreeFolder { get; }
 
@@ -162,7 +162,7 @@ public sealed class DocCatalog
 	public bool IsBootstrap(DocFile file) => Config.Bootstrap.Contains(file.Path, StringComparer.Ordinal);
 
 	/// <summary>
-	/// The documents <paramref name="selector"/> names (the SPEC of the module, 11.2): a path (relative to
+	/// The documents <paramref name="selector"/> names: a path (relative to
 	/// <paramref name="currentDirectory"/>, or to the catalog; into the <see cref="WorktreeFolder"/>, the same here), with
 	/// or without its extension, or a folder (everything below it); or an identity, among <paramref name="ids"/>. None, if
 	/// it names nothing.

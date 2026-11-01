@@ -9,7 +9,7 @@ using Task = Microsoft.Build.Utilities.Task;
 namespace Fuxion.Tool.Sdk;
 
 /// <summary>
-/// The version of the repository from its git history (design §9, D-15): the same calculation as <c>fx version</c>.
+/// The version of the repository from its git history: the same calculation as <c>fx version</c>.
 /// </summary>
 public sealed class FxVersion : Task
 {

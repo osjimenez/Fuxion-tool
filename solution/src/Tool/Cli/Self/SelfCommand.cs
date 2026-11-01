@@ -11,7 +11,7 @@ namespace Fuxion.Tool.Cli.Self;
 public sealed record SelfUpdateSettings(GlobalSettings Global, string? Version, bool Check);
 
 /// <summary>
-/// <c>fx self update [--version &lt;X.Y.Z&gt;] [--check]</c> (plan S): fx updated as it was installed. From a release
+/// <c>fx self update [--version &lt;X.Y.Z&gt;] [--check]</c>: fx updated as it was installed. From a release
 /// (the install scripts), it updates itself; with dotnet or dnx, it says the command that does.
 /// </summary>
 public static class SelfCommand

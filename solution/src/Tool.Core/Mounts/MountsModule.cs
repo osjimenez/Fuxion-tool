@@ -17,13 +17,13 @@ namespace Fuxion.Tool.Core.Mounts;
 
 /// <summary>
 /// A repository of the manifest and its state here: whether it is mounted (the intent), at its place or parked, and
-/// the copy used instead of it, if a higher one supersedes it (plan P, decisions 19 and 20).
+/// the copy used instead of it, if a higher one supersedes it.
 /// </summary>
 public sealed record RepositoryState(Mount Repository, string FullPath, bool Mounted, bool Present, GitStatus? Status, bool Parked = false,
 	RepositoryCopy? SupersededBy = null);
 
 /// <summary>
-/// The space module of fx (plan P, decision 3): what a space mounts and what its git versions. In
+/// The space module of fx: what a space mounts and what its git versions. In
 /// <c>fx sync</c> it clones the mounted repositories that are missing (or brings them back from the parking) and
 /// fetches the others, parks what it does not use, keeps the local state and generates the <c>.gitignore</c>;
 /// <c>fx doctor</c> checks the same without touching anything, plus the state of each repository and what is on disk
@@ -94,28 +94,27 @@ public static class MountsModule
 		return result;
 	}
 
-	/// <summary>Where a repository of the space is parked (plan P, decision 20): its path, under <c>_fx/~$parking/</c>.</summary>
+	/// <summary>Where a repository of the space is parked: its path, under <c>_fx/~$parking/</c>.</summary>
 	public static string ParkingPath(MountsManifest manifest, Mount repository)
 		=> FxLayout.Normalize(FxLayout.Full(manifest.Root, $"{FxLayout.Parking}/{repository.Path}"));
 
 	/// <summary>
 	/// The mounted repositories of the space at <paramref name="node"/>: a clone already there is adopted; what is
 	/// mounted and missing comes back from the parking, or is cloned (not in a dry run, <c>--offline</c> or the doctor);
-	/// what is there is checked and fetched. What is there and not used goes to the parking (plan P, decisions 19 and
-	/// 20): an unmounted repository, or a copy a higher one supersedes (the intent stays: if the higher copy goes, this
-	/// one comes back). The local state is saved. Returns the repositories used, on disk, in the order of the manifest.
+	/// what is there is checked and fetched. What is there and not used goes to the parking: an unmounted repository, or
+	/// a copy a higher one supersedes (the intent stays: if the higher copy goes, this one comes back). The local state is saved. Returns the repositories used, on disk, in the order of the manifest.
 	/// </summary>
 	public static IReadOnlyList<Mount> Apply(MountsManifest manifest, SyncContext context, FxDiagnostics diagnostics, List<RepositoryAction> actions)
 	{
 		var root = manifest.Root;
 		// inside a worktree nothing is required: mounted is what is there (fx worktree mounts it), and sync neither
-		// clones, nor parks, nor fetches, nor keeps a state (plan P, decisions 27 and 28)
+		// clones, nor parks, nor fetches, nor keeps a state
 		if (WorktreeCard.FindRoot(root) is not null)
 			return manifest.Mounts.Where(r => FxLayout.IsGitRoot(manifest.FullPath(r))).ToList();
 		var cancellationToken = context.CancellationToken;
 		var progress = context.Progress;
 		var state = MountsState.Load(root);
-		// which copy of each repository is used: the highest in the tree (decision 19), now that what is above is mounted
+		// which copy of each repository is used: the highest in the tree, now that what is above is mounted
 		var copies = MountCopies.Survey(root);
 		var manifestFile = Display(context, root, MountsManifest.RelativePath);
 		diagnostics.AddRange(copies.Ties(root, manifestFile));
@@ -277,7 +276,7 @@ public static class MountsModule
 	}
 
 	/// <summary>
-	/// The audience of a mount (the audience ADR): a mounted space (its own <c>_fx/space.yaml</c>) keeps its own,
+	/// The audience of a mount: a mounted space (its own <c>_fx/space.yaml</c>) keeps its own,
 	/// wherever it is mounted; a repository has the one its space gives it in <c>mounts.yaml</c>, or the widest of the
 	/// catalog of <paramref name="space"/>.
 	/// </summary>
@@ -292,8 +291,8 @@ public static class MountsModule
 		   select FxDiagnostic.Error(SpaceConfig.Invalid, new($"{SpaceConfig.Invalid}.path-in-repository", path.Path, inside.Name), configFile, path.Line);
 
 	/// <summary>
-	/// The references of this space that use an old name of one of its repositories (<c>aliases</c>, plan P,
-	/// decision 12): they still work, but they should change. In <c>depends-on</c> and in the <c>applies-to</c> of the
+	/// The references of this space that use an old name of one of its repositories (<c>aliases</c>): they
+	/// still work, but they should change. In <c>depends-on</c> and in the <c>applies-to</c> of the
 	/// shares and of the .NET module.
 	/// </summary>
 	static void AliasReferences(FxNode node, FxIdentity identity, MountsManifest manifest, SpaceConfig config, SyncContext context, FxDiagnostics diagnostics)
@@ -335,7 +334,7 @@ public static class MountsModule
 	}
 
 	/// <summary>
-	/// What is on disk that nobody declared (plan P, P1, detail 6): repositories (a warning) and folders the space does
+	/// What is on disk that nobody declared: repositories (a warning) and folders the space does
 	/// not version (an info). It does not go into the repositories, <c>_fx/</c>, the local files nor what is versioned; a
 	/// folder with only folders is walked, one with files is reported and left.
 	/// </summary>
@@ -349,13 +348,13 @@ public static class MountsModule
 	}
 
 	/// <summary>
-	/// What is on disk in the space at <paramref name="root"/> that nobody declared (plan P, P1, detail 6): repositories
+	/// What is on disk in the space at <paramref name="root"/> that nobody declared: repositories
 	/// (<c>repository</c>), and folders with files of their own that it does not version; relative, ending in '/'.
 	/// </summary>
 	public static IEnumerable<(string Relative, bool Repository)> Strangers(string root, MountsManifest manifest, SpaceConfig config)
 	{
 		var repositories = manifest.Mounts.Select(r => manifest.FullPath(r)).ToList();
-		// the folders of the coding agents (plan Q): fx's, as _fx/
+		// the folders of the coding agents: fx's, as _fx/
 		var skills = Harness.HarnessModule.Folders.Select(f => f + "/").ToList();
 		var found = new List<(string, bool)>();
 		void Visit(string directory)
@@ -412,11 +411,11 @@ public static class MountsModule
 					repository: name, fix: FxFix.Run(FxHeader.Sync)));
 			if (GitClient.Discover(repo.FullPath) is not { } git)
 				return;
-			// fx writes ~$ files inside the repositories: they have to be ignored (plan P, decision 9)
+			// fx writes ~$ files inside the repositories: they have to be ignored
 			if (!git.Ignores(FxLayout.LocalPrefix + "fx-probe"))
 				diagnostics.Add(FxDiagnostic.Error(LocalNotIgnored, new(LocalNotIgnored, name), $"{repo.Repository.Path}/.gitignore", repository: name,
 					fix: FxFix.Do($"{LocalNotIgnored}.fix")));
-			// its worktrees out of their place, or lost (plan P, decision 30): of the main clones, not inside a worktree
+			// its worktrees out of their place, or lost: of the main clones, not inside a worktree
 			if (!inWorktree)
 				diagnostics.AddRange(WorktreeModule.Check(repo.FullPath, name));
 			var read = progress.Step(Name, name, "status", git.Status);
@@ -479,7 +478,7 @@ public static class MountsModule
 	// fx mount
 
 	/// <summary>
-	/// Moves a clone between its place and the parking of its space (plan P, decision 20): a rename on the same
+	/// Moves a clone between its place and the parking of its space: a rename on the same
 	/// disk, instant whatever it holds. If its place is taken or something has it open, nothing moves: an error
 	/// (<see cref="HttpStatusCode.Conflict"/>; <see cref="HttpStatusCode.Forbidden"/> if the system denies it). Then git's
 	/// links with its worktrees are repaired, and the empty folders it leaves behind go.
@@ -534,7 +533,7 @@ public static class MountsModule
 	}
 
 	/// <summary>
-	/// <c>fx mount park</c>/<c>unpark</c> (plan P, decision 20; plan spaces, decision 18): the intent in the local state,
+	/// <c>fx mount park</c>/<c>unpark</c>: the intent in the local state,
 	/// and the clone moved now. Parking moves it to the parking; unparking brings it back, unless a higher copy
 	/// supersedes it (then it stays there). It never clones (<c>fx sync</c> does) and never deletes. With an unknown
 	/// name, or a required mount to park, nothing changes; a clone that cannot move keeps its state.

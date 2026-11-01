@@ -21,7 +21,7 @@ using XenoAtom.Terminal.UI.Text;
 
 namespace Fuxion.Tool.Cli.Ui;
 
-// editing (plan O, O4.3b; decision 14.9): the forms, the pending changes and applying them
+// editing: the forms, the pending changes and applying them
 public sealed partial class UiApp
 {
 	/// <summary>The changes not written yet (F10).</summary>
@@ -87,7 +87,7 @@ public sealed partial class UiApp
 			yield return Opening(Texts.Get("ui.edit.path-add"), $"fx path add <path>{root}", () => ShowForm(PathForm(node)));
 			yield return Opening(Texts.Get("ui.edit.path-remove"), $"fx path remove <path>{root}", () => ShowPathRemove(node));
 		}
-		// a yaml of fx, by hand (14.9, O4.3c)
+		// a yaml of fx, by hand
 		if (node.Kind == FxTreeKind.File && node.Origin == FxOrigin.Hand && ConfigOf(node.Path) is var (configRoot, configFile))
 			yield return Opening(Texts.Get("ui.edit.yaml"), Texts.Get("ui.edit.by-hand", configFile), () => ShowYaml(configRoot, configFile));
 	}
@@ -103,7 +103,7 @@ public sealed partial class UiApp
 		return null;
 	}
 
-	/// <summary>The raw editor open, if any (O4.3c).</summary>
+	/// <summary>The raw editor open, if any.</summary>
 	public CodeEditor? Editor { get; private set; }
 
 	(string Root, string File, Dialog Dialog, State<string> Error)? _yaml;
@@ -172,7 +172,7 @@ public sealed partial class UiApp
 		return true;
 	}
 
-	/// <summary>A YAML editor with a small highlighter of its own (keys, comments, list dashes): no TextMate, no native code (plan O, O1).</summary>
+	/// <summary>A YAML editor with a small highlighter of its own (keys, comments, list dashes): no TextMate, no native code.</summary>
 	static CodeEditor YamlEditor(string text) => new CodeEditor(text).Highlighter((in CodeEditorLineHighlightRequest request, List<StyledRun> runs) =>
 	{
 		var buffer = new char[request.LineLength];

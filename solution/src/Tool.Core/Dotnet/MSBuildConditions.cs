@@ -8,8 +8,8 @@ using Fuxion.Tool.Core.Results;
 namespace Fuxion.Tool.Core.Dotnet;
 
 /// <summary>
-/// The MSBuild conditions of <c>dotnet.yaml</c>: expanding the <c>when</c> variables in them (design §7.3) and evaluating
-/// the subset the coverage check understands (D-32).
+/// The MSBuild conditions of <c>dotnet.yaml</c>: expanding the <c>when</c> variables in them and evaluating
+/// the subset the coverage check understands.
 /// </summary>
 public static partial class MSBuildConditions
 {

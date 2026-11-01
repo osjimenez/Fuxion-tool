@@ -8,15 +8,15 @@ using Fuxion.Tool.Core.Layout;
 namespace Fuxion.Tool.Cli.Describe;
 
 /// <summary>
-/// The skill of fx for coding agents (plan O, O5): a <c>SKILL.md</c> made from what <c>fx describe</c> gives (decision
-/// 12), so it never drifts from the commands: how an agent runs fx, every command with its arguments, options, output
+/// The skill of fx for coding agents: a <c>SKILL.md</c> made from what <c>fx describe</c> gives, so it never drifts
+/// from the commands: how an agent runs fx, every command with its arguments, options, output
 /// and what it does, the global options and the exit codes. Always in English, as the JSON of fx.
 /// </summary>
 public static class FxSkill
 {
 	public const string Name = "fx";
 
-	/// <summary>The skill, made once from the commands of this fx: what <c>fx sync</c> writes in every root of fx (plan O, O5.1).</summary>
+	/// <summary>The skill, made once from the commands of this fx: what <c>fx sync</c> writes in every root of fx.</summary>
 	public static string Text => Made.Value;
 
 	static readonly Lazy<string> Made = new(() => Render(DescribeCommand.Document(Directory.GetCurrentDirectory())));

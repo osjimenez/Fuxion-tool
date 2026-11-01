@@ -11,7 +11,7 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary>The tree of <c>fx ui</c> (plan O, O4.1, decision 14), read from the sample tree.</summary>
+/// <summary>The tree of <c>fx ui</c>, read from the sample tree.</summary>
 public sealed class ExploreTest : SampleTree
 {
 	static FxTreeNode At(FxTreeNode tree, string relative)
@@ -130,8 +130,7 @@ public sealed class ExploreTest : SampleTree
 		Assert.Equal(["/acme/repo-w1/repo-c1"], serilog.Reason.Values);
 		Assert.Contains(c1, a => a is { What: "package", Name: "xunit.v3", Applies: true, Reason.Kind: FxReasonKind.Everyone });
 		Assert.Contains(c1, a => a is { What: "import", Name: "default.props", Applies: true });
-		// a space receives it to pass it on, not for it; a repository it is not for does not even receive it (plan R,
-		// decision 2)
+		// a space receives it to pass it on, not for it; a repository it is not for does not even receive it
 		Assert.Contains(FxTree.Applies(At(tree, "repo-w1")), a => a is { What: "package", Name: "Serilog", Applies: false, Reason.Kind: FxReasonKind.NotForIt });
 		Assert.DoesNotContain(FxTree.Applies(At(tree, "repo-w1/repo-c2")), a => a.What == "package" && a.Name == "Serilog");
 

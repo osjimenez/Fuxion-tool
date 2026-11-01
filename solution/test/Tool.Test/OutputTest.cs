@@ -9,7 +9,7 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary>The faces of the command line (plan O, O3.1): what fx can do with the terminal, NDJSON, cancellation.</summary>
+/// <summary>The faces of the command line: what fx can do with the terminal, NDJSON, cancellation.</summary>
 public sealed class OutputTest
 {
 	static GlobalSettings Settings(OutputFormat output = OutputFormat.Human, bool plain = false, bool nonInteractive = false)

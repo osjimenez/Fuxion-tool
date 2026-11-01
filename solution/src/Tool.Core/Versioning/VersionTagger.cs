@@ -10,8 +10,8 @@ namespace Fuxion.Tool.Core.Versioning;
 public sealed record CreatedVersionTag(string Name, string Commit);
 
 /// <summary>
-/// Creates the tag of a new minor or major (design §9, D-18): <c>version/X.Y.0</c> on HEAD, the only source of the
-/// numbers. Local only (D-20): pushing it is up to the user.
+/// Creates the tag of a new minor or major: <c>version/X.Y.0</c> on HEAD, the only source of the
+/// numbers. Local only: pushing it is up to the user.
 /// </summary>
 public static class VersionTagger
 {

@@ -10,7 +10,7 @@ using Space = Fuxion.Tool.Test.DocsCheckTest.Space;
 namespace Fuxion.Tool.Test;
 
 /// <summary>
-/// The keys of the entries (plan U, U4 step 6c; the SPEC of the module, 5.7): the provider <c>repo</c> (the next one,
+/// The keys of the entries: the provider <c>repo</c> (the next one,
 /// looking at every branch), <c>git</c> (an atomic reservation on the remote, provisional without it) and
 /// <c>fx doc key</c>.
 /// </summary>

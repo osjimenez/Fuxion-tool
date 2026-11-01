@@ -6,8 +6,8 @@ using Fuxion.Tool.Core.Yaml;
 namespace Fuxion.Tool.Core.Harness;
 
 /// <summary>
-/// Writes the <c>harness.yaml</c> a repository receives in <c>_fx/.inherited/harness/</c>: what goes down to it (proposal
-/// 1), already merged, with the repositories of every <c>applies-to</c> absolute. Without <c>enabled</c> and without
+/// Writes the <c>harness.yaml</c> a repository receives in <c>_fx/.inherited/harness/</c>: what goes down to it, already
+/// merged, with the repositories of every <c>applies-to</c> absolute. Without <c>enabled</c> and without
 /// comments.
 /// </summary>
 public static class HarnessYamlWriter

@@ -7,7 +7,7 @@ using System.Runtime.CompilerServices;
 
 namespace Fuxion.Tool.Core.Results;
 
-// fx on the responses of Fuxion (ADR "Los diagnósticos de fx en las Responses"): what can fail for something expected
+// fx on the responses of Fuxion: what can fail for something expected
 // returns a Response; a failure is one Error, with its category (an HttpStatusCode) as its Type and the diagnostics of the
 // operation, in the order they were found, as its Payload; the warnings of a success go with it, in its extension
 // "diagnostics". No result type of fx's own: these helpers read and make the types of Fuxion.

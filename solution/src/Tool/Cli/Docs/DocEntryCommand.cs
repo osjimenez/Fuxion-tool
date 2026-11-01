@@ -12,7 +12,7 @@ using XenoAtom.Terminal.UI.Controls;
 namespace Fuxion.Tool.Cli.Docs;
 
 /// <summary>
-/// <c>fx doc entry add|set|close|list</c> (plan U, decision 18): the entries of a register, which live in its sidecar
+/// <c>fx doc entry add|set|close|list</c>: the entries of a register, which live in its sidecar
 /// and change only through these commands; each change finalizes the register.
 /// </summary>
 public static class DocEntryCommand

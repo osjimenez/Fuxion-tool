@@ -13,7 +13,7 @@ namespace Fuxion.Tool.Core.Worktree;
 public sealed record WorktreeMount(string Path, string Repository, bool CreatedBranch);
 
 /// <summary>
-/// <c>~$worktree.yaml</c>, at the root of a worktree (plan P, decision 29): its branch, where it was created from, the
+/// <c>~$worktree.yaml</c>, at the root of a worktree: its branch, where it was created from, the
 /// paths left out of it and what is mounted in it. Local, written by fx.
 /// </summary>
 public sealed record WorktreeCard(string Branch, string From, IReadOnlyList<string> LeftOut, IReadOnlyList<WorktreeMount> Worktrees)

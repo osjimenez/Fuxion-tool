@@ -10,7 +10,7 @@ public sealed record DocRelationRule(string Kind, IReadOnlyList<string>? Sources
 
 /// <summary>
 /// The kinds of relation of the standard and the types each one joins, from the annotation <c>x-docs-relation-rules</c>
-/// of their definition in the schemas (the metadata model, section 8; plan U, ADR "esquemas cerrados, con costuras").
+/// of their definition in the schemas, never from a list in the code.
 /// </summary>
 public static class DocRelations
 {

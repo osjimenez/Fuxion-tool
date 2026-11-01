@@ -12,7 +12,7 @@ using Space = Fuxion.Tool.Test.DocsCheckTest.Space;
 namespace Fuxion.Tool.Test;
 
 /// <summary>
-/// The adoption and the moves of the module (plan U, U4 step 5; the SPEC of the module, 5.5 and 5.6): the bootstrap
+/// The adoption and the moves of the module: the bootstrap
 /// documents, the batches of the manifests, <c>move</c>, and the links of the catalog that follow what moves.
 /// </summary>
 public sealed class DocsAdoptTest

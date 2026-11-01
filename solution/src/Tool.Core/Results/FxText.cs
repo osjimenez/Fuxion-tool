@@ -6,7 +6,7 @@ using System.Resources;
 namespace Fuxion.Tool.Core.Results;
 
 /// <summary>
-/// A message for the user (plan O, decision 7): a key of <c>Resources/Strings.resx</c> (English) and its arguments,
+/// A message for the user: a key of <c>Resources/Strings.resx</c> (English) and its arguments,
 /// translated when it is written, not when it is created. <see cref="English"/> is what the JSON and the logs carry;
 /// <see cref="ToString()"/>, the language of the user (the current UI culture: <c>Strings.es.resx</c> for Spanish).
 /// Codes, commands and JSON are never translated. Its arguments are a closed set (<see cref="FxArg"/>: a text, a number

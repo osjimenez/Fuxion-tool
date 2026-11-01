@@ -7,8 +7,8 @@ namespace Fuxion.Tool.Core.Layout;
 
 /// <summary>
 /// Who a repository (or a space) is: its name, given by whoever declares it; its full name, the chain of names from
-/// the root (<c>/acme/repo-w1/repo-c1</c>, plan P, decision 11); its tags (decision 21), its old names (decision 12)
-/// and its audience, as its space declares it (the audience ADR; null for a root, whose own is in its space.yaml).
+/// the root (<c>/acme/repo-w1/repo-c1</c>); its tags, its old names
+/// and its audience, as its space declares it (null for a root, whose own is in its space.yaml).
 /// </summary>
 public sealed record FxIdentity(string Name, string FullName, IReadOnlyList<string> Tags, IReadOnlyList<string>? Aliases = null, string? Audience = null)
 {
@@ -22,14 +22,14 @@ public sealed record FxIdentity(string Name, string FullName, IReadOnlyList<stri
 
 	/// <summary>
 	/// A reference to a repository written by <paramref name="writer"/> (its full name), made absolute: with '/' in
-	/// front it already is; without it, it is relative to the space that wrote it (decision 11).
+	/// front it already is; without it, it is relative to the space that wrote it.
 	/// </summary>
 	public static string Resolve(string reference, string writer)
 		=> reference.StartsWith('/') ? reference.TrimEnd('/') : $"{writer.TrimEnd('/')}/{reference.Trim('/')}";
 }
 
 /// <summary>
-/// Who something is for (plan P, decision 22): a module, an import, a variable, a package, a share. By tags or by
+/// Who something is for: a module, an import, a variable, a package, a share. By tags or by
 /// repositories (names: absolute with '/', relative to the space that writes them without it); without both, for
 /// everyone. A space in between always receives what comes from above, to pass it on: <c>applies-to</c> says who
 /// uses something, never who lets it through.
@@ -49,7 +49,7 @@ public sealed record FxAppliesTo(IReadOnlyList<string> Tags, IReadOnlyList<strin
 	/// <summary>
 	/// Whether it may be for the space <paramref name="who"/> or for something below it, so the space passes it
 	/// on: by tags (its repositories have tags its parent does not know), for everyone, or naming it or a repository
-	/// below it (plan Q, proposal 1; plan R, decision 2).
+	/// below it.
 	/// </summary>
 	public bool MayApplyBelow(FxIdentity who)
 		=> IsAll || Tags.Count > 0 || Repositories.Any(r => who.Is(r)

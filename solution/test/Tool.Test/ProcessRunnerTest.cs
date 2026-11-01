@@ -8,7 +8,7 @@ using Xunit;
 namespace Fuxion.Tool.Test;
 
 /// <summary>
-/// The processes and git on the responses (plan <i>fx sobre Responses</i>, phase 3): a process that does not start or
+/// The processes and git on the responses: a process that does not start or
 /// does not end in time is an error; its exit code, data; git that fails, an error of what it was asked.
 /// </summary>
 public sealed class ProcessRunnerTest

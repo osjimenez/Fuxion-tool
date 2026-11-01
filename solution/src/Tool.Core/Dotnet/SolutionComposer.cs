@@ -11,10 +11,10 @@ using Fuxion.Tool.Core.Results;
 namespace Fuxion.Tool.Core.Dotnet;
 
 /// <summary>
-/// The solutions a root generates (plan P, decision 13), composed by hand in its <c>dotnet.yaml</c> with the vocabulary
+/// The solutions a root generates, composed by hand in its <c>dotnet.yaml</c> with the vocabulary
 /// of the <c>.slnx</c>: each folder takes files and the content of other solutions (their projects, files and folders,
 /// as subfolders). They are versioned with everything declared: a solution of a repository that is not on disk keeps
-/// what the generated solution already had of it (Visual Studio shows it as unavailable; plan P, P1, detail 2). A project
+/// what the generated solution already had of it (Visual Studio shows it as unavailable). A project
 /// that arrives twice appears once; two different projects with the same name in the same folder are an error (Visual
 /// Studio does not take them).
 /// </summary>
@@ -92,7 +92,7 @@ public static class SolutionComposer
 				string Item(string itemPath) => Path.IsPathRooted(itemPath)
 					? Path.GetRelativePath(outDir, itemPath).Replace('\\', '/')
 					: Relative(outFolder, $"{subFolder}/{itemPath}");
-				// what it is made of, on disk or not: the solution does not change with what is mounted (decision 13)
+				// what it is made of, on disk or not: the solution does not change with what is mounted
 				sources.Add(sub);
 				if (FxFiles.Exists(subFile) && Parse(FxFiles.ReadAllText(subFile)) is { } document)
 				{

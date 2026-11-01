@@ -17,7 +17,7 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary><c>fx ui</c>, the layers to act and to edit (plan O, O4.2 and O4.3): sync, mount, pull, the forms, the raw YAML.</summary>
+/// <summary><c>fx ui</c>, the layers to act and to edit: sync, mount, pull, the forms, the raw YAML.</summary>
 public sealed class UiActionTest : UiTree
 {
 	[Fact(DisplayName = "F7 syncs the root of the node: the dialog shows its command and what it would do; Enter does it, and the log keeps it")]

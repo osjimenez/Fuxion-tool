@@ -5,7 +5,7 @@ namespace Fuxion.Tool.Core.Layout;
 /// <summary>
 /// The version of the fx that runs, from its informational version: <c>0.7.4+62d65aa…</c> made by the CI and published,
 /// <c>0.7.6+local.62d65aa…</c> built from its sources. fx and <see cref="SdkPackage"/> are released together, with the
-/// same version (plan S).
+/// same version.
 /// </summary>
 public static class FxToolVersion
 {

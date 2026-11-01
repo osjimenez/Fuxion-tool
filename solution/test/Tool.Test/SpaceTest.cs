@@ -14,7 +14,7 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary>The space module and the sync of a tree: manifest, local state, inheritance, sync, doctor and fx mount (plans M and P).</summary>
+/// <summary>The space module and the sync of a tree: manifest, local state, inheritance, sync, doctor and fx mount.</summary>
 public sealed class SpaceTest
 {
 	/// <summary>
@@ -340,7 +340,7 @@ public sealed class SpaceTest
 		Assert.True(MountsState.Empty.With("a", false).IsMounted(mandatory, cloneExists: true));
 	}
 
-	// Progress (plan O, decision 13)
+	// Progress
 
 	/// <summary>The events of the progress channel, from any thread.</summary>
 	sealed class Recorder : IFxProgress
@@ -613,7 +613,7 @@ public sealed class SpaceTest
 		File.WriteAllBytes(Path.Combine(ws.Root, "_fx", "dotnet", "assets", "icon.png"), icon);
 		Assert.Empty(Errors(Sync(ws.Root)));
 
-		// the yaml merged, of what is for it and without the solutions; only the files of what applies (plan R, decision 2),
+		// the yaml merged, of what is for it and without the solutions; only the files of what applies,
 		// binaries byte for byte, text with the header
 		var inherited = Path.Combine(ws.RepoPath("plus"), "_fx", ".inherited");
 		var yaml = ws.Read("plus/repo/_fx/.inherited/dotnet/dotnet.yaml");
@@ -636,7 +636,7 @@ public sealed class SpaceTest
 		var props = ws.Read("plus/repo/_fx/dotnet/dotnet.g.props");
 		Assert.Contains("$(MSBuildThisFileDirectory)../.inherited/dotnet/default.props", props);
 		Assert.Contains("<FxRepositoryFullName>/test/plus</FxRepositoryFullName>", props);
-		// a repository of a space that does not say it builds on its own needs it (plan R, proposal 5)
+		// a repository of a space that does not say it builds on its own needs it
 		Assert.Contains("<FxRequiresSpace Condition=\"'$(FxRequiresSpace)' == ''\">true</FxRequiresSpace>", props);
 		Assert.False(Directory.Exists(Path.Combine(ws.RepoPath("docs"), "_fx"))); // nothing applies to it
 		Assert.DoesNotContain(Codes(Doctor(ws.Root)), c => c is MountsModule.Outdated or "dotnet.outdated");
@@ -1021,7 +1021,7 @@ public sealed class SpaceTest
 		Assert.Equal("unparked   lab", stdout.ToString().Trim());
 	}
 
-	[Theory(DisplayName = "fx mount park|unpark without names and no terminal to ask for them: what is missing, exit code 2 (plan O, O3.3)")]
+	[Theory(DisplayName = "fx mount park|unpark without names and no terminal to ask for them: what is missing, exit code 2")]
 	[InlineData("park")]
 	[InlineData("unpark")]
 	public void Cli_MountMissing(string verb)
@@ -1032,7 +1032,7 @@ public sealed class SpaceTest
 		Assert.Contains($"fx mount {verb} <names>", stderr.ToString());
 	}
 
-	[Fact(DisplayName = "fx mount status: only the mounts that ask for attention; --all, every one (plan O, decision 8)")]
+	[Fact(DisplayName = "fx mount status: only the mounts that ask for attention; --all, every one")]
 	public void Cli_RepoStatus()
 	{
 		using var ws = new Space(("plus", "mandatory"), ("lab", "mandatory"));

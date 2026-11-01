@@ -3,7 +3,7 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary>From the versioning inputs to the versions MSBuild gets (plan K, K2.1).</summary>
+/// <summary>From the versioning inputs to the versions MSBuild gets.</summary>
 public sealed class VersionPropsTest
 {
 	[Fact(DisplayName = "props from a prerelease version")]

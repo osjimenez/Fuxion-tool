@@ -5,7 +5,7 @@ using System.IO;
 namespace Fuxion.Tool.Core.Layout;
 
 /// <summary>
-/// What fx fixes on disk, in one place (plan P, decision 1; plan spaces): <c>_fx/</c>, the anchor of a space, with its
+/// What fx fixes on disk, in one place: <c>_fx/</c>, the anchor of a space, with its
 /// descriptor (<c>_fx/space.yaml</c>), a folder per module (<c>_fx/&lt;module&gt;/&lt;module&gt;.yaml</c>), what a
 /// sub-space receives from the space that mounts it (<c>_fx/.inherited/</c>) and the local files (<c>~$</c>). Paths
 /// relative to a root, with '/'.

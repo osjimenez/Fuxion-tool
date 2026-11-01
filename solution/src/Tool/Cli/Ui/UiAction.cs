@@ -48,14 +48,14 @@ public sealed record UiOutcome(IReadOnlyList<string> Lines, IReadOnlyList<FxDiag
 }
 
 /// <summary>
-/// Something <c>fx ui</c> does on a node (plan O, O4.2): what it is, the command of the CLI that does the same (decision
-/// 14.10), what it does in a sentence, and the work itself, on the core. <see cref="Preview"/>, what it would do, if
+/// Something <c>fx ui</c> does on a node: what it is, the command of the CLI that does the same,
+/// what it does in a sentence, and the work itself, on the core. <see cref="Preview"/>, what it would do, if
 /// the command can tell (<c>--dry-run</c>).
 /// </summary>
 public sealed record UiAction(string Label, string Command, string Description, Func<IFxProgress, CancellationToken, UiOutcome> Run,
 	Func<CancellationToken, UiOutcome>? Preview = null)
 {
-	/// <summary>An action that edits (O4.3b): it opens its form, or goes to the pending changes, instead of running.</summary>
+	/// <summary>An action that edits: it opens its form, or goes to the pending changes, instead of running.</summary>
 	public Action? Open { get; init; }
 
 	public override string ToString() => $"{Label} · {Command}";

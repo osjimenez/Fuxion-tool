@@ -10,7 +10,7 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary>The skill of fx in every root of fx (plan O, O5.1): so that a coding agent working in it knows how to use fx.</summary>
+/// <summary>The skill of fx in every root of fx: so that a coding agent working in it knows how to use fx.</summary>
 public sealed class SkillTest : SampleTree
 {
 	static (int ExitCode, string Out, string Err) Fx(string root, params string[] args)

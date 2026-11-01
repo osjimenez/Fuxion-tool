@@ -31,7 +31,7 @@ public sealed record DocEntryEdit
 	public IReadOnlyList<(string Kind, string Target)> Unrelate { get; init; } = [];
 }
 
-/// <summary>The entries of a register (plan U, decision 18): added, changed and closed, always through the register, which is finalized.</summary>
+/// <summary>The entries of a register: added, changed and closed, always through the register, which is finalized.</summary>
 public static partial class DocEditor
 {
 	public const string NotARegister = "docs.not-a-register";
@@ -53,7 +53,7 @@ public static partial class DocEditor
 		=> register.Entries.FirstOrDefault(e => e.Name == selector || e.Key == selector || string.Equals(e.Id, selector, StringComparison.OrdinalIgnoreCase));
 
 	/// <summary>
-	/// The entry of a register of the catalog that <paramref name="selector"/> names (plan U, U6): its key, its identity, its
+	/// The entry of a register of the catalog that <paramref name="selector"/> names: its key, its identity, its
 	/// register and its name (<c>ideas/REGISTER-ideas.md#the-name</c>), or its name alone if no other entry has it; null
 	/// if it names none, or several.
 	/// </summary>
@@ -164,7 +164,7 @@ public static partial class DocEditor
 		var key = edit.Key;
 		if (key is null && DocKeys.Keyed(catalog, file) is { } keyed)
 		{
-			// who reserves it, as fx doc key (plan U, U6)
+			// who reserves it, as fx doc key
 			if (!Actor(change, actor))
 				return change;
 			var reserved = DocKeys.Reserve(catalog, file, keyed, register.Sidecar.Entries.Select(e => e.Key).OfType<string>(), actor!, title, reserve);

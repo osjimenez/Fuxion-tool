@@ -11,7 +11,7 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary>The commands that edit the configuration (plan O, O3.4; plan P): only what they must, the rest of the file as it was.</summary>
+/// <summary>The commands that edit the configuration: only what they must, the rest of the file as it was.</summary>
 public sealed class ManifestEditorTest
 {
 	const string Manifest = """
@@ -283,7 +283,7 @@ public sealed class ManifestEditorTest
 		Assert.Equal(ManifestEditor.UnknownModule, Assert.Single(ManifestEditor.EnableModule(ws.Root, "python", []).Diagnostics).Code);
 	}
 
-	[Fact(DisplayName = "module enable docs (plan U): its folder with docs.yaml; it does not go down, so no tags; by hand, validated as fx reads it")]
+	[Fact(DisplayName = "module enable docs: its folder with docs.yaml; it does not go down, so no tags; by hand, validated as fx reads it")]
 	public void EnableDocs()
 	{
 		using var ws = new Space();
@@ -294,7 +294,7 @@ public sealed class ManifestEditorTest
 		Assert.Equal((Core.Docs.DocsYamlReader.InvalidYaml, 4, false), (invalid.Diagnostics.Single().Code, invalid.Diagnostics.Single().Line, invalid.Ok));
 	}
 
-	[Fact(DisplayName = "module enable docs, in a space that mounts others: its catalog out of the worktrees too (I-58), on its entry or new in paths; not where it does not apply")]
+	[Fact(DisplayName = "module enable docs, in a space that mounts others: its catalog out of the worktrees too, on its entry or new in paths; not where it does not apply")]
 	public void EnableDocs_OutOfWorktrees()
 	{
 		// its entry in paths: worktree: false on it
@@ -325,7 +325,7 @@ public sealed class ManifestEditorTest
 		Assert.Single(ManifestEditor.Enable(ws.Root, "harness", []));
 	}
 
-	[Fact(DisplayName = "by hand (fx ui, O4.3c): validated as fx reads the file; not YAML, its code and line; the line endings of the file stay")]
+	[Fact(DisplayName = "by hand (fx ui): validated as fx reads the file; not YAML, its code and line; the line endings of the file stay")]
 	public void Replace()
 	{
 		using var ws = new Space();
@@ -336,7 +336,7 @@ public sealed class ManifestEditorTest
 		var notYaml = ManifestEditor.Replace(ws.Root, "_fx/dotnet/dotnet.yaml", "schema: 1.0.0\nvariables: [\n");
 		Assert.Equal((ManifestEditor.InvalidYaml, false), (notYaml.Diagnostics.Single().Code, notYaml.Ok));
 		Assert.NotNull(notYaml.Diagnostics.Single().Line);
-		// the harness (plan Q): the name of fx's own rule is not the user's
+		// the harness: the name of fx's own rule is not the user's
 		var harness = ManifestEditor.Replace(ws.Root, "_fx/harness/harness.yaml", "schema: 1.0.0\nrules:\n  - name: fx\n");
 		Assert.Equal((Core.Harness.HarnessYamlReader.InvalidYaml, 3, false), (harness.Diagnostics.Single().Code, harness.Diagnostics.Single().Line, harness.Ok));
 		// a file with CRLF: an editor gives '\n', and the CRLF stay

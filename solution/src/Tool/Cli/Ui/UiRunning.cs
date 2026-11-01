@@ -13,7 +13,7 @@ namespace Fuxion.Tool.Cli.Ui;
 public sealed record UiLogEntry(DateTime When, UiAction Action, UiOutcome? Outcome, bool Cancelled, IReadOnlyList<string> Steps);
 
 /// <summary>
-/// An action running in fx ui (plan O, O4.2): its progress as the live region of the CLI shows it (decision 9), a
+/// An action running in fx ui: its progress as the live region of the CLI shows it, a
 /// spinner per step running and the long and failed steps as lines when they finish, at the bottom of the screen. The
 /// core reports from its threads; the thread of the screen drains the events (<see cref="Drain"/>).
 /// </summary>

@@ -8,8 +8,7 @@ using Xunit;
 namespace Fuxion.Tool.Test;
 
 /// <summary>
-/// A text of fx as data (plan <i>fx sobre Responses</i>, phase 9; ADR <i>Los diagnósticos de fx en las Responses</i>, 5):
-/// its arguments a closed set, and its JSON for the seam, without reflection.
+/// A text of fx as data: its arguments a closed set, and its JSON for the seam, without reflection.
 /// </summary>
 public sealed class FxTextTest
 {

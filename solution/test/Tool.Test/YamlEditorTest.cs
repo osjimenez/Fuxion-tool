@@ -11,7 +11,7 @@ using Xunit;
 namespace Fuxion.Tool.Test;
 
 /// <summary>
-/// The YAML edit engine (plan O, O2.2), with the checks of the O1 probe: every edit, on LF and on CRLF, reparses, leaves
+/// The YAML edit engine: every edit, on LF and on CRLF, reparses, leaves
 /// the text outside its range byte for byte, keeps the line endings and the comments (but those it takes with it), and
 /// does what it says. The fixtures are copies of the workspace's manifest and dotnet.yaml (as of 09-oct) and a
 /// synthetic file with comments everywhere.

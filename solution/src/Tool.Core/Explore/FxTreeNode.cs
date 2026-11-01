@@ -9,7 +9,7 @@ using Fuxion.Tool.Core.Worktree;
 
 namespace Fuxion.Tool.Core.Explore;
 
-/// <summary>What a node of the tree of <c>fx ui</c> is (plan O, decision 14).</summary>
+/// <summary>What a node of the tree of <c>fx ui</c> is.</summary>
 public enum FxTreeKind
 {
 	/// <summary>A space on disk that mounts others: the root, or one mounted.</summary>
@@ -38,7 +38,7 @@ public enum FxTreeKind
 	ModuleOff
 }
 
-/// <summary>Whose a file is (decision 14.3).</summary>
+/// <summary>Whose a file is.</summary>
 public enum FxOrigin
 {
 	/// <summary>Written by hand.</summary>
@@ -58,7 +58,7 @@ public enum FxOrigin
 }
 
 /// <summary>
-/// A node of the tree of <c>fx ui</c>: what is on disk and what the manifests declare, in one tree (decision 14.1), with
+/// A node of the tree of <c>fx ui</c>: what is on disk and what the manifests declare, in one tree, with
 /// what each node is, whose each file is, and the diagnostics of the doctor that are about it.
 /// </summary>
 public sealed class FxTreeNode
@@ -85,10 +85,10 @@ public sealed class FxTreeNode
 	/// <summary>Of a repository: whether it is mounted (the intent of the developer, or required).</summary>
 	public bool Mounted { get; init; }
 
-	/// <summary>Of a repository: the copy used instead of this one, if a higher one supersedes it (plan P, decision 19).</summary>
+	/// <summary>Of a repository: the copy used instead of this one, if a higher one supersedes it.</summary>
 	public RepositoryCopy? SupersededBy { get; init; }
 
-	/// <summary>Of a repository: mounted as a guest, it inherits from its own parent (plan P, decision 18).</summary>
+	/// <summary>Of a repository: mounted as a guest, it inherits from its own parent.</summary>
 	public bool Guest => Declaration is { Inherits: false };
 
 	/// <summary>Of a file (or a local folder): whose it is.</summary>

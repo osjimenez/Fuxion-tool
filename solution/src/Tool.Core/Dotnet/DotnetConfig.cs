@@ -6,7 +6,7 @@ using Fuxion.Tool.Core.Layout;
 namespace Fuxion.Tool.Core.Dotnet;
 
 /// <summary>
-/// A variable of <c>dotnet.yaml</c> (design §7.3): the tool defines it and the repo uses it. A <c>value</c>, or a
+/// A variable of <c>dotnet.yaml</c>: the tool defines it and the repo uses it. A <c>value</c>, or a
 /// <c>when</c> condition (true or false); a <c>when</c> one can also <c>define</c> compilation constants
 /// (<c>OLD_FRAMEWORKS</c>, for <c>#if</c>) where its condition holds.
 /// </summary>
@@ -15,7 +15,7 @@ public sealed record DotnetVariable(string Name, string? Value, string? When, Fx
 	public bool IsWhen => When is not null;
 }
 
-/// <summary>One version of a governed package, with the condition that selects it (D-32; none: the only version, for all).</summary>
+/// <summary>One version of a governed package, with the condition that selects it (none: the only version, for all).</summary>
 public sealed record DotnetPackageVersion(string? When, string Version, int Line);
 
 /// <summary>Packages that share their versions.</summary>
@@ -35,7 +35,7 @@ public sealed record DotnetImport(IReadOnlyList<string> Props, IReadOnlyList<str
 
 	/// <summary>
 	/// The files that travel with it and are not imported (<c>files:</c>; the <c>icon.png</c> of <c>packable.targets</c>):
-	/// the module gives a repository only the files of what applies to it (plan R, decision 2).
+	/// the module gives a repository only the files of what applies to it.
 	/// </summary>
 	public IReadOnlyList<string> Assets { get; init; } = [];
 
@@ -49,11 +49,11 @@ public sealed record DotnetImport(IReadOnlyList<string> Props, IReadOnlyList<str
 /// <summary>A folder of a generated solution, like <c>&lt;Folder Name&gt;</c>: other solutions whose content goes in it, and files.</summary>
 public sealed record DotnetSolutionFolder(string Name, IReadOnlyList<string> Solutions, IReadOnlyList<string> Files, int Line);
 
-/// <summary>A solution the root generates (plan P, decision 13), relative to the root, and its folders.</summary>
+/// <summary>A solution the root generates, relative to the root, and its folders.</summary>
 public sealed record DotnetSolution(string Path, IReadOnlyList<DotnetSolutionFolder> Folders, int Line);
 
 /// <summary>
-/// <c>_fx/dotnet/dotnet.yaml</c> (design §7.3, plan P): MSBuild SDKs, variables, imports and common packages, which go
+/// <c>_fx/dotnet/dotnet.yaml</c>: MSBuild SDKs, variables, imports and common packages, which go
 /// down to the repositories of <see cref="AppliesTo"/>; and what does not go down: the solutions this root generates and
 /// whether it builds on its own (<see cref="Standalone"/>).
 /// </summary>
@@ -77,7 +77,7 @@ public sealed record DotnetConfig(
 	public bool IsEmpty => Sdks.Count == 0 && Variables.Count == 0 && Packages.Count == 0 && Imports.Count == 0;
 
 	/// <summary>
-	/// What comes from above with <paramref name="own"/> on top (plan P, decision 16: the nearest wins by name): by SDK
+	/// What comes from above with <paramref name="own"/> on top (the nearest wins by name): by SDK
 	/// name, variable name, package id and imported file; its <c>applies-to</c>, if it says one. The solutions and
 	/// <c>standalone</c> are <paramref name="own"/>'s: they do not go down.
 	/// </summary>
@@ -112,7 +112,7 @@ public sealed record DotnetConfig(
 		};
 	}
 
-	/// <summary>What may be for the space <paramref name="who"/> or for something below it, to pass it on (plan R, decision 2).</summary>
+	/// <summary>What may be for the space <paramref name="who"/> or for something below it, to pass it on.</summary>
 	public DotnetConfig ForBelow(FxIdentity who) => this with
 	{
 		Variables = Variables.Where(v => v.AppliesTo.MayApplyBelow(who)).ToList(),
@@ -128,7 +128,7 @@ public sealed record DotnetConfig(
 		Imports = Imports.Where(i => i.AppliesTo.Matches(who)).ToList()
 	};
 
-	/// <summary>Every <c>applies-to</c> with its repositories absolute, as written by <paramref name="writer"/> (decision 16).</summary>
+	/// <summary>Every <c>applies-to</c> with its repositories absolute, as written by <paramref name="writer"/>.</summary>
 	public DotnetConfig Absolute(string writer) => this with
 	{
 		AppliesTo = AppliesTo?.Absolute(writer),

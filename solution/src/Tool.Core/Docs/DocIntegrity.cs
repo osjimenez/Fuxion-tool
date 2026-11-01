@@ -6,7 +6,7 @@ using System.Text.Json;
 namespace Fuxion.Tool.Core.Docs;
 
 /// <summary>
-/// The integrity of a document (the standard, its metadata model, section 10): the hash of its Markdown and the hash of
+/// The integrity of a document (the standard, its metadata model): the hash of its Markdown and the hash of
 /// its sidecar, each <c>sha256:</c> and 64 lower case hexadecimal digits.
 /// </summary>
 public static class DocIntegrity

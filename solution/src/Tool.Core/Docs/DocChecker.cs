@@ -23,7 +23,7 @@ public sealed record DocDocument(DocFile File, DocSidecar Sidecar)
 public sealed record DocReport(IReadOnlyList<DocDocument> Documents, IReadOnlyList<FxDiagnostic> Diagnostics);
 
 /// <summary>
-/// The validator of the module (the SPEC of the module, 5.2): one for <c>fx doc check</c>, <c>fx doctor</c> and every
+/// The validator of the module: one for <c>fx doc check</c>, <c>fx doctor</c> and every
 /// command that writes. Of a document: its sidecar against its schema, its name and its place for its type, its title,
 /// its dates, its relations and its integrity; of the catalog: identities, pairs, slugs, links and the bootstrap list.
 /// </summary>
@@ -377,7 +377,7 @@ public static partial class DocChecker
 					Add(FxDiagnostic.Error(TitleMismatch, new($"{TitleMismatch}.none", sidecar.Title), markdownFile, 1));
 				else if (title.Text != sidecar.Title)
 					Add(FxDiagnostic.Error(TitleMismatch, new(TitleMismatch, title.Text, sidecar.Title), markdownFile, title.Line));
-				// frozen, once HEAD has it frozen (plan U, U6)
+				// frozen, once HEAD has it frozen
 				if (DocIntegrity.Hash(DocIntegrity.Utf8.GetBytes(content)) != sidecar.Integrity!.Content)
 					Add(type.Name == "view" ? FxDiagnostic.Error(ViewEdited, new(ViewEdited, file.Path), markdownFile, fix: FxFix.Run("fx sync --adopt"))
 						: type.IsFrozen(sidecar.Status) && (_history ??= DocHistory.Of(catalog)).Frozen(file)

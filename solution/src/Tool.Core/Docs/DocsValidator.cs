@@ -13,7 +13,7 @@ namespace Fuxion.Tool.Core.Docs;
 public sealed record DocsSchema(string Name, Uri Id, JsonElement Root);
 
 /// <summary>
-/// fx's own validator of JSON Schema 2020-12 (plan U, ADR "el validador es propio"): the keywords the schemas of the
+/// fx's own validator of JSON Schema 2020-12: the keywords the schemas of the
 /// standard use, and no other. A schema with a keyword it does not know is refused when it is loaded, so a schema that
 /// needs one more needs it here first. What it knows:
 /// <list type="bullet">

@@ -4,7 +4,7 @@ using System.Diagnostics;
 namespace Fuxion.Tool.Core.Results;
 
 /// <summary>
-/// The progress channel of the core (plan O, decision 13), its port (the ADR of the diagnostics, 5): the modules say what
+/// The progress channel of the core, its port: the modules say what
 /// they are doing, as they do it, without knowing who listens (a live region, plain lines, NDJSON, the full screen, a
 /// test; tomorrow the seam of the hub, as the <c>OnNext</c> of an observer). Events come from several threads (the work on
 /// the repositories runs in parallel): a listener takes them to its own. A diagnostic is an event once, when the

@@ -12,8 +12,8 @@ public sealed record DiffLine(char Kind, string Text);
 public sealed record DiffHunk(int OldStart, int OldCount, int NewStart, int NewCount, IReadOnlyList<DiffLine> Lines);
 
 /// <summary>
-/// The difference between two texts, line by line, as <c>diff -u</c> shows it: what fx would change in a file it edits
-/// (plan O, O3.4). The longest common subsequence, enough for the small files fx edits.
+/// The difference between two texts, line by line, as <c>diff -u</c> shows it: what fx would change in a file it edits.
+/// The longest common subsequence, enough for the small files fx edits.
 /// </summary>
 public static class LineDiff
 {

@@ -42,7 +42,7 @@ public sealed record YamlEdit(int Start, int Length, string Text, string What, i
 public sealed record YamlComment(int Start, string Text);
 
 /// <summary>
-/// Edits YAML written by hand without losing anything (plan O, decision 11). Every edit changes one range of the text
+/// Edits YAML written by hand without losing anything. Every edit changes one range of the text
 /// and leaves the rest byte for byte: comments, blank lines, order, quoting and line endings. It locates nodes by
 /// <see cref="YamlPath"/>, plans a <see cref="YamlEdit"/> in the style of the file (indentation, sequences under a key
 /// indented or not, quoting) and applies it with SharpYaml's lossless syntax tree, which reparses and validates.

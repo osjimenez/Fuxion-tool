@@ -8,7 +8,7 @@ using Xunit;
 namespace Fuxion.Tool.Test;
 
 /// <summary>
-/// fx's own validator of JSON Schema (plan U, ADR "el validador es propio"): each keyword the schemas of the standard use,
+/// fx's own validator of JSON Schema: each keyword the schemas of the standard use,
 /// <c>unevaluatedProperties</c> through <c>$ref</c>, <c>allOf</c> and <c>anyOf</c>, and the schemas it refuses to load.
 /// </summary>
 public sealed class DocsValidatorTest

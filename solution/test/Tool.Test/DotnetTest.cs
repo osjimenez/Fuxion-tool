@@ -14,7 +14,7 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary>The .NET module: dotnet.yaml, its generation and the doctor (plan K, K4; plan P).</summary>
+/// <summary>The .NET module: dotnet.yaml, its generation and the doctor.</summary>
 public sealed class DotnetTest
 {
 	/// <summary>
@@ -281,7 +281,7 @@ public sealed class DotnetTest
 		Assert.All(result.Files, f => Assert.Equal(SyncFileStatus.Written, f.Status));
 		Assert.Equal(["_fx/dotnet/dotnet.g.props", "_fx/dotnet/dotnet.g.targets", "_fx/dotnet/packages.g.props", "_fx/dotnet/projects.g.props", "global.json",
 			"solution/Directory.Packages.props"], result.Files.Select(f => f.Path));
-		// its projects by name, for an FxReference inside the repository (plan R, decision 1)
+		// its projects by name, for an FxReference inside the repository
 		Assert.Contains("<FxRepositoryProject Include=\"Lib\" Path=\"$(MSBuildThisFileDirectory)../../solution/src/Lib/Lib.csproj\" />", repo.Read("_fx/dotnet/projects.g.props"));
 
 		var props = repo.Read("_fx/dotnet/dotnet.g.props");
@@ -389,7 +389,7 @@ public sealed class DotnetTest
 			$"# ===      {FxHeader.FormerMark} - DO NOT EDIT      ===\n# Generated from: x\n# Regenerated with: fx sync\nkey: value\n"))));
 	}
 
-	[Fact(DisplayName = "doctor: a package governed by dotnet.yaml and by Directory.Packages.props (D-16)")]
+	[Fact(DisplayName = "doctor: a package governed by dotnet.yaml and by Directory.Packages.props")]
 	public void Doctor_DuplicateOwner()
 	{
 		using var repo = new Repo(centralPackages: "\n\t\t<PackageVersion Include=\"MongoDB.EntityFrameworkCore\" Version=\"1.0.0\" />");
@@ -399,7 +399,7 @@ public sealed class DotnetTest
 		Assert.Equal("solution/Directory.Packages.props", diagnostic.File);
 	}
 
-	[Fact(DisplayName = "doctor: a framework no version covers (a new net12.0) is a gap (D-32)")]
+	[Fact(DisplayName = "doctor: a framework no version covers (a new net12.0) is a gap")]
 	public void Doctor_Gap()
 	{
 		using var repo = new Repo(frameworks: "$(CoreFrameworks);net12.0");
@@ -409,7 +409,7 @@ public sealed class DotnetTest
 		Assert.All(gaps, g => Assert.Contains("net12.0", g.Message.English));
 	}
 
-	[Fact(DisplayName = "doctor: two versions for the same framework is an overlap (D-32)")]
+	[Fact(DisplayName = "doctor: two versions for the same framework is an overlap")]
 	public void Doctor_Overlap()
 	{
 		using var repo = new Repo(yaml: DesignYaml.Replace("when: \"$(IsOldFramework)\"", "when: \"$(IsOldFramework) Or $(IsNet11)\""));
@@ -628,7 +628,7 @@ public sealed class DotnetTest
 		var stdout = new StringWriter();
 		var stderr = new StringWriter();
 		Assert.Equal(1, InProcess.Run(["doctor", "dotnet"], stdout, stderr, repo.Git.Path));
-		// for people, as flutter doctor and on stdout (plan O, decision 8): the module, each problem and its fix, the summary
+		// for people, as flutter doctor and on stdout: the module, each problem and its fix, the summary
 		var doctor = stdout.ToString();
 		Assert.Contains("[✗] dotnet     6 error(s)", doctor);
 		Assert.Contains("Out of date: fx sync would change it. (_fx/dotnet/dotnet.g.props · dotnet.outdated)", doctor);
@@ -636,7 +636,7 @@ public sealed class DotnetTest
 		Assert.Contains("Doctor found issues in 1 module(s).", doctor);
 		Assert.Empty(stderr.ToString());
 
-		// The diagnostics, with their scope and fix (plan O, decision 13)
+		// The diagnostics, with their scope and fix
 		stdout = new StringWriter();
 		Assert.Equal(1, InProcess.Run(["doctor", "dotnet", "--output", "json"], stdout, new StringWriter(), repo.Git.Path));
 		var outdated = JsonDocument.Parse(stdout.ToString()).RootElement.GetProperty("diagnostics").EnumerateArray().First();

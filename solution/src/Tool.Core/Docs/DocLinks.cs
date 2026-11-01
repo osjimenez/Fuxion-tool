@@ -9,7 +9,7 @@ using Fuxion.Tool.Core.Layout;
 namespace Fuxion.Tool.Core.Docs;
 
 /// <summary>
-/// The relative links of Markdown when files move (<c>move</c>, <c>adopt</c>; the SPEC of the module, 5.5 and 5.6):
+/// The relative links of Markdown when files move (<c>move</c>, <c>adopt</c>):
 /// a link to a file that moves points to where it goes, and the links of a Markdown that moves keep pointing to the
 /// same files from its new folder. Only the path of a link changes: its anchor, its query, its <c>&lt;&gt;</c> and its
 /// <c>%20</c> stay. A link that led nowhere is left as it was.

@@ -8,19 +8,19 @@ using Fuxion.Tool.Core.Yaml;
 namespace Fuxion.Tool.Core.Harness;
 
 /// <summary>
-/// The files of the coding agents, from the rules and skills of a root (plan Q). Always in English, as everything fx
-/// writes (proposal 11); the text of the rules is the user's.
+/// The files of the coding agents, from the rules and skills of a root. Always in English, as everything fx
+/// writes; the text of the rules is the user's.
 /// </summary>
 public static class HarnessGenerator
 {
-	/// <summary>The title of the rule of fx, the first of every <c>AGENTS.md</c> (decision 6).</summary>
+	/// <summary>The title of the rule of fx, the first of every <c>AGENTS.md</c>.</summary>
 	public const string FxRuleTitle = "## This repository and fx";
 
 	public const string FxSpaceRuleTitle = "## This space and fx";
 
 	/// <summary>
-	/// The rule of fx (decision 6): who the root is, what is generated and must not be edited, where each thing is changed,
-	/// and <c>fx worktree add</c> for another branch (plan P, decision 30). Only from what does not depend on the disk
+	/// The rule of fx: who the root is, what is generated and must not be edited, where each thing is changed,
+	/// and <c>fx worktree add</c> for another branch. Only from what does not depend on the disk
 	/// around it (its identity, what its space said in <c>inherited.yaml</c>), so a clone on its own generates the same.
 	/// </summary>
 	public static string FxRule(FxIdentity identity, bool mounts, FxInheritedParent? parent)
@@ -59,8 +59,8 @@ public static class HarnessGenerator
 	}
 
 	/// <summary>
-	/// <c>AGENTS.md</c> (proposal 4): the rule of fx, the rules that are always read (what is inherited first, then its
-	/// own) and the index of the rules by path (decision 5).
+	/// <c>AGENTS.md</c>: the rule of fx, the rules that are always read (what is inherited first, then its
+	/// own) and the index of the rules by path.
 	/// </summary>
 	public static string Agents(string from, string fxRule, IEnumerable<(HarnessRule Rule, string Text)> rules)
 	{
@@ -79,7 +79,7 @@ public static class HarnessGenerator
 		return b.ToString();
 	}
 
-	/// <summary><c>CLAUDE.md</c> (proposal 5): Claude reads what the other agents read.</summary>
+	/// <summary><c>CLAUDE.md</c>: Claude reads what the other agents read.</summary>
 	public static string Claude(string from) => FxHeader.Xml(from) + "\n@AGENTS.md\n";
 
 	/// <summary>Where a rule by path goes for Claude, relative to the root.</summary>
@@ -96,7 +96,7 @@ public static class HarnessGenerator
 	}
 
 	/// <summary>
-	/// The <c>SKILL.md</c> of a skill as it is generated (proposal 6): its front matter, the header and its body; null if it
+	/// The <c>SKILL.md</c> of a skill as it is generated: its front matter, the header and its body; null if it
 	/// has no front matter.
 	/// </summary>
 	public static string? Skill(string text, string from)

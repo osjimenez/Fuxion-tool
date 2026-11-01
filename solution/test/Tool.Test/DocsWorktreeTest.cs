@@ -15,7 +15,7 @@ using Space = Fuxion.Tool.Test.DocsCheckTest.Space;
 namespace Fuxion.Tool.Test;
 
 /// <summary>
-/// The catalog and the worktrees (I-58): a space that mounts others leaves its catalog out of them, so that what is not
+/// The catalog and the worktrees: a space that mounts others leaves its catalog out of them, so that what is not
 /// of a change does not go with a branch; from such a worktree <c>fx doc</c> uses the catalog of the main tree, and
 /// <c>fx sync</c> and <c>fx doctor</c> have nothing of it to do there; the doctor warns of a catalog in every worktree.
 /// </summary>

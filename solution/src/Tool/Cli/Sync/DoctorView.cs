@@ -5,7 +5,7 @@ using Fuxion.Tool.Core.Results;
 namespace Fuxion.Tool.Cli.Sync;
 
 /// <summary>
-/// <c>fx doctor</c> for people, in the style of <c>flutter doctor</c> (plan O, decision 8): a line per module,
+/// <c>fx doctor</c> for people, in the style of <c>flutter doctor</c>: a line per module,
 /// <c>[✓]</c>, <c>[!]</c> or <c>[✗]</c>; under it, each problem with its repository, where it is and its code, and
 /// the fix after an arrow; at the end, how many modules have problems. The <c>info</c> findings, only with
 /// <c>--verbose</c>. On stdout: here the diagnostics are the result.

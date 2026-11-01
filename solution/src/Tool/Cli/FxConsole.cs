@@ -19,7 +19,7 @@ using XenoAtom.Terminal.UI.Rendering;
 namespace Fuxion.Tool.Cli;
 
 /// <summary>
-/// Where a command writes (design §10.4; plan O, decisions 4, 9 and 13): the result on stdout (for people, or a JSON
+/// Where a command writes: the result on stdout (for people, or a JSON
 /// document, or NDJSON events and then the document) and the rest on stderr. For people, with XenoAtom.Terminal.UI:
 /// markup lines and visuals (tables) with colours where they can be shown, and the live region where it can animate
 /// (<see cref="WithProgress{T}"/>). What fx can do with the terminal is in <see cref="Capabilities"/>.
@@ -86,8 +86,8 @@ public sealed partial class FxConsole
 	public bool ShowedLiveRegion { get; private set; }
 
 	/// <summary>
-	/// The actions to write as the result: after the live region, not those whose step it left on screen (plan O,
-	/// decision 9: the progress stays above, the result does not repeat it).
+	/// The actions to write as the result: after the live region, not those whose step it left on screen
+	/// (the progress stays above, the result does not repeat it).
 	/// </summary>
 	public IEnumerable<RepositoryAction> NotShown(IEnumerable<RepositoryAction> actions)
 		=> ShowedLiveRegion ? actions.Where(a => !LiveSteps.ShownActions.Contains(a.Action)) : actions;
@@ -105,7 +105,7 @@ public sealed partial class FxConsole
 
 	/// <summary>
 	/// A visual (a table, a grid…) on stdout, laid out at <see cref="Width"/> off screen: it works the same with or without
-	/// a terminal (with the output redirected the real one has no width; plan O, O1), and it does not open the terminal of
+	/// a terminal (with the output redirected the real one has no width), and it does not open the terminal of
 	/// the process, a global of XenoAtom that <c>fx ui</c> and the prompts use.
 	/// </summary>
 	public void Write(Visual visual)
@@ -124,7 +124,7 @@ public sealed partial class FxConsole
 
 	/// <summary>
 	/// Runs the work of the core: in a terminal that can animate, on a background thread while a live region shows each
-	/// step as it runs, its long steps and its failures staying above it (decision 9); elsewhere, here, with
+	/// step as it runs, its long steps and its failures staying above it; elsewhere, here, with
 	/// <see cref="Progress"/>. Ctrl+C cancels either way.
 	/// </summary>
 	public T WithProgress<T>(Func<IFxProgress?, CancellationToken, T> work, CancellationToken cancellationToken)
@@ -158,7 +158,7 @@ public sealed partial class FxConsole
 	}
 
 	/// <summary>
-	/// A command misses what only a person could be asked for, and there is no one to ask (plan O, O3.3): what is
+	/// A command misses what only a person could be asked for, and there is no one to ask: what is
 	/// missing and how to give it, on stderr; <see cref="UsageError"/>.
 	/// </summary>
 	public int Missing(string what, string usage)
@@ -177,7 +177,7 @@ public sealed partial class FxConsole
 		=> FxErrors.Of(HttpStatusCode.BadRequest, FxDiagnostic.Error(Usage, FxText.Plain(message)));
 
 	/// <summary>
-	/// The one way a command ends with the error of its response (the ADR of the diagnostics, its CLI): a
+	/// The one way a command ends with the error of its response: a
 	/// <see cref="HttpStatusCode.BadRequest"/>, its message on stderr as the parser writes its own, no document, and
 	/// <see cref="UsageError"/>; any other, its <paramref name="document"/> (the empty one, with the diagnostics of the
 	/// error) if the output is for machines, its diagnostics for people, and 1. A report ends with <see cref="Report"/>

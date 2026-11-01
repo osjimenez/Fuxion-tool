@@ -17,7 +17,7 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary><c>fx self update</c> (plan S): how fx was installed, and fx updated from a release (of a GitHub in memory).</summary>
+/// <summary><c>fx self update</c>: how fx was installed, and fx updated from a release (of a GitHub in memory).</summary>
 public sealed class SelfUpdateTest
 {
 	static readonly string Home = Path.Combine(TempGitRepository.TempRoot, "home");

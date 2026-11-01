@@ -13,7 +13,7 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary>The worktrees of fx (plan P, P7), on the sample tree: the three of the plan (feature-x, fix-shared, fix-z) and the branch.</summary>
+/// <summary>The worktrees of fx, on the sample tree: the three worktrees (feature-x, fix-shared, fix-z) and the branch.</summary>
 public sealed class WorktreeTest : SampleTree
 {
 	[Fact(DisplayName = "add --required in the root: the space in worktree mode (sparse), its required mounts at every level, the highest copy; the main tree untouched")]

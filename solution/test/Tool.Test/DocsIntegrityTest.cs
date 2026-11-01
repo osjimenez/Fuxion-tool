@@ -9,7 +9,7 @@ using Xunit;
 namespace Fuxion.Tool.Test;
 
 /// <summary>
-/// The identity and the integrity of a document (plan U, U4 step 2): UUIDv7, the hash of the Markdown, the canonical form
+/// The identity and the integrity of a document: UUIDv7, the hash of the Markdown, the canonical form
 /// of RFC 8785 with its test vectors, and the sidecar written in the order of the standard.
 /// </summary>
 public sealed class DocsIntegrityTest

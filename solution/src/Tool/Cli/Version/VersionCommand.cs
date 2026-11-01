@@ -7,7 +7,7 @@ namespace Fuxion.Tool.Cli.Version;
 
 public sealed record VersionSettings(GlobalSettings Global, bool Explain);
 
-/// <summary><c>fx version [--explain]</c>: the version the repository would build now (design §9, §10.2).</summary>
+/// <summary><c>fx version [--explain]</c>: the version the repository would build now.</summary>
 public static class VersionCommand
 {
 	public const string Schema = "fx-version/1";

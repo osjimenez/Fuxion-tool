@@ -13,7 +13,7 @@ using Xunit;
 
 namespace Fuxion.Tool.Test;
 
-/// <summary>The shares (plan P, P6), on the sample tree: down through the spaces in between, folders and files.</summary>
+/// <summary>The shares, on the sample tree: down through the spaces in between, folders and files.</summary>
 public sealed class SharesTest : SampleTree
 {
 	[Fact(DisplayName = "shares: down through the spaces in between, to the repositories they apply to; the nearest wins; a file of the repository's own is not overwritten")]
