@@ -30,7 +30,8 @@ public static partial class DocMarkdown
 	[GeneratedRegex(@"^ {0,3}#(?:[ \t]+(?<text>.*?))?(?:[ \t]+#+)?[ \t]*$")]
 	private static partial Regex Heading();
 
-	[GeneratedRegex(@"(`+).*?\1")]
+	// in its paragraph, it can go on in the next line
+	[GeneratedRegex(@"(`+)[\s\S]*?\1")]
 	private static partial Regex CodeSpan();
 
 	// [text](target "title") and ![alt](target): a level of brackets inside the text, of parentheses inside the target
@@ -140,22 +141,42 @@ public static partial class DocMarkdown
 		return $"# {title}{newLine}{newLine}{text}";
 	}
 
+	[GeneratedRegex(@"^[ \t>]*$")]
+	private static partial Regex BlankLine();
+
 	/// <summary>
 	/// The relative links of <paramref name="text"/>, where they are: not a URL (a scheme), an anchor alone or an
-	/// absolute path. In links and images, inline or by reference; never in code.
+	/// absolute path. In links and images, inline or by reference; never in code. The text of a link can go on in the
+	/// next lines of its paragraph (wrapped, or quoted with <c>&gt;</c>), never past a blank line; its line is that of its
+	/// target.
 	/// </summary>
 	public static IReadOnlyList<DocLink> LinkSpans(string text)
 	{
 		var links = new List<DocLink>();
-		foreach (var (line, number, offset) in Prose(text))
+		var lines = Prose(text).ToList();
+		for (var first = 0; first < lines.Count;)
 		{
-			var prose = CodeSpan().Replace(line, m => new string(' ', m.Length));
+			// a paragraph: prose lines one after the other, until a blank line or fenced code
+			if (BlankLine().IsMatch(lines[first].Line))
+			{
+				first++;
+				continue;
+			}
+			var last = first;
+			while (last + 1 < lines.Count && lines[last + 1].Number == lines[last].Number + 1 && !BlankLine().IsMatch(lines[last + 1].Line))
+				last++;
+			var paragraph = lines.GetRange(first, last - first + 1);
+			var start = paragraph[0].Offset;
+			var prose = CodeSpan().Replace(text[start..(paragraph[^1].Offset + paragraph[^1].Line.Length)],
+				m => string.Concat(m.Value.Select(c => c is '\n' or '\r' ? c : ' ')));
 			foreach (Match match in InlineLink().Matches(prose))
-				Add(match.Groups["target"], number, offset);
-			if (Definition().Match(prose) is { Success: true } definition)
-				Add(definition.Groups["target"], number, offset);
+				Add(match.Groups["target"], paragraph.Last(l => l.Offset <= start + match.Groups["target"].Index).Number, start);
+			foreach (var (line, number, offset) in paragraph)
+				if (Definition().Match(prose.Substring(offset - start, line.Length)) is { Success: true } definition)
+					Add(definition.Groups["target"], number, offset);
+			first = last + 1;
 		}
-		return links;
+		return links.OrderBy(l => l.Start).ToList();
 
 		void Add(Group target, int number, int offset)
 		{

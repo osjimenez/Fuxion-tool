@@ -433,6 +433,10 @@ public sealed class DocsCheckTest
 		Assert.Equal(new DocMarkdownItem("After", 5), DocMarkdown.Title("````\n```\n# in\n````\n# After\n"));
 		Assert.Equal(["a.md", "b.md#x", "c d.md", "e.md"],
 			DocMarkdown.Links("[a](a.md) [b](b.md#x \"title\") [c](<c d.md>)\n[e]: e.md\n[f](http://x) [g](/abs.md)").Select(l => l.Text));
+		// the text of a link goes on in its paragraph, wrapped or quoted; never past a blank line, nor in code
+		Assert.Equal([new DocMarkdownItem("wrapped.md", 2), new DocMarkdownItem("quoted.md", 5), new DocMarkdownItem("crlf.md", 8)],
+			DocMarkdown.Links("See [a link\nthat wraps](wrapped.md).\n\n> **Quoted**: [a link\n> that wraps](quoted.md)\n\n[In CRLF,\r\nwrapped](crlf.md)\r\n").ToArray());
+		Assert.Empty(DocMarkdown.Links("[Not\n\nlinked](a.md)\n\n```\n[In\n```\ncode](b.md) `[x\n`](c.md)"));
 		Assert.Equal("c d.md", DocMarkdown.File("c%20d.md#part"));
 		Assert.Null(DocMarkdown.File("?query"));
 	}
