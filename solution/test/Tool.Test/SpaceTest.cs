@@ -125,8 +125,9 @@ public sealed class SpaceTest
 	[InlineData("  - name: a\n    path: a/repo\n    url: x\n  - name: b\n    path: a/repo/b\n    url: y\n", "mounted inside 'a'")]
 	public void Manifest_Invalid(string repositories, string message)
 	{
-		var ex = Assert.Throws<MountsManifestException>(() => MountsManifest.Read("root", "schema: 1.0.0\nmounts:\n" + repositories, strict: true));
-		Assert.Contains(ex.Diagnostics, d => d.Severity == FxSeverity.Error && d.Message.English.Contains(message) && d.Line is > 0);
+		var read = MountsManifest.Read("root", "schema: 1.0.0\nmounts:\n" + repositories);
+		Assert.True(read is Error { Type: System.Net.HttpStatusCode.Conflict });
+		Assert.Contains(read.Diagnostics, d => d.Severity == FxSeverity.Error && d.Message.English.Contains(message) && d.Line is > 0);
 	}
 
 	[Theory(DisplayName = "space.yaml: every problem, with its line; a share comes from inside the space and goes inside the repository, out of what is fx's or git's, one per destination")]
@@ -177,7 +178,7 @@ public sealed class SpaceTest
 			    path: team
 			    mode: propose-only
 			    audience: private
-			""", strict: true);
+			""").SuccessOrThrow();
 		var w1 = manifest.Mounts[0];
 		Assert.Null(w1.Audience);
 		Assert.Equal("private", manifest.Mounts[2].Audience);
@@ -280,17 +281,49 @@ public sealed class SpaceTest
 	[Fact(DisplayName = "schema: a newer major is not read; a newer minor, unknown keys only warn; none, a warning")]
 	public void Manifest_Schema()
 	{
-		var newer = Assert.Throws<MountsManifestException>(() => MountsManifest.Read("root", "schema: 2.0.0\nmounts: []\n", strict: true));
+		var newer = MountsManifest.Read("root", "schema: 2.0.0\nmounts: []\n");
+		Assert.True(newer is Error { Type: System.Net.HttpStatusCode.Conflict });
 		Assert.Contains(newer.Diagnostics, d => d.Code == FxYamlReader.SchemaNewer);
 
-		var minor = MountsManifest.Read("root", "schema: 1.3.0\nfuture: 1\nmounts: []\n", strict: true);
-		Assert.Empty(minor.Mounts);
-		var unknown = Assert.Throws<MountsManifestException>(() => MountsManifest.Read("root", "schema: 1.0.0\nfuture: 1\n", strict: true));
+		var minor = MountsManifest.Read("root", "schema: 1.3.0\nfuture: 1\nmounts: []\n");
+		Assert.Empty(minor.SuccessOrThrow().Mounts);
+		Assert.Contains(minor.Diagnostics, d => d.Code == FxYamlReader.UnknownKey && d.Severity == FxSeverity.Warning);
+		var unknown = MountsManifest.Read("root", "schema: 1.0.0\nfuture: 1\n");
+		Assert.True(unknown is Error);
 		Assert.Contains(unknown.Diagnostics, d => d.Message.English.Contains("Unknown key 'future'"));
 
 		var reader = new FxYamlReader("x", "file.yaml");
 		Assert.True(reader.Load("repositories: []\n") is Fuxion.Tool.Core.Yaml.YamlMapping);
 		Assert.Contains(reader.Diagnostics, d => d.Code == FxYamlReader.SchemaMissing && d.Severity == FxSeverity.Warning);
+	}
+
+	[Fact(DisplayName = "the manifest of the space around a folder: outside one, not found; an invalid one, a conflict with every problem")]
+	public void Manifest_Find()
+	{
+		using var folder = new TempGitRepository(init: false);
+		var outside = MountsModule.Find(folder.Path);
+		Assert.True(outside is Error { Type: System.Net.HttpStatusCode.NotFound });
+		Assert.Equal([MountsModule.NotFound], outside.Diagnostics.Select(d => d.Code));
+
+		folder.WriteFile(MountsManifest.RelativePath, "schema: 1.0.0\nmounts:\n  - name: Bad\n    path: a\n    url: x\n  - name: b\n    path: ../b\n    url: y\n");
+		var invalid = MountsModule.Find(folder.Path);
+		Assert.True(invalid is Error { Type: System.Net.HttpStatusCode.Conflict });
+		Assert.Equal(2, invalid.Diagnostics.Count(d => d.Severity == FxSeverity.Error && d.Line is > 0));
+
+		folder.WriteFile(MountsManifest.RelativePath, "mounts:\n  - name: a\n    path: a\n    url: x\n");
+		var valid = MountsModule.Find(folder.Path);
+		Assert.Equal("a", Assert.Single(valid.SuccessOrThrow().Mounts).Name);
+		Assert.Contains(valid.Diagnostics, d => d.Code == FxYamlReader.SchemaMissing);
+	}
+
+	[Fact(DisplayName = "the card of a worktree: none without it; a conflict if it cannot be read")]
+	public void WorktreeCard_Read()
+	{
+		using var folder = new TempGitRepository(init: false);
+		Assert.True(Fuxion.Tool.Core.Worktree.WorktreeCard.Read(folder.Path) is None);
+		folder.WriteFile(Fuxion.Tool.Core.Worktree.WorktreeCard.FileName, "schema: 1.0.0\nfrom: main\n");
+		Assert.True(Fuxion.Tool.Core.Worktree.WorktreeCard.Read(folder.Path) is Error { Type: System.Net.HttpStatusCode.Conflict });
+		Assert.Null(Fuxion.Tool.Core.Worktree.WorktreeCard.Load(folder.Path));
 	}
 
 	// State
@@ -410,7 +443,7 @@ public sealed class SpaceTest
 		Sync(ws.Root);
 		ws.Origins["plus"].Commit("c2");
 		Assert.Contains(new RepositoryAction("plus", "fetched"), Actions(Sync(ws.Root)));
-		var status = MountsModule.Repositories(MountsManifest.Load(ws.Root), withStatus: true, cancellationToken: TestContext.Current.CancellationToken).Single().Status!;
+		var status = MountsModule.Repositories(MountsManifest.Load(ws.Root).SuccessOrThrow(), withStatus: true, cancellationToken: TestContext.Current.CancellationToken).Single().Status!;
 		Assert.Equal(1, status.Behind);
 	}
 
@@ -451,7 +484,7 @@ public sealed class SpaceTest
 			  - name: app
 			    url: y
 			    path: apps/app
-			""", strict: true);
+			""").SuccessOrThrow();
 		var space = SpaceConfig.Read("""
 			schema: 1.0.0
 			paths:
@@ -514,7 +547,7 @@ public sealed class SpaceTest
 	public void Solution_Compose()
 	{
 		using var ws = new Space(("plus", "mandatory"), ("lab", "manual"));
-		Assert.Empty(MountsModule.Park(MountsManifest.Load(ws.Root), ["lab"], parked: false).Diagnostics);
+		Assert.Empty(MountsModule.Park(MountsManifest.Load(ws.Root).SuccessOrThrow(), ["lab"], parked: false).Diagnostics);
 		Assert.DoesNotContain(Errors(Sync(ws.Root)), _ => true);
 		Assert.Contains("lab/repo/solution/src/lab/lab.csproj", ws.Read("Test.slnx"));
 		// an empty folder and a build type only lab has
@@ -527,7 +560,7 @@ public sealed class SpaceTest
 		Assert.Contains("<Folder Name=\"/lab/empty/\" />", before);
 
 		// lab unmounted, so parked: the solution does not change, its projects are still there (unavailable in Visual Studio)
-		Assert.Empty(MountsModule.Park(MountsManifest.Load(ws.Root), ["lab"], parked: true).Diagnostics);
+		Assert.Empty(MountsModule.Park(MountsManifest.Load(ws.Root).SuccessOrThrow(), ["lab"], parked: true).Diagnostics);
 		var results = Sync(ws.Root);
 		Assert.DoesNotContain(Codes(results), c => c == "dotnet.missing-solution");
 		var solution = ws.Read("Test.slnx");
@@ -751,7 +784,7 @@ public sealed class SpaceTest
 	public void MountUnmount()
 	{
 		using var ws = new Space(("plus", "mandatory"), ("lab", "manual"));
-		var manifest = MountsManifest.Load(ws.Root);
+		var manifest = MountsManifest.Load(ws.Root).SuccessOrThrow();
 		var mount = MountsModule.Park(manifest, ["lab"], parked: false);
 		Assert.Empty(mount.Diagnostics);
 		Assert.Equal("unparked", Assert.Single(mount.Actions).Action);
@@ -790,7 +823,7 @@ public sealed class SpaceTest
 	public void Sync_Parking()
 	{
 		using var ws = new Space(("plus", "mandatory"), ("lab", "manual"));
-		var manifest = MountsManifest.Load(ws.Root);
+		var manifest = MountsManifest.Load(ws.Root).SuccessOrThrow();
 		MountsModule.Park(manifest, ["lab"], parked: false);
 		Sync(ws.Root);
 		void State(bool mounted)
@@ -817,7 +850,7 @@ public sealed class SpaceTest
 	public void Parking_Blocked()
 	{
 		using var ws = new Space(("plus", "mandatory"), ("lab", "manual"));
-		var manifest = MountsManifest.Load(ws.Root);
+		var manifest = MountsManifest.Load(ws.Root).SuccessOrThrow();
 		MountsModule.Park(manifest, ["lab"], parked: false);
 		Sync(ws.Root);
 
@@ -849,7 +882,7 @@ public sealed class SpaceTest
 	public void Parking_Worktrees()
 	{
 		using var ws = new Space(("plus", "mandatory"), ("lab", "manual"));
-		var manifest = MountsManifest.Load(ws.Root);
+		var manifest = MountsManifest.Load(ws.Root).SuccessOrThrow();
 		MountsModule.Park(manifest, ["lab"], parked: false);
 		Sync(ws.Root);
 		var lab = new TempGitRepository(init: false, path: ws.RepoPath("lab"));
@@ -926,7 +959,7 @@ public sealed class SpaceTest
 		ws.Origins["plus"].Commit("c2");
 		ws.Origins["lab"].Commit("c2");
 		new TempGitRepository(init: false, path: ws.RepoPath("lab")).WriteFile("dirty.txt", "x");
-		var actions = MountsModule.Pull(MountsManifest.Load(ws.Root), [], cancellationToken: TestContext.Current.CancellationToken).Actions;
+		var actions = MountsModule.Pull(MountsManifest.Load(ws.Root).SuccessOrThrow(), [], cancellationToken: TestContext.Current.CancellationToken).Actions;
 		Assert.Contains(new RepositoryAction("plus", "pulled"), actions);
 		Assert.Contains(actions, a => a.Repository == "lab" && a.Action == "skipped");
 		Assert.Equal(ws.Origins["plus"].Head(), new TempGitRepository(init: false, path: ws.RepoPath("plus")).Head());

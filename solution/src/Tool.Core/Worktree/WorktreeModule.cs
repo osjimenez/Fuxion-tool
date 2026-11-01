@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -94,7 +95,7 @@ public static class WorktreeModule
 	static MountsManifest? Manifest(string root)
 	{
 		var file = FxLayout.Full(root, MountsManifest.RelativePath);
-		return MountsManifest.HasMounts(root) && FxFiles.Exists(file) ? MountsManifest.Read(root, FxFiles.ReadAllText(file)) : null;
+		return MountsManifest.HasMounts(root) && FxFiles.Exists(file) ? MountsManifest.Parse(root, FxFiles.ReadAllText(file)) : null;
 	}
 
 	static string Join(string a, string b) => a is "" or "." ? b : $"{a}/{b}";
@@ -432,7 +433,9 @@ public static class WorktreeModule
 				session.BringBack(leftOut);
 				continue;
 			}
-			if (Resolve(declared, target, diagnostics) is not { } path)
+			var resolved = Resolve(declared, target);
+			diagnostics.AddRange(resolved.Diagnostics);
+			if (resolved is not string path)
 				continue;
 			if (session.MountPath(path))
 				mounted.Add(path);
@@ -443,8 +446,11 @@ public static class WorktreeModule
 		return new(worktree.Root, branch, actions, diagnostics, SyncEngine.Sync(worktree.Root, new(FxVersion: fxVersion), progress, cancellationToken));
 	}
 
-	/// <summary>A repository of the tree by its path, its full name or its name (if only one has it).</summary>
-	static string? Resolve(IReadOnlyList<Declared> declared, string target, List<FxDiagnostic> diagnostics)
+	/// <summary>
+	/// A repository of the tree by its path, its full name or its name (if only one has it); an error
+	/// (<see cref="HttpStatusCode.Conflict"/>) if none or several are.
+	/// </summary>
+	static Response<string> Resolve(IReadOnlyList<Declared> declared, string target)
 	{
 		var normalized = target.Replace('\\', '/').TrimEnd('/');
 		var found = declared.Where(d => d.Path == normalized || d.FullName == normalized).ToList();
@@ -452,8 +458,8 @@ public static class WorktreeModule
 			found = declared.Where(d => d.Repository.Name == normalized || (d.Repository.Aliases ?? []).Contains(normalized)).ToList();
 		if (found.Count == 1)
 			return found[0].Path;
-		diagnostics.Add(FxDiagnostic.Error(UnknownTarget, found.Count == 0 ? new(UnknownTarget, target) : new($"{UnknownTarget}.ambiguous", target, string.Join(", ", found.Select(f => f.Path)))));
-		return null;
+		return FxErrors.Of(HttpStatusCode.Conflict, FxDiagnostic.Error(UnknownTarget,
+			found.Count == 0 ? new(UnknownTarget, target) : new($"{UnknownTarget}.ambiguous", target, string.Join(", ", found.Select(f => f.Path)))));
 	}
 
 	/// <summary>
@@ -516,17 +522,17 @@ public static class WorktreeModule
 	/// In the doctor, of a repository (its main clone): its worktrees out of their place (fx did not make them; an agent
 	/// or <c>git worktree add</c> did), and those git takes for lost.
 	/// </summary>
-	public static void Check(string repository, string name, Action<FxDiagnostic> report)
+	public static IEnumerable<FxDiagnostic> Check(string repository, string name)
 	{
 		if (GitClient.Discover(repository) is not { } git || !FxLayout.SameFolder(git.Root, repository))
-			return;
+			yield break;
 		// a git that cannot list them: nothing to check
 		if (git.Worktrees() is not IReadOnlyList<GitWorktree> worktrees)
-			return;
+			yield break;
 		foreach (var worktree in worktrees.Skip(1))
 			if (worktree.Prunable)
-				report(FxDiagnostic.Info(Prunable, new(Prunable, name, worktree.Path), repository: name, fix: FxFix.Run($"git -C {git.Root.TrimEnd('\\', '/')} worktree prune")));
+				yield return FxDiagnostic.Info(Prunable, new(Prunable, name, worktree.Path), repository: name, fix: FxFix.Run($"git -C {git.Root.TrimEnd('\\', '/')} worktree prune"));
 			else if (!InItsPlace(worktree.Path))
-				report(FxDiagnostic.Warning(Outside, new(Outside, name, worktree.Path, worktree.Branch ?? "-"), repository: name, fix: FxFix.Do($"{Outside}.fix")));
+				yield return FxDiagnostic.Warning(Outside, new(Outside, name, worktree.Path, worktree.Branch ?? "-"), repository: name, fix: FxFix.Do($"{Outside}.fix"));
 	}
 }

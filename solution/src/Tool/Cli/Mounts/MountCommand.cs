@@ -70,13 +70,13 @@ public static class MountCommand
 		return Task.FromResult(console.Run(token => command(console, token), cancellationToken));
 	}
 
-	/// <summary>The manifest, or the error written as the command's document.</summary>
+	/// <summary>The manifest, or its error (every problem found) written as the command's document.</summary>
 	internal static MountsManifest? Manifest(FxConsole console, Action<IReadOnlyList<FxDiagnostic>> writeJson)
 	{
-		var (manifest, error) = MountsModule.Find(console.Settings.Directory);
-		if (manifest is not null)
+		var found = MountsModule.Find(console.Settings.Directory);
+		if (found is MountsManifest manifest)
 			return manifest;
-		FxDiagnostic[] errors = [error!];
+		var errors = found.Diagnostics;
 		if (console.Settings.IsMachine)
 			writeJson(errors);
 		console.Report(errors);

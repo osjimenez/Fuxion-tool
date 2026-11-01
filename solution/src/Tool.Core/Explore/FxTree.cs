@@ -81,7 +81,7 @@ public static class FxTree
 		var inherited = node.Inherited();
 		tree.Add(Fx(node, inherited));
 		var file = node.Full(MountsManifest.RelativePath);
-		var manifest = MountsManifest.Read(node.Root, FxFiles.Exists(file) ? FxFiles.ReadAllText(file) : "");
+		var manifest = MountsManifest.Parse(node.Root, FxFiles.Exists(file) ? FxFiles.ReadAllText(file) : "");
 
 		// what it versions (the paths of its space.yaml) and what it generates and versions (the .gitignore, its solutions)
 		var space = node.OwnConfig();

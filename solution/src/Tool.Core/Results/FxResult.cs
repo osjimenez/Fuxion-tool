@@ -127,6 +127,16 @@ public sealed class FxDiagnostics(IFxProgress? progress = null, string? reposito
 		return response is T value ? value : fallback;
 	}
 
+	/// <summary>
+	/// Whether an operation succeeded, its diagnostics taken: where the work goes on after a part fails, its error is a
+	/// finding of the report.
+	/// </summary>
+	public bool Succeeded<T>(Response<T> response) where T : notnull
+	{
+		AddRange(response);
+		return response.IsSuccess;
+	}
+
 	public IEnumerator<FxDiagnostic> GetEnumerator()
 	{
 		lock (_gate)

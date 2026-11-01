@@ -98,15 +98,9 @@ public sealed class MountCopies
 			var found = new List<(RepositoryCopy Copy, Mount Repository, bool Present)>();
 			foreach (var (root, fullName) in level)
 			{
-				MountsManifest manifest;
-				try
-				{
-					manifest = MountsManifest.Load(root);
-				}
-				catch (MountsManifestException)
-				{
-					continue; // its sync reports it
-				}
+				// one that cannot be read: its sync reports it
+				if (MountsManifest.Load(root) is not MountsManifest manifest)
+					continue;
 				var state = MountsState.Load(root);
 				foreach (var repository in manifest.Mounts)
 				{

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -62,21 +63,14 @@ public static class MountsModule
 	static readonly TimeSpan FetchTimeout = TimeSpan.FromSeconds(60);
 	static readonly TimeSpan RemoteTimeout = TimeSpan.FromSeconds(30);
 
-	/// <summary>Loads the manifest of the nearest space around <paramref name="directory"/>, or a diagnostic.</summary>
-	public static (MountsManifest? Manifest, FxDiagnostic? Error) Find(string directory)
-	{
-		var root = MountsManifest.FindRoot(directory);
-		if (root is null)
-			return (null, FxDiagnostic.Error(NotFound, new(NotFound, directory)));
-		try
-		{
-			return (MountsManifest.Load(root), null);
-		}
-		catch (MountsManifestException ex)
-		{
-			return (null, ex.Diagnostics.First(d => d.Severity == FxSeverity.Error));
-		}
-	}
+	/// <summary>
+	/// The manifest of the nearest space around <paramref name="directory"/>: <see cref="HttpStatusCode.NotFound"/> if
+	/// there is none; <see cref="HttpStatusCode.Conflict"/>, with every problem found, if it cannot be read.
+	/// </summary>
+	public static Response<MountsManifest> Find(string directory)
+		=> MountsManifest.FindRoot(directory) is { } root
+			? MountsManifest.Load(root)
+			: FxErrors.Of(HttpStatusCode.NotFound, FxDiagnostic.Error(NotFound, new(NotFound, directory)));
 
 	/// <summary>
 	/// The repositories of the manifest and their state; with <paramref name="withStatus"/>, their git status (in
@@ -148,7 +142,7 @@ public static class MountsModule
 					diagnostics.Add(FxDiagnostic.Warning(NotParked, repo.SupersededBy is { } higher
 						? new($"{NotParked}.superseded", name, repo.Repository.Path, higher.FullName)
 						: new(NotParked, name, repo.Repository.Path), manifestFile, repo.Repository.Line, name, FxFix.Run(FxHeader.Sync)));
-				else if (Move(name, repo.FullPath, parking, root, diagnostics.Add))
+				else if (diagnostics.Succeeded(Move(name, repo.FullPath, parking, root)))
 					actions.Add(new(name, "parked", repo.SupersededBy is { } used
 						? new("mounts.action.superseded", used.FullName)
 						: new("mounts.action.parked-in", FxLayout.Relative(root, parking).TrimEnd('/'))));
@@ -176,7 +170,7 @@ public static class MountsModule
 					actions.Add(new(name, "missing"));
 					continue;
 				}
-				if (!Move(name, parking, repo.FullPath, root, diagnostics.Add))
+				if (!diagnostics.Succeeded(Move(name, parking, repo.FullPath, root)))
 					continue;
 				actions.Add(new(name, "unparked"));
 				present = true;
@@ -408,7 +402,7 @@ public static class MountsModule
 		var mounted = repositories.Where(r => r.Mounted && r.Present).ToList();
 		var inWorktree = WorktreeCard.FindRoot(manifest.Root) is not null;
 		if (!inWorktree)
-			WorktreeModule.Check(manifest.Root, new FxNode(manifest.Root).SelfIdentity().Name, diagnostics.Add);
+			diagnostics.AddRange(WorktreeModule.Check(manifest.Root, new FxNode(manifest.Root).SelfIdentity().Name));
 		Parallel.ForEach(mounted, new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = cancellationToken }, repo =>
 		{
 			var name = repo.Repository.Name;
@@ -424,7 +418,7 @@ public static class MountsModule
 					fix: FxFix.Do($"{LocalNotIgnored}.fix")));
 			// its worktrees out of their place, or lost (plan P, decision 30): of the main clones, not inside a worktree
 			if (!inWorktree)
-				WorktreeModule.Check(repo.FullPath, name, diagnostics.Add);
+				diagnostics.AddRange(WorktreeModule.Check(repo.FullPath, name));
 			var read = progress.Step(Name, name, "status", git.Status);
 			diagnostics.AddRange(read.Diagnostics.Select(d => d with { Repository = d.Repository ?? name }));
 			if (read is not GitStatus status)
@@ -486,19 +480,17 @@ public static class MountsModule
 
 	/// <summary>
 	/// Moves a clone between its place and the parking of its space (plan P, decision 20): a rename on the same
-	/// disk, instant whatever it holds. If something has it open, nothing moves and a diagnostic says so. Then git's
+	/// disk, instant whatever it holds. If its place is taken or something has it open, nothing moves: an error
+	/// (<see cref="HttpStatusCode.Conflict"/>; <see cref="HttpStatusCode.Forbidden"/> if the system denies it). Then git's
 	/// links with its worktrees are repaired, and the empty folders it leaves behind go.
 	/// </summary>
-	static bool Move(string name, string from, string to, string root, Action<FxDiagnostic> report)
+	static Response<Unit> Move(string name, string from, string to, string root)
 	{
 		var source = Path.TrimEndingDirectorySeparator(from);
 		var target = Path.TrimEndingDirectorySeparator(to);
 		var (shownSource, shownTarget) = (FxLayout.Relative(root, source), FxLayout.Relative(root, target));
 		if (FxFiles.DirectoryExists(target) && Directory.EnumerateFileSystemEntries(target).Any())
-		{
-			report(FxDiagnostic.Error(MoveFailed, new($"{MoveFailed}.occupied", name, shownSource, shownTarget), repository: name));
-			return false;
-		}
+			return FxErrors.Of(HttpStatusCode.Conflict, FxDiagnostic.Error(MoveFailed, new($"{MoveFailed}.occupied", name, shownSource, shownTarget), repository: name));
 		try
 		{
 			if (FxFiles.DirectoryExists(target))
@@ -509,14 +501,14 @@ public static class MountsModule
 		catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
 		{
 			RemoveEmpty(Path.GetDirectoryName(target)!, root);
-			report(FxDiagnostic.Error(MoveFailed, new(MoveFailed, name, shownSource, shownTarget, ex.Message), repository: name, fix: FxFix.Do($"{MoveFailed}.fix")));
-			return false;
+			return FxErrors.Of(ex is UnauthorizedAccessException ? HttpStatusCode.Forbidden : HttpStatusCode.Conflict,
+				FxDiagnostic.Error(MoveFailed, new(MoveFailed, name, shownSource, shownTarget, ex.Message), repository: name, fix: FxFix.Do($"{MoveFailed}.fix")), ex);
 		}
 		// git keeps absolute paths between a repository and its worktrees: a main clone with worktrees, or a worktree
 		if (FxFiles.DirectoryExists(Path.Combine(target, ".git", "worktrees")) || FxFiles.Exists(Path.Combine(target, ".git")))
 			GitClient.Discover(target)?.RepairWorktrees();
 		RemoveEmpty(Path.GetDirectoryName(source)!, root);
-		return true;
+		return Unit.Value;
 	}
 
 	/// <summary>Removes <paramref name="folder"/>, and the folders above it, while they are empty; never the root nor its <c>_fx/</c>.</summary>
@@ -550,7 +542,7 @@ public static class MountsModule
 	public static FxModuleResult Park(MountsManifest manifest, IEnumerable<string> names, bool parked)
 	{
 		var actions = new List<RepositoryAction>();
-		var diagnostics = new List<FxDiagnostic>();
+		var diagnostics = new FxDiagnostics();
 		var mounts = new List<Mount>();
 		foreach (var name in names)
 		{
@@ -563,7 +555,7 @@ public static class MountsModule
 				mounts.Add(mount);
 		}
 		if (diagnostics.Count > 0)
-			return new(Name, manifest.Root, null, [], actions, diagnostics);
+			return new(Name, manifest.Root, null, [], actions, diagnostics.ToList());
 
 		var root = manifest.Root;
 		var state = MountsState.Load(root);
@@ -580,7 +572,7 @@ public static class MountsModule
 					actions.Add(new(mount.Name, "superseded", new("mounts.action.superseded", higher.FullName)));
 				else if (FxLayout.IsGitRoot(parking))
 				{
-					if (!Move(mount.Name, parking, full, root, diagnostics.Add))
+					if (!diagnostics.Succeeded(Move(mount.Name, parking, full, root)))
 						continue;
 					actions.Add(new(mount.Name, "unparked"));
 				}
@@ -589,7 +581,7 @@ public static class MountsModule
 			}
 			else if (FxLayout.IsGitRoot(full))
 			{
-				if (!Move(mount.Name, full, parking, root, diagnostics.Add))
+				if (!diagnostics.Succeeded(Move(mount.Name, full, parking, root)))
 					continue;
 				actions.Add(new(mount.Name, "parked", new("mounts.action.parked-in", FxLayout.Relative(root, parking).TrimEnd('/'))));
 			}
@@ -598,7 +590,7 @@ public static class MountsModule
 			state = state.With(mount.Name, !parked);
 		}
 		Save(FxLayout.Full(root, MountsState.RelativePath), state.ToYaml());
-		return new(Name, root, null, [], actions, diagnostics);
+		return new(Name, root, null, [], actions, diagnostics.ToList());
 	}
 
 	/// <summary><c>fx mount pull</c>: fast-forward only, and only with a clean working tree.</summary>

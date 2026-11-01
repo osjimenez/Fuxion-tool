@@ -121,7 +121,11 @@ public sealed record UiAction(string Label, string Command, string Description, 
 	{
 		var name = repository?.Declaration?.Name;
 		return new(Texts.Get("ui.action.pull"), $"fx mount pull{(name is null ? "" : $" {name}")}{option}", Texts.Get("ui.action.pull.description"),
-			(progress, token) => UiOutcome.From([MountsModule.Pull(MountsManifest.Load(space.Path), name is null ? [] : [name], progress, token)]));
+			(progress, token) => MountsManifest.Load(space.Path) switch
+			{
+				MountsManifest manifest => UiOutcome.From([MountsModule.Pull(manifest, name is null ? [] : [name], progress, token)]),
+				var unreadable => new([], unreadable.Diagnostics)
+			});
 	}
 
 	static UiAction Park(FxTreeNode node, FxTreeNode space, bool parked, string option)
@@ -132,7 +136,11 @@ public sealed record UiAction(string Label, string Command, string Description, 
 			? Texts.Get("ui.action.park.description", $"{FxLayout.Parking}/{FxLayout.Relative(space.Path, node.Path)}")
 			: Texts.Get(node.Kind == FxTreeKind.Parked ? "ui.action.unpark.description" : "ui.action.unpark.clone.description");
 		return new(Texts.Get($"ui.action.{verb}"), $"fx mount {verb} {name}{option}", description,
-			(_, _) => UiOutcome.From([MountsModule.Park(MountsManifest.Load(space.Path), [name], parked)]));
+			(_, _) => MountsManifest.Load(space.Path) switch
+			{
+				MountsManifest manifest => UiOutcome.From([MountsModule.Park(manifest, [name], parked)]),
+				var unreadable => new([], unreadable.Diagnostics)
+			});
 	}
 
 	static UiAction WorktreeMount(FxTreeNode node, WorktreeCard card)

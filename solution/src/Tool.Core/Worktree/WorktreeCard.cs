@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using Fuxion.Tool.Core.Layout;
 using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Yaml;
@@ -29,12 +30,18 @@ public sealed record WorktreeCard(string Branch, string From, IReadOnlyList<stri
 		return null;
 	}
 
-	/// <summary>The card of the worktree at <paramref name="root"/>, if it has a readable one.</summary>
-	public static WorktreeCard? Load(string root, ICollection<FxDiagnostic>? diagnostics = null)
+	/// <summary>The card of the worktree at <paramref name="root"/>, if it has a readable one (<see cref="Read"/> finds its problems).</summary>
+	public static WorktreeCard? Load(string root) => Read(root) is WorktreeCard card ? card : null;
+
+	/// <summary>
+	/// The card of the worktree at <paramref name="root"/>, read with its problems: none if there is none; an error
+	/// (<see cref="HttpStatusCode.Conflict"/>) if it cannot be read; its warnings, with it.
+	/// </summary>
+	public static ResponseMaybe<WorktreeCard> Read(string root)
 	{
 		var file = Path.Combine(root, FileName);
 		if (!FxFiles.Exists(file))
-			return null;
+			return None.Value;
 		var reader = new FxYamlReader(Invalid, FileName);
 		WorktreeCard? card = null;
 		if (reader.Load(FxFiles.ReadAllText(file)) is YamlMapping map && FxYamlReader.Scalar(map["branch"]) is { Length: > 0 } branch)
@@ -45,9 +52,7 @@ public sealed record WorktreeCard(string Branch, string From, IReadOnlyList<stri
 				.ToList() ?? []);
 		if (card is null && !reader.HasErrors)
 			reader.Error(null, "shape");
-		foreach (var diagnostic in reader.Diagnostics)
-			diagnostics?.Add(diagnostic);
-		return card;
+		return FxResponse.OutcomeMaybe(card, reader.Diagnostics, HttpStatusCode.Conflict);
 	}
 
 	/// <summary>Whether <paramref name="path"/> (relative to the root, with '/') is left out of this worktree: one of <see cref="LeftOut"/>, or inside one.</summary>

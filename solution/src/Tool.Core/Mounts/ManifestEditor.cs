@@ -445,7 +445,7 @@ public static partial class ManifestEditor
 			try
 			{
 				if (file == MountsManifest.RelativePath)
-					MountsManifest.Read(root, text, strict: true);
+					diagnostics.AddRange(MountsManifest.Read(root, text) is Error invalid ? invalid.Diagnostics : []);
 				else if (file == FxLayout.ModuleFile(DotnetModule.Name))
 					diagnostics.AddRange(DotnetYamlReader.Read(text, file) is Error invalid ? invalid.Diagnostics : []);
 				else if (file == FxLayout.ModuleFile(Harness.HarnessModule.Name))
@@ -455,9 +455,9 @@ public static partial class ManifestEditor
 				else if (file == FxLayout.ConfigFile)
 					diagnostics.AddRange(SpaceConfig.Read(text, file).Diagnostics);
 			}
-			catch (Exception ex) when (ex is MountsManifestException or Docs.DocsConfigException)
+			catch (Docs.DocsConfigException ex)
 			{
-				diagnostics.AddRange(ex switch { Docs.DocsConfigException c => c.Diagnostics, _ => ((MountsManifestException)ex).Diagnostics });
+				diagnostics.AddRange(ex.Diagnostics);
 			}
 		return new(file, before, after, text == before ? [] : ["by hand"], diagnostics) { Root = root };
 	}
@@ -565,7 +565,7 @@ public static partial class ManifestEditor
 	/// <summary>An edit of <c>_fx/mounts/mounts.yaml</c>.</summary>
 	sealed class Session(string root) : Edit(root, MountsManifest.RelativePath, Text(root), YamlEditor.ReadFile(ManifestPath(root)))
 	{
-		public MountsManifest Manifest { get; } = MountsManifest.Read(root, FxFiles.ReadAllText(ManifestPath(root)));
+		public MountsManifest Manifest { get; } = MountsManifest.Parse(root, FxFiles.ReadAllText(ManifestPath(root)));
 
 		static string Text(string root) => FxFiles.ReadAllText(ManifestPath(root));
 
@@ -581,14 +581,7 @@ public static partial class ManifestEditor
 
 		protected override void Validate(string text)
 		{
-			try
-			{
-				MountsManifest.Read(Root, text, strict: true);
-			}
-			catch (MountsManifestException ex)
-			{
-				Diagnostics.AddRange(ex.Diagnostics);
-			}
+			Diagnostics.AddRange(MountsManifest.Read(Root, text) is Error invalid ? invalid.Diagnostics : []);
 		}
 	}
 
@@ -604,7 +597,7 @@ public static partial class ManifestEditor
 			Diagnostics.AddRange(read.Diagnostics);
 			var space = read is SpaceConfig valid ? valid : SpaceConfig.Parse(text, File);
 			if (FxFiles.Exists(ManifestPath(Root)))
-				Diagnostics.AddRange(MountsModule.PathsInRepositories(space, MountsManifest.Read(Root, FxFiles.ReadAllText(ManifestPath(Root))), File));
+				Diagnostics.AddRange(MountsModule.PathsInRepositories(space, MountsManifest.Parse(Root, FxFiles.ReadAllText(ManifestPath(Root))), File));
 		}
 	}
 
@@ -649,13 +642,13 @@ public static partial class ManifestEditor
 				else if (Module == Harness.HarnessModule.Name)
 					Diagnostics.AddRange(Harness.HarnessYamlReader.Read(text, File) is Error invalid ? invalid.Diagnostics : []);
 				else if (Module == MountsModule.Name)
-					MountsManifest.Read(_root, text, strict: true);
+					Diagnostics.AddRange(MountsManifest.Read(_root, text) is Error invalid ? invalid.Diagnostics : []);
 				else if (Module == Docs.DocsModule.Name)
 					Docs.DocsYamlReader.Read(text, File);
 			}
-			catch (Exception ex) when (ex is MountsManifestException or Docs.DocsConfigException)
+			catch (Docs.DocsConfigException ex)
 			{
-				Diagnostics.AddRange(ex switch { Docs.DocsConfigException c => c.Diagnostics, _ => ((MountsManifestException)ex).Diagnostics });
+				Diagnostics.AddRange(ex.Diagnostics);
 			}
 		}
 	}

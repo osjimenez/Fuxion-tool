@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net;
 using Fuxion.Tool.Core.Layout;
 using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Yaml;
@@ -41,13 +41,6 @@ public sealed record Mount(
 	IReadOnlyList<string>? Aliases = null,
 	int Line = 0,
 	string? Audience = null);
-
-/// <summary>An invalid <c>mounts.yaml</c>: every problem found, each with its line.</summary>
-public sealed class MountsManifestException(IReadOnlyList<FxDiagnostic> diagnostics)
-	: Exception(string.Join(Environment.NewLine, diagnostics.Select(d => d.WhereIn(CultureInfo.InvariantCulture))))
-{
-	public IReadOnlyList<FxDiagnostic> Diagnostics { get; } = diagnostics;
-}
 
 /// <summary>
 /// <c>_fx/mounts/mounts.yaml</c>, the module that makes a space mount others (plan P, decision 3; plan spaces, decision
@@ -100,27 +93,38 @@ public sealed record MountsManifest(string Root, IReadOnlyList<Mount> Mounts)
 		return null;
 	}
 
-	/// <summary>Reads and validates the <c>mounts.yaml</c> of the space at <paramref name="root"/>.</summary>
-	public static MountsManifest Load(string root)
+	/// <summary>
+	/// The <c>mounts.yaml</c> of the space at <paramref name="root"/>, read with its problems: an error
+	/// (<see cref="HttpStatusCode.Conflict"/>) with every problem found, each with its line; its warnings, with it.
+	/// </summary>
+	public static Response<MountsManifest> Load(string root)
 	{
 		var file = FxLayout.Full(root, RelativePath);
-		return Read(root, FxFiles.Exists(file) ? FxFiles.ReadAllText(file) : "", strict: true);
+		return Read(root, FxFiles.Exists(file) ? FxFiles.ReadAllText(file) : "");
 	}
 
 	/// <summary>
-	/// Reads a <c>mounts.yaml</c>. Lenient by default (what other modules need: the mounts and their tags); with
-	/// <paramref name="strict"/>, every problem is an error with its line.
+	/// A <c>mounts.yaml</c> read with its problems (strict): an error (<see cref="HttpStatusCode.Conflict"/>) with every
+	/// problem found, each with its line; its warnings, with it.
 	/// </summary>
-	public static MountsManifest Read(string root, string yaml, bool strict = false)
+	public static Response<MountsManifest> Read(string root, string yaml)
 	{
 		var reader = new FxYamlReader(InvalidManifest, RelativePath);
-		var map = reader.Load(yaml) is YamlMapping loaded ? loaded : null;
-		if (map is null)
-		{
-			if (strict)
-				throw new MountsManifestException(reader.Diagnostics);
-			return new(root, []);
-		}
+		if (Parse(root, yaml, reader) is not { } manifest)
+			return reader.Fail(HttpStatusCode.Conflict);
+		return FxResponse.Outcome(manifest, reader.Diagnostics.Concat(manifest.Validate()), HttpStatusCode.Conflict);
+	}
+
+	/// <summary>
+	/// What can be read of a <c>mounts.yaml</c>, whatever its problems (lenient: what other modules need, the mounts and
+	/// their tags); no mounts if it cannot be read (<see cref="Read"/> finds its problems).
+	/// </summary>
+	public static MountsManifest Parse(string root, string yaml) => Parse(root, yaml, new(InvalidManifest, RelativePath)) ?? new(root, []);
+
+	static MountsManifest? Parse(string root, string yaml, FxYamlReader reader)
+	{
+		if (reader.Load(yaml) is not YamlMapping map)
+			return null;
 		reader.Keys(map, "schema", "enabled", "mounts");
 
 		var mounts = new List<Mount>();
@@ -150,15 +154,7 @@ public sealed record MountsManifest(string Root, IReadOnlyList<Mount> Mounts)
 			}
 		else if (map["mounts"] is { } notAList && notAList is not YamlScalar { Value: "" })
 			reader.Error(notAList, "list", "mounts");
-
-		var manifest = new MountsManifest(root, mounts);
-		if (strict)
-		{
-			var errors = reader.Diagnostics.Concat(manifest.Validate()).ToList();
-			if (errors.Any(d => d.Severity == FxSeverity.Error))
-				throw new MountsManifestException(errors);
-		}
-		return manifest;
+		return new(root, mounts);
 	}
 
 	IEnumerable<FxDiagnostic> Validate()

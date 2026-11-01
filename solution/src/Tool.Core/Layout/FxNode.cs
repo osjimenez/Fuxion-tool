@@ -94,7 +94,7 @@ public sealed class FxNode(string root)
 			if (!MountsManifest.HasMounts(dir.FullName))
 				continue;
 			var file = FxLayout.Full(dir.FullName, MountsManifest.RelativePath);
-			var manifest = MountsManifest.Read(FxLayout.Normalize(dir.FullName), FxFiles.Exists(file) ? FxFiles.ReadAllText(file) : "");
+			var manifest = MountsManifest.Parse(FxLayout.Normalize(dir.FullName), FxFiles.Exists(file) ? FxFiles.ReadAllText(file) : "");
 			if (manifest.MountAt(Root) is { Inherits: true } declaration)
 				return (new FxNode(dir.FullName), manifest, declaration);
 		}

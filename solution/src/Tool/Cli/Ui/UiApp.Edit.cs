@@ -200,10 +200,10 @@ public sealed partial class UiApp
 		try
 		{
 			using (Pending.Overlay())
-				return MountsManifest.Read(owner.Path, FxFiles.ReadAllText(ManifestEditor.ManifestPath(owner.Path))).Mounts
+				return MountsManifest.Parse(owner.Path, FxFiles.ReadAllText(ManifestEditor.ManifestPath(owner.Path))).Mounts
 					.FirstOrDefault(r => r.Name == declaration.Name || (r.Aliases ?? []).Contains(declaration.Name)) ?? declaration;
 		}
-		catch (Exception ex) when (ex is IOException or MountsManifestException)
+		catch (IOException)
 		{
 			return declaration;
 		}

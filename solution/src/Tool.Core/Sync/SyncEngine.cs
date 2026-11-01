@@ -129,7 +129,7 @@ public static class SyncEngine
 		if (RemoteParent.Read(url, options.ParentRef, options.Offline, progress, diagnostics, cancellationToken) is not { } remote)
 			return onDisk;
 		var file = remote.Node.Full(MountsManifest.RelativePath);
-		var manifest = MountsManifest.Read(remote.Node.Root, FxFiles.Exists(file) ? FxFiles.ReadAllText(file) : "");
+		var manifest = MountsManifest.Parse(remote.Node.Root, FxFiles.Exists(file) ? FxFiles.ReadAllText(file) : "");
 		var origin = GitClient.Discover(start.Root)?.RemoteUrl("origin");
 		var declaration = manifest.Mounts.FirstOrDefault(r => origin is not null && MountsModule.SameUrl(r.Url, origin))
 		                  ?? manifest.Mounts.FirstOrDefault(r => r.Name == inherited.Space.Name || (r.Aliases ?? []).Contains(inherited.Space.Name));
@@ -211,14 +211,11 @@ public static class SyncEngine
 		MountsManifest? manifest = null;
 		if (node.HasMounts)
 		{
-			try
-			{
-				manifest = MountsManifest.Load(node.Root);
-			}
-			catch (MountsManifestException ex)
-			{
-				diagnostics.AddRange(ex.Diagnostics.Select(d => d with { File = d.File is null ? null : outputs.Display(node.Full(d.File)) }));
-			}
+			// what stops it (its warnings are not reported, as before)
+			var loaded = MountsManifest.Load(node.Root);
+			if (loaded is Error error)
+				diagnostics.AddRange(error.Diagnostics.Select(d => d with { File = d.File is null ? null : outputs.Display(node.Full(d.File)) }));
+			manifest = loaded is MountsManifest read ? read : null;
 			if (manifest is not null)
 			{
 				var mounted = context.Runs(MountsModule.Name)
