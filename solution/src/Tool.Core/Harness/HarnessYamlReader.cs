@@ -33,7 +33,7 @@ public static partial class HarnessYamlReader
 	public static HarnessConfig Read(string yaml, string source, ICollection<FxDiagnostic>? warnings = null)
 	{
 		var reader = new FxYamlReader(InvalidYaml, source);
-		var map = reader.Load(yaml);
+		var map = reader.Load(yaml) is YamlMapping loaded ? loaded : null;
 		if (map is null)
 			throw new HarnessConfigException(reader.Diagnostics);
 		reader.Keys(map, "schema", "enabled", "applies-to", "rules", "skills");

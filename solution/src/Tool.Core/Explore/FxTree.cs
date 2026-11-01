@@ -350,14 +350,8 @@ public static class FxTree
 	{
 		if (!FxFiles.Exists(file))
 			return true;
-		try
-		{
-			return YamlDocument.Load(FxFiles.ReadAllText(file)) is not YamlMapping map || map["enabled"] is not YamlScalar { Value: "false" };
-		}
-		catch (YamlSyntaxException)
-		{
-			return true;
-		}
+		// one that cannot be read counts as enabled
+		return YamlDocument.Load(FxFiles.ReadAllText(file)) is not YamlMapping map || map["enabled"] is not YamlScalar { Value: "false" };
 	}
 
 	/// <summary>The solutions a root composes (its <c>dotnet.yaml</c>), relative to it.</summary>

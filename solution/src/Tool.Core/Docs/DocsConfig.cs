@@ -73,7 +73,7 @@ public static partial class DocsYamlReader
 	public static DocsConfig Read(string yaml, string source, ICollection<FxDiagnostic>? warnings = null)
 	{
 		var reader = new FxYamlReader(InvalidYaml, source);
-		var map = reader.Load(yaml);
+		var map = reader.Load(yaml) is YamlMapping loaded ? loaded : null;
 		if (map is null)
 			throw new DocsConfigException(reader.Diagnostics);
 		reader.Keys(map, "schema", "enabled", "catalog", "actors", "registers", "bootstrap", "language");

@@ -433,16 +433,14 @@ public static partial class ManifestEditor
 		if (before.Contains("\r\n", StringComparison.Ordinal))
 			text = text.Replace("\n", "\r\n");
 		var diagnostics = new List<FxDiagnostic>();
-		YamlEditor after;
-		try
+		var parsed = YamlEditor.Parse(text, hasBom);
+		if (parsed is not YamlEditor after)
 		{
-			after = YamlEditor.Parse(text, hasBom);
+			var syntax = parsed.Diagnostics[0];
+			diagnostics.Add(FxDiagnostic.Error(InvalidYaml, new FxText(InvalidYaml, syntax.Message), file, syntax.Line));
+			return new(file, before, YamlEditor.Empty, [], diagnostics) { Root = root };
 		}
-		catch (YamlSyntaxException ex)
-		{
-			diagnostics.Add(FxDiagnostic.Error(InvalidYaml, new FxText(InvalidYaml, ex.Message), file, ex.Line));
-			return new(file, before, YamlEditor.Parse(""), [], diagnostics) { Root = root };
-		}
+
 		if (text != before)
 			try
 			{
@@ -455,7 +453,7 @@ public static partial class ManifestEditor
 				else if (file == FxLayout.ModuleFile(Docs.DocsModule.Name))
 					Docs.DocsYamlReader.Read(text, file);
 				else if (file == FxLayout.ConfigFile)
-					SpaceConfig.Read(text, file, diagnostics);
+					diagnostics.AddRange(SpaceConfig.Read(text, file).Diagnostics);
 			}
 			catch (Exception ex) when (ex is DotnetConfigException or MountsManifestException or Harness.HarnessConfigException or Docs.DocsConfigException)
 			{
@@ -466,24 +464,43 @@ public static partial class ManifestEditor
 
 	static YamlValue.Flow Flow(IEnumerable<string> items) => new(items.Select(i => (YamlValue)i).ToArray());
 
-	/// <summary>One edit of a file: the text as it is, the editor as it goes, what was done and found.</summary>
-	abstract class Edit(string root, string file, string before, YamlEditor current)
+	/// <summary>
+	/// One edit of a file: the text as it is, the editor as it goes, what was done and found. A file that cannot be read,
+	/// or an edit the editor cannot make to it as it is written, stops it: its error is in <see cref="Diagnostics"/>, and
+	/// nothing more is done.
+	/// </summary>
+	abstract class Edit(string root, string file, string before, Response<YamlEditor> current)
 	{
+		bool _stopped = current is Error;
+
 		public string File => file;
 
 		public string Root => root;
 
-		public YamlEditor Current { get; private set; } = current;
+		public YamlEditor Current { get; private set; } = current is YamlEditor editor ? editor : YamlEditor.Empty;
 
 		public List<string> Edits { get; } = [];
 
-		public List<FxDiagnostic> Diagnostics { get; } = [];
+		public List<FxDiagnostic> Diagnostics { get; } = current is Error error ? [.. Here(error, file)] : [];
 
-		public void Apply(YamlEdit edit)
+		/// <summary>The diagnostics of an error of the editor, in this file.</summary>
+		static IEnumerable<FxDiagnostic> Here(Error error, string file) => error.Diagnostics.Select(d => d.File is null ? d with { File = file } : d);
+
+		public void Apply(Response<YamlEdit> edit)
 		{
-			Current = Current.Apply(edit);
-			Edits.Add(edit.What);
+			if (_stopped)
+				return;
+			var applied = Current.Apply(edit);
+			if (applied is YamlEditor next)
+			{
+				Current = next;
+				Edits.Add(((YamlEdit)edit).What);
+				return;
+			}
+			_stopped = true;
+			Diagnostics.AddRange(Here((Error)applied, file));
 		}
+
 
 		/// <summary>An item at the end of a block list, which is created if there is none (or it is empty, or flow).</summary>
 		public void AppendItem(string list, YamlValue item)
@@ -583,7 +600,9 @@ public static partial class ManifestEditor
 
 		protected override void Validate(string text)
 		{
-			var space = SpaceConfig.Read(text, File, Diagnostics);
+			var read = SpaceConfig.Read(text, File);
+			Diagnostics.AddRange(read.Diagnostics);
+			var space = read is SpaceConfig valid ? valid : SpaceConfig.Parse(text, File);
 			if (FxFiles.Exists(ManifestPath(Root)))
 				Diagnostics.AddRange(MountsModule.PathsInRepositories(space, MountsManifest.Read(Root, FxFiles.ReadAllText(ManifestPath(Root))), File));
 		}
@@ -619,7 +638,7 @@ public static partial class ManifestEditor
 
 		/// <summary>Nothing to change in a module that does not exist (and nothing is created).</summary>
 		public static ManifestChange Info(string root, string module, FxText text)
-			=> new(FxLayout.ModuleFile(module), "", YamlEditor.Parse(""), [], [FxDiagnostic.Info(Unchanged, text)]) { Root = root };
+			=> new(FxLayout.ModuleFile(module), "", YamlEditor.Empty, [], [FxDiagnostic.Info(Unchanged, text)]) { Root = root };
 
 		protected override void Validate(string text)
 		{

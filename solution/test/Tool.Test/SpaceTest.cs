@@ -149,9 +149,9 @@ public sealed class SpaceTest
 	[InlineData("shares:\n  - path: a\n    destination: x\n  - path: b\n    destination: x\n", "Two shares go to 'x'")]
 	public void Space_Invalid(string yaml, string message)
 	{
-		var diagnostics = new List<FxDiagnostic>();
-		SpaceConfig.Read("schema: 1.0.0\n" + yaml, FxLayout.ConfigFile, diagnostics);
-		Assert.Contains(diagnostics, d => d.Severity == FxSeverity.Error && d.Message.English.Contains(message) && d.Line is > 0);
+		var read = SpaceConfig.Read("schema: 1.0.0\n" + yaml, FxLayout.ConfigFile);
+		Assert.True(read is Error);
+		Assert.Contains(read.Diagnostics, d => d.Severity == FxSeverity.Error && d.Message.English.Contains(message) && d.Line is > 0);
 	}
 
 	[Fact(DisplayName = "mounts.yaml: mounts anywhere, required or not, in their mode; nothing about solutions")]
@@ -196,7 +196,6 @@ public sealed class SpaceTest
 	[Fact(DisplayName = "space.yaml: a catalog of audiences, from the widest; its audience is one of them; a space below inherits it and cannot redefine it")]
 	public void Space_Audiences()
 	{
-		var diagnostics = new List<FxDiagnostic>();
 		var own = SpaceConfig.Read("""
 			schema: 1.0.0
 			audiences:
@@ -206,9 +205,10 @@ public sealed class SpaceTest
 			  - name: team
 			  - name: private
 			audience: team
-			""", FxLayout.ConfigFile, diagnostics);
-		var space = SpaceConfig.Merge(SpaceConfig.Empty, own, FxLayout.ConfigFile, diagnostics);
-		Assert.Empty(diagnostics);
+			""", FxLayout.ConfigFile).SuccessOrThrow();
+		var merge = SpaceConfig.Merge(SpaceConfig.Empty, own, FxLayout.ConfigFile);
+		Assert.Empty(merge.Diagnostics);
+		var space = merge.SuccessOrThrow();
 		Assert.Equal(["public", "company", "team", "private"], space.AudienceCatalog.Select(a => a.Name));
 		Assert.Equal("public", space.WidestAudience);
 		Assert.Equal("team", space.OwnAudience);
@@ -219,25 +219,25 @@ public sealed class SpaceTest
 		Assert.Equal(["public", "private"], SpaceConfig.Empty.AudienceCatalog.Select(a => a.Name));
 
 		// one that is not in the catalog
-		var unknown = SpaceConfig.Read("schema: 1.0.0\naudience: secret\n", FxLayout.ConfigFile, diagnostics);
-		SpaceConfig.Merge(SpaceConfig.Empty, unknown, FxLayout.ConfigFile, diagnostics);
-		Assert.Contains(diagnostics, d => d.Severity == FxSeverity.Error && d.Message.English.Contains("one of the catalog of audiences (public, private)") && d.Line == 2);
+		var unknown = SpaceConfig.Read("schema: 1.0.0\naudience: secret\n", FxLayout.ConfigFile).SuccessOrThrow();
+		var wrong = SpaceConfig.Merge(SpaceConfig.Empty, unknown, FxLayout.ConfigFile);
+		Assert.True(wrong is Error);
+		Assert.Contains(wrong.Diagnostics, d => d.Severity == FxSeverity.Error && d.Message.English.Contains("one of the catalog of audiences (public, private)") && d.Line == 2);
 
 		// below, the catalog from above, and its own catalog ignored with a warning
-		diagnostics.Clear();
-		var below = SpaceConfig.Read("schema: 1.0.0\naudiences:\n  - name: public\n  - name: private\naudience: company\n", FxLayout.ConfigFile, diagnostics);
-		var merged = SpaceConfig.Merge(space, below, FxLayout.ConfigFile, diagnostics);
+		var below = SpaceConfig.Read("schema: 1.0.0\naudiences:\n  - name: public\n  - name: private\naudience: company\n", FxLayout.ConfigFile).SuccessOrThrow();
+		var combined = SpaceConfig.Merge(space, below, FxLayout.ConfigFile);
+		var merged = combined.SuccessOrThrow();
 		Assert.Equal(4, merged.AudienceCatalog.Count);
 		Assert.Equal("company", merged.OwnAudience);
-		Assert.Contains(diagnostics, d => d.Code == SpaceConfig.AudiencesRedefined && d.Severity == FxSeverity.Warning);
-		Assert.DoesNotContain(diagnostics, d => d.Severity == FxSeverity.Error);
+		Assert.Contains(combined.Diagnostics, d => d.Code == SpaceConfig.AudiencesRedefined && d.Severity == FxSeverity.Warning);
+		Assert.DoesNotContain(combined.Diagnostics, d => d.Severity == FxSeverity.Error);
 	}
 
 	[Fact(DisplayName = "space.yaml: its name and audience, paths as objects, shares")]
 	public void Space_Read()
 	{
-		var diagnostics = new List<FxDiagnostic>();
-		var space = SpaceConfig.Read("""
+		var read = SpaceConfig.Read("""
 			schema: 1.0.0
 			name: acme
 			audience: private
@@ -256,12 +256,13 @@ public sealed class SpaceTest
 			    destination: icons
 			  - path: LICENSE
 			    destination: legal/
-			""", FxLayout.ConfigFile, diagnostics);
-		Assert.Empty(diagnostics);
+			""", FxLayout.ConfigFile);
+		Assert.Empty(read.Diagnostics);
+		var space = read.SuccessOrThrow();
 		Assert.Equal("acme", space.Name);
 		Assert.Equal("private", space.OwnAudience);
 		// undeclared, the widest audience: public
-		Assert.Equal("public", SpaceConfig.Read("schema: 1.0.0\n", FxLayout.ConfigFile, diagnostics).OwnAudience);
+		Assert.Equal("public", SpaceConfig.Read("schema: 1.0.0\n", FxLayout.ConfigFile).SuccessOrThrow().OwnAudience);
 		Assert.Equal(4, space.Paths!.Count);
 		Assert.False(space.Paths[1].Worktree);
 		Assert.True(space.Paths[2].Exclude);
@@ -288,7 +289,7 @@ public sealed class SpaceTest
 		Assert.Contains(unknown.Diagnostics, d => d.Message.English.Contains("Unknown key 'future'"));
 
 		var reader = new FxYamlReader("x", "file.yaml");
-		Assert.NotNull(reader.Load("repositories: []\n"));
+		Assert.True(reader.Load("repositories: []\n") is Fuxion.Tool.Core.Yaml.YamlMapping);
 		Assert.Contains(reader.Diagnostics, d => d.Code == FxYamlReader.SchemaMissing && d.Severity == FxSeverity.Warning);
 	}
 
@@ -459,7 +460,7 @@ public sealed class SpaceTest
 			  - path: docs/guides/
 			  - path: docs/guides/drafts/
 			    exclude: true
-			""", FxLayout.ConfigFile, []);
+			""", FxLayout.ConfigFile).SuccessOrThrow();
 		using var repo = new TempGitRepository();
 		repo.WriteFile(".gitignore", GitignoreGenerator.Generate(space, manifest, ["build/All.slnx"]));
 		bool Ignored(string path)

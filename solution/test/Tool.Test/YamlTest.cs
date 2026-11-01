@@ -1,4 +1,6 @@
 using System.Linq;
+using System.Net;
+using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Yaml;
 using Xunit;
 
@@ -17,7 +19,7 @@ public sealed class YamlTest
 			    tags: [dotnet, public]
 			  - name: 'plus'
 			""";
-		var root = Assert.IsType<YamlMapping>(YamlDocument.Load(yaml));
+		var root = Assert.IsType<YamlMapping>((YamlNode)YamlDocument.Load(yaml));
 		var repos = Assert.IsType<YamlSequence>(root["repositories"]);
 		Assert.Equal(2, repos.Items.Count);
 		var oss = Assert.IsType<YamlMapping>(repos.Items[0]);
@@ -34,25 +36,33 @@ public sealed class YamlTest
 	}
 
 	[Fact]
-	public void Load_EmptyText_IsNull()
+	public void Load_EmptyText_IsNone()
 	{
-		Assert.Null(YamlDocument.Load(""));
-		Assert.Null(YamlDocument.Load("# only a comment\n"));
+		Assert.True(YamlDocument.Load("") is None);
+		Assert.True(YamlDocument.Load("# only a comment\n") is None);
 	}
 
-	[Fact]
-	public void Load_InvalidYaml_ThrowsWithTheLineAndAMessageWithoutPositions()
-	{
-		var ex = Assert.Throws<YamlSyntaxException>(() => YamlDocument.Load("a: 1\nb: [x, y\nc: 2\n"));
-		Assert.True(ex.Line >= 2, $"line {ex.Line}");
-		Assert.DoesNotContain("Lin:", ex.Message);
-	}
 
 	[Fact]
-	public void Load_DuplicateKey_Throws()
+	public void Load_InvalidYaml_IsAConflictWithTheLineAndAMessageWithoutPositions()
 	{
-		var ex = Assert.Throws<YamlSyntaxException>(() => YamlDocument.Load("name: a\nname: b\n"));
-		Assert.Equal(2, ex.Line);
-		Assert.Contains("'name'", ex.Message);
+		var loaded = YamlDocument.Load("a: 1\nb: [x, y\nc: 2\n");
+		Assert.True(loaded is Error { Type: HttpStatusCode.Conflict });
+		var syntax = Assert.Single(loaded.Diagnostics);
+		Assert.Equal(YamlDocument.Syntax, syntax.Code);
+		Assert.True(syntax.Line >= 2, $"line {syntax.Line}");
+		Assert.DoesNotContain("Lin:", syntax.Message.English);
 	}
+
+
+	[Fact]
+	public void Load_DuplicateKey_IsAConflict()
+	{
+		var loaded = YamlDocument.Load("name: a\nname: b\n");
+		Assert.True(loaded is Error { Type: HttpStatusCode.Conflict });
+		var syntax = Assert.Single(loaded.Diagnostics);
+		Assert.Equal(2, syntax.Line);
+		Assert.Contains("'name'", syntax.Message.English);
+	}
+
 }

@@ -87,14 +87,8 @@ public sealed record MountsManifest(string Root, IReadOnlyList<Mount> Mounts)
 			return false;
 		if (!FxFiles.Exists(file))
 			return true;
-		try
-		{
-			return YamlDocument.Load(FxFiles.ReadAllText(file)) is not YamlMapping map || map["enabled"] is not YamlScalar { Value: "false" };
-		}
-		catch (YamlSyntaxException)
-		{
-			return true;
-		}
+		// one that cannot be read counts as enabled
+		return YamlDocument.Load(FxFiles.ReadAllText(file)) is not YamlMapping map || map["enabled"] is not YamlScalar { Value: "false" };
 	}
 
 	/// <summary>The nearest space that mounts others and contains <paramref name="directory"/> (itself included), if any.</summary>
@@ -120,7 +114,7 @@ public sealed record MountsManifest(string Root, IReadOnlyList<Mount> Mounts)
 	public static MountsManifest Read(string root, string yaml, bool strict = false)
 	{
 		var reader = new FxYamlReader(InvalidManifest, RelativePath);
-		var map = reader.Load(yaml);
+		var map = reader.Load(yaml) is YamlMapping loaded ? loaded : null;
 		if (map is null)
 		{
 			if (strict)

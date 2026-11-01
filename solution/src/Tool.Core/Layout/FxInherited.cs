@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Yaml;
 
@@ -25,17 +26,19 @@ public sealed record FxInherited(FxIdentity Space, FxInheritedParent Parent, IRe
 	public const string Invalid = "fx.invalid-inherited";
 
 	/// <summary>The <c>inherited.yaml</c> of the root at <paramref name="root"/>, if it has a readable one.</summary>
-	public static FxInherited? Load(string root, ICollection<FxDiagnostic>? diagnostics = null)
+	public static FxInherited? Load(string root)
 	{
 		var path = FxLayout.Full(root, FxLayout.InheritedFile);
-		return FxFiles.Exists(path) ? Read(FxFiles.ReadAllText(path), FxLayout.InheritedFile, diagnostics) : null;
+		return FxFiles.Exists(path) && Read(FxFiles.ReadAllText(path), FxLayout.InheritedFile) is FxInherited inherited ? inherited : null;
 	}
 
-	public static FxInherited? Read(string text, string file, ICollection<FxDiagnostic>? diagnostics = null)
+	/// <summary>An <c>inherited.yaml</c>; an error (<see cref="HttpStatusCode.Conflict"/>) if it cannot be read.</summary>
+	public static Response<FxInherited> Read(string text, string file)
 	{
 		var reader = new FxYamlReader(Invalid, file);
 		FxInherited? result = null;
-		if (reader.Load(text) is { } map && map["space"] is YamlMapping space && map["parent"] is YamlMapping parent)
+		if (reader.Load(text) is YamlMapping map
+ && map["space"] is YamlMapping space && map["parent"] is YamlMapping parent)
 		{
 			var name = FxYamlReader.Scalar(space["name"]) ?? "";
 			var fullName = FxYamlReader.Scalar(space["full-name"]) ?? "";
@@ -53,11 +56,13 @@ public sealed record FxInherited(FxIdentity Space, FxInheritedParent Parent, IRe
 					new(FxYamlReader.Scalar(parent["full-name"]) ?? "", FxYamlReader.Scalar(parent["url"]), FxYamlReader.Scalar(parent["ref"]), FxYamlReader.Scalar(parent["commit"])),
 					files, shares);
 		}
-		if (result is null && !reader.HasErrors)
-			reader.Error(null, "shape");
-		foreach (var diagnostic in reader.Diagnostics)
-			diagnostics?.Add(diagnostic);
-		return result;
+		if (result is null)
+		{
+			if (!reader.HasErrors)
+				reader.Error(null, "shape");
+			return reader.Fail(HttpStatusCode.Conflict);
+		}
+		return reader.Outcome(result, HttpStatusCode.Conflict);
 	}
 
 	/// <summary>The file, with its header.</summary>

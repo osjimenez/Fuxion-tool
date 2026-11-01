@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using Fuxion.Tool.Core.Mounts;
 using Fuxion.Tool.Core.Results;
 
@@ -33,23 +34,37 @@ public sealed class FxNode(string root)
 
 	public string Full(string relative) => FxLayout.Full(Root, relative);
 
-	public FxInherited? Inherited(ICollection<FxDiagnostic>? diagnostics = null) => FxInherited.Load(Root, diagnostics);
+	/// <summary>What its space said last time (<c>_fx/.inherited/inherited.yaml</c>), if it is there and can be read.</summary>
+	public FxInherited? Inherited() => FxInherited.Load(Root);
 
 	/// <summary>Whether it declares itself a space: it has its own <c>_fx/space.yaml</c> (a repository only inherits one).</summary>
 	public bool IsSpace => FxFiles.Exists(Full(FxLayout.ConfigFile));
 
-	/// <summary>Its own <c>_fx/space.yaml</c>.</summary>
-	public SpaceConfig OwnConfig(ICollection<FxDiagnostic>? diagnostics = null) => SpaceConfig.Load(Root, FxLayout.ConfigFile, diagnostics ?? []);
+	/// <summary>What can be read of its own <c>_fx/space.yaml</c>, whatever its problems.</summary>
+	public SpaceConfig OwnConfig() => SpaceConfig.Load(Root);
 
-	/// <summary>What it inherits (<c>_fx/.inherited/space.yaml</c>) with its own on top.</summary>
-	public SpaceConfig Config(ICollection<FxDiagnostic>? diagnostics = null)
-		=> SpaceConfig.Merge(SpaceConfig.Load(Root, FxLayout.InheritedConfigFile, diagnostics ?? []), OwnConfig(diagnostics), FxLayout.ConfigFile, diagnostics);
+	/// <summary>What it inherits (<c>_fx/.inherited/space.yaml</c>) with its own on top, whatever their problems.</summary>
+	public SpaceConfig Config() => SpaceConfig.Combine(SpaceConfig.Load(Root, FxLayout.InheritedConfigFile), OwnConfig());
+
+	/// <summary>What it inherits with its own on top, read with their problems: an error if they have one.</summary>
+	public Response<SpaceConfig> ReadConfig()
+	{
+		var inherited = SpaceConfig.ReadFile(Root, FxLayout.InheritedConfigFile);
+		var own = SpaceConfig.ReadFile(Root);
+		var merged = SpaceConfig.Merge(inherited is SpaceConfig i ? i : SpaceConfig.Load(Root, FxLayout.InheritedConfigFile), own is SpaceConfig o ? o : OwnConfig(),
+			FxLayout.ConfigFile);
+		var found = new List<FxDiagnostic>([.. inherited.Diagnostics, .. own.Diagnostics, .. merged.Diagnostics]);
+		return FxResponse.Outcome(merged is SpaceConfig config ? config : Config(), found, HttpStatusCode.Conflict);
+	}
 
 	/// <summary>
 	/// Who it is when nobody on disk declares it: what its space said last time, or its own name as a root. A root
-	/// without a name gets its folder's, and an error in <paramref name="diagnostics"/>: a root needs one (decision 4).
+	/// without a name gets its folder's (<see cref="ReadSelfIdentity"/> says it is an error: a root needs one, decision 4).
 	/// </summary>
-	public FxIdentity SelfIdentity(ICollection<FxDiagnostic>? diagnostics = null)
+	public FxIdentity SelfIdentity() => ReadSelfIdentity() is FxIdentity identity ? identity : FolderIdentity;
+
+	/// <summary>Who it is when nobody on disk declares it (<see cref="SelfIdentity"/>); an error if it is a root without a name.</summary>
+	public Response<FxIdentity> ReadSelfIdentity()
 	{
 		if (Inherited() is { } inherited)
 			return inherited.Space;
@@ -57,9 +72,13 @@ public sealed class FxNode(string root)
 			return FxIdentity.Root(name);
 		// a repository without _fx/ is not a root of fx: nothing to ask of it
 		if (FxFiles.DirectoryExists(Full(FxLayout.Folder)))
-			diagnostics?.Add(FxDiagnostic.Error(NameMissing, new(NameMissing, FolderName), FxLayout.ConfigFile, fix: FxFix.Do($"{NameMissing}.fix")));
-		return FxIdentity.Root(SpaceConfig.NamePattern().IsMatch(FolderName) ? FolderName : "root");
+			return FxErrors.Of(HttpStatusCode.Conflict, FxDiagnostic.Error(NameMissing, new(NameMissing, FolderName), FxLayout.ConfigFile, fix: FxFix.Do($"{NameMissing}.fix")));
+		return FolderIdentity;
 	}
+
+	/// <summary>Its folder's name, as a root (or <c>root</c>, if the folder's is not a name).</summary>
+	FxIdentity FolderIdentity => FxIdentity.Root(SpaceConfig.NamePattern().IsMatch(FolderName) ? FolderName : "root");
+
 
 	/// <summary>
 	/// The space on disk that declares it as its own (not as a guest), with that declaration: the nearest above

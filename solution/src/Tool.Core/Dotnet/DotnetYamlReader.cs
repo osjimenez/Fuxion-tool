@@ -37,7 +37,7 @@ public static partial class DotnetYamlReader
 	public static DotnetConfig Read(string yaml, string source, ICollection<FxDiagnostic>? warnings = null)
 	{
 		var reader = new FxYamlReader(InvalidYaml, source);
-		var map = reader.Load(yaml);
+		var map = reader.Load(yaml) is YamlMapping loaded ? loaded : null;
 		if (map is null)
 			throw new DotnetConfigException(reader.Diagnostics);
 

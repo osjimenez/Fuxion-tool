@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Runtime.CompilerServices;
 using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Yaml;
 
@@ -35,47 +37,57 @@ public sealed class FxYamlReader(string code, string file, string schema = FxYam
 		=> Diagnostics.Add(FxDiagnostic.Error(code, new($"{code}.{key}", args), file, node?.Line));
 
 	/// <summary>
-	/// The document as a mapping, its schema checked; null (with the error) if it is not valid YAML, not a mapping or its
-	/// schema is newer than fx. An empty document is an empty mapping.
+	/// The document as a mapping, its schema checked; an error (<see cref="HttpStatusCode.Conflict"/>, with what it found)
+	/// if it is not valid YAML, not a mapping or its schema is newer than fx. An empty document is an empty mapping. What
+	/// it finds also stays in <see cref="Diagnostics"/>, for the reading that follows.
 	/// </summary>
-	public YamlMapping? Load(string text)
+	public Response<YamlMapping> Load(string text)
 	{
-		YamlNode? document;
-		try
+		var loaded = YamlDocument.Load(text);
+		if (loaded is Error error)
 		{
-			document = YamlDocument.Load(text);
+			var syntax = error.Diagnostics[0];
+			Diagnostics.Add(FxDiagnostic.Error(code, syntax.Message, file, syntax.Line));
+			return Fail(HttpStatusCode.Conflict);
 		}
-		catch (YamlSyntaxException ex)
-		{
-			Diagnostics.Add(FxDiagnostic.Error(code, FxText.Plain(ex.Message), file, ex.Line));
-			return null;
-		}
-		if (document is null or YamlScalar { Value: "" })
+		if (loaded is not YamlNode document || document is YamlScalar { Value: "" })
 			return new YamlMapping();
 		if (document is not YamlMapping map)
 		{
 			Diagnostics.Add(FxDiagnostic.Error(code, new("fx.not-a-mapping"), file, 1));
-			return null;
+			return Fail(HttpStatusCode.Conflict);
 		}
+
 		if (map["schema"] is not YamlScalar { Value.Length: > 0 } version)
 		{
 			Diagnostics.Add(FxDiagnostic.Warning(SchemaMissing, new(SchemaMissing, schema), file, 1, fix: FxFix.Do(new FxText($"{SchemaMissing}.fix", schema))));
-			return map;
+			return FxResponse.Success(map, Diagnostics);
 		}
 		if (Parse(version.Value.Trim()) is not { } read)
 		{
 			Diagnostics.Add(FxDiagnostic.Error(SchemaInvalid, new(SchemaInvalid, version.Value.Trim()), file, version.Line));
-			return null;
+			return Fail(HttpStatusCode.Conflict);
 		}
 		var known = Parse(schema)!.Value;
 		if (read.Major > known.Major)
 		{
 			Diagnostics.Add(FxDiagnostic.Error(SchemaNewer, new(SchemaNewer, version.Value.Trim(), schema), file, version.Line, fix: FxFix.Do($"{SchemaNewer}.fix")));
-			return null;
+			return Fail(HttpStatusCode.Conflict);
 		}
 		Lenient = read.Major == known.Major && read.Minor > known.Minor;
-		return map;
+		return FxResponse.Success(map, Diagnostics);
 	}
+
+	/// <summary>The error of the reading: all it found, with <paramref name="category"/>.</summary>
+	public Error Fail(HttpStatusCode category,
+		[CallerMemberName] string callerMemberName = "", [CallerFilePath] string callerFilePath = "", [CallerLineNumber] int callerLineNumber = 0)
+		=> FxErrors.Of(category, Diagnostics, null, callerMemberName, callerFilePath, callerLineNumber);
+
+	/// <summary>What the reading gives: an error of <paramref name="category"/> if it found one; otherwise <paramref name="value"/>, with its warnings.</summary>
+	public Response<T> Outcome<T>(T value, HttpStatusCode category,
+		[CallerMemberName] string callerMemberName = "", [CallerFilePath] string callerFilePath = "", [CallerLineNumber] int callerLineNumber = 0) where T : notnull
+		=> FxResponse.Outcome(value, Diagnostics, category, callerMemberName, callerFilePath, callerLineNumber);
+
 
 	/// <summary>The keys of <paramref name="map"/> that are not <paramref name="known"/>: errors, or warnings with a newer minor.</summary>
 	public void Keys(YamlMapping map, params string[] known)

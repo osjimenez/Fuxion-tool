@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
+using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Yaml;
 using Xunit;
 
@@ -16,7 +18,7 @@ namespace Fuxion.Tool.Test;
 /// </summary>
 public sealed class YamlEditorTest
 {
-	sealed record Scenario(string Fixture, Func<YamlEditor, YamlEdit> Plan, Func<YamlEditor, bool> Expect, int RemovedComments = 0);
+	sealed record Scenario(string Fixture, Func<YamlEditor, Response<YamlEdit>> Plan, Func<YamlEditor, bool> Expect, int RemovedComments = 0);
 
 	static string? Val(YamlEditor e, string path) => (e.Resolve(path) as YamlScalar)?.Value;
 
@@ -175,9 +177,9 @@ public sealed class YamlEditorTest
 	public void Edit_ChangesOnlyItsRange(string newLine, string id)
 	{
 		var scenario = Scenarios[id];
-		var before = YamlEditor.Parse(Fixture(scenario.Fixture, newLine));
-		var edit = scenario.Plan(before);
-		var after = before.Apply(edit);
+		var before = YamlEditor.Parse(Fixture(scenario.Fixture, newLine)).SuccessOrThrow();
+		var edit = scenario.Plan(before).SuccessOrThrow();
+		var after = before.Apply(edit).SuccessOrThrow();
 
 		// Outside the edit, byte for byte
 		var utf8 = new UTF8Encoding(false);
@@ -185,7 +187,7 @@ public sealed class YamlEditorTest
 		Assert.Equal(utf8.GetBytes(before.Text[(edit.Start + edit.Length)..]), utf8.GetBytes(after.Text[(edit.Start + edit.Text.Length)..]));
 		Assert.Equal(before.Text.Length - edit.Length + edit.Text.Length, after.Text.Length);
 		// Reparses, same line endings
-		Assert.NotNull(YamlDocument.Load(after.Text));
+		Assert.True(YamlDocument.Load(after.Text) is YamlNode);
 		Assert.Equal(newLine, LineEndings(after.Text));
 		// The comments outside the range stay; those inside go, as many as expected
 		var kept = before.Comments().Where(c => c.Start < edit.Start || c.Start >= edit.Start + edit.Length).Select(c => c.Text).ToList();
@@ -200,19 +202,19 @@ public sealed class YamlEditorTest
 	[MemberData(nameof(Fixtures))]
 	public void Edits_OneAfterAnother_KeepEverythingElse(string newLine, string fixture)
 	{
-		var original = YamlEditor.Parse(Fixture(fixture, newLine));
+		var original = YamlEditor.Parse(Fixture(fixture, newLine)).SuccessOrThrow();
 		var editor = original;
 		var removed = 0;
 		foreach (var scenario in Scenarios.Values.Where(s => s.Fixture == fixture))
 		{
 			// Planned on the current text: the positions are the new ones
-			var edit = scenario.Plan(editor);
+			var edit = scenario.Plan(editor).SuccessOrThrow();
 			removed += edit.RemovedComments;
-			editor = editor.Apply(edit);
+			editor = editor.Apply(edit).SuccessOrThrow();
 		}
 		Assert.Equal(newLine, LineEndings(editor.Text));
 		Assert.Equal(original.Comments().Count - removed, editor.Comments().Count);
-		Assert.NotNull(YamlDocument.Load(editor.Text));
+		Assert.True(YamlDocument.Load(editor.Text) is YamlNode);
 	}
 
 	[Fact]
@@ -222,13 +224,13 @@ public sealed class YamlEditorTest
 		try
 		{
 			File.WriteAllBytes(path, [0xEF, 0xBB, 0xBF, .. Encoding.UTF8.GetBytes("# café\nname: a\n")]);
-			var editor = YamlEditor.ReadFile(path);
+			var editor = YamlEditor.ReadFile(path).SuccessOrThrow();
 			Assert.True(editor.HasBom);
-			editor.Apply(editor.SetScalar("name", "b")).WriteFile(path);
+			editor.Apply(editor.SetScalar("name", "b")).SuccessOrThrow().WriteFile(path);
 			Assert.Equal([0xEF, 0xBB, 0xBF, .. Encoding.UTF8.GetBytes("# café\nname: b\n")], File.ReadAllBytes(path));
 
 			File.WriteAllBytes(path, Encoding.UTF8.GetBytes("name: a\n"));
-			editor = YamlEditor.ReadFile(path);
+			editor = YamlEditor.ReadFile(path).SuccessOrThrow();
 			Assert.False(editor.HasBom);
 			editor.WriteFile(path);
 			Assert.Equal(Encoding.UTF8.GetBytes("name: a\n"), File.ReadAllBytes(path));
@@ -243,19 +245,51 @@ public sealed class YamlEditorTest
 	public void Comments_LeaveOutWhatIsInsideScalars()
 	{
 		// SharpYaml 3.15.0 gives "#d" for c#d (no comment) and one "# y\" # real" for "x # y" # real (the real one inside)
-		var editor = YamlEditor.Parse("a: \"x # y\" # real\nb: c#d\n# real too\n");
+		var editor = YamlEditor.Parse("a: \"x # y\" # real\nb: c#d\n# real too\n").SuccessOrThrow();
 		Assert.Equal(["# real", "# real too"], editor.Comments().Select(c => c.Text));
 		Assert.Equal(11, editor.Comments()[0].Start);
 	}
 
 	[Fact]
-	public void Apply_InvalidResult_Throws()
+	public void Apply_InvalidResult_IsAConflict()
 	{
-		var editor = YamlEditor.Parse("a: [1, 2]\n");
-		var ex = Assert.Throws<YamlSyntaxException>(() => editor.Apply(new YamlEdit(4, 0, "[", "break it")));
-		Assert.Contains("break it", ex.Message);
+		var editor = YamlEditor.Parse("a: [1, 2]\n").SuccessOrThrow();
+		var applied = editor.Apply(new YamlEdit(4, 0, "[", "break it"));
+		Assert.True(applied is Error { Type: HttpStatusCode.Conflict });
+		var syntax = Assert.Single(applied.Diagnostics);
+		Assert.Equal((YamlDocument.Syntax, true), (syntax.Code, syntax.Line > 0));
+		Assert.Contains("break it", syntax.Message.English);
 		Assert.Equal("a: [1, 2]\n", editor.Text);
+		Assert.True(YamlEditor.Parse("a: [1, 2\n") is Error { Type: HttpStatusCode.Conflict });
 	}
+
+	[Theory(DisplayName = "what the editor cannot do to the file as it is written: a conflict, with its line; nothing changes")]
+	[InlineData("a: 1\n", "append a", "yaml.not-sequence", 1)]
+	[InlineData("a:\n  b: 1\n", "set a", "yaml.not-scalar", 2)]
+	[InlineData("a: [1]\nb: 2\n", "add b", "yaml.not-mapping", 2)]
+	[InlineData("a: [1, 2]\n", "append-block a", "yaml.flow-sequence", 1)]
+	[InlineData("a: { x: 1 }\n", "add-block a", "yaml.flow-mapping", 1)]
+	[InlineData("list:\n- - a\n  - b\n", "remove list[0][0]", "yaml.compact-nested", 2)]
+	public void Edit_UnsupportedShape_IsAConflict(string yaml, string edit, string text, int line)
+	{
+		var editor = YamlEditor.Parse(yaml).SuccessOrThrow();
+		var block = new YamlValue.Block("x");
+		var path = edit[(edit.IndexOf(' ') + 1)..];
+		var planned = edit[..edit.IndexOf(' ')] switch
+		{
+			"append" => editor.Append(path, "x"),
+			"append-block" => editor.Append(path, block),
+			"set" => editor.SetScalar(path, "x"),
+			"add" => editor.AddKey(path, "k", "x"),
+			"add-block" => editor.AddKey(path, "k", block),
+			_ => editor.Remove(path)
+		};
+		Assert.True(planned is Error { Type: HttpStatusCode.Conflict });
+		var diagnostic = Assert.Single(planned.Diagnostics);
+		Assert.Equal((YamlEditor.Unsupported, text, line), (diagnostic.Code, diagnostic.Message.Key, diagnostic.Line));
+		Assert.True(editor.Apply(planned) is Error);
+	}
+
 
 	[Theory]
 	[InlineData("plain text", "plain text")]
@@ -271,5 +305,5 @@ public sealed class YamlEditorTest
 	public void Quote_OnlyWhenNeeded(string value, string expected) => Assert.Equal(expected, YamlEditor.Quote(value));
 
 	[Fact]
-	public void Path_Malformed_Throws() => Assert.Throws<FormatException>(() => YamlEditor.Parse("a: 1\n").Resolve("a[x"));
+	public void Path_Malformed_Throws() => Assert.Throws<FormatException>(() => YamlEditor.Parse("a: 1\n").SuccessOrThrow().Resolve("a[x"));
 }

@@ -90,12 +90,14 @@ public static partial class DocAdoption
 		var file = FxLayout.Full(change.Catalog.Root, DocsModule.ConfigFile);
 		if (adopted.Count == 0 || !FxFiles.Exists(file))
 			return;
-		var editor = YamlEditor.Parse(FxFiles.ReadAllText(file));
-		if (editor.Resolve("bootstrap") is not YamlSequence list)
+		if (YamlEditor.Parse(FxFiles.ReadAllText(file)) is not YamlEditor editor || editor.Resolve("bootstrap") is not YamlSequence list)
 			return;
+		// the items adopted, from the last; one the editor cannot remove stays
 		for (var i = list.Items.Count - 1; i >= 0; i--)
-			if (list.Items[i] is YamlScalar item && adopted.Contains(item.Value.Trim().Replace('\\', '/').TrimEnd('/')))
-				editor = editor.Apply(editor.Remove($"bootstrap[{i}]"));
+			if (list.Items[i] is YamlScalar item && adopted.Contains(item.Value.Trim().Replace('\\', '/').TrimEnd('/'))
+			    && editor.Apply(editor.Remove($"bootstrap[{i}]")) is YamlEditor next)
+				editor = next;
+
 		change.Set(file, editor.Text, document: false);
 	}
 
@@ -180,7 +182,7 @@ public static partial class DocAdoption
 	public static IReadOnlyList<DocManifestTarget>? Read(string path, string display, ICollection<FxDiagnostic> diagnostics)
 	{
 		var reader = new FxYamlReader(InvalidManifest, display);
-		var map = reader.Load(FxFiles.ReadAllText(path));
+		var map = reader.Load(FxFiles.ReadAllText(path)) is YamlMapping loaded ? loaded : null;
 		if (map is null)
 		{
 			foreach (var d in reader.Diagnostics)

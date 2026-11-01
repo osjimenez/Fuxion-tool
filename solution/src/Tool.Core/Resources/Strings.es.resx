@@ -1303,4 +1303,25 @@
   <data name="fx.error" xml:space="preserve">
     <value>Ha fallado: {0}</value>
   </data>
+  <data name="yaml.not-mapping" xml:space="preserve">
+    <value>'{0}' no es un mapa, como lo necesita el cambio.</value>
+  </data>
+  <data name="yaml.not-sequence" xml:space="preserve">
+    <value>'{0}' no es una secuencia, como lo necesita el cambio.</value>
+  </data>
+  <data name="yaml.not-scalar" xml:space="preserve">
+    <value>'{0}' no es un escalar, como lo necesita el cambio.</value>
+  </data>
+  <data name="yaml.flow-sequence" xml:space="preserve">
+    <value>'{0}' es una secuencia en línea ([a, b]): solo admite valores de una línea.</value>
+  </data>
+  <data name="yaml.flow-mapping" xml:space="preserve">
+    <value>'{0}' es un mapa en línea ({{ a: 1 }}): solo admite valores de una línea.</value>
+  </data>
+  <data name="yaml.empty-block-mapping" xml:space="preserve">
+    <value>'{0}' es un mapa de bloque vacío: fx no puede añadirle una clave.</value>
+  </data>
+  <data name="yaml.compact-nested" xml:space="preserve">
+    <value>'{0}' es un elemento de una secuencia anidada compacta (- - a), que fx no edita.</value>
+  </data>
 </root>

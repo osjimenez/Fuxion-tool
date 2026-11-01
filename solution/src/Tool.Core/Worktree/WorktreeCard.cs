@@ -37,7 +37,7 @@ public sealed record WorktreeCard(string Branch, string From, IReadOnlyList<stri
 			return null;
 		var reader = new FxYamlReader(Invalid, FileName);
 		WorktreeCard? card = null;
-		if (reader.Load(FxFiles.ReadAllText(file)) is { } map && FxYamlReader.Scalar(map["branch"]) is { Length: > 0 } branch)
+		if (reader.Load(FxFiles.ReadAllText(file)) is YamlMapping map && FxYamlReader.Scalar(map["branch"]) is { Length: > 0 } branch)
 			card = new(branch, FxYamlReader.Scalar(map["from"]) ?? "", FxYamlReader.List(map["left-out"]),
 				(map["worktrees"] as YamlSequence)?.Items.OfType<YamlMapping>()
 				.Select(w => new WorktreeMount(FxYamlReader.Scalar(w["path"]) ?? "", FxYamlReader.Scalar(w["repository"]) ?? "", w["created-branch"] is YamlScalar { Value: "true" }))

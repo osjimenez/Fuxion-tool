@@ -50,7 +50,7 @@ public static class SpaceShares
 		var stored = parent.Full($"{FxLayout.Inherited}/{Folder}");
 		var storedYaml = Path.Combine(stored, $"{Folder}.yaml");
 		if (FxFiles.Exists(storedYaml))
-			foreach (var share in SpaceConfig.Read(FxFiles.ReadAllText(storedYaml), storedYaml, []).Shares ?? [])
+			foreach (var share in SpaceConfig.Parse(FxFiles.ReadAllText(storedYaml), storedYaml).Shares ?? [])
 				if (SafeDestination(share.Destination) && share with { Path = share.Destination } is var rebased)
 					flows.Add(new(rebased, Expand(rebased, Path.Combine(stored, rebased.Path), relative => fromOf($"{Folder}/{relative}").LastOrDefault() ?? parentIdentity.FullName)));
 		foreach (var share in parent.OwnConfig().Shares ?? [])

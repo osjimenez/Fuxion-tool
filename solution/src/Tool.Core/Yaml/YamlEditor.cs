@@ -4,7 +4,9 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Net;
 using Fuxion.Tool.Core.Layout;
+using Fuxion.Tool.Core.Results;
 using SharpYaml.Syntax;
 
 namespace Fuxion.Tool.Core.Yaml;
@@ -50,11 +52,11 @@ public sealed class YamlEditor
 {
 	readonly YamlSyntaxTree _tree;
 
-	YamlEditor(YamlSyntaxTree tree, bool hasBom)
+	YamlEditor(YamlSyntaxTree tree, YamlNode? root, bool hasBom)
 	{
 		_tree = tree;
 		HasBom = hasBom;
-		Root = YamlDocument.Load(tree.Text);
+		Root = root;
 		NewLine = DetectNewLine(tree.Text);
 		(IndentUnit, IndentedSequences) = InferIndentation(Root);
 	}
@@ -76,21 +78,39 @@ public sealed class YamlEditor
 	/// <summary>The file started with a UTF-8 byte order mark: <see cref="WriteFile"/> keeps it.</summary>
 	public bool HasBom { get; }
 
-	/// <exception cref="YamlSyntaxException">Invalid YAML.</exception>
-	public static YamlEditor Parse(string text, bool hasBom = false)
+	/// <summary>The code of what the editor cannot do to the file as it is written (<see cref="HttpStatusCode.Conflict"/>).</summary>
+	public const string Unsupported = "yaml.unsupported";
+
+	/// <summary>An empty text, to edit from nothing.</summary>
+	public static YamlEditor Empty { get; } = new(YamlSyntaxTree.Parse(""), null, false);
+
+	/// <summary>The editor of <paramref name="text"/>; an error (<see cref="YamlDocument.Syntax"/>) if it is not valid YAML.</summary>
+	public static Response<YamlEditor> Parse(string text, bool hasBom = false)
 	{
+		YamlSyntaxTree tree;
 		try
 		{
-			return new(YamlSyntaxTree.Parse(text), hasBom);
+			tree = YamlSyntaxTree.Parse(text);
 		}
 		catch (SharpYaml.YamlException ex)
 		{
-			throw new YamlSyntaxException(ex.Message, (int)ex.Start.Line + 1, (int)ex.Start.Column + 1);
+			return YamlDocument.Invalid(ex.Message, (int)ex.Start.Line + 1);
 		}
+		return Create(tree, hasBom, null);
 	}
 
+	/// <summary>The editor of a tree, its nodes read; <paramref name="what"/>, the edit that made it, if one.</summary>
+	static Response<YamlEditor> Create(YamlSyntaxTree tree, bool hasBom, string? what)
+	{
+		var root = YamlDocument.Load(tree.Text);
+		if (root is Error error)
+			return what is null ? error : YamlDocument.Invalid($"{what}: {error.Message}", error.Diagnostics[0].Line ?? 1);
+		return new YamlEditor(tree, root is YamlNode node ? node : null, hasBom);
+	}
+
+
 	/// <summary>Reads a file as it is: UTF-8, with or without a byte order mark (SharpYaml does not take one).</summary>
-	public static YamlEditor ReadFile(string path)
+	public static Response<YamlEditor> ReadFile(string path)
 	{
 		var bytes = FxFiles.ReadAllBytes(path);
 		var bom = bytes is [0xEF, 0xBB, 0xBF, ..];
@@ -100,24 +120,35 @@ public sealed class YamlEditor
 	/// <summary>Writes the text, with the byte order mark if the file had one.</summary>
 	public void WriteFile(string path) => File.WriteAllBytes(path, new UTF8Encoding(HasBom).GetPreamble().Concat(new UTF8Encoding(false).GetBytes(Text)).ToArray());
 
-	/// <summary>The editor of the text with <paramref name="edit"/> applied.</summary>
-	/// <exception cref="YamlSyntaxException">The result is not valid YAML (the editor stays as it was).</exception>
-	public YamlEditor Apply(YamlEdit edit)
+	/// <summary>The editor of the text with <paramref name="edit"/> applied; an error if the result is not valid YAML (this editor stays as it was).</summary>
+	public Response<YamlEditor> Apply(YamlEdit edit)
 	{
+		YamlSyntaxTree tree;
 		try
 		{
-			return new(_tree.WithTextChange(edit.Start, edit.Length, edit.Text), HasBom);
+			tree = _tree.WithTextChange(edit.Start, edit.Length, edit.Text);
 		}
 		catch (SharpYaml.YamlException ex)
 		{
-			throw new YamlSyntaxException($"{edit.What}: {ex.Message}", (int)ex.Start.Line + 1, (int)ex.Start.Column + 1);
+			return YamlDocument.Invalid($"{edit.What}: {ex.Message}", (int)ex.Start.Line + 1);
 		}
+		return Create(tree, HasBom, edit.What);
 	}
+
+	/// <summary>The editor with <paramref name="edit"/> applied, if it could be planned; its error, if not.</summary>
+	public Response<YamlEditor> Apply(Response<YamlEdit> edit) => edit is YamlEdit planned ? Apply(planned) : (Error)edit;
+
 
 	public YamlNode? Resolve(string path) => path.Length == 0 ? Root : YamlPath.Resolve(Root, path);
 
-	T Find<T>(string path) where T : YamlNode
-		=> Resolve(path) as T ?? throw new InvalidOperationException($"'{path}' is not a {typeof(T).Name[4..].ToLowerInvariant()}.");
+	/// <summary>The node at <paramref name="path"/>, of the kind an edit needs; an error if the file has another there.</summary>
+	Response<T> Find<T>(string path) where T : YamlNode
+		=> Resolve(path) is T node ? node : Cannot($"yaml.not-{typeof(T).Name[4..].ToLowerInvariant()}", path);
+
+	/// <summary>What the editor cannot do to the file as it is written: its text, about <paramref name="path"/>, at the line of its node.</summary>
+	Error Cannot(string key, string path)
+		=> FxErrors.Of(HttpStatusCode.Conflict, FxDiagnostic.Error(Unsupported, new(key, path), line: Resolve(path)?.Line));
+
 
 	/// <summary>
 	/// The comments of the file. SharpYaml 3.15.0 also gives comment trivia that starts inside a scalar: <c>c#d</c>
@@ -152,9 +183,10 @@ public sealed class YamlEditor
 	// ---------------------------------------------------------------- edits
 
 	/// <summary>Changes a scalar, keeping its quotes (single or double) if it had them.</summary>
-	public YamlEdit SetScalar(string path, YamlValue value)
+	public Response<YamlEdit> SetScalar(string path, YamlValue value)
 	{
-		var node = Find<YamlScalar>(path);
+		if (Find<YamlScalar>(path) is not YamlScalar node)
+			return (Error)Find<YamlScalar>(path);
 		var text = value switch
 		{
 			YamlValue.Text s when node.Style == YamlScalarStyle.DoubleQuoted => DoubleQuote(s.Value),
@@ -164,47 +196,52 @@ public sealed class YamlEditor
 		// An empty value sits right after its ':'
 		if (node.Start == node.End && node.Start > 0 && Text[node.Start - 1] == ':')
 			text = " " + text;
-		return new(node.Start, node.End - node.Start, text, $"set {path}");
+		return new YamlEdit(node.Start, node.End - node.Start, text, $"set {path}");
 	}
 
 	/// <summary>Adds an item at the end of a sequence (flow or block).</summary>
-	public YamlEdit Append(string path, YamlValue item)
+	public Response<YamlEdit> Append(string path, YamlValue item)
 	{
-		var sequence = Find<YamlSequence>(path);
+		if (Find<YamlSequence>(path) is not YamlSequence sequence)
+			return (Error)Find<YamlSequence>(path);
 		if (sequence.IsFlow)
 		{
-			var inline = Inline(item) ?? throw new NotSupportedException("A flow sequence takes inline values.");
+			if (Inline(item) is not { } inline)
+				return Cannot("yaml.flow-sequence", path);
 			if (sequence.Items.Count == 0)
-				return new(sequence.Start + 1, sequence.FlowEnd - 1 - (sequence.Start + 1), inline, $"append to {path}");
+				return new YamlEdit(sequence.Start + 1, sequence.FlowEnd - 1 - (sequence.Start + 1), inline, $"append to {path}");
 			// The separator the sequence already uses (", ", or a line break and indentation)
 			var separator = sequence.Items.Count >= 2 ? Text[sequence.Items[^2].End..sequence.Items[^1].Start] : ", ";
-			return new(sequence.Items[^1].End, 0, separator + inline, $"append to {path}");
+			return new YamlEdit(sequence.Items[^1].End, 0, separator + inline, $"append to {path}");
 		}
 		var last = sequence.Items[^1];
 		var at = NextLineStart(last.End);
 		var blank = sequence.Items.Count >= 2 && IsBlankLine(PreviousLineStart(LineStart(DashIndex(last)))) ? NewLine : "";
-		return new(at, 0, blank + JoinLines(ItemLines(item, sequence.Column - 1), at), $"append to {path}");
+		return new YamlEdit(at, 0, blank + JoinLines(ItemLines(item, sequence.Column - 1), at), $"append to {path}");
 	}
 
 	/// <summary>Adds a key to a mapping (flow or block), at the end or after <paramref name="after"/>.</summary>
-	public YamlEdit AddKey(string path, string key, YamlValue value, string? after = null)
+	public Response<YamlEdit> AddKey(string path, string key, YamlValue value, string? after = null)
 	{
-		var map = Find<YamlMapping>(path);
+		if (Find<YamlMapping>(path) is not YamlMapping map)
+			return (Error)Find<YamlMapping>(path);
 		if (map.Entry(key) is not null)
 			throw new InvalidOperationException($"'{key}' already exists in '{path}'.");
 		if (map.Entries.Count == 0 && !map.IsFlow)
-			throw new NotSupportedException($"'{path}' is an empty block mapping.");
+			return Cannot("yaml.empty-block-mapping", path);
 		var anchor = after is null ? map.Entries.LastOrDefault() : map.Entry(after) ?? throw new InvalidOperationException($"No '{after}' in '{path}'.");
 		if (map.IsFlow)
 		{
-			var text = Quote(key) + ": " + (Inline(value) ?? throw new NotSupportedException("A flow mapping takes inline values."));
+			if (Inline(value) is not { } inline)
+				return Cannot("yaml.flow-mapping", path);
+			var text = Quote(key) + ": " + inline;
 			if (map.Entries.Count == 0)
-				return new(map.Start + 1, map.FlowEnd - 1 - (map.Start + 1), text, $"add {path}.{key}");
+				return new YamlEdit(map.Start + 1, map.FlowEnd - 1 - (map.Start + 1), text, $"add {path}.{key}");
 			var separator = map.Entries.Count >= 2 ? Text[map.Entries[^2].Value.End..map.Entries[^1].Key.Start] : ", ";
-			return new(anchor!.Value.End, 0, separator + text, $"add {path}.{key}");
+			return new YamlEdit(anchor!.Value.End, 0, separator + text, $"add {path}.{key}");
 		}
 		var at = NextLineStart(anchor!.Value.End);
-		return new(at, 0, JoinLines(EntryLines(key, value, map.Entries[0].Key.Column - 1), at), $"add {path}.{key}");
+		return new YamlEdit(at, 0, JoinLines(EntryLines(key, value, map.Entries[0].Key.Column - 1), at), $"add {path}.{key}");
 	}
 
 	/// <summary>
@@ -213,7 +250,7 @@ public sealed class YamlEditor
 	/// their own indentation (with no blank line between); other comments stay. The last item of a block sequence
 	/// leaves <c>key: []</c>, the last entry of a block mapping <c>key: {}</c>.
 	/// </summary>
-	public YamlEdit Remove(string path)
+	public Response<YamlEdit> Remove(string path)
 	{
 		var node = Resolve(path) ?? throw new InvalidOperationException($"'{path}' not found.");
 		return node.Parent switch
@@ -235,24 +272,24 @@ public sealed class YamlEditor
 		return index < count - 1 ? Removal(start(index), start(index + 1), path) : Removal(end(index - 1), end(index), path);
 	}
 
-	YamlEdit RemoveBlockItem(YamlSequence sequence, YamlNode item, string path)
+	Response<YamlEdit> RemoveBlockItem(YamlSequence sequence, YamlNode item, string path)
 	{
 		var dash = DashIndex(item);
 		var lineStart = LineStart(dash);
 		if (!OnlySpaces(lineStart, dash))
-			throw new NotSupportedException("Items of compact nested sequences (- - a).");
+			return Cannot("yaml.compact-nested", path);
 		var end = NextLineStart(item.End);
 		if (sequence.Items.Count == 1 && sequence.Parent is YamlMapping parent)
 		{
 			// Keep the key, as an empty sequence
 			var colon = Text.IndexOf(':', parent.Entries.First(e => e.Value == sequence).Key.End);
-			return new(colon + 1, end - colon - 1, " []" + (end > 0 && Text[end - 1] == '\n' ? NewLine : ""), $"remove {path}",
+			return new YamlEdit(colon + 1, end - colon - 1, " []" + (end > 0 && Text[end - 1] == '\n' ? NewLine : ""), $"remove {path}",
 				CountComments(colon + 1, end));
 		}
 		return RemoveLines(ExtendOverLeadingComments(lineStart, sequence.Column - 1), end, path);
 	}
 
-	YamlEdit RemoveBlockEntry(YamlMapping map, YamlEntry entry, string path)
+	Response<YamlEdit> RemoveBlockEntry(YamlMapping map, YamlEntry entry, string path)
 	{
 		var keyLineStart = LineStart(entry.Key.Start);
 		if (OnlySpaces(keyLineStart, entry.Key.Start))
@@ -261,7 +298,7 @@ public sealed class YamlEditor
 			{
 				var colon = Text.IndexOf(':', parent.Entries.First(e => e.Value == map).Key.End);
 				var end = NextLineStart(entry.Value.End);
-				return new(colon + 1, end - colon - 1, " {}" + NewLine, $"remove {path}", CountComments(colon + 1, end));
+				return new YamlEdit(colon + 1, end - colon - 1, " {}" + NewLine, $"remove {path}", CountComments(colon + 1, end));
 			}
 			return RemoveLines(ExtendOverLeadingComments(keyLineStart, entry.Key.Column - 1), NextLineStart(entry.Value.End), path);
 		}

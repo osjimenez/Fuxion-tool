@@ -65,9 +65,9 @@ public static class SyncEngine
 
 		// a fx older than the one this tree requires reads, but writes nothing (decision 4); so does one older than the
 		// Fuxion.Tool.Sdk the tree builds with, which a newer fx pinned: they are released together (plan S)
-		var found = new List<FxDiagnostic>();
-		var config = start.Config(found);
-		first.AddRange(found);
+		var read = start.ReadConfig();
+		first.AddRange(read);
+		var config = read is SpaceConfig valid ? valid : start.Config();
 		var parent = FindParent(start, options, progress, first, cancellationToken);
 		if (options.FxVersion is { } version)
 		{
@@ -182,7 +182,11 @@ public static class SyncEngine
 		var found = new List<FxDiagnostic>();
 		FxIdentity identity;
 		if (parent is null)
-			identity = node.SelfIdentity(found);
+		{
+			var self = node.ReadSelfIdentity();
+			found.AddRange(self.Diagnostics);
+			identity = self is FxIdentity named ? named : node.SelfIdentity();
+		}
 		else
 		{
 			var fullName = $"{parent.Identity.FullName}/{parent.Declaration.Name}";

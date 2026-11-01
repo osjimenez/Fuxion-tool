@@ -1303,4 +1303,25 @@
   <data name="fx.error" xml:space="preserve">
     <value>Failed: {0}</value>
   </data>
+  <data name="yaml.not-mapping" xml:space="preserve">
+    <value>'{0}' is not a mapping, as the edit needs it.</value>
+  </data>
+  <data name="yaml.not-sequence" xml:space="preserve">
+    <value>'{0}' is not a sequence, as the edit needs it.</value>
+  </data>
+  <data name="yaml.not-scalar" xml:space="preserve">
+    <value>'{0}' is not a scalar, as the edit needs it.</value>
+  </data>
+  <data name="yaml.flow-sequence" xml:space="preserve">
+    <value>'{0}' is a flow sequence ([a, b]): it only takes values on one line.</value>
+  </data>
+  <data name="yaml.flow-mapping" xml:space="preserve">
+    <value>'{0}' is a flow mapping ({{ a: 1 }}): it only takes values on one line.</value>
+  </data>
+  <data name="yaml.empty-block-mapping" xml:space="preserve">
+    <value>'{0}' is an empty block mapping: fx cannot add a key to it.</value>
+  </data>
+  <data name="yaml.compact-nested" xml:space="preserve">
+    <value>'{0}' is an item of a compact nested sequence (- - a), which fx does not edit.</value>
+  </data>
 </root>

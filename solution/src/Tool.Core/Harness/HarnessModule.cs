@@ -214,16 +214,7 @@ public static class HarnessModule
 	{
 		if (HarnessGenerator.FrontMatter(text) is not { } parts)
 			return "no-front-matter";
-		YamlMapping? map;
-		try
-		{
-			map = YamlDocument.Load(parts.Yaml) as YamlMapping;
-		}
-		catch (YamlSyntaxException)
-		{
-			return "front-matter";
-		}
-		if (map is null)
+		if (YamlDocument.Load(parts.Yaml) is not YamlMapping map)
 			return "front-matter";
 		if (!string.Equals(FxYamlReader.Scalar(map["name"]), name, StringComparison.Ordinal))
 			return "name";
@@ -339,14 +330,12 @@ public static class HarnessModule
 				IReadOnlyList<string> paths = [];
 				if (HarnessGenerator.FrontMatter(text) is { } parts)
 				{
-					try
+					// a front matter that cannot be read stays in the text of the rule
+					var front = YamlDocument.Load(parts.Yaml);
+					if (front is not Error)
 					{
-						paths = YamlDocument.Load(parts.Yaml) is YamlMapping map ? FxYamlReader.List(map["paths"]) : [];
+						paths = front is YamlMapping map ? FxYamlReader.List(map["paths"]) : [];
 						text = parts.Body;
-					}
-					catch (YamlSyntaxException)
-					{
-						// a front matter that cannot be read stays in the text of the rule
 					}
 				}
 				if (string.Equals(name, Reserved, StringComparison.OrdinalIgnoreCase) || Taken(name, skill: false))
@@ -382,25 +371,23 @@ public static class HarnessModule
 			return adopted;
 
 		// declared in harness.yaml (created if it is not there), or nothing is adopted
-		var editor = YamlEditor.Parse(FxFiles.Exists(ownFile) ? FxFiles.ReadAllText(ownFile) : $"schema: {FxYamlReader.Schema}\n");
-		try
+		var parsed = YamlEditor.Parse(FxFiles.Exists(ownFile) ? FxFiles.ReadAllText(ownFile) : $"schema: {FxYamlReader.Schema}\n");
+		Response<YamlEditor> Add(Response<YamlEditor> current, string key, YamlValue item)
+			=> current is not YamlEditor editor ? current
+				: editor.Resolve(key) is YamlSequence ? editor.Apply(editor.Append(key, item))
+				: editor.Apply(editor.AddKey("", key, new YamlValue.Block(item)));
+		foreach (var (name, paths, _, _) in rules)
+			parsed = Add(parsed, "rules", paths.Count == 0
+				? new YamlValue.Map(("name", name))
+				: new YamlValue.Map(("name", name), ("paths", new YamlValue.Flow(paths.Select(p => (YamlValue)p).ToArray()))));
+		foreach (var (name, _) in skills)
+			parsed = Add(parsed, "skills", new YamlValue.Map(("name", name)));
+		if (parsed is not YamlEditor editor)
 		{
-			void Add(string key, YamlValue item)
-				=> editor = editor.Resolve(key) is YamlSequence
-					? editor.Apply(editor.Append(key, item))
-					: editor.Apply(editor.AddKey("", key, new YamlValue.Block(item)));
-			foreach (var (name, paths, _, _) in rules)
-				Add("rules", paths.Count == 0
-					? new YamlValue.Map(("name", name))
-					: new YamlValue.Map(("name", name), ("paths", new YamlValue.Flow(paths.Select(p => (YamlValue)p).ToArray()))));
-			foreach (var (name, _) in skills)
-				Add("skills", new YamlValue.Map(("name", name)));
-		}
-		catch (Exception ex) when (ex is InvalidOperationException or NotSupportedException)
-		{
-			diagnostics.Add(FxDiagnostic.Error(NotAdopted, new($"{NotAdopted}.yaml", ex.Message), outputs.Display(ownFile)));
+			diagnostics.Add(FxDiagnostic.Error(NotAdopted, new($"{NotAdopted}.yaml", ((Error)parsed).Diagnostics[0].Message), outputs.Display(ownFile)));
 			return adopted;
 		}
+
 		outputs.Owned(ownFile, Encoding.UTF8.GetBytes(editor.Text));
 
 		// the sources, in _fx/harness/

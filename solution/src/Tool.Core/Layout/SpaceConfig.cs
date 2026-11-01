@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text.RegularExpressions;
 using Fuxion.Tool.Core.Results;
 using Fuxion.Tool.Core.Yaml;
@@ -73,21 +74,39 @@ public sealed partial record SpaceConfig(
 	[GeneratedRegex("^[a-z0-9]+(-[a-z0-9]+)*$")]
 	public static partial Regex NamePattern();
 
-	/// <summary>Its own <c>_fx/space.yaml</c> under <paramref name="root"/>, if it exists; its problems go to <paramref name="diagnostics"/>.</summary>
-	public static SpaceConfig Load(string root, ICollection<FxDiagnostic>? diagnostics = null) => Load(root, FxLayout.ConfigFile, diagnostics ?? []);
-
-	/// <summary><paramref name="relative"/> under <paramref name="root"/>, if it exists; its problems go to <paramref name="diagnostics"/>.</summary>
-	public static SpaceConfig Load(string root, string relative, ICollection<FxDiagnostic> diagnostics)
+	/// <summary>
+	/// What can be read of <paramref name="relative"/> under <paramref name="root"/> (its own <c>_fx/space.yaml</c> by
+	/// default), whatever its problems (<see cref="ReadFile"/> finds them); empty if it does not exist.
+	/// </summary>
+	public static SpaceConfig Load(string root, string relative = FxLayout.ConfigFile)
 	{
 		var path = FxLayout.Full(root, relative);
-		return FxFiles.Exists(path) ? Read(FxFiles.ReadAllText(path), relative, diagnostics) : Empty;
+		return FxFiles.Exists(path) ? Parse(FxFiles.ReadAllText(path), relative) : Empty;
 	}
 
-	public static SpaceConfig Read(string text, string file, ICollection<FxDiagnostic> diagnostics)
+	/// <summary><paramref name="relative"/> under <paramref name="root"/>, read with its problems: an error if it has one; empty if it does not exist.</summary>
+	public static Response<SpaceConfig> ReadFile(string root, string relative = FxLayout.ConfigFile)
 	{
+		var path = FxLayout.Full(root, relative);
+		return FxFiles.Exists(path) ? Read(FxFiles.ReadAllText(path), relative) : Empty;
+	}
+
+	/// <summary>A <c>space.yaml</c> read with its problems: an error (<see cref="HttpStatusCode.Conflict"/>) if it has one; its warnings, with it.</summary>
+	public static Response<SpaceConfig> Read(string text, string file)
+	{
+		var found = new List<FxDiagnostic>();
+		return FxResponse.Outcome(Parse(text, file, found), found, HttpStatusCode.Conflict);
+	}
+
+	/// <summary>What can be read of a <c>space.yaml</c>, whatever its problems.</summary>
+	public static SpaceConfig Parse(string text, string file) => Parse(text, file, null);
+
+	static SpaceConfig Parse(string text, string file, List<FxDiagnostic>? found)
+	{
+
 		var reader = new FxYamlReader(Invalid, file);
 		var config = Empty;
-		if (reader.Load(text) is { } map)
+		if (reader.Load(text) is YamlMapping map)
 		{
 			reader.Keys(map, "schema", "name", "audience", "audiences", "requires", "tags", "paths", "shares");
 			var name = FxYamlReader.Scalar(map["name"]);
@@ -128,8 +147,7 @@ public sealed partial record SpaceConfig(
 				reader.Error(notAList, "tags");
 			config = new(name, requires, tags, audience, ReadPaths(map, reader), ReadShares(map, reader), audiences, map["audience"]?.Line ?? 0);
 		}
-		foreach (var diagnostic in reader.Diagnostics.Concat(config.Validate(file)))
-			diagnostics.Add(diagnostic);
+		found?.AddRange(reader.Diagnostics.Concat(config.Validate(file)));
 		return config;
 	}
 
@@ -206,27 +224,36 @@ public sealed partial record SpaceConfig(
 	/// <summary>
 	/// What comes from above with this one on top: the name, the audience, the paths and the shares are this one's (they
 	/// are not inherited); <c>requires</c>, the highest; the tags, those from above and the new ones of this one (one
-	/// already defined above stays as it was, with a warning in <paramref name="diagnostics"/>); the audiences, those
-	/// from above if they declare any (this one's, then, are ignored with a warning). Its audience must be one of them.
+	/// already defined above stays as it was, with a warning); the audiences, those from above if they declare any (this
+	/// one's, then, are ignored with a warning). Its audience must be one of them.
 	/// </summary>
-	public static SpaceConfig Merge(SpaceConfig inherited, SpaceConfig own, string file, ICollection<FxDiagnostic>? diagnostics = null)
+	public static Response<SpaceConfig> Merge(SpaceConfig inherited, SpaceConfig own, string file)
+	{
+		var found = new List<FxDiagnostic>();
+		return FxResponse.Outcome(Combine(inherited, own, file, found), found, HttpStatusCode.Conflict);
+	}
+
+	/// <summary>What comes from above with this one on top (as <see cref="Merge"/>), whatever its problems.</summary>
+	public static SpaceConfig Combine(SpaceConfig inherited, SpaceConfig own) => Combine(inherited, own, FxLayout.ConfigFile, null);
+
+	static SpaceConfig Combine(SpaceConfig inherited, SpaceConfig own, string file, List<FxDiagnostic>? found)
 	{
 		var tags = inherited.Tags.ToList();
 		foreach (var tag in own.Tags)
 			if (tags.Any(t => string.Equals(t.Name, tag.Name, StringComparison.OrdinalIgnoreCase)))
-				diagnostics?.Add(FxDiagnostic.Warning(TagRedefined, new(TagRedefined, tag.Name), file, tag.Line));
+				found?.Add(FxDiagnostic.Warning(TagRedefined, new(TagRedefined, tag.Name), file, tag.Line));
 			else
 				tags.Add(tag);
 		var audiences = own.Audiences;
 		if (inherited.Audiences is { Count: > 0 })
 		{
 			if (own.Audiences is { Count: > 0 } redefined)
-				diagnostics?.Add(FxDiagnostic.Warning(AudiencesRedefined, new(AudiencesRedefined), file, redefined[0].Line));
+				found?.Add(FxDiagnostic.Warning(AudiencesRedefined, new(AudiencesRedefined), file, redefined[0].Line));
 			audiences = inherited.Audiences;
 		}
 		var merged = own with { Requires = Highest(inherited.Requires, own.Requires), Tags = tags, Audiences = audiences };
 		if (own.Audience is { } audience && !merged.KnowsAudience(audience))
-			diagnostics?.Add(FxDiagnostic.Error(Invalid, new($"{Invalid}.audience", audience, string.Join(", ", merged.AudienceCatalog.Select(a => a.Name))), file, own.AudienceLine));
+			found?.Add(FxDiagnostic.Error(Invalid, new($"{Invalid}.audience", audience, string.Join(", ", merged.AudienceCatalog.Select(a => a.Name))), file, own.AudienceLine));
 		return merged;
 	}
 

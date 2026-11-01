@@ -24,15 +24,9 @@ public sealed record MountsState(IReadOnlyDictionary<string, bool> Parked)
 		var file = FxLayout.Full(root, RelativePath);
 		if (!FxFiles.Exists(file))
 			return Empty;
-		YamlNode? document;
-		try
-		{
-			document = YamlDocument.Load(FxFiles.ReadAllText(file));
-		}
-		catch (YamlSyntaxException)
-		{
+		var document = YamlDocument.Load(FxFiles.ReadAllText(file));
+		if (document is Error)
 			return Empty;
-		}
 		var parked = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
 		if (document is YamlMapping map && map["mounts"] is YamlSequence list)
 			foreach (var item in list.Items.OfType<YamlMapping>())
