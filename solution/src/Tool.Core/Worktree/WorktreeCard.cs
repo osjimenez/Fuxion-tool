@@ -50,6 +50,14 @@ public sealed record WorktreeCard(string Branch, string From, IReadOnlyList<stri
 		return card;
 	}
 
+	/// <summary>Whether <paramref name="path"/> (relative to the root, with '/') is left out of this worktree: one of <see cref="LeftOut"/>, or inside one.</summary>
+	public bool LeavesOut(string path)
+	{
+		var normalized = path.Replace('\\', '/').Trim('/');
+		return LeftOut.Select(p => p.TrimEnd('/')).Any(p => string.Equals(normalized, p, StringComparison.OrdinalIgnoreCase)
+		                                                    || normalized.StartsWith(p + "/", StringComparison.OrdinalIgnoreCase));
+	}
+
 	public void Save(string root)
 		=> File.WriteAllText(Path.Combine(root, FileName), ToYaml().Replace("\n", Environment.NewLine));
 

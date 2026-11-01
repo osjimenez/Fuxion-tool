@@ -36,7 +36,7 @@ public static class DocKeyCommand
 		var diagnostics = new List<FxDiagnostic>();
 		void Json(string? register, string? provider, IReadOnlyList<JsonKey> keys, bool written)
 			=> console.WriteJson(new DocKeyDocument(Schema, FxConsole.Ok(diagnostics), register, provider, keys, written, JsonDiagnostic.From(diagnostics)), c => c.DocKeyDocument);
-		if (DocsModule.Find(console.Settings.Directory, diagnostics) is not { } catalog)
+		if (DocCommand.Find(console, diagnostics) is not { } catalog)
 		{
 			if (console.Settings.IsMachine)
 				Json(null, null, [], false);

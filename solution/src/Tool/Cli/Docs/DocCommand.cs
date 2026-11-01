@@ -207,7 +207,7 @@ public static class DocCommand
 				{
 					var change = new DocChange(catalog, display);
 					var targets = new List<DocManifestTarget>();
-					foreach (var file in files.Select(f => FxLayout.Full(console.Settings.Directory, f)))
+					foreach (var file in files.Select(f => catalog.Resolve(console.Settings.Directory, f)))
 					{
 						if (!FxFiles.Exists(file))
 						{
@@ -276,6 +276,22 @@ public static class DocCommand
 		command.Add(rename);
 	}
 
+	/// <summary>
+	/// The catalog of the commands of <c>fx doc</c> (<see cref="DocsModule.Find"/>). From a worktree that leaves it out,
+	/// that of the main tree: for people, a line on stderr says which, once (not again among the diagnostics); the JSON
+	/// has it in its info.
+	/// </summary>
+	internal static DocCatalog? Find(FxConsole console, List<FxDiagnostic> diagnostics)
+	{
+		var catalog = DocsModule.Find(console.Settings.Directory, diagnostics);
+		if (!console.Settings.IsMachine && diagnostics.FirstOrDefault(d => d.Code == DocsModule.MainTreeCatalog) is { } said)
+		{
+			console.ErrorLine($"[gray]{FxConsole.Escape(said.Message.ToString())}[/]");
+			diagnostics.Remove(said);
+		}
+		return catalog;
+	}
+
 	/// <summary>The one document <paramref name="selector"/> names; null (said on stderr) if it names none or several.</summary>
 	internal static DocFile? One(FxConsole console, DocCatalog catalog, string selector)
 	{
@@ -306,7 +322,7 @@ public static class DocCommand
 				shown ? change!.Moved.Select(m => new JsonFileMove(m.From, m.To)).ToList() : [], shown ? change!.Removed : [], JsonDiagnostic.From(diagnostics)),
 				c => c.DocEditDocument);
 		}
-		if (DocsModule.Find(console.Settings.Directory, found) is not { } catalog)
+		if (Find(console, found) is not { } catalog)
 		{
 			if (console.Settings.IsMachine)
 				Json(null, false);
@@ -381,7 +397,7 @@ public static class DocCommand
 		void Json(DocCatalog? catalog, int count, IReadOnlyList<string> withProblems)
 			=> console.WriteJson(new DocCheckDocument(CheckSchema, FxConsole.Ok(diagnostics), catalog is null ? null : CatalogPath(catalog), count, withProblems,
 				JsonDiagnostic.From(diagnostics)), c => c.DocCheckDocument);
-		if (DocsModule.Find(console.Settings.Directory, diagnostics) is not { } catalog)
+		if (Find(console, diagnostics) is not { } catalog)
 		{
 			if (console.Settings.IsMachine)
 				Json(null, 0, []);
@@ -450,7 +466,7 @@ public static class DocCommand
 	static int List(FxConsole console, Func<DocDocument, bool> filter)
 	{
 		var diagnostics = new List<FxDiagnostic>();
-		var catalog = DocsModule.Find(console.Settings.Directory, diagnostics);
+		var catalog = Find(console, diagnostics);
 		var documents = catalog is null ? [] : DocChecker.Read(catalog).Where(filter).OrderBy(d => d.File.Path, StringComparer.Ordinal).ToList();
 		if (console.Settings.IsMachine)
 		{
@@ -487,7 +503,7 @@ public static class DocCommand
 		void Json(JsonDoc? document, IReadOnlyList<JsonDocRelation> relations, IReadOnlyList<JsonDocRelation> inverse)
 			=> console.WriteJson(new DocShowDocument(ShowSchema, FxConsole.Ok(diagnostics), document, relations, inverse, JsonDiagnostic.From(diagnostics)),
 				c => c.DocShowDocument);
-		if (DocsModule.Find(console.Settings.Directory, diagnostics) is not { } catalog)
+		if (Find(console, diagnostics) is not { } catalog)
 		{
 			if (console.Settings.IsMachine)
 				Json(null, [], []);

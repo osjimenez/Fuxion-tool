@@ -36,6 +36,9 @@ public static class ManifestCommands
 	/// <summary>The same, for a command that edits any space (not only one that mounts others).</summary>
 	delegate ManifestChange? RootEdit(ParseResult result, FxConsole console, string root, CancellationToken cancellationToken);
 
+	/// <summary>The same, for a command that edits any space and may change several files (<c>fx module enable</c>).</summary>
+	delegate IReadOnlyList<ManifestChange>? RootEditMany(ParseResult result, FxConsole console, string root, CancellationToken cancellationToken);
+
 	/// <summary><c>fx mount add|remove|tag|set|rename</c>, into <c>fx mount</c>.</summary>
 	public static void AddTo(Command mount, GlobalOptions global, string currentDirectory)
 	{
@@ -216,12 +219,12 @@ public static class ManifestCommands
 		var enabled = ModuleArgument();
 		var tags = new Option<string[]>("--tag") { Description = Texts.Get("module.tag"), AllowMultipleArgumentsPerToken = true };
 		var enable = new Command("enable", Texts.Get("module.enable")) { enabled, tags };
-		WireRoot(enable, global, currentDirectory, (result, console, root, token) =>
+		WireRootMany(enable, global, currentDirectory, (result, console, root, token) =>
 		{
 			var choices = ManifestEditor.KnownModules.Where(m => !Active(root, m)).ToList();
 			return Given(result, console, result.GetValue(enabled), "<module>", "fx module enable <module>", () => Ask.One(console, Texts.Get("module.ask.enable"), choices, m => m, token),
 				choices.Count > 0) is { } module
-				? ManifestEditor.EnableModule(root, module, result.GetValue(tags) ?? [])
+				? ManifestEditor.Enable(root, module, result.GetValue(tags) ?? [])
 				: null;
 		});
 		command.Add(enable);
@@ -341,6 +344,10 @@ public static class ManifestCommands
 
 	/// <summary>The action of a command that edits any space: the one around the directory (its <c>_fx/</c>, or its git).</summary>
 	static void WireRoot(Command command, GlobalOptions global, string currentDirectory, RootEdit edit)
+		=> WireRootMany(command, global, currentDirectory, (result, console, root, token) => edit(result, console, root, token) is { } change ? [change] : null);
+
+	/// <summary>The action of a command that edits any space and may change several files.</summary>
+	static void WireRootMany(Command command, GlobalOptions global, string currentDirectory, RootEditMany edit)
 	{
 		command.Describe(Schema, writes: true);
 		var dryRun = new Option<bool>("--dry-run") { Description = Texts.Get("manifest.dry-run-option") };
@@ -357,9 +364,9 @@ public static class ManifestCommands
 						console.WriteJson(new ManifestEditDocument(Schema, false, false, false, [], JsonDiagnostic.From([error])), c => c.ManifestEditDocument);
 					return console.Report([error]);
 				}
-				if (edit(result, console, root, token) is not { } change)
+				if (edit(result, console, root, token) is not { } changes)
 					return FxConsole.UsageError;
-				return Apply(console, root, [change], result.GetValue(dryRun), Sync);
+				return Apply(console, root, changes, result.GetValue(dryRun), Sync);
 			}, cancellationToken));
 		});
 	}

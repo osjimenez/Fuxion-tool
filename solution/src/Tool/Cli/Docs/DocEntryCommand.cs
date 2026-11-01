@@ -186,7 +186,7 @@ public static class DocEntryCommand
 		var diagnostics = new List<FxDiagnostic>();
 		void Json(string? register, IReadOnlyList<JsonEntry> entries)
 			=> console.WriteJson(new DocEntriesDocument(ListSchema, FxConsole.Ok(diagnostics), register, entries, JsonDiagnostic.From(diagnostics)), c => c.DocEntriesDocument);
-		if (DocsModule.Find(console.Settings.Directory, diagnostics) is not { } catalog)
+		if (DocCommand.Find(console, diagnostics) is not { } catalog)
 		{
 			if (console.Settings.IsMachine)
 				Json(null, []);

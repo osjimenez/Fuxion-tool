@@ -77,7 +77,7 @@ public sealed partial class UiApp
 			var root = UiAction.RootOption(_start, owned.Path);
 			var module = node.Name;
 			if (node.Kind == FxTreeKind.ModuleOff || !node.Enabled)
-				yield return Staging(Texts.Get("ui.edit.enable"), new($"fx module enable {module}{root}", () => [ManifestEditor.EnableModule(owned.Path, module, [])]));
+				yield return Staging(Texts.Get("ui.edit.enable"), new($"fx module enable {module}{root}", () => ManifestEditor.Enable(owned.Path, module, [])));
 			else
 				yield return Staging(Texts.Get("ui.edit.disable"), new($"fx module disable {module}{root}", () => [ManifestEditor.DisableModule(owned.Path, module)]));
 		}

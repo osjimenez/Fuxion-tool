@@ -1294,4 +1294,10 @@
   <data name="docs.invalid-manifest.redirect" xml:space="preserve">
     <value>Un descarte lleva los enlaces a lo que descarta a un documento de los manifiestos o del catálogo: '{0}' no lo es.</value>
   </data>
+  <data name="docs.catalog-in-worktrees" xml:space="preserve">
+    <value>El catálogo {0} va en cada worktree del space, cada uno en su rama: déjalo fuera de ellos (worktree: false), y fx doc en un worktree usa el del árbol principal.</value>
+  </data>
+  <data name="docs.main-tree-catalog" xml:space="preserve">
+    <value>Este worktree deja fuera el catálogo: fx doc usa el del árbol principal, {0}.</value>
+  </data>
 </root>

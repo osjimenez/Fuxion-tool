@@ -273,14 +273,29 @@ public static partial class ManifestEditor
 	/// <summary>
 	/// Something the git of the space versions (<c>paths</c> of its <c>space.yaml</c>, plan spaces, decision 11): a file,
 	/// or a folder ending in '/'; with <paramref name="exclude"/>, an exception inside something included; without
-	/// <paramref name="worktree"/>, left out of the worktrees. Only the descriptor: nothing is created.
+	/// <paramref name="worktree"/>, left out of the worktrees. One already there takes what is asked of it
+	/// (<c>exclude: true</c>, <c>worktree: false</c>) and keeps the rest. Only the descriptor: nothing is created.
 	/// </summary>
 	public static ManifestChange AddPath(string root, string path, bool exclude = false, bool worktree = true)
 	{
 		var s = new SpaceSession(root);
 		path = path.Replace('\\', '/').TrimStart('/');
-		if (s.Current.Resolve($"paths[path={path}]") is not null)
-			return s.Info(new FxText($"{Unchanged}.path-present", path));
+		var at = $"paths[path={path}]";
+		if (s.Current.Resolve(at) is not null)
+		{
+			void Flag(string key, string value)
+			{
+				if (s.Current.Resolve($"{at}.{key}") is not YamlScalar scalar)
+					s.Apply(s.Current.AddKey(at, key, new YamlValue.Raw(value), after: key == "exclude" ? "path" : null));
+				else if (scalar.Value != value)
+					s.Apply(s.Current.SetScalar($"{at}.{key}", new YamlValue.Raw(value)));
+			}
+			if (exclude)
+				Flag("exclude", "true");
+			if (!worktree)
+				Flag("worktree", "false");
+			return s.Edits.Count == 0 ? s.Info(new FxText($"{Unchanged}.path-present", path)) : s.Done();
+		}
 		var entries = new List<(string, YamlValue)> { ("path", path) };
 		if (exclude)
 			entries.Add(("exclude", new YamlValue.Raw("true")));
@@ -353,6 +368,34 @@ public static partial class ManifestEditor
 		if (!changed && !s.Created)
 			return s.Info(new FxText($"{Unchanged}.module-enabled", module));
 		return s.Done();
+	}
+
+	/// <summary>
+	/// <c>fx module enable</c>: the module (<see cref="EnableModule"/>) and what goes with it. <c>docs</c>, in a space that
+	/// mounts others (whose worktrees leave paths out), also leaves its catalog out of the worktrees (I-58): its folder in
+	/// <c>paths</c> with <c>worktree: false</c>, or that flag on the entry that is there; not if it is left out already,
+	/// nor if an exclusion keeps it out of the git of the space. One change per file.
+	/// </summary>
+	public static IReadOnlyList<ManifestChange> Enable(string root, string module, IReadOnlyList<string> tags)
+	{
+		var enabled = EnableModule(root, module, tags);
+		if (module != Docs.DocsModule.Name || !enabled.Ok || !MountsManifest.HasMounts(root))
+			return [enabled];
+		Docs.DocsConfig config;
+		try
+		{
+			config = Docs.DocsYamlReader.Read(enabled.After.Text, enabled.File);
+		}
+		catch (Docs.DocsConfigException)
+		{
+			return [enabled];
+		}
+		var folder = $"{config.Catalog}/";
+		var space = SpaceConfig.Load(root);
+		if (space.LeavesOut(folder) || space.Entry(folder) is { Exclude: true })
+			return [enabled];
+		var paths = AddPath(root, folder, worktree: false);
+		return paths is { Ok: true, Changed: true } ? [enabled, paths] : [enabled];
 	}
 
 	/// <summary>Turns a module off without losing its configuration (<c>enabled: false</c>).</summary>

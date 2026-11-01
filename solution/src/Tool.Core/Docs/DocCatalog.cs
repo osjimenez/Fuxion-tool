@@ -31,12 +31,13 @@ public sealed record DocFile(string Folder, string Stem, string? Markdown, strin
 /// </summary>
 public sealed class DocCatalog
 {
-	DocCatalog(string root, DocsConfig config, IReadOnlyList<DocFile> files)
+	DocCatalog(string root, DocsConfig config, IReadOnlyList<DocFile> files, string? worktreeFolder)
 	{
 		Root = root;
 		Config = config;
 		Folder = FxLayout.Full(root, config.Catalog);
 		Files = files;
+		WorktreeFolder = worktreeFolder;
 	}
 
 	/// <summary>The root of the space.</summary>
@@ -49,12 +50,19 @@ public sealed class DocCatalog
 
 	public IReadOnlyList<DocFile> Files { get; }
 
-	public static DocCatalog Scan(string root, DocsConfig config)
+	/// <summary>
+	/// The folder the catalog has in the worktree where the command runs, when that worktree leaves it out and this is
+	/// the catalog of the main tree (I-58): a path into it names the same one here. None, elsewhere.
+	/// </summary>
+	public string? WorktreeFolder { get; }
+
+	/// <param name="worktreeFolder">The folder of the catalog in the worktree that leaves it out, if it is used from one (<see cref="WorktreeFolder"/>).</param>
+	public static DocCatalog Scan(string root, DocsConfig config, string? worktreeFolder = null)
 	{
 		var folder = FxLayout.Full(root, config.Catalog);
 		var files = new List<DocFile>();
 		Walk(folder, "");
-		return new(root, config, files);
+		return new(root, config, files, worktreeFolder);
 
 		void Walk(string full, string relative)
 		{
@@ -110,10 +118,25 @@ public sealed class DocCatalog
 	public string Full(string path) => FxLayout.Full(Folder, path);
 
 	/// <summary>Whether <paramref name="full"/> is inside the catalog.</summary>
-	public bool Contains(string full)
+	public bool Contains(string full) => Inside(Folder, full) is not null;
+
+	/// <summary><paramref name="full"/> relative to <paramref name="folder"/> ('.', the folder itself), if it is inside it.</summary>
+	static string? Inside(string folder, string full)
 	{
-		var relative = System.IO.Path.GetRelativePath(Folder, full);
-		return relative != ".." && !relative.StartsWith($"..{System.IO.Path.DirectorySeparatorChar}", StringComparison.Ordinal) && !System.IO.Path.IsPathRooted(relative);
+		var relative = System.IO.Path.GetRelativePath(folder, full);
+		return relative == ".." || relative.StartsWith($"..{System.IO.Path.DirectorySeparatorChar}", StringComparison.Ordinal) || System.IO.Path.IsPathRooted(relative)
+			? null
+			: relative;
+	}
+
+	/// <summary>
+	/// The full path of <paramref name="path"/> from <paramref name="currentDirectory"/>; one into the
+	/// <see cref="WorktreeFolder"/>, left out of the worktree, the same in the catalog.
+	/// </summary>
+	public string Resolve(string currentDirectory, string path)
+	{
+		var full = FxLayout.Full(currentDirectory, path);
+		return WorktreeFolder is not null && Inside(WorktreeFolder, full) is { } inside ? Full(inside) : full;
 	}
 
 	/// <summary>
@@ -123,7 +146,7 @@ public sealed class DocCatalog
 	/// </summary>
 	public string? RelativeFolder(string path, string currentDirectory)
 	{
-		foreach (var full in new[] { FxLayout.Full(currentDirectory, path), Full(path) }.Distinct())
+		foreach (var full in new[] { Resolve(currentDirectory, path), Full(path) }.Distinct())
 		{
 			if (!Contains(full))
 				continue;
@@ -140,14 +163,15 @@ public sealed class DocCatalog
 
 	/// <summary>
 	/// The documents <paramref name="selector"/> names (the SPEC of the module, 11.2): a path (relative to
-	/// <paramref name="currentDirectory"/>, or to the catalog), with or without its extension, or a folder (everything
-	/// below it); or an identity, among <paramref name="ids"/>. None, if it names nothing.
+	/// <paramref name="currentDirectory"/>, or to the catalog; into the <see cref="WorktreeFolder"/>, the same here), with
+	/// or without its extension, or a folder (everything below it); or an identity, among <paramref name="ids"/>. None, if
+	/// it names nothing.
 	/// </summary>
 	public IReadOnlyList<DocFile> Select(string selector, string currentDirectory, IReadOnlyDictionary<string, DocFile>? ids = null)
 	{
 		if (ids is not null && ids.TryGetValue(selector, out var byId))
 			return [byId];
-		foreach (var full in new[] { FxLayout.Full(currentDirectory, selector), Full(selector) }.Distinct())
+		foreach (var full in new[] { Resolve(currentDirectory, selector), Full(selector) }.Distinct())
 		{
 			if (!Contains(full))
 				continue;

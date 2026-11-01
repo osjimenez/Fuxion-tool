@@ -248,6 +248,23 @@ public sealed class ManifestEditorTest
 		Assert.Equal("schema: 1.0.0\npaths:\n  - path: README.md\n", After(ManifestEditor.AddPath(none.Root, "README.md")));
 	}
 
+	[Fact(DisplayName = "path add on a path already there: what is asked of it (worktree: false, exclude: true), in block or flow; the rest as it was")]
+	public void PathFlags()
+	{
+		using var ws = new Space(space: "schema: 1.0.0\npaths:\n  - path: _docs/  # the catalog\n  - path: assets/\n    worktree: true\n  - { path: notes/ }\n");
+		Assert.Contains("  - path: _docs/  # the catalog\n    worktree: false\n  - path: assets/\n", After(ManifestEditor.AddPath(ws.Root, "_docs/", worktree: false)));
+		Assert.Contains("  - path: assets/\n    worktree: false\n", After(ManifestEditor.AddPath(ws.Root, "assets/", worktree: false)));
+		Assert.Contains("  - { path: notes/, worktree: false }\n", After(ManifestEditor.AddPath(ws.Root, "notes/", worktree: false)));
+		Assert.Contains("  - path: assets/\n    exclude: true\n    worktree: true\n", After(ManifestEditor.AddPath(ws.Root, "assets/", exclude: true)));
+		// what it has already, or nothing asked: unchanged, and why
+		var written = ManifestEditor.AddPath(ws.Root, "_docs/", worktree: false);
+		ManifestEditor.Write(ws.Root, written);
+		var again = ManifestEditor.AddPath(ws.Root, "_docs/", worktree: false);
+		Assert.Equal((false, true), (again.Changed, again.Ok));
+		Assert.Equal($"{ManifestEditor.Unchanged}.path-present", Assert.Single(again.Diagnostics).Message.Key);
+		Assert.False(ManifestEditor.AddPath(ws.Root, "assets/").Changed);
+	}
+
 	// modules
 
 	[Fact(DisplayName = "module enable: creates its folder with its yaml; with tags, its applies-to; on an enabled one, the tags in place")]
@@ -275,6 +292,37 @@ public sealed class ManifestEditorTest
 		Assert.False(ManifestEditor.EnableModule(ws.Root, "docs", ["public"]).Ok);
 		var invalid = ManifestEditor.Replace(ws.Root, "_fx/docs/docs.yaml", "schema: 1.0.0\nregisters:\n  - path: ideas\n    prefix: i\n");
 		Assert.Equal((Core.Docs.DocsYamlReader.InvalidYaml, 4, false), (invalid.Diagnostics.Single().Code, invalid.Diagnostics.Single().Line, invalid.Ok));
+	}
+
+	[Fact(DisplayName = "module enable docs, in a space that mounts others: its catalog out of the worktrees too (I-58), on its entry or new in paths; not where it does not apply")]
+	public void EnableDocs_OutOfWorktrees()
+	{
+		// its entry in paths: worktree: false on it
+		using var ws = new Space();
+		var changes = ManifestEditor.Enable(ws.Root, "docs", []);
+		Assert.Equal(["_fx/docs/docs.yaml", "_fx/space.yaml"], changes.Select(c => c.File));
+		Assert.Equal("schema: 1.0.0\npaths:\n  - path: _docs/\n    worktree: false\n", After(changes[1]));
+		// not in paths: there, with worktree: false; the catalog of its docs.yaml, wherever it says
+		using var notes = new Space(space: "schema: 1.0.0\npaths:\n  - path: README.md\n");
+		Directory.CreateDirectory(Path.Combine(notes.Root, "_fx", "docs"));
+		File.WriteAllText(Path.Combine(notes.Root, "_fx", "docs", "docs.yaml"), "schema: 1.0.0\nenabled: false\ncatalog: notes\n");
+		var enabled = ManifestEditor.Enable(notes.Root, "docs", []);
+		Assert.Equal("schema: 1.0.0\ncatalog: notes\n", After(enabled[0]));
+		Assert.Equal("schema: 1.0.0\npaths:\n  - path: README.md\n  - path: notes/\n    worktree: false\n", After(enabled[1]));
+		// enabled already, with its catalog in the worktrees: only the flag
+		ManifestEditor.Write(ws.Root, changes[0]);
+		Assert.Equal("_fx/space.yaml", Assert.Single(ManifestEditor.Enable(ws.Root, "docs", []), c => c.Changed).File);
+
+		// left out already, kept out of the git of the space by an exclusion, or a space that mounts nothing: only the module
+		using var leftOut = new Space(space: "schema: 1.0.0\npaths:\n  - path: _docs/\n    worktree: false\n");
+		Assert.Equal("_fx/docs/docs.yaml", Assert.Single(ManifestEditor.Enable(leftOut.Root, "docs", [])).File);
+		using var excluded = new Space(space: "schema: 1.0.0\npaths:\n  - path: _docs/\n    exclude: true\n");
+		Assert.Single(ManifestEditor.Enable(excluded.Root, "docs", []));
+		using var alone = new Space();
+		Directory.Delete(Path.Combine(alone.Root, "_fx", "mounts"), true);
+		Assert.Single(ManifestEditor.Enable(alone.Root, "docs", []));
+		// another module: only it
+		Assert.Single(ManifestEditor.Enable(ws.Root, "harness", []));
 	}
 
 	[Fact(DisplayName = "by hand (fx ui, O4.3c): validated as fx reads the file; not YAML, its code and line; the line endings of the file stay")]
@@ -349,6 +397,26 @@ public sealed class ManifestEditorTest
 		Assert.True(json.GetProperty("written").GetBoolean());
 		Assert.Contains("+enabled: false", json.GetProperty("files")[0].GetProperty("diff").GetString());
 		Assert.Contains("enabled: false", File.ReadAllText(Path.Combine(ws.Root, "_fx", "dotnet", "dotnet.yaml")));
+	}
+
+	[Fact(DisplayName = "fx module enable docs: the module and its catalog out of the worktrees, both in the diff; --dry-run writes neither")]
+	public void Cli_EnableDocs()
+	{
+		using var ws = new Space();
+		var dry = Fx(ws.Root, "module", "enable", "docs", "--dry-run");
+		Assert.Equal(0, dry.ExitCode);
+		Assert.Contains("_fx/docs/docs.yaml", dry.Out);
+		Assert.Contains("_fx/space.yaml", dry.Out);
+		Assert.Contains("+    worktree: false", dry.Out);
+		Assert.False(Directory.Exists(Path.Combine(ws.Root, "_fx", "docs")));
+		Assert.DoesNotContain("worktree", File.ReadAllText(ManifestEditor.SpacePath(ws.Root)));
+
+		var run = Fx(ws.Root, "module", "enable", "docs", "--output", "json");
+		Assert.Equal(0, run.ExitCode);
+		var json = JsonDocument.Parse(run.Out).RootElement;
+		Assert.Equal(["_fx/docs/docs.yaml", "_fx/space.yaml"], json.GetProperty("files").EnumerateArray().Select(f => f.GetProperty("file").GetString()));
+		Assert.True(File.Exists(Path.Combine(ws.Root, "_fx", "docs", "docs.yaml")));
+		Assert.Contains("  - path: _docs/\n    worktree: false\n", File.ReadAllText(ManifestEditor.SpacePath(ws.Root)).Replace("\r\n", "\n"));
 	}
 
 	[Fact(DisplayName = "fx path add: in any space, also one that mounts nothing")]

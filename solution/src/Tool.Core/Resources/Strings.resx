@@ -1294,4 +1294,10 @@
   <data name="docs.invalid-manifest.redirect" xml:space="preserve">
     <value>A drop sends the links to what it drops to a document of the manifests or of the catalog: '{0}' is not one.</value>
   </data>
+  <data name="docs.catalog-in-worktrees" xml:space="preserve">
+    <value>The catalog {0} goes into every worktree of the space, each on its branch: leave it out of them (worktree: false), and fx doc in a worktree uses that of the main tree.</value>
+  </data>
+  <data name="docs.main-tree-catalog" xml:space="preserve">
+    <value>This worktree leaves the catalog out: fx doc uses that of the main tree, {0}.</value>
+  </data>
 </root>

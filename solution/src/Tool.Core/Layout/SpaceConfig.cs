@@ -244,15 +244,21 @@ public sealed partial record SpaceConfig(
 	/// Whether <paramref name="relative"/> (a path of the space, with '/') is versioned by its <c>paths</c>: the longest
 	/// entry that contains it decides (an exclusion inside an inclusion wins).
 	/// </summary>
-	public bool Versions(string relative)
-	{
-		var match = (Paths ?? [])
-			.Where(p => p.IsFolder
-				? relative.StartsWith(p.Path, StringComparison.OrdinalIgnoreCase) || string.Equals(relative.TrimEnd('/') + "/", p.Path, StringComparison.OrdinalIgnoreCase)
-				: string.Equals(relative.TrimEnd('/'), p.Path, StringComparison.OrdinalIgnoreCase))
-			.MaxBy(p => p.Path.Length);
-		return match is { Exclude: false };
-	}
+	public bool Versions(string relative) => Entry(relative) is { Exclude: false };
+
+	/// <summary>The entry of <c>paths</c> that decides about <paramref name="relative"/> (a path of the space, with '/'): the longest that contains it, if any.</summary>
+	public SpacePath? Entry(string relative) => (Paths ?? []).Where(p => Contains(p, relative)).MaxBy(p => p.Path.Length);
+
+	/// <summary>
+	/// Whether the worktrees of the space leave <paramref name="relative"/> (a path of the space, with '/') out: it is, or
+	/// is inside, an entry with <c>worktree: false</c> that is not an exclusion (decision 26), as <c>fx worktree add</c> does.
+	/// </summary>
+	public bool LeavesOut(string relative) => (Paths ?? []).Any(p => !p.Worktree && !p.Exclude && Contains(p, relative));
+
+	static bool Contains(SpacePath entry, string relative)
+		=> entry.IsFolder
+			? relative.StartsWith(entry.Path, StringComparison.OrdinalIgnoreCase) || string.Equals(relative.TrimEnd('/') + "/", entry.Path, StringComparison.OrdinalIgnoreCase)
+			: string.Equals(relative.TrimEnd('/'), entry.Path, StringComparison.OrdinalIgnoreCase);
 
 	/// <summary>What a sub-space receives in <c>_fx/.inherited/space.yaml</c>: <c>requires</c> and the two catalogs, with the header.</summary>
 	public string ToInheritedYaml(string from)

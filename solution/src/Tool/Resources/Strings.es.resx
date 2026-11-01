@@ -422,7 +422,7 @@
     <value>Los módulos de fx en esta raíz: una carpeta de _fx cada uno.</value>
   </data>
   <data name="module.enable" xml:space="preserve">
-    <value>Activa un módulo: crea su carpeta en _fx, o le quita su enabled: false.</value>
+    <value>Activa un módulo: crea su carpeta en _fx, o le quita su enabled: false; docs, en un space que monta otros, también deja su catálogo fuera de los worktrees.</value>
   </data>
   <data name="module.disable" xml:space="preserve">
     <value>Apaga un módulo sin perder su configuración (enabled: false).</value>
@@ -488,7 +488,7 @@
     <value>Lo que versiona el git del space (paths: de _fx/space.yaml).</value>
   </data>
   <data name="path.add" xml:space="preserve">
-    <value>Versiona un fichero o una carpeta (terminada en /) del space; no se crea nada.</value>
+    <value>Versiona un fichero o una carpeta (terminada en /) del space, o marca uno que ya está (--exclude, --no-worktree); no se crea nada.</value>
   </data>
   <data name="path.remove" xml:space="preserve">
     <value>Deja de versionar una ruta; no se borra nada.</value>

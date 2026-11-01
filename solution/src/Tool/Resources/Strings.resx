@@ -422,7 +422,7 @@
     <value>The modules of fx in this root: a folder of _fx each.</value>
   </data>
   <data name="module.enable" xml:space="preserve">
-    <value>Enable a module: create its folder in _fx, or take out its enabled: false.</value>
+    <value>Enable a module: create its folder in _fx, or take out its enabled: false; docs, in a space that mounts others, also leaves its catalog out of the worktrees.</value>
   </data>
   <data name="module.disable" xml:space="preserve">
     <value>Turn a module off without losing its configuration (enabled: false).</value>
@@ -488,7 +488,7 @@
     <value>What the git of the space versions (paths: of _fx/space.yaml).</value>
   </data>
   <data name="path.add" xml:space="preserve">
-    <value>Version a file or a folder (ending in /) of the space; nothing is created.</value>
+    <value>Version a file or a folder (ending in /) of the space, or mark one already there (--exclude, --no-worktree); nothing is created.</value>
   </data>
   <data name="path.remove" xml:space="preserve">
     <value>Stop versioning a path; nothing is deleted.</value>
