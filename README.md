@@ -2,7 +2,7 @@
 
 `fx`, the tool of Fuxion's spaces, and `Fuxion.Tool.Sdk`, the MSBuild SDK shared by the Fuxion repos.
 
-Work in progress: extracted on 06-oct-2026 from Fuxion-plus (with its history) and being rebuilt.
+Work in progress: extracted on 06-oct-2026, with its history, and being rebuilt.
 
 ## Install
 

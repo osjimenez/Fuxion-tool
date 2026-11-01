@@ -8,7 +8,7 @@ using Xunit;
 namespace Fuxion.Tool.Test;
 
 /// <summary>
-/// Characterization of the git versioning scheme as Fuxion-plus used it when the tool was extracted.
+/// Characterization of the git versioning scheme as Fuxion used it when the tool was extracted.
 /// The implementation moves from LibGit2Sharp to the git executable: these tests must keep passing without changes.
 /// </summary>
 [Collection(nameof(ProcessCollection))]

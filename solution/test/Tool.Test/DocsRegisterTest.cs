@@ -60,20 +60,20 @@ public sealed class DocsRegisterTest
 	{
 		var (space, register, research) = Ideas();
 		using var _ = space;
-		var change = Add(space, register, "Fuxion.Mcp: un servidor MCP", new()
+		var change = Add(space, register, "Sample.Idea: una idea de ejemplo", new()
 		{
 			Key = "I-64",
 			Status = "boceto",
-			Summary = "Que una aplicación exponga un MCP generado sobre su modelo.",
-			Tags = ["mcp"],
+			Summary = "Una idea de ejemplo, con sus campos.",
+			Tags = ["ejemplo"],
 			Created = "2026-01-16",
-			Fields = [KeyValuePair.Create("prioridad", (JsonElement?)Json("2")), KeyValuePair.Create("bloque", (JsonElement?)Json("\"Hub\"")),
+			Fields = [KeyValuePair.Create("prioridad", (JsonElement?)Json("2")), KeyValuePair.Create("bloque", (JsonElement?)Json("\"Ejemplos\"")),
 				KeyValuePair.Create("espera", (JsonElement?)Json("[\"I-19\"]"))],
 			Relations = [("related-to", research)]
 		});
 		Assert.True(change.Write().IsSuccess, Ok(change));
 		var entry = Assert.Single(Sidecar(space, register).Entries);
-		Assert.Equal(("fuxion-mcp-un-servidor-mcp", "I-64", "boceto", "2026-01-16T00:00:00Z", true), (entry.Name, entry.Key, entry.Status, entry.CreatedAt, entry.Open));
+		Assert.Equal(("sample-idea-una-idea-de-ejemplo", "I-64", "boceto", "2026-01-16T00:00:00Z", true), (entry.Name, entry.Key, entry.Status, entry.CreatedAt, entry.Open));
 		Assert.Equal(["bloque", "espera", "prioridad"], JsonNode.Parse(space.Read($"_docs/{Space.Sidecar(register)}"))!["entries"]![0]!["fields"]!.AsObject().Select(f => f.Key));
 		Assert.Equal([new DocRelation("related-to", space.Ids[research])], entry.Relations);
 		Assert.Equal("2026-10-22T10:00:00Z", Sidecar(space, register).UpdatedAt);
@@ -187,7 +187,7 @@ public sealed class DocsRegisterTest
 			Title = "La idea",
 			Status = "en-diseno",
 			Tags = ["b"],
-			Fields = [KeyValuePair.Create<string, JsonElement?>("prioridad", null), KeyValuePair.Create("bloque", (JsonElement?)Json("\"Hub\""))],
+			Fields = [KeyValuePair.Create<string, JsonElement?>("prioridad", null), KeyValuePair.Create("bloque", (JsonElement?)Json("\"Ejemplos\""))],
 			Relations = [("informs", research), ("depends-on", "ninguna-idea")]
 		}, Now);
 		Assert.False(set.Ok);
@@ -199,7 +199,7 @@ public sealed class DocsRegisterTest
 			Title = "La idea",
 			Status = "en-diseno",
 			Tags = ["b"],
-			Fields = [KeyValuePair.Create<string, JsonElement?>("prioridad", null), KeyValuePair.Create("bloque", (JsonElement?)Json("\"Hub\""))],
+			Fields = [KeyValuePair.Create<string, JsonElement?>("prioridad", null), KeyValuePair.Create("bloque", (JsonElement?)Json("\"Ejemplos\""))],
 			Relations = [("informs", research), ("depends-on", other)]
 		}, Now).Write().IsSuccess);
 		var entry = Sidecar(space, register).Entries[0];
@@ -284,13 +284,13 @@ public sealed class DocsRegisterTest
 			  - action: register-entry
 			    register: _docs/ideas/REGISTER-ideas.md
 			    key: I-20
-			    title: Licencias y protección comercial
+			    title: Revisión de un ejemplo
 			    status: En diseño
 			    created: 2026-10-04
-			    summary: Cómo se licencia y se protege lo comercial.
+			    summary: Una idea de ejemplo, con sus campos.
 			    fields:
 			      prioridad: 2
-			      bloque: "Mejoras y features"
+			      bloque: "Ejemplos"
 			      ref: "007"
 			      espera: [I-19]
 			      revisada: true
@@ -320,7 +320,7 @@ public sealed class DocsRegisterTest
 		var change = DocAdoption.Apply(space.Catalog(), Display(space), targets, "editor", Now);
 		Assert.True(change.Write().IsSuccess, Ok(change));
 		var ideas = Sidecar(space, "ideas/REGISTER-ideas.md").Entries;
-		Assert.Equal(("licencias-y-proteccion-comercial", "I-20", "en-diseno"), (ideas[0].Name, ideas[0].Key, ideas[0].Status));
+		Assert.Equal(("revision-de-un-ejemplo", "I-20", "en-diseno"), (ideas[0].Name, ideas[0].Key, ideas[0].Status));
 		var fields = ideas[0].Fields.ToDictionary(f => f.Key, f => f.Value.ValueKind);
 		Assert.Equal((JsonValueKind.Number, JsonValueKind.String, JsonValueKind.String, JsonValueKind.Array, JsonValueKind.True),
 			(fields["prioridad"], fields["bloque"], fields["ref"], fields["espera"], fields["revisada"]));
