@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -73,24 +74,44 @@ public static partial class DotnetModule
 
 	/// <summary>
 	/// The configuration of <paramref name="node"/> (who is <paramref name="identity"/>): what it inherits, if it is for it,
-	/// with its own on top; null if the module has nothing here.
+	/// with its own on top; none if the module has nothing here; an error (<see cref="HttpStatusCode.Conflict"/>) if its
+	/// <c>dotnet.yaml</c> is not valid, with all found up to it.
 	/// </summary>
-	public static (DotnetConfig Config, string Sources, DotnetConfig Own)? Configuration(FxNode node, FxIdentity identity, ICollection<FxDiagnostic> warnings)
+	public static ResponseMaybe<(DotnetConfig Config, string Sources, DotnetConfig Own)> Configuration(FxNode node, FxIdentity identity)
 	{
 		var inheritedFile = node.Full(InheritedConfigFile);
 		var ownFile = node.Full(ConfigFile);
-		var inherited = FxFiles.Exists(inheritedFile) ? DotnetYamlReader.ReadFile(inheritedFile, warnings) : null;
-		var own = FxFiles.Exists(ownFile) ? DotnetYamlReader.ReadFile(ownFile, warnings).Absolute(identity.FullName) : HasOwnFiles(node) ? DotnetConfig.Empty : null;
+		var found = new List<FxDiagnostic>();
+		DotnetConfig? inherited = null, own = null;
+		if (FxFiles.Exists(inheritedFile))
+		{
+			var read = DotnetYamlReader.ReadFile(inheritedFile);
+			found.AddRange(read.Diagnostics);
+			if (read is not DotnetConfig fromAbove)
+				return FxErrors.Of(HttpStatusCode.Conflict, found);
+			inherited = fromAbove;
+		}
+		if (FxFiles.Exists(ownFile))
+		{
+			var read = DotnetYamlReader.ReadFile(ownFile);
+			found.AddRange(read.Diagnostics);
+			if (read is not DotnetConfig itsOwn)
+				return FxErrors.Of(HttpStatusCode.Conflict, found);
+			own = itsOwn.Absolute(identity.FullName);
+		}
+		else if (HasOwnFiles(node))
+			own = DotnetConfig.Empty;
+
 		if (own is { Enabled: false })
 			own = null;
 		// a space receives what comes from above to pass it on; it only uses it if it is for it
 		if (inherited is not null && !(inherited.AppliesTo ?? FxAppliesTo.All).Matches(identity))
 			inherited = null;
 		if (inherited is null && own is null)
-			return null;
+			return None.Value;
 		var sources = string.Join(", ", new[] { inherited is null ? null : InheritedConfigFile, own is null || !FxFiles.Exists(ownFile) ? null : ConfigFile }.OfType<string>());
 		var config = DotnetConfig.Combine(inherited?.WithBase($"../.inherited/{Name}") ?? DotnetConfig.Empty, own ?? DotnetConfig.Empty).ForTarget(identity);
-		return (config, sources.Length == 0 ? Folder : sources, own ?? DotnetConfig.Empty);
+		return FxResponse.OutcomeMaybe((config, sources.Length == 0 ? Folder : sources, own ?? DotnetConfig.Empty), found, HttpStatusCode.Conflict);
 	}
 
 	/// <summary>
@@ -110,18 +131,13 @@ public static partial class DotnetModule
 	{
 		var diagnostics = new FxDiagnostics(context.Progress, repository);
 		var outputs = new FxOutputs(context.DisplayRoot, context.Write, context.Adopt, diagnostics);
-		(DotnetConfig Config, string Sources, DotnetConfig Own)? configuration;
-		var warnings = new List<FxDiagnostic>();
-		try
+		var configuration = Configuration(node, identity);
+		if (configuration is Error)
 		{
-			configuration = Configuration(node, identity, warnings);
-		}
-		catch (DotnetConfigException ex)
-		{
-			diagnostics.AddRange(ex.Diagnostics.Select(d => d with { File = d.File is null ? null : outputs.Display(d.File) }));
+			diagnostics.AddRange(configuration.Diagnostics.Select(d => d with { File = d.File is null ? null : outputs.Display(d.File) }));
 			return new(Name, context.DisplayRoot, repository, [], [], diagnostics.ToList()) { Node = node.Root };
 		}
-		if (configuration is not { } found)
+		if (configuration is not ValueTuple<DotnetConfig, string, DotnetConfig> found)
 		{
 			// the module no longer applies: what fx generated for it goes
 			var folder = node.Full(Folder);
@@ -135,7 +151,7 @@ public static partial class DotnetModule
 					diagnostics.Add(FxDiagnostic.Error(Outdated, new(Outdated), file.Path, fix: FxFix.Run(FxHeader.Sync)));
 			return outputs.Files.Count == 0 ? null : new(Name, context.DisplayRoot, repository, outputs.Files, [], diagnostics.ToList()) { Node = node.Root };
 		}
-		diagnostics.AddRange(warnings.Select(d => d with { File = d.File is null ? null : outputs.Display(d.File) }));
+		diagnostics.AddRange(configuration.Diagnostics.Select(d => d with { File = d.File is null ? null : outputs.Display(d.File) }));
 		var (config, sources, own) = found;
 
 		context.Progress.Step(Name, repository, context.Doctor ? "check" : "generate", () =>
@@ -193,22 +209,26 @@ public static partial class DotnetModule
 
 		// 1. The when variables and the conditions of packages and imports, expanded
 		var whenRaw = config.Variables.Where(v => v.IsWhen).ToDictionary(v => v.Name, v => v.When!, StringComparer.OrdinalIgnoreCase);
-		Dictionary<string, string> whenExpanded;
-		List<(string Id, string Version, string? Condition)> governed;
-		List<(string Path, string? Condition)> propsImports, targetsImports;
-		try
+		// the first cycle stops the module, as an error of its dotnet.yaml
+		Error? cycle = null;
+		string Expanded(string condition)
 		{
-			whenExpanded = whenRaw.ToDictionary(kv => kv.Key, kv => MSBuildConditions.Expand(kv.Value, whenRaw), StringComparer.OrdinalIgnoreCase);
-			governed = config.Packages
-				.SelectMany(p => p.Ids.SelectMany(id => p.Versions.Select(v => (Id: id, v.Version, Condition: v.When is null ? null : MSBuildConditions.Expand(v.When, whenRaw)))))
-				.ToList();
-			string? Condition(DotnetImport import) => import.When is null ? null : MSBuildConditions.Expand(import.When, whenRaw);
-			propsImports = config.Imports.SelectMany(i => i.Props.Select(p => (Path: i.FromModule(p), Condition: Condition(i)))).ToList();
-			targetsImports = config.Imports.SelectMany(i => i.Targets.Select(t => (Path: i.FromModule(t), Condition: Condition(i)))).ToList();
+			var expanded = MSBuildConditions.Expand(condition, whenRaw);
+			if (expanded is string done)
+				return done;
+			cycle ??= (Error)expanded;
+			return condition;
 		}
-		catch (InvalidOperationException ex)
+		var whenExpanded = whenRaw.ToDictionary(kv => kv.Key, kv => Expanded(kv.Value), StringComparer.OrdinalIgnoreCase);
+		var governed = config.Packages
+			.SelectMany(p => p.Ids.SelectMany(id => p.Versions.Select(v => (Id: id, v.Version, Condition: v.When is null ? null : Expanded(v.When)))))
+			.ToList();
+		string? Condition(DotnetImport import) => import.When is null ? null : Expanded(import.When);
+		var propsImports = config.Imports.SelectMany(i => i.Props.Select(p => (Path: i.FromModule(p), Condition: Condition(i)))).ToList();
+		var targetsImports = config.Imports.SelectMany(i => i.Targets.Select(t => (Path: i.FromModule(t), Condition: Condition(i)))).ToList();
+		if (cycle is { } failed)
 		{
-			diagnostics.Add(FxDiagnostic.Error(DotnetYamlReader.InvalidYaml, FxText.Plain(ex.Message), outputs.Display(node.Full(ConfigFile))));
+			diagnostics.AddRange(failed.Diagnostics.Select(d => d with { File = outputs.Display(node.Full(ConfigFile)) }));
 			return;
 		}
 

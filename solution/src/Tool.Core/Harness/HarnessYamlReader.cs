@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Text.RegularExpressions;
 using Fuxion.Tool.Core.Layout;
 using Fuxion.Tool.Core.Results;
@@ -9,16 +10,9 @@ using Fuxion.Tool.Core.Yaml;
 
 namespace Fuxion.Tool.Core.Harness;
 
-/// <summary>An invalid <c>harness.yaml</c>: every problem found, each with its line.</summary>
-public sealed class HarnessConfigException(IReadOnlyList<FxDiagnostic> diagnostics)
-	: Exception(string.Join(Environment.NewLine, diagnostics.Select(d => d.WhereIn(CultureInfo.InvariantCulture))))
-{
-	public IReadOnlyList<FxDiagnostic> Diagnostics { get; } = diagnostics;
-}
-
 /// <summary>
-/// Reads <c>harness.yaml</c> with fx's YAML reader and validates it. Its warnings (an unknown key of a newer schema, no
-/// schema) go to the list of <see cref="Read"/>; its errors, in a <see cref="HarnessConfigException"/>.
+/// Reads <c>harness.yaml</c> with fx's YAML reader and validates it. It gives the configuration with its warnings (an unknown key of a newer schema, no
+/// schema), or an error (<see cref="HttpStatusCode.Conflict"/>) with every problem found, each with its line.
 /// </summary>
 public static partial class HarnessYamlReader
 {
@@ -28,14 +22,13 @@ public static partial class HarnessYamlReader
 	[GeneratedRegex(@"^[A-Za-z0-9][A-Za-z0-9._\-]*$")]
 	private static partial Regex ItemName();
 
-	public static HarnessConfig ReadFile(string path, ICollection<FxDiagnostic>? warnings = null) => Read(FxFiles.ReadAllText(path), path, warnings);
+	public static Response<HarnessConfig> ReadFile(string path) => Read(FxFiles.ReadAllText(path), path);
 
-	public static HarnessConfig Read(string yaml, string source, ICollection<FxDiagnostic>? warnings = null)
+	public static Response<HarnessConfig> Read(string yaml, string source)
 	{
 		var reader = new FxYamlReader(InvalidYaml, source);
-		var map = reader.Load(yaml) is YamlMapping loaded ? loaded : null;
-		if (map is null)
-			throw new HarnessConfigException(reader.Diagnostics);
+		if (reader.Load(yaml) is not YamlMapping map)
+			return reader.Fail(HttpStatusCode.Conflict);
 		reader.Keys(map, "schema", "enabled", "applies-to", "rules", "skills");
 
 		var rules = new List<HarnessRule>();
@@ -56,11 +49,7 @@ public static partial class HarnessYamlReader
 			AppliesTo = FxAppliesTo.Read(map, reader),
 			Enabled = reader.Enabled(map)
 		};
-		if (reader.HasErrors)
-			throw new HarnessConfigException(reader.Diagnostics);
-		foreach (var warning in reader.Diagnostics)
-			warnings?.Add(warning);
-		return config;
+		return reader.Outcome(config, HttpStatusCode.Conflict);
 	}
 
 	static IEnumerable<YamlNode> Sequence(YamlNode? node, string key, FxYamlReader reader)

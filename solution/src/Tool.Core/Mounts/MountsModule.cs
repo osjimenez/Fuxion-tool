@@ -327,15 +327,9 @@ public static class MountsModule
 		var dotnetFile = node.Full(FxLayout.ModuleFile(Dotnet.DotnetModule.Name));
 		if (!FxFiles.Exists(dotnetFile))
 			return;
-		Dotnet.DotnetConfig dotnet;
-		try
-		{
-			dotnet = Dotnet.DotnetYamlReader.ReadFile(dotnetFile);
-		}
-		catch (Dotnet.DotnetConfigException)
-		{
+		// one that cannot be read: its module reports it
+		if (Dotnet.DotnetYamlReader.ReadFile(dotnetFile) is not Dotnet.DotnetConfig dotnet)
 			return;
-		}
 		var display = Display(context, node.Root, FxLayout.ModuleFile(Dotnet.DotnetModule.Name));
 		foreach (var reference in dotnet.AppliesTo?.Repositories ?? [])
 			Check(reference, display, 1);

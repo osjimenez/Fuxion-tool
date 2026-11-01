@@ -134,17 +134,14 @@ public static class Inheritance
 		var ownFolder = parent.Full(FxLayout.ModuleFolder(module));
 		var inheritedYaml = Path.Combine(inheritedFolder, $"{module}.yaml");
 		var ownYaml = Path.Combine(ownFolder, $"{module}.yaml");
-		DotnetConfig inherited, own;
-		try
+		var readInherited = FxFiles.Exists(inheritedYaml) ? DotnetYamlReader.ReadFile(inheritedYaml) : DotnetConfig.Empty;
+		var readOwn = readInherited is DotnetConfig && FxFiles.Exists(ownYaml) ? DotnetYamlReader.ReadFile(ownYaml) : DotnetConfig.Empty;
+		if (readInherited is not DotnetConfig inherited || readOwn is not DotnetConfig ownRead)
 		{
-			inherited = FxFiles.Exists(inheritedYaml) ? DotnetYamlReader.ReadFile(inheritedYaml) : DotnetConfig.Empty;
-			own = FxFiles.Exists(ownYaml) ? DotnetYamlReader.ReadFile(ownYaml).Absolute(parentIdentity.FullName) : DotnetConfig.Empty;
-		}
-		catch (DotnetConfigException ex)
-		{
-			diagnostics.AddRange(ex.Diagnostics.Select(d => d with { Code = InvalidParent, File = d.File is null ? null : FxLayout.Relative(parent.Root, d.File) }));
+			diagnostics.AddRange((readInherited is Error ? readInherited : readOwn).Diagnostics.Select(d => d with { Code = InvalidParent, File = d.File is null ? null : FxLayout.Relative(parent.Root, d.File) }));
 			return false;
 		}
+		var own = FxFiles.Exists(ownYaml) ? ownRead.Absolute(parentIdentity.FullName) : DotnetConfig.Empty;
 		var ownOn = FxFiles.DirectoryExists(ownFolder) && own.Enabled;
 		if (!FxFiles.Exists(inheritedYaml) && !ownOn)
 			return false;
@@ -191,17 +188,14 @@ public static class Inheritance
 		const string module = HarnessModule.Name;
 		var inheritedYaml = parent.Full(HarnessModule.InheritedConfigFile);
 		var ownYaml = parent.Full(HarnessModule.ConfigFile);
-		HarnessConfig inherited, own;
-		try
+		var readInherited = FxFiles.Exists(inheritedYaml) ? HarnessYamlReader.ReadFile(inheritedYaml) : HarnessConfig.Empty;
+		var readOwn = readInherited is HarnessConfig && FxFiles.Exists(ownYaml) ? HarnessYamlReader.ReadFile(ownYaml) : HarnessConfig.Empty;
+		if (readInherited is not HarnessConfig inherited || readOwn is not HarnessConfig ownRead)
 		{
-			inherited = FxFiles.Exists(inheritedYaml) ? HarnessYamlReader.ReadFile(inheritedYaml) : HarnessConfig.Empty;
-			own = FxFiles.Exists(ownYaml) ? HarnessYamlReader.ReadFile(ownYaml).Absolute(parentIdentity.FullName) : HarnessConfig.Empty;
-		}
-		catch (HarnessConfigException ex)
-		{
-			diagnostics.AddRange(ex.Diagnostics.Select(d => d with { Code = InvalidParent, File = d.File is null ? null : FxLayout.Relative(parent.Root, d.File) }));
+			diagnostics.AddRange((readInherited is Error ? readInherited : readOwn).Diagnostics.Select(d => d with { Code = InvalidParent, File = d.File is null ? null : FxLayout.Relative(parent.Root, d.File) }));
 			return false;
 		}
+		var own = FxFiles.Exists(ownYaml) ? ownRead.Absolute(parentIdentity.FullName) : HarnessConfig.Empty;
 		if (!own.Enabled)
 			own = HarnessConfig.Empty;
 		var merged = HarnessConfig.Combine(inherited.WithBase(HarnessModule.InheritedFolder), own.WithBase(HarnessModule.Folder));

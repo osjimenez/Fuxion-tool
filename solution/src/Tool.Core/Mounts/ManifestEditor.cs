@@ -447,17 +447,17 @@ public static partial class ManifestEditor
 				if (file == MountsManifest.RelativePath)
 					MountsManifest.Read(root, text, strict: true);
 				else if (file == FxLayout.ModuleFile(DotnetModule.Name))
-					DotnetYamlReader.Read(text, file);
+					diagnostics.AddRange(DotnetYamlReader.Read(text, file) is Error invalid ? invalid.Diagnostics : []);
 				else if (file == FxLayout.ModuleFile(Harness.HarnessModule.Name))
-					Harness.HarnessYamlReader.Read(text, file);
+					diagnostics.AddRange(Harness.HarnessYamlReader.Read(text, file) is Error invalid ? invalid.Diagnostics : []);
 				else if (file == FxLayout.ModuleFile(Docs.DocsModule.Name))
 					Docs.DocsYamlReader.Read(text, file);
 				else if (file == FxLayout.ConfigFile)
 					diagnostics.AddRange(SpaceConfig.Read(text, file).Diagnostics);
 			}
-			catch (Exception ex) when (ex is DotnetConfigException or MountsManifestException or Harness.HarnessConfigException or Docs.DocsConfigException)
+			catch (Exception ex) when (ex is MountsManifestException or Docs.DocsConfigException)
 			{
-				diagnostics.AddRange(ex switch { DotnetConfigException d => d.Diagnostics, Harness.HarnessConfigException h => h.Diagnostics, Docs.DocsConfigException c => c.Diagnostics, _ => ((MountsManifestException)ex).Diagnostics });
+				diagnostics.AddRange(ex switch { Docs.DocsConfigException c => c.Diagnostics, _ => ((MountsManifestException)ex).Diagnostics });
 			}
 		return new(file, before, after, text == before ? [] : ["by hand"], diagnostics) { Root = root };
 	}
@@ -645,17 +645,17 @@ public static partial class ManifestEditor
 			try
 			{
 				if (Module == DotnetModule.Name)
-					DotnetYamlReader.Read(text, File);
+					Diagnostics.AddRange(DotnetYamlReader.Read(text, File) is Error invalid ? invalid.Diagnostics : []);
 				else if (Module == Harness.HarnessModule.Name)
-					Harness.HarnessYamlReader.Read(text, File);
+					Diagnostics.AddRange(Harness.HarnessYamlReader.Read(text, File) is Error invalid ? invalid.Diagnostics : []);
 				else if (Module == MountsModule.Name)
 					MountsManifest.Read(_root, text, strict: true);
 				else if (Module == Docs.DocsModule.Name)
 					Docs.DocsYamlReader.Read(text, File);
 			}
-			catch (Exception ex) when (ex is DotnetConfigException or MountsManifestException or Harness.HarnessConfigException or Docs.DocsConfigException)
+			catch (Exception ex) when (ex is MountsManifestException or Docs.DocsConfigException)
 			{
-				Diagnostics.AddRange(ex switch { DotnetConfigException d => d.Diagnostics, Harness.HarnessConfigException h => h.Diagnostics, Docs.DocsConfigException c => c.Diagnostics, _ => ((MountsManifestException)ex).Diagnostics });
+				Diagnostics.AddRange(ex switch { Docs.DocsConfigException c => c.Diagnostics, _ => ((MountsManifestException)ex).Diagnostics });
 			}
 		}
 	}

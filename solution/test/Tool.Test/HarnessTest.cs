@@ -212,7 +212,7 @@ public sealed class HarnessTest : SampleTree
 		Assert.Equal("help\n", Read(solo.Path, "_fx/harness/skills/mine/helper.txt"));
 		// a CLAUDE.md that only read AGENTS.md has nothing to adopt
 		Assert.False(File.Exists(Path.Combine(solo.Path, "_fx", "harness", "rules", "claude-adopted.md")));
-		var config = HarnessYamlReader.ReadFile(Path.Combine(solo.Path, "_fx", "harness", "harness.yaml"));
+		var config = HarnessYamlReader.ReadFile(Path.Combine(solo.Path, "_fx", "harness", "harness.yaml")).SuccessOrThrow();
 		Assert.Equal(["agents-adopted", "old"], config.Rules.Select(r => r.Name));
 		Assert.Equal(["**/*.sql"], config.Rules[1].Paths);
 		Assert.Equal(["mine"], config.Skills.Select(s => s.Name));

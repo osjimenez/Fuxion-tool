@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text.RegularExpressions;
 using Fuxion.Tool.Core.Layout;
 using Fuxion.Tool.Core.Results;
@@ -10,17 +11,10 @@ using Fuxion.Tool.Core.Yaml;
 
 namespace Fuxion.Tool.Core.Dotnet;
 
-/// <summary>An invalid <c>dotnet.yaml</c>: every problem found, each with its line.</summary>
-public sealed class DotnetConfigException(IReadOnlyList<FxDiagnostic> diagnostics)
-	: Exception(string.Join(Environment.NewLine, diagnostics.Select(d => d.WhereIn(CultureInfo.InvariantCulture))))
-{
-	public IReadOnlyList<FxDiagnostic> Diagnostics { get; } = diagnostics;
-}
-
 /// <summary>
-/// Reads <c>dotnet.yaml</c> with fx's YAML reader (SharpYaml's parser, no reflection: AOT) and validates it. Its
-/// warnings (an unknown key of a newer schema, no schema) go to <see cref="Read(string, string, ICollection{FxDiagnostic})"/>'s
-/// list; its errors, in a <see cref="DotnetConfigException"/>.
+/// Reads <c>dotnet.yaml</c> with fx's YAML reader (SharpYaml's parser, no reflection: AOT) and validates it. It gives
+/// the configuration with its warnings (an unknown key of a newer schema, no schema), or an error
+/// (<see cref="HttpStatusCode.Conflict"/>) with every problem found, each with its line.
 /// </summary>
 public static partial class DotnetYamlReader
 {
@@ -32,14 +26,13 @@ public static partial class DotnetYamlReader
 	[GeneratedRegex(@"^[A-Za-z_][A-Za-z0-9_]*$")]
 	private static partial Regex ConstantName();
 
-	public static DotnetConfig ReadFile(string path, ICollection<FxDiagnostic>? warnings = null) => Read(FxFiles.ReadAllText(path), path, warnings);
+	public static Response<DotnetConfig> ReadFile(string path) => Read(FxFiles.ReadAllText(path), path);
 
-	public static DotnetConfig Read(string yaml, string source, ICollection<FxDiagnostic>? warnings = null)
+	public static Response<DotnetConfig> Read(string yaml, string source)
 	{
 		var reader = new FxYamlReader(InvalidYaml, source);
-		var map = reader.Load(yaml) is YamlMapping loaded ? loaded : null;
-		if (map is null)
-			throw new DotnetConfigException(reader.Diagnostics);
+		if (reader.Load(yaml) is not YamlMapping map)
+			return reader.Fail(HttpStatusCode.Conflict);
 
 		var sdks = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 		var variables = new List<DotnetVariable>();
@@ -86,11 +79,7 @@ public static partial class DotnetYamlReader
 			Standalone = reader.Bool(map, "standalone", false),
 			Enabled = reader.Enabled(map)
 		};
-		if (reader.HasErrors)
-			throw new DotnetConfigException(reader.Diagnostics);
-		foreach (var warning in reader.Diagnostics)
-			warnings?.Add(warning);
-		return config;
+		return reader.Outcome(config, HttpStatusCode.Conflict);
 	}
 
 	static DotnetVariable? ReadVariable(YamlNode node, string source, FxYamlReader reader)

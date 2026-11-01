@@ -155,16 +155,9 @@ public static class SyncEngine
 				var path = node.Full(file);
 				if (!FxFiles.Exists(path))
 					continue;
-				DotnetConfig config;
-				try
-				{
-					config = DotnetYamlReader.ReadFile(path);
-				}
-				catch (DotnetConfigException)
-				{
-					// its module reports it
+				// one that cannot be read: its module reports it
+				if (DotnetYamlReader.ReadFile(path) is not DotnetConfig config)
 					continue;
-				}
 				if (config.Sdks.FirstOrDefault(s => string.Equals(s.Key, FxToolVersion.SdkPackage, StringComparison.OrdinalIgnoreCase)).Value is { } version
 				    && (highest is null || FxToolVersion.Compare(version, highest.Value.Version) > 0))
 					highest = (version, Path.GetRelativePath(start.Root, path).Replace('\\', '/'), own);
@@ -251,14 +244,8 @@ public static class SyncEngine
 			var dotnet = DotnetModule.Run(node, identity, label, context);
 			if (dotnet is not null)
 				run.Results.Add(dotnet);
-			try
-			{
-				own = DotnetModule.Configuration(node, identity, [])?.Own;
-			}
-			catch (DotnetConfigException)
-			{
-				// already reported by the module
-			}
+			// one that cannot be read is already reported by the module
+			own = DotnetModule.Configuration(node, identity) is ValueTuple<DotnetConfig, string, DotnetConfig> configured ? configured.Item3 : null;
 		}
 		run.Mounted.Add((node, identity, own));
 
@@ -303,14 +290,8 @@ public static class SyncEngine
 		var node = new FxNode(manifest.FullPath(repository));
 		var identity = new FxIdentity(repository.Name, $"{space.FullName}/{repository.Name}", repository.Tags);
 		DotnetConfig? own = null;
-		try
-		{
-			own = DotnetModule.Configuration(node, identity, [])?.Own;
-		}
-		catch (DotnetConfigException)
-		{
-			// its own sync reports it
-		}
+		// one that cannot be read: its own sync reports it
+		own = DotnetModule.Configuration(node, identity) is ValueTuple<DotnetConfig, string, DotnetConfig> configured ? configured.Item3 : null;
 		run.Mounted.Add((node, identity, own));
 	}
 

@@ -358,14 +358,8 @@ public static class FxTree
 	static IReadOnlyList<string> Solutions(FxNode node)
 	{
 		var file = node.Full(FxLayout.ModuleFile(DotnetModule.Name));
-		try
-		{
-			return FxFiles.Exists(file) ? DotnetYamlReader.ReadFile(file).Solutions.Select(s => s.Path).ToList() : [];
-		}
-		catch (DotnetConfigException)
-		{
-			return [];
-		}
+		// one that cannot be read composes none
+		return FxFiles.Exists(file) && DotnetYamlReader.ReadFile(file) is DotnetConfig config ? config.Solutions.Select(s => s.Path).ToList() : [];
 	}
 
 	static string Last(string relative) => relative.TrimEnd('/').Split('/').Last();
@@ -500,19 +494,24 @@ public static class FxTree
 	{
 		var inheritedYaml = node.Full(HarnessModule.InheritedConfigFile);
 		var ownYaml = node.Full(HarnessModule.ConfigFile);
-		try
+		// one that cannot be read: none
+		HarnessConfig? inherited = null, own = null;
+		if (FxFiles.Exists(inheritedYaml))
 		{
-			var inherited = FxFiles.Exists(inheritedYaml) ? HarnessYamlReader.ReadFile(inheritedYaml) : null;
-			var own = FxFiles.Exists(ownYaml) ? HarnessYamlReader.ReadFile(ownYaml).Absolute(identity.FullName) : null;
-			if (inherited is null && own is null)
+			if (HarnessYamlReader.ReadFile(inheritedYaml) is not HarnessConfig fromAbove)
 				return null;
-			return HarnessConfig.Combine((inherited ?? HarnessConfig.Empty).WithBase(HarnessModule.InheritedFolder),
-				(own is { Enabled: true } ? own : HarnessConfig.Empty).WithBase(HarnessModule.Folder));
+			inherited = fromAbove;
 		}
-		catch (HarnessConfigException)
+		if (FxFiles.Exists(ownYaml))
 		{
-			return null;
+			if (HarnessYamlReader.ReadFile(ownYaml) is not HarnessConfig itsOwn)
+				return null;
+			own = itsOwn.Absolute(identity.FullName);
 		}
+		if (inherited is null && own is null)
+			return null;
+		return HarnessConfig.Combine((inherited ?? HarnessConfig.Empty).WithBase(HarnessModule.InheritedFolder),
+				(own is { Enabled: true } ? own : HarnessConfig.Empty).WithBase(HarnessModule.Folder));
 	}
 
 	/// <summary>Whom the harness of <paramref name="space"/> reaches, as a module (its <c>applies-to</c>; everyone, without it).</summary>
@@ -524,18 +523,23 @@ public static class FxTree
 	{
 		var inheritedYaml = node.Full($"{FxLayout.InheritedModuleFolder(DotnetModule.Name)}/{DotnetModule.Name}.yaml");
 		var ownYaml = node.Full(FxLayout.ModuleFile(DotnetModule.Name));
-		try
+		// one that cannot be read: none
+		DotnetConfig? inherited = null, own = null;
+		if (FxFiles.Exists(inheritedYaml))
 		{
-			var inherited = FxFiles.Exists(inheritedYaml) ? DotnetYamlReader.ReadFile(inheritedYaml) : null;
-			var own = FxFiles.Exists(ownYaml) ? DotnetYamlReader.ReadFile(ownYaml).Absolute(identity.FullName) : null;
-			if (inherited is null && own is null)
+			if (DotnetYamlReader.ReadFile(inheritedYaml) is not DotnetConfig fromAbove)
 				return null;
-			return DotnetConfig.Combine(inherited ?? DotnetConfig.Empty, own is { Enabled: true } ? own : DotnetConfig.Empty);
+			inherited = fromAbove;
 		}
-		catch (DotnetConfigException)
+		if (FxFiles.Exists(ownYaml))
 		{
-			return null;
+			if (DotnetYamlReader.ReadFile(ownYaml) is not DotnetConfig itsOwn)
+				return null;
+			own = itsOwn.Absolute(identity.FullName);
 		}
+		if (inherited is null && own is null)
+			return null;
+		return DotnetConfig.Combine(inherited ?? DotnetConfig.Empty, own is { Enabled: true } ? own : DotnetConfig.Empty);
 	}
 
 	/// <summary>

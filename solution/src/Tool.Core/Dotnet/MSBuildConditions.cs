@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Text.RegularExpressions;
+using Fuxion.Tool.Core.Results;
 
 namespace Fuxion.Tool.Core.Dotnet;
 
@@ -21,16 +23,29 @@ public static partial class MSBuildConditions
 	/// <summary>
 	/// Replaces every reference to a <c>when</c> variable by its own condition, recursively, so the result does not
 	/// depend on the order MSBuild imports things. <paramref name="whenVariables"/> maps names to their raw conditions.
+	/// Variables that refer to each other in a cycle are a conflict (<see cref="DotnetYamlReader.InvalidYaml"/>).
 	/// </summary>
-	public static string Expand(string condition, IReadOnlyDictionary<string, string> whenVariables)
-		=> Expand(condition, whenVariables, []);
+	public static Response<string> Expand(string condition, IReadOnlyDictionary<string, string> whenVariables)
+	{
+		try
+		{
+			return Expand(condition, whenVariables, []);
+		}
+		catch (Cycle cycle)
+		{
+			return FxErrors.Of(HttpStatusCode.Conflict, FxDiagnostic.Error(DotnetYamlReader.InvalidYaml, FxText.Plain(cycle.Message)));
+		}
+	}
+
+	/// <summary>What the recursion finds, caught where it starts (it never leaves <see cref="Expand(string, IReadOnlyDictionary{string, string})"/>).</summary>
+	sealed class Cycle(string message) : Exception(message);
 
 	static string Expand(string condition, IReadOnlyDictionary<string, string> whenVariables, HashSet<string> visiting)
 	{
 		string ExpandVariable(string name)
 		{
 			if (!visiting.Add(name))
-				throw new InvalidOperationException($"The when variables refer to each other in a cycle ({string.Join(" → ", visiting)} → {name}).");
+				throw new Cycle($"The when variables refer to each other in a cycle ({string.Join(" → ", visiting)} → {name}).");
 			var expanded = Expand(whenVariables[name], whenVariables, visiting);
 			visiting.Remove(name);
 			return expanded;

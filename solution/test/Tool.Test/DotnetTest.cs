@@ -63,7 +63,7 @@ public sealed class DotnetTest
 	[Fact(DisplayName = "reader: sections, variables, packages and applies-to")]
 	public void Read()
 	{
-		var config = DotnetYamlReader.Read(DesignYaml, "dotnet.yaml");
+		var config = DotnetYamlReader.Read(DesignYaml, "dotnet.yaml").SuccessOrThrow();
 		Assert.Equal("0.1.0", config.Sdks["Fuxion.Tool.Sdk"]);
 		Assert.Equal(5, config.Variables.Count);
 		Assert.Equal("net10.0;net11.0", config.Variables[0].Value);
@@ -76,7 +76,7 @@ public sealed class DotnetTest
 	}
 
 	[Fact(DisplayName = "reader: an empty file is an empty configuration")]
-	public void Read_Empty() => Assert.Empty(DotnetYamlReader.Read("", "dotnet.yaml").Variables);
+	public void Read_Empty() => Assert.Empty(DotnetYamlReader.Read("", "dotnet.yaml").SuccessOrThrow().Variables);
 
 	[Theory(DisplayName = "reader: every problem, with its line")]
 	[InlineData("variables:\n  - name: X\n", "needs exactly one of 'value' or 'when'", 2)]
@@ -96,8 +96,9 @@ public sealed class DotnetTest
 	[InlineData("solutions:\n  - path: All.sln\n", "a .slnx relative to this root", 2)]
 	public void Read_Invalid(string yaml, string message, int line)
 	{
-		var ex = Assert.Throws<DotnetConfigException>(() => DotnetYamlReader.Read("schema: 1.0.0\n" + yaml, "dotnet.yaml"));
-		var diagnostic = ex.Diagnostics.First(d => d.Severity == FxSeverity.Error);
+		var read = DotnetYamlReader.Read("schema: 1.0.0\n" + yaml, "dotnet.yaml");
+		Assert.True(read is Error { Type: System.Net.HttpStatusCode.Conflict });
+		var diagnostic = read.Diagnostics.First(d => d.Severity == FxSeverity.Error);
 		Assert.Equal(DotnetYamlReader.InvalidYaml, diagnostic.Code);
 		Assert.Contains(message, diagnostic.Message.English);
 		Assert.Equal(line + 1, diagnostic.Line);
@@ -122,7 +123,7 @@ public sealed class DotnetTest
 			      - name: /products/w1
 			        solutions:
 			          - repo-w1/W1.slnx
-			""", "dotnet.yaml");
+			""", "dotnet.yaml").SuccessOrThrow();
 		Assert.False(config.Enabled);
 		Assert.True(config.Standalone);
 		Assert.Equal(["shared", "/acme/repo-w1"], config.AppliesTo!.Repositories);
@@ -136,7 +137,7 @@ public sealed class DotnetTest
 	[Fact(DisplayName = "combine: the nearest wins by sdk, variable name, package id and imported file; the solutions do not go down")]
 	public void Combine()
 	{
-		var inherited = DotnetYamlReader.Read(DesignYaml + "\nimports:\n  - targets: test.targets\n  - props: default.props\n", "ws");
+		var inherited = DotnetYamlReader.Read(DesignYaml + "\nimports:\n  - targets: test.targets\n  - props: default.props\n", "ws").SuccessOrThrow();
 		var own = DotnetYamlReader.Read("""
 			sdks:
 			  Fuxion.Tool.Sdk: 0.2.0
@@ -153,7 +154,7 @@ public sealed class DotnetTest
 			        version: 9.9.9
 			solutions:
 			  - path: Own.slnx
-			""", "repo");
+			""", "repo").SuccessOrThrow();
 		var combined = DotnetConfig.Combine(inherited, own);
 		Assert.Equal("0.2.0", combined.Sdks["Fuxion.Tool.Sdk"]);
 		Assert.Equal("net8.0", combined.Variables.Single(v => v.Name == "CoreFrameworks").Value);
@@ -168,7 +169,7 @@ public sealed class DotnetTest
 	[Fact(DisplayName = "applies-to: what has none goes to every repo; the rest, by tag or by name")]
 	public void AppliesTo()
 	{
-		var config = DotnetYamlReader.Read(DesignYaml, "x");
+		var config = DotnetYamlReader.Read(DesignYaml, "x").SuccessOrThrow();
 		Assert.DoesNotContain(config.ForTarget(new("plus", "/test/plus", [])).Variables, v => v.Name == "CoreWindowsFrameworks");
 		Assert.Contains(config.ForTarget(new("plus", "/test/plus", ["Windows"])).Variables, v => v.Name == "CoreWindowsFrameworks");
 		var byName = new FxAppliesTo([], ["/test/plus"]);
@@ -193,11 +194,15 @@ public sealed class DotnetTest
 	[InlineData("'$(IsNet11)' == 'false'", "!('$(TargetFramework)' == 'net11.0')")]
 	[InlineData("$(IsCore)", "(('$(TargetFramework)' == 'net10.0') Or ('$(TargetFramework)' == 'net11.0'))")]
 	[InlineData("'$(Other)' == 'x'", "'$(Other)' == 'x'")]
-	public void Expand(string condition, string expected) => Assert.Equal(expected, MSBuildConditions.Expand(condition, When));
+	public void Expand(string condition, string expected) => Assert.Equal(expected, MSBuildConditions.Expand(condition, When).SuccessOrThrow());
 
 	[Fact(DisplayName = "expand: a cycle is an error")]
 	public void Expand_Cycle()
-		=> Assert.Throws<InvalidOperationException>(() => MSBuildConditions.Expand("$(A)", new Dictionary<string, string> { ["A"] = "$(B)", ["B"] = "$(A)" }));
+	{
+		var expanded = MSBuildConditions.Expand("$(A)", new Dictionary<string, string> { ["A"] = "$(B)", ["B"] = "$(A)" });
+		Assert.True(expanded is Error { Type: System.Net.HttpStatusCode.Conflict });
+		Assert.Equal(DotnetYamlReader.InvalidYaml, Assert.Single(expanded.Diagnostics).Code);
+	}
 
 	[Theory(DisplayName = "evaluate: the subset the coverage check understands")]
 	[InlineData("'$(TargetFramework)' == 'net10.0'", "net10.0", true)]
@@ -448,7 +453,7 @@ public sealed class DotnetTest
 	[Fact(DisplayName = "reader: imports, with one path or a list, when and applies-to")]
 	public void Read_Imports()
 	{
-		var imports = DotnetYamlReader.Read(ImportsYaml, "dotnet.yaml").Imports;
+		var imports = DotnetYamlReader.Read(ImportsYaml, "dotnet.yaml").SuccessOrThrow().Imports;
 		Assert.Equal(4, imports.Count);
 		Assert.Equal(["default.props"], imports[0].Props);
 		Assert.Null(imports[0].When);

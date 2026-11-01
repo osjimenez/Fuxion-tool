@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using Fuxion.Tool.Core.Layout;
 using Fuxion.Tool.Core.Results;
@@ -57,14 +58,32 @@ public static class HarnessModule
 
 	/// <summary>
 	/// The configuration of <paramref name="node"/> (who is <paramref name="identity"/>): what it inherits, if the module is
-	/// for it, with its own on top, only what is for it (decision 3); where it comes from; and its own, whole.
+	/// for it, with its own on top, only what is for it (decision 3); where it comes from; and its own, whole. An error
+	/// (<see cref="HttpStatusCode.Conflict"/>) if its <c>harness.yaml</c> is not valid, with all found up to it.
 	/// </summary>
-	public static (HarnessConfig Config, string Sources, HarnessConfig Own) Configuration(FxNode node, FxIdentity identity, ICollection<FxDiagnostic> warnings)
+	public static Response<(HarnessConfig Config, string Sources, HarnessConfig Own)> Configuration(FxNode node, FxIdentity identity)
 	{
 		var inheritedFile = node.Full(InheritedConfigFile);
 		var ownFile = node.Full(ConfigFile);
-		var inherited = FxFiles.Exists(inheritedFile) ? HarnessYamlReader.ReadFile(inheritedFile, warnings) : null;
-		var own = FxFiles.Exists(ownFile) ? HarnessYamlReader.ReadFile(ownFile, warnings).Absolute(identity.FullName) : null;
+		var found = new List<FxDiagnostic>();
+		HarnessConfig? inherited = null, own = null;
+		if (FxFiles.Exists(inheritedFile))
+		{
+			var read = HarnessYamlReader.ReadFile(inheritedFile);
+			found.AddRange(read.Diagnostics);
+			if (read is not HarnessConfig fromAbove)
+				return FxErrors.Of(HttpStatusCode.Conflict, found);
+			inherited = fromAbove;
+		}
+		if (FxFiles.Exists(ownFile))
+		{
+			var read = HarnessYamlReader.ReadFile(ownFile);
+			found.AddRange(read.Diagnostics);
+			if (read is not HarnessConfig itsOwn)
+				return FxErrors.Of(HttpStatusCode.Conflict, found);
+			own = itsOwn.Absolute(identity.FullName);
+		}
+
 		if (own is { Enabled: false })
 			own = null;
 		// a space receives what comes from above to pass it on; it only uses it if it is for it
@@ -72,7 +91,7 @@ public static class HarnessModule
 			inherited = null;
 		var sources = string.Join(", ", new[] { inherited is null ? null : InheritedConfigFile, own is null ? null : ConfigFile }.OfType<string>());
 		var config = HarnessConfig.Combine(inherited?.WithBase(InheritedFolder) ?? HarnessConfig.Empty, own?.WithBase(Folder) ?? HarnessConfig.Empty).ForTarget(identity);
-		return (config, sources, own?.WithBase(Folder) ?? HarnessConfig.Empty);
+		return FxResponse.Outcome((config, sources, own?.WithBase(Folder) ?? HarnessConfig.Empty), found, HttpStatusCode.Conflict);
 	}
 
 	/// <summary>The module in <paramref name="node"/>, written or checked; null if it is not a root of fx.</summary>
@@ -99,19 +118,11 @@ public static class HarnessModule
 		var adopted = context.Adopt ? Adopt(node, outputs, diagnostics) : [];
 
 		// 1. The configuration
-		(HarnessConfig Config, string Sources, HarnessConfig Own) configuration;
-		var warnings = new List<FxDiagnostic>();
-		try
-		{
-			configuration = Configuration(node, identity, warnings);
-		}
-		catch (HarnessConfigException ex)
-		{
-			diagnostics.AddRange(ex.Diagnostics.Select(d => d with { File = d.File is null ? null : outputs.Display(d.File) }));
+		var configuration = Configuration(node, identity);
+		diagnostics.AddRange(configuration.Diagnostics.Select(d => d with { File = d.File is null ? null : outputs.Display(d.File) }));
+		if (configuration is not ValueTuple<HarnessConfig, string, HarnessConfig> configured)
 			return;
-		}
-		diagnostics.AddRange(warnings.Select(d => d with { File = d.File is null ? null : outputs.Display(d.File) }));
-		var (config, sources, own) = configuration;
+		var (config, sources, own) = configured;
 		var from = sources.Length == 0 ? "fx" : sources;
 		Check(node, own, context.Doctor, outputs, diagnostics);
 
@@ -285,16 +296,9 @@ public static class HarnessModule
 	{
 		var adopted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 		var ownFile = node.Full(ConfigFile);
-		HarnessConfig own;
-		try
-		{
-			own = FxFiles.Exists(ownFile) ? HarnessYamlReader.ReadFile(ownFile) : HarnessConfig.Empty;
-		}
-		catch (HarnessConfigException)
-		{
-			// the configuration says what is wrong with it; nothing is adopted into a yaml that cannot be read
+		// the configuration says what is wrong with it; nothing is adopted into a yaml that cannot be read
+		if ((FxFiles.Exists(ownFile) ? HarnessYamlReader.ReadFile(ownFile) : HarnessConfig.Empty) is not HarnessConfig own)
 			return adopted;
-		}
 		var rules = new List<(string Name, IReadOnlyList<string> Paths, string Text, string From)>();
 		var skills = new List<(string Name, string Folder)>();
 		bool Taken(string name, bool skill) => skill
