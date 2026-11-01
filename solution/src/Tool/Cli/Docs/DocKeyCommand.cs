@@ -42,8 +42,9 @@ public static class DocKeyCommand
 				Json(null, null, [], false);
 			return console.Report(diagnostics);
 		}
-		if (DocCommand.One(console, catalog, selector) is not { } file)
-			return FxConsole.UsageError;
+		var named = DocCommand.One(console, catalog, selector);
+		if (named is not DocFile file)
+			return console.Fail((Error)named);
 		var display = DocCommand.Display(catalog);
 		var keyed = DocKeys.Keyed(catalog, file);
 		// the actor, as for every change of the catalog (plan U, decision 20)

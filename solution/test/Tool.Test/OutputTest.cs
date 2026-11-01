@@ -98,6 +98,27 @@ public sealed class OutputTest
 		Assert.Contains("Cancelled.", stderr.ToString());
 	}
 
+	[Fact(DisplayName = "the error of a command: a BadRequest, its message and 2, no document; any other, its document, its diagnostics and 1")]
+	public void Fail()
+	{
+		foreach (var output in new[] { OutputFormat.Human, OutputFormat.Json })
+		{
+			var (stdout, stderr) = (new StringWriter(), new StringWriter());
+			var console = new FxConsole(stdout, stderr, Settings(output));
+			var documents = 0;
+			Assert.Equal(FxConsole.UsageError, console.Fail(FxConsole.BadRequest("'x' names nothing."), _ => documents++));
+			Assert.Equal(("", 0), (stdout.ToString(), documents));
+			Assert.Equal("'x' names nothing.", stderr.ToString().Trim());
+
+			stderr = new StringWriter();
+			console = new FxConsole(stdout, stderr, Settings(output));
+			var conflict = Core.Results.FxErrors.Of(System.Net.HttpStatusCode.Conflict, Core.Results.FxDiagnostic.Error("x.invalid", Core.Results.FxText.Plain("Not valid.")));
+			Assert.Equal(1, console.Fail(conflict, diagnostics => documents += diagnostics.Count));
+			Assert.Equal(output == OutputFormat.Json ? 1 : 0, documents);
+			Assert.Equal(output == OutputFormat.Json ? "" : "x.invalid", output == OutputFormat.Json ? stderr.ToString() : stderr.ToString().Split(':')[0].Split(' ')[^1]);
+		}
+	}
+
 	[Fact(DisplayName = "info diagnostics only with -v")]
 	public void InfoOnlyVerbose()
 	{

@@ -70,19 +70,6 @@ public static class MountCommand
 		return Task.FromResult(console.Run(token => command(console, token), cancellationToken));
 	}
 
-	/// <summary>The manifest, or its error (every problem found) written as the command's document.</summary>
-	internal static MountsManifest? Manifest(FxConsole console, Action<IReadOnlyList<FxDiagnostic>> writeJson)
-	{
-		var found = MountsModule.Find(console.Settings.Directory);
-		if (found is MountsManifest manifest)
-			return manifest;
-		var errors = found.Diagnostics;
-		if (console.Settings.IsMachine)
-			writeJson(errors);
-		console.Report(errors);
-		return null;
-	}
-
 	/// <summary>
 	/// A repository that asks for attention: not cloned (or parked, unless a higher copy is used), with changes, ahead or
 	/// behind, without a branch with an upstream.
@@ -113,8 +100,9 @@ public static class MountCommand
 		var schema = withStatus ? StatusSchema : ListSchema;
 		void Json(IReadOnlyList<JsonMount> mounts, IReadOnlyList<FxDiagnostic> diagnostics)
 			=> console.WriteJson(new MountsDocument(schema, FxConsole.Ok(diagnostics), mounts, JsonDiagnostic.From(diagnostics)), c => c.MountsDocument);
-		if (Manifest(console, errors => Json([], errors)) is not { } manifest)
-			return 1;
+		var found = MountsModule.Find(console.Settings.Directory);
+		if (found is not MountsManifest manifest)
+			return console.Fail((Error)found, errors => Json([], errors));
 		// the audience of each mount (the audience ADR): a mounted space keeps its own
 		var config = new FxNode(manifest.Root).Config();
 		string AudienceOf(Mount mount) => MountsModule.AudienceOf(new FxNode(manifest.FullPath(mount)), mount, config);
@@ -190,8 +178,9 @@ public static class MountCommand
 		void Json(IReadOnlyList<RepositoryAction> actions, IReadOnlyList<FxDiagnostic> diagnostics)
 			=> console.WriteJson(new ParkDocument(ParkSchema, FxConsole.Ok(diagnostics),
 				actions.Select(a => new JsonRepositoryAction(a.Repository, a.Action, a.Detail?.English)).ToList(), JsonDiagnostic.From(diagnostics)), c => c.ParkDocument);
-		if (Manifest(console, errors => Json([], errors)) is not { } manifest)
-			return 1;
+		var found = MountsModule.Find(console.Settings.Directory);
+		if (found is not MountsManifest manifest)
+			return console.Fail((Error)found, errors => Json([], errors));
 		if (names.Count == 0)
 		{
 			var verb = parked ? "park" : "unpark";
@@ -227,8 +216,9 @@ public static class MountCommand
 		void Json(IReadOnlyList<RepositoryAction> actions, IReadOnlyList<FxDiagnostic> diagnostics)
 			=> console.WriteJson(new PullDocument(PullSchema, FxConsole.Ok(diagnostics),
 				actions.Select(a => new JsonRepositoryAction(a.Repository, a.Action, a.Detail?.English)).ToList(), JsonDiagnostic.From(diagnostics)), c => c.PullDocument);
-		if (Manifest(console, errors => Json([], errors)) is not { } manifest)
-			return 1;
+		var found = MountsModule.Find(console.Settings.Directory);
+		if (found is not MountsManifest manifest)
+			return console.Fail((Error)found, errors => Json([], errors));
 		var result = console.WithProgress((progress, cancel) => MountsModule.Pull(manifest, only, progress, cancel), cancellationToken);
 		if (console.Settings.IsMachine)
 			Json(result.Actions, result.Diagnostics);

@@ -22,10 +22,7 @@ public static class UiCommand
 		{
 			var console = MountCommand.Console(result, global, currentDirectory);
 			if (console.Settings.IsMachine || !console.Capabilities.CanPrompt || !console.Capabilities.CanAnimate)
-			{
-				console.ErrorLine($"[red]{FxConsole.Escape(Texts.Get(NoTerminal))}[/]");
-				return FxConsole.UsageError;
-			}
+				return console.Fail(FxConsole.BadRequest(Texts.Get(NoTerminal)));
 			if (FxTree.Build(console.Settings.Directory) is not { } model)
 				return console.Report([FxDiagnostic.Error(FxNode.NotARoot, new(FxNode.NotARoot, console.Settings.Directory))]);
 			var app = new UiApp(model, console.Settings.Directory);

@@ -284,10 +284,7 @@ public static class DescribeCommand
 			return 0;
 		}
 		if (JsonSchema(id) is not { } schema)
-		{
-			console.ErrorLine($"[red]{FxConsole.Escape(Texts.Get(UnknownSchema, id))}[/]");
-			return FxConsole.UsageError;
-		}
+			return console.Fail(FxConsole.BadRequest(Texts.Get(UnknownSchema, id)));
 		// the schema is the data: always JSON, whatever --output
 		var buffer = new MemoryStream();
 		using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))

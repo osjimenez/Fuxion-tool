@@ -333,8 +333,9 @@ public static class ManifestCommands
 			{
 				void Json(IReadOnlyList<FxDiagnostic> diagnostics)
 					=> console.WriteJson(new ManifestEditDocument(Schema, false, false, false, [], JsonDiagnostic.From(diagnostics)), c => c.ManifestEditDocument);
-				if (MountCommand.Manifest(console, Json) is not { } manifest)
-					return 1;
+				var found = MountsModule.Find(console.Settings.Directory);
+				if (found is not MountsManifest manifest)
+					return console.Fail((Error)found, Json);
 				if (edit(result, console, manifest, token) is not { } changes)
 					return FxConsole.UsageError;
 				return Apply(console, manifest.Root, changes, result.GetValue(dryRun), next?.Invoke(result) ?? Sync);

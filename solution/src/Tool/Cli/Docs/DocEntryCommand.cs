@@ -46,8 +46,9 @@ public static class DocEntryCommand
 		add.SetAction(result =>
 		{
 			var console = MountCommand.Console(result, global, currentDirectory);
-			if (Edit(console, result.GetValue(fields), result.GetValue(relations), []) is not { } edit)
-				return FxConsole.UsageError;
+			var parsed = Edit(result.GetValue(fields), result.GetValue(relations), []);
+			if (parsed is not DocEntryEdit edit)
+				return console.Fail((Error)parsed);
 			edit = edit with
 			{
 				Name = result.GetValue(name),
@@ -59,10 +60,8 @@ public static class DocEntryCommand
 			};
 			var by = DocCommand.Actor(result, actor);
 			return console.Run(_ => DocCommand.Write(console, result.GetValue(addDryRun), by, (catalog, display) =>
-				DocCommand.One(console, catalog, result.GetValue(addRegister)!) is { } register
-					? DocEditor.AddEntry(catalog, display, console.Settings.Directory, register, result.GetValue(title)!, edit, DateTimeOffset.UtcNow, by,
-						reserve: !result.GetValue(addDryRun))
-					: null));
+				DocCommand.With(DocCommand.One(console, catalog, result.GetValue(addRegister)!), register => DocEditor.AddEntry(catalog, display, console.Settings.Directory, register, result.GetValue(title)!, edit, DateTimeOffset.UtcNow, by,
+						reserve: !result.GetValue(addDryRun)))));
 		});
 		command.Add(add);
 
@@ -83,8 +82,9 @@ public static class DocEntryCommand
 		set.SetAction(result =>
 		{
 			var console = MountCommand.Console(result, global, currentDirectory);
-			if (Edit(console, result.GetValue(setFields), result.GetValue(setRelations), result.GetValue(unrelate)) is not { } edit)
-				return FxConsole.UsageError;
+			var parsed = Edit(result.GetValue(setFields), result.GetValue(setRelations), result.GetValue(unrelate));
+			if (parsed is not DocEntryEdit edit)
+				return console.Fail((Error)parsed);
 			edit = edit with
 			{
 				Title = result.GetValue(setTitle),
@@ -93,9 +93,7 @@ public static class DocEntryCommand
 				Tags = result.GetValue(setTags) ?? []
 			};
 			return console.Run(_ => DocCommand.Write(console, result.GetValue(setDryRun), DocCommand.Actor(result, actor), (catalog, display) =>
-				DocCommand.One(console, catalog, result.GetValue(setRegister)!) is { } register
-					? DocEditor.SetEntry(catalog, display, console.Settings.Directory, register, result.GetValue(setEntry)!, edit, DateTimeOffset.UtcNow)
-					: null));
+				DocCommand.With(DocCommand.One(console, catalog, result.GetValue(setRegister)!), register => DocEditor.SetEntry(catalog, display, console.Settings.Directory, register, result.GetValue(setEntry)!, edit, DateTimeOffset.UtcNow))));
 		});
 		command.Add(set);
 
@@ -108,9 +106,7 @@ public static class DocEntryCommand
 		{
 			var console = MountCommand.Console(result, global, currentDirectory);
 			return console.Run(_ => DocCommand.Write(console, result.GetValue(closeDryRun), DocCommand.Actor(result, actor), (catalog, display) =>
-				DocCommand.One(console, catalog, result.GetValue(closeRegister)!) is { } register
-					? DocEditor.CloseEntry(catalog, display, register, result.GetValue(closeEntry)!, result.GetValue(closeStatus), DateTimeOffset.UtcNow)
-					: null));
+				DocCommand.With(DocCommand.One(console, catalog, result.GetValue(closeRegister)!), register => DocEditor.CloseEntry(catalog, display, register, result.GetValue(closeEntry)!, result.GetValue(closeStatus), DateTimeOffset.UtcNow))));
 		});
 		command.Add(close);
 
@@ -131,7 +127,7 @@ public static class DocEntryCommand
 	/// The fields and relations of a change: <c>name=value</c> (a JSON value, or text; empty, the field goes) and
 	/// <c>kind=target</c>. Null, said on stderr, if one has no <c>=</c>.
 	/// </summary>
-	static DocEntryEdit? Edit(FxConsole console, string[]? fields, string[]? relations, string[]? unrelate)
+	static Response<DocEntryEdit> Edit(string[]? fields, string[]? relations, string[]? unrelate)
 	{
 		var edit = new DocEntryEdit();
 		var parsedFields = new List<KeyValuePair<string, JsonElement?>>();
@@ -142,28 +138,25 @@ public static class DocEntryCommand
 			var value = field[(at + 1)..];
 			parsedFields.Add(KeyValuePair.Create(field[..at].Trim(), value.Length == 0 ? null : (JsonElement?)Value(value)));
 		}
-		List<(string, string)>? Pairs(string[]? items)
+		Response<List<(string, string)>> Pairs(string[]? items)
 		{
 			var pairs = new List<(string, string)>();
 			foreach (var item in items ?? [])
 				if (item.IndexOf('=') is > 0 and var at)
 					pairs.Add((item[..at].Trim(), item[(at + 1)..].Trim()));
 				else
-				{
-					Wrong(item);
-					return null;
-				}
+					return Wrong(item);
 			return pairs;
 		}
-		if (Pairs(relations) is not { } added || Pairs(unrelate) is not { } removed)
-			return null;
-		return edit with { Fields = parsedFields, Relations = added, Unrelate = removed };
+		var added = Pairs(relations);
+		if (added is not List<(string, string)> addedPairs)
+			return (Error)added;
+		var removed = Pairs(unrelate);
+		if (removed is not List<(string, string)> removedPairs)
+			return (Error)removed;
+		return edit with { Fields = parsedFields, Relations = addedPairs, Unrelate = removedPairs };
 
-		DocEntryEdit? Wrong(string item)
-		{
-			console.ErrorLine($"[red]{FxConsole.Escape(Texts.Get("doc.entry.pair", item))}[/]");
-			return null;
-		}
+		static Error Wrong(string item) => FxConsole.BadRequest(Texts.Get("doc.entry.pair", item));
 	}
 
 	/// <summary>A value of a field: JSON if it is (a number, true, a list, a quoted text), text if not.</summary>
@@ -192,8 +185,9 @@ public static class DocEntryCommand
 				Json(null, []);
 			return console.Report(diagnostics);
 		}
-		if (DocCommand.One(console, catalog, selector) is not { } file)
-			return FxConsole.UsageError;
+		var named = DocCommand.One(console, catalog, selector);
+		if (named is not DocFile file)
+			return console.Fail((Error)named);
 		var documents = DocChecker.Read(catalog);
 		if (documents.FirstOrDefault(d => d.File == file) is not { Type.Name: "register" } register)
 		{

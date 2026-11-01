@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
@@ -167,6 +168,35 @@ public sealed partial class FxConsole
 	}
 
 	public static int ExitCode(IEnumerable<FxDiagnostic> diagnostics) => diagnostics.Any(d => d.Severity == FxSeverity.Error) ? 1 : 0;
+
+	/// <summary>The code of the diagnostic of a command used wrongly, found once its line is parsed: its message, as the parser writes its own.</summary>
+	public const string Usage = "fx.usage";
+
+	/// <summary>A command used wrongly, found once its line is parsed (it names nothing, or several things): its message.</summary>
+	public static Error BadRequest(string message)
+		=> FxErrors.Of(HttpStatusCode.BadRequest, FxDiagnostic.Error(Usage, FxText.Plain(message)));
+
+	/// <summary>
+	/// The one way a command ends with the error of its response (the ADR of the diagnostics, its CLI): a
+	/// <see cref="HttpStatusCode.BadRequest"/>, its message on stderr as the parser writes its own, no document, and
+	/// <see cref="UsageError"/>; any other, its <paramref name="document"/> (the empty one, with the diagnostics of the
+	/// error) if the output is for machines, its diagnostics for people, and 1. A report ends with <see cref="Report"/>
+	/// (1 if any of its diagnostics is an error, 0 otherwise); a cancellation, in <see cref="Run"/>, with
+	/// <see cref="Cancelled"/>.
+	/// </summary>
+	public int Fail(Error error, Action<IReadOnlyList<FxDiagnostic>>? document = null)
+	{
+		var diagnostics = error.Diagnostics;
+		if (error.Category == HttpStatusCode.BadRequest)
+		{
+			foreach (var diagnostic in diagnostics.Where(d => d.Severity == FxSeverity.Error))
+				ErrorLine($"[red]{Escape(diagnostic.Message.ToString())}[/]");
+			return UsageError;
+		}
+		if (Settings.IsMachine)
+			document?.Invoke(diagnostics);
+		return Report(diagnostics);
+	}
 
 	static string SeverityMarkup(FxSeverity severity)
 	{

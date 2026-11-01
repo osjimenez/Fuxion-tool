@@ -132,9 +132,11 @@ public static class DocCommand
 			return console.Run(_ => Write(console, result.GetValue(finalizeDryRun), Actor(result, actor), (catalog, display) =>
 				selectors.Length == 0
 					? DocEditor.Finalize(catalog, display, null, result.GetValue(correction), DateTimeOffset.UtcNow)
-					: Select(console, catalog, selectors) is { } files
-						? DocEditor.Finalize(catalog, display, files, result.GetValue(correction), DateTimeOffset.UtcNow)
-						: null));
+					: Select(console, catalog, selectors) switch
+					{
+						List<DocFile> files => DocEditor.Finalize(catalog, display, files, result.GetValue(correction), DateTimeOffset.UtcNow),
+						var unknown => (Error)unknown
+					}));
 		});
 		command.Add(finalize);
 
@@ -146,9 +148,7 @@ public static class DocCommand
 		{
 			var console = MountCommand.Console(result, global, currentDirectory);
 			return console.Run(_ => Write(console, result.GetValue(statusDryRun), Actor(result, actor), (catalog, display) =>
-				One(console, catalog, result.GetValue(statusDocument)!) is { } file
-					? DocEditor.SetStatus(catalog, display, file, result.GetValue(status)!, DateTimeOffset.UtcNow)
-					: null));
+				With(One(console, catalog, result.GetValue(statusDocument)!), file => DocEditor.SetStatus(catalog, display, file, result.GetValue(status)!, DateTimeOffset.UtcNow))));
 		});
 		command.Add(setStatus);
 
@@ -164,15 +164,14 @@ public static class DocCommand
 			var console = MountCommand.Console(result, global, currentDirectory);
 			return console.Run(_ => Write(console, result.GetValue(relateDryRun), Actor(result, actor), (catalog, display) =>
 			{
-				if (One(console, catalog, result.GetValue(source)!) is not { } from)
-					return null;
+				var named = One(console, catalog, result.GetValue(source)!);
+				if (named is not DocFile from)
+					return (Error)named;
 				// the target, an entry of a register (its key, its identity, its register#name, its name), or a document
 				var to = result.GetValue(target)!;
 				if (DocEditor.EntryTarget(catalog, to, console.Settings.Directory) is { } entry)
 					return DocEditor.RelateToEntry(catalog, display, from, result.GetValue(kind)!, entry, result.GetValue(remove), DateTimeOffset.UtcNow);
-				return One(console, catalog, to) is { } document
-					? DocEditor.Relate(catalog, display, from, result.GetValue(kind)!, document, result.GetValue(remove), DateTimeOffset.UtcNow)
-					: null;
+				return With(One(console, catalog, to), document => DocEditor.Relate(catalog, display, from, result.GetValue(kind)!, document, result.GetValue(remove), DateTimeOffset.UtcNow));
 			}));
 		});
 		command.Add(relate);
@@ -197,10 +196,7 @@ public static class DocCommand
 			var by = Actor(result, actor);
 			if (files.Length > 0 && (selectors.Length > 0 || result.GetValue(adoptType) is not null || result.GetValue(adoptProfile) is not null
 			                         || result.GetValue(adoptStatus) is not null || result.GetValue(created) is not null))
-			{
-				console.ErrorLine($"[red]{FxConsole.Escape(Texts.Get("doc.adopt.manifest-alone"))}[/]");
-				return FxConsole.UsageError;
-			}
+				return console.Fail(FxConsole.BadRequest(Texts.Get("doc.adopt.manifest-alone")));
 			return console.Run(_ => Write(console, result.GetValue(adoptDryRun), by, (catalog, display) =>
 			{
 				if (files.Length > 0)
@@ -210,10 +206,7 @@ public static class DocCommand
 					foreach (var file in files.Select(f => catalog.Resolve(console.Settings.Directory, f)))
 					{
 						if (!FxFiles.Exists(file))
-						{
-							console.ErrorLine($"[red]{FxConsole.Escape(Texts.Get("doc.adopt.no-manifest", file))}[/]");
-							return null;
-						}
+							return FxConsole.BadRequest(Texts.Get("doc.adopt.no-manifest", file));
 						var read = DocAdoption.Read(file, display(file));
 						change.Diagnostics.AddRange(read.Diagnostics);
 						if (read is IReadOnlyList<DocManifestTarget> manifest)
@@ -222,8 +215,13 @@ public static class DocCommand
 					return change.Ok ? DocAdoption.Apply(catalog, display, targets, by, DateTimeOffset.UtcNow) : change;
 				}
 				List<DocFile>? chosen = null;
-				if (selectors.Length > 0 && (chosen = Select(console, catalog, selectors)) is null)
-					return null;
+				if (selectors.Length > 0)
+				{
+					var selected = Select(console, catalog, selectors);
+					if (selected is not List<DocFile> some)
+						return (Error)selected;
+					chosen = some;
+				}
 				return DocAdoption.Bootstrap(catalog, display, chosen, result.GetValue(adoptType), result.GetValue(adoptProfile), result.GetValue(adoptStatus),
 					result.GetValue(created), by, DateTimeOffset.UtcNow);
 			}));
@@ -238,9 +236,8 @@ public static class DocCommand
 		{
 			var console = MountCommand.Console(result, global, currentDirectory);
 			return console.Run(_ => Write(console, result.GetValue(moveDryRun), Actor(result, actor), (catalog, display) =>
-				One(console, catalog, result.GetValue(moveDocument)!) is { } file
-					? DocEditor.Move(catalog, display, file, result.GetValue(folder)!, console.Settings.Directory, DateTimeOffset.UtcNow)
-					: null));
+				With(One(console, catalog, result.GetValue(moveDocument)!), file => DocEditor.Move(catalog, display, file, result.GetValue(folder)!, console.Settings.Directory,
+					DateTimeOffset.UtcNow))));
 		});
 		command.Add(move);
 
@@ -251,9 +248,7 @@ public static class DocCommand
 		{
 			var console = MountCommand.Console(result, global, currentDirectory);
 			return console.Run(_ => Write(console, result.GetValue(discardDryRun), Actor(result, actor), (catalog, display) =>
-				One(console, catalog, result.GetValue(discardDocument)!) is { } file
-					? DocEditor.Discard(catalog, display, file, DateTimeOffset.UtcNow)
-					: null));
+				With(One(console, catalog, result.GetValue(discardDocument)!), file => DocEditor.Discard(catalog, display, file, DateTimeOffset.UtcNow))));
 		});
 		command.Add(discard);
 
@@ -266,14 +261,10 @@ public static class DocCommand
 		{
 			var console = MountCommand.Console(result, global, currentDirectory);
 			if (result.GetValue(renameTitle) is null && result.GetValue(renameSlug) is null)
-			{
-				console.ErrorLine($"[red]{FxConsole.Escape(Texts.Get("doc.rename.nothing"))}[/]");
-				return FxConsole.UsageError;
-			}
+				return console.Fail(FxConsole.BadRequest(Texts.Get("doc.rename.nothing")));
 			return console.Run(_ => Write(console, result.GetValue(renameDryRun), Actor(result, actor), (catalog, display) =>
-				One(console, catalog, result.GetValue(renameDocument)!) is { } file
-					? DocEditor.Rename(catalog, display, file, result.GetValue(renameTitle), result.GetValue(renameSlug), DateTimeOffset.UtcNow)
-					: null));
+				With(One(console, catalog, result.GetValue(renameDocument)!), file => DocEditor.Rename(catalog, display, file, result.GetValue(renameTitle), result.GetValue(renameSlug),
+					DateTimeOffset.UtcNow))));
 		});
 		command.Add(rename);
 	}
@@ -295,24 +286,25 @@ public static class DocCommand
 		return found is DocCatalog catalog ? catalog : null;
 	}
 
-	/// <summary>The one document <paramref name="selector"/> names; null (said on stderr) if it names none or several.</summary>
-	internal static DocFile? One(FxConsole console, DocCatalog catalog, string selector)
+	/// <summary>The one document <paramref name="selector"/> names; a usage error (<see cref="FxConsole.BadRequest"/>) if it names none or several.</summary>
+	internal static Response<DocFile> One(FxConsole console, DocCatalog catalog, string selector)
 	{
-		if (Select(console, catalog, [selector]) is not { } files)
-			return null;
-		if (files.Count == 1)
-			return files[0];
-		console.ErrorLine($"[red]{FxConsole.Escape(Texts.Get("doc.many-documents", selector, files.Count))}[/]");
-		return null;
+		var selected = Select(console, catalog, [selector]);
+		if (selected is not List<DocFile> files)
+			return (Error)selected;
+		return files.Count == 1 ? files[0] : FxConsole.BadRequest(Texts.Get("doc.many-documents", selector, files.Count));
 	}
+
+	/// <summary>The change of <paramref name="work"/> on the document <paramref name="file"/> names, or the error that names none.</summary>
+	internal static Response<DocChange> With(Response<DocFile> file, Func<DocFile, DocChange> work) => file is DocFile one ? work(one) : (Error)file;
 
 	/// <summary>
 	/// A change of the catalog: written (unless <c>--dry-run</c> or with errors: all or nothing) and shown, the diff of
-	/// each file or why nothing changes. <paramref name="work"/> gives null if what it names is not there (a usage error,
-	/// said already). An <paramref name="actor"/>, if one is said, one of <c>docs.yaml</c>, whatever the command (plan U,
+	/// each file or why nothing changes. <paramref name="work"/> gives an error if what it names is not there (a usage error,
+	/// <see cref="FxConsole.BadRequest"/>). An <paramref name="actor"/>, if one is said, one of <c>docs.yaml</c>, whatever the command (plan U,
 	/// U6); those that record it ask for it themselves.
 	/// </summary>
-	internal static int Write(FxConsole console, bool dryRun, string? actor, Func<DocCatalog, Func<string, string>, DocChange?> work)
+	internal static int Write(FxConsole console, bool dryRun, string? actor, Func<DocCatalog, Func<string, string>, Response<DocChange>> work)
 	{
 		var found = new List<FxDiagnostic>();
 		void Json(DocChange? change, bool written)
@@ -332,8 +324,9 @@ public static class DocCommand
 			return console.Report(found);
 		}
 		var check = new DocChange(catalog, Display(catalog));
-		if ((actor is null || DocEditor.Actor(check, actor) ? work(catalog, Display(catalog)) : check) is not { } change)
-			return FxConsole.UsageError;
+		var worked = actor is null || DocEditor.Actor(check, actor) ? work(catalog, Display(catalog)) : check;
+		if (worked is not DocChange change)
+			return console.Fail((Error)worked);
 		var written = !dryRun && change.Changed && change.Write().IsSuccess;
 		if (console.Settings.IsMachine)
 		{
@@ -371,10 +364,10 @@ public static class DocCommand
 		d.Sidecar.Tags.Order(StringComparer.Ordinal).ToList(), d.Sidecar.CreatedAt, d.Sidecar.UpdatedAt, d.Sidecar.CreatedBy);
 
 	/// <summary>
-	/// The documents the selectors name, each with what it names; null (said on stderr) if one names none: a usage error
-	/// (the SPEC of the module, 14).
+	/// The documents the selectors name, each with what it names; a usage error (<see cref="FxConsole.BadRequest"/>) if
+	/// one names none (the SPEC of the module, 14).
 	/// </summary>
-	static List<DocFile>? Select(FxConsole console, DocCatalog catalog, IEnumerable<string> selectors)
+	static Response<List<DocFile>> Select(FxConsole console, DocCatalog catalog, IEnumerable<string> selectors)
 	{
 		IReadOnlyDictionary<string, DocFile>? ids = null;
 		var files = new List<DocFile>();
@@ -385,10 +378,7 @@ public static class DocCommand
 					.ToDictionary(g => g.Key, g => g.First().File, StringComparer.OrdinalIgnoreCase);
 			var named = catalog.Select(selector, console.Settings.Directory, ids);
 			if (named.Count == 0)
-			{
-				console.ErrorLine($"[red]{FxConsole.Escape(Texts.Get("doc.unknown-document", selector, CatalogPath(catalog)))}[/]");
-				return null;
-			}
+				return FxConsole.BadRequest(Texts.Get("doc.unknown-document", selector, CatalogPath(catalog)));
 			files.AddRange(named.Where(f => !files.Contains(f)));
 		}
 		return files;
@@ -407,8 +397,13 @@ public static class DocCommand
 			return console.Report(diagnostics);
 		}
 		List<DocFile>? only = null;
-		if (selectors.Count > 0 && (only = Select(console, catalog, selectors)) is null)
-			return FxConsole.UsageError;
+		if (selectors.Count > 0)
+		{
+			var selected = Select(console, catalog, selectors);
+			if (selected is not List<DocFile> some)
+				return console.Fail((Error)selected);
+			only = some;
+		}
 		var display = Display(catalog);
 		diagnostics.AddRange(DocChecker.Check(catalog, display, only).Diagnostics);
 		// against the remote branches git knows (--fetch: brought first)
@@ -512,13 +507,10 @@ public static class DocCommand
 				Json(null, [], []);
 			return console.Report(diagnostics);
 		}
-		if (Select(console, catalog, [selector]) is not { } files)
-			return FxConsole.UsageError;
-		if (files.Count > 1)
-		{
-			console.ErrorLine($"[red]{FxConsole.Escape(Texts.Get("doc.many-documents", selector, files.Count))}[/]");
-			return FxConsole.UsageError;
-		}
+		var selected = One(console, catalog, selector);
+		if (selected is not DocFile one)
+			return console.Fail((Error)selected);
+		List<DocFile> files = [one];
 		var documents = DocChecker.Read(catalog);
 		var byId = documents.GroupBy(d => d.Sidecar.Id, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 		if (documents.FirstOrDefault(d => d.File == files[0]) is not { } shown)
