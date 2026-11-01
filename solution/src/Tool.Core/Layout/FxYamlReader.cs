@@ -33,7 +33,7 @@ public sealed class FxYamlReader(string code, string file, string schema = FxYam
 
 	public string File => file;
 
-	public void Error(YamlNode? node, string key, params object?[] args)
+	public void Error(YamlNode? node, string key, params FxArg[] args)
 		=> Diagnostics.Add(FxDiagnostic.Error(code, new($"{code}.{key}", args), file, node?.Line));
 
 	/// <summary>

@@ -9,5 +9,5 @@ public static class Texts
 {
 	static readonly ResourceManager Resources = new("Fuxion.Tool.Resources.Strings", typeof(Texts).Assembly);
 
-	public static string Get(string key, params object?[] args) => FxText.Format(Resources, key, args, CultureInfo.CurrentUICulture);
+	public static string Get(string key, params FxArg[] args) => FxText.Format(Resources, key, args, CultureInfo.CurrentUICulture);
 }

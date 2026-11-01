@@ -314,7 +314,7 @@ public static partial class DocAdoption
 		if (!DocEditor.Actor(change, actor))
 			return change;
 		string Full(string path) => FxLayout.Full(catalog.Root, path);
-		void Error(DocManifestTarget target, string key, params object?[] args)
+		void Error(DocManifestTarget target, string key, params FxArg[] args)
 			=> change.Error(InvalidManifest, new($"{InvalidManifest}.{key}", args), target.File, target.Line);
 
 		// 1. each target, checked; what moves, what goes, and the identity of each new document

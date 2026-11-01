@@ -198,7 +198,7 @@ public sealed partial record SpaceConfig(
 
 	IEnumerable<FxDiagnostic> Validate(string file)
 	{
-		FxDiagnostic Error(int line, string key, params object?[] args) => FxDiagnostic.Error(Invalid, new($"{Invalid}.{key}", args), file, line);
+		FxDiagnostic Error(int line, string key, params FxArg[] args) => FxDiagnostic.Error(Invalid, new($"{Invalid}.{key}", args), file, line);
 
 		static bool BadPath(string path)
 			=> System.IO.Path.IsPathRooted(path) || path.TrimEnd('/').Split('/').Any(s => s is "" or "." or "..");

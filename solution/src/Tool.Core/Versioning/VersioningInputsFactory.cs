@@ -46,7 +46,7 @@ public static class VersioningInputsFactory
 		Response<VersioningResult> Result(string version, GitVersionRule rule, LastVersionTag tag, int commitsSinceTag, string? mergeBase = null, int? branchCommits = null)
 			=> new VersioningResult(new(version, suffix), new(git.Root, branchName, rule, head, stableTip, mergeBase, tag.Name, tag.Commit, commitsSinceTag, branchCommits));
 
-		Response<VersioningResult> NoTag(string key, params object?[] args) => FailOrDefault(cfg, suffix, VersioningErrorCodes.NoTag, new($"version.reason.no-tag-{key}", args));
+		Response<VersioningResult> NoTag(string key, params FxArg[] args) => FailOrDefault(cfg, suffix, VersioningErrorCodes.NoTag, new($"version.reason.no-tag-{key}", args));
 
 		// what git could not answer stops the calculation: an invalid tag, as it is; git, as a failure of the versioning
 		Response<VersioningResult> Failed(Error error)

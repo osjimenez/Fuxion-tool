@@ -51,7 +51,7 @@ public static class DocViews
 			return null;
 		}
 		var scope = FxLayout.Full(catalog.Root, generation.Scope);
-		string T(string key, params object?[] args) => new FxText(key, args).ToString(catalog.Config.Culture);
+		string T(string key, params FxArg[] args) => new FxText(key, args).ToString(catalog.Config.Culture);
 		var folder = Path.GetDirectoryName(at)!;
 		string Link(string text, string target) => $"[{Escape(text)}]({Path.GetRelativePath(folder, target).Replace('\\', '/').Replace(" ", "%20")})";
 		var text = new StringBuilder($"# {title}\n\n> {T("docs.view.generated", generation.Recipe, generation.Scope)}\n");
@@ -94,9 +94,9 @@ public static class DocViews
 
 	static string Date(string instant) => instant[..10];
 
-	static void Dashboard(StringBuilder text, IReadOnlyList<DocDocument> documents, Func<string, object?[], string> t, Func<string, string, string> link)
+	static void Dashboard(StringBuilder text, IReadOnlyList<DocDocument> documents, Func<string, FxArg[], string> t, Func<string, string, string> link)
 	{
-		string T(string key, params object?[] args) => t(key, args);
+		string T(string key, params FxArg[] args) => t(key, args);
 		var attention = documents.Where(d => d.Type.Attention.Contains(d.Sidecar.Status)).ToList();
 		var open = documents.Where(d => d.Class == DocStatusClass.Open && !attention.Contains(d)).ToList();
 		var current = documents.Where(d => d.Class == DocStatusClass.Current && !attention.Contains(d)).ToList();
@@ -121,9 +121,9 @@ public static class DocViews
 		Section("docs.view.status.current", current);
 	}
 
-	static void Table(StringBuilder text, IReadOnlyList<DocDocument> documents, Func<string, object?[], string> t, Func<string, string, string> link)
+	static void Table(StringBuilder text, IReadOnlyList<DocDocument> documents, Func<string, FxArg[], string> t, Func<string, string, string> link)
 	{
-		string T(string key, params object?[] args) => t(key, args);
+		string T(string key, params FxArg[] args) => t(key, args);
 		if (documents.Count == 0)
 		{
 			text.Append($"\n{T("docs.view.none")}\n");
@@ -149,9 +149,9 @@ public static class DocViews
 		_ => value.GetRawText()
 	};
 
-	static void Backlogs(StringBuilder text, DocDocument register, IReadOnlyList<DocDocument> documents, Func<string, object?[], string> t, Func<string, string, string> link)
+	static void Backlogs(StringBuilder text, DocDocument register, IReadOnlyList<DocDocument> documents, Func<string, FxArg[], string> t, Func<string, string, string> link)
 	{
-		string T(string key, params object?[] args) => t(key, args);
+		string T(string key, params FxArg[] args) => t(key, args);
 		var entries = register.Sidecar.Entries
 			.OrderBy(e => Order(e).Prefix, StringComparer.Ordinal).ThenBy(e => Order(e).Number).ThenBy(e => e.Name, StringComparer.Ordinal)
 			.ToList();

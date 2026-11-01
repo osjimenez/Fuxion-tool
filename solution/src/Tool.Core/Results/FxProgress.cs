@@ -4,17 +4,36 @@ using System.Diagnostics;
 namespace Fuxion.Tool.Core.Results;
 
 /// <summary>
-/// The progress channel of the core (plan O, decision 13): the modules say what they are doing, as they do it, without
-/// knowing who listens (a live region, plain lines, NDJSON, the full screen, a test). Events come from several threads
-/// (the work on the repositories runs in parallel): a listener takes them to its own.
+/// The progress channel of the core (plan O, decision 13), its port (the ADR of the diagnostics, 5): the modules say what
+/// they are doing, as they do it, without knowing who listens (a live region, plain lines, NDJSON, the full screen, a
+/// test; tomorrow the seam of the hub, as the <c>OnNext</c> of an observer). Events come from several threads (the work on
+/// the repositories runs in parallel): a listener takes them to its own. A diagnostic is an event once, when the
+/// collector of a module takes it (<see cref="FxDiagnostics"/>): operations return their diagnostics, they do not emit
+/// them.
 /// </summary>
 public interface IFxProgress
 {
 	void Report(FxEvent e);
 }
 
-/// <summary>Something that happened in a module, about a repository or the space (no repository).</summary>
-public abstract record FxEvent(string Module, string? Repository);
+/// <summary>
+/// Something that happened in a module, about a repository or the space (no repository). A closed hierarchy of sealed,
+/// immutable records, only data (texts, numbers, durations and diagnostics): those of the core, and no other.
+/// </summary>
+public abstract record FxEvent
+{
+	private protected FxEvent(string module, string? repository)
+	{
+		Module = module;
+		Repository = repository;
+	}
+
+	/// <summary>The module it happened in.</summary>
+	public string Module { get; }
+
+	/// <summary>The repository it is about; none: the space.</summary>
+	public string? Repository { get; }
+}
 
 /// <summary>A step starts: <c>clone</c>, <c>fetch</c>, <c>status</c>, <c>pull</c>, <c>remote</c>, <c>generate</c>…</summary>
 public sealed record FxStepStarted(string Module, string? Repository, string Step) : FxEvent(Module, Repository);

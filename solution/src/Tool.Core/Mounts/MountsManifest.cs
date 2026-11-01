@@ -159,7 +159,7 @@ public sealed record MountsManifest(string Root, IReadOnlyList<Mount> Mounts)
 
 	IEnumerable<FxDiagnostic> Validate()
 	{
-		FxDiagnostic Error(int line, string key, params object?[] args) => FxDiagnostic.Error(InvalidManifest, new($"{InvalidManifest}.{key}", args), RelativePath, line);
+		FxDiagnostic Error(int line, string key, params FxArg[] args) => FxDiagnostic.Error(InvalidManifest, new($"{InvalidManifest}.{key}", args), RelativePath, line);
 
 		static bool BadPath(string path)
 			=> System.IO.Path.IsPathRooted(path) || path.TrimEnd('/').Split('/').Any(s => s is "" or "." or "..");

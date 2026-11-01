@@ -71,7 +71,7 @@ public static class SelfUpdater
 		}
 		if (Rid() is not { } rid)
 		{
-			diagnostics.Add(Error(Platform, RuntimeInformation.OSDescription, RuntimeInformation.OSArchitecture));
+			diagnostics.Add(Error(Platform, RuntimeInformation.OSDescription, RuntimeInformation.OSArchitecture.ToString()));
 			return Result();
 		}
 		var found = Find(http, version, current, cancellationToken);
@@ -251,9 +251,7 @@ public static class SelfUpdater
 			using var request = Request(url, "application/vnd.github+json", current);
 			using var response = http.Send(request, cancellationToken);
 			if (response.StatusCode == HttpStatusCode.NotFound)
-			{
-				return FxErrors.Of(HttpStatusCode.NotFound, Error(NoRelease, version is null ? (object)new FxText(Latest) : $"release/{version}"));
-			}
+				return FxErrors.Of(HttpStatusCode.NotFound, Error(NoRelease, version is null ? new FxText(Latest) : (FxArg)$"release/{version}"));
 			response.EnsureSuccessStatusCode();
 			using var json = JsonDocument.Parse(response.Content.ReadAsStream(cancellationToken));
 			var tag = json.RootElement.GetProperty("tag_name").GetString() ?? "";
@@ -306,5 +304,5 @@ public static class SelfUpdater
 		TarFile.ExtractToDirectory(gzip, folder, overwriteFiles: true);
 	}
 
-	static FxDiagnostic Error(string code, params object?[] args) => FxDiagnostic.Error(code, new FxText(code, args));
+	static FxDiagnostic Error(string code, params FxArg[] args) => FxDiagnostic.Error(code, new FxText(code, args));
 }
