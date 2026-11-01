@@ -75,14 +75,14 @@ public sealed class DocsBranchesTest
 		{
 			space.Add("adr", "x");
 			space.Add("design", "e", folder: "notes", id: design);
-			Assert.True(repository.Entry("Cinco", "I-5").Write());
+			Assert.True(repository.Entry("Cinco", "I-5").Write().IsSuccess);
 		});
 		// the copy collides already: the branch has it, and still the document it copies
 		Assert.Equal([$"{DocBranches.BranchCollision}.id"], repository.Collisions());
 		space.Add("adr", "x");
 		space.Add("rfc", "x");
-		Assert.True(repository.Entry("Cinco", "I-6").Write());
-		Assert.True(repository.Entry("Otra", "I-5").Write());
+		Assert.True(repository.Entry("Cinco", "I-6").Write().IsSuccess);
+		Assert.True(repository.Entry("Otra", "I-5").Write().IsSuccess);
 		Assert.Equal(new[] { "path", "slug", "id", "entry", "key" }.Select(k => $"{DocBranches.BranchCollision}.{k}").Order(), repository.Collisions());
 	}
 
@@ -94,7 +94,7 @@ public sealed class DocsBranchesTest
 		repository.Elsewhere("moved", () =>
 		{
 			var change = DocEditor.Move(space.Catalog(), Display(space), space.Catalog().Files.Single(f => f.Path == "notes/DESIGN-d.md"), "systems", space.Root, DateTimeOffset.UtcNow);
-			Assert.True(change.Write());
+			Assert.True(change.Write().IsSuccess);
 			space.Add("adr", "only-there");
 		});
 		Assert.Empty(repository.Collisions());

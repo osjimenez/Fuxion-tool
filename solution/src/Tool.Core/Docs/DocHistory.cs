@@ -45,15 +45,11 @@ public sealed class DocHistory
 	{
 		if (_git is null || !_commits || InRepository(full) is not { } path || _git.Execute("show", $"HEAD:{path}") is not ProcessResult { ExitCode: 0 } show)
 			return null;
-		try
-		{
-			using var json = DocSidecar.Parse(show.StandardOutput);
-			return DocsSchemas.Validate(json.RootElement).Count == 0 ? DocSidecar.From(json.RootElement) : null;
-		}
-		catch (JsonException)
-		{
+		// one that cannot be read: none
+		if (DocSidecar.Parse(show.StandardOutput) is not JsonDocument json)
 			return null;
-		}
+		using (json)
+			return DocsSchemas.Validate(json.RootElement).Count == 0 ? DocSidecar.From(json.RootElement) : null;
 	}
 
 	/// <summary>

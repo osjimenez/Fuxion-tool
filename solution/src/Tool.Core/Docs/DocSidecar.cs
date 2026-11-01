@@ -3,9 +3,11 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using Fuxion.Tool.Core.Results;
 
 namespace Fuxion.Tool.Core.Docs;
 
@@ -136,17 +138,25 @@ public sealed record DocSidecar
 
 	static readonly JsonDocumentOptions Strict = new() { AllowDuplicateProperties = false };
 
-	/// <summary>The JSON of a sidecar, a <see cref="JsonException"/> if it is not JSON or repeats a property.</summary>
-	public static JsonDocument Parse(string json)
+	/// <summary>
+	/// The JSON of a sidecar; an error (<see cref="HttpStatusCode.Conflict"/>, <c>docs.invalid-metadata</c> with its line) if it
+	/// is not JSON or repeats a property.
+	/// </summary>
+	public static Response<JsonDocument> Parse(string json)
 	{
 		try
 		{
 			return JsonDocument.Parse(json, Strict);
 		}
+		catch (JsonException ex)
+		{
+			return FxErrors.Of(HttpStatusCode.Conflict, FxDiagnostic.Error(DocChecker.InvalidMetadata, new($"{DocChecker.InvalidMetadata}.json", ex.Message),
+				line: ex.LineNumber is { } line ? (int)line + 1 : null), ex);
+		}
 		// looking for repeated properties reads their names, and one that is not UTF-16 fails there
 		catch (InvalidOperationException ex)
 		{
-			throw new JsonException(ex.Message, ex);
+			return FxErrors.Of(HttpStatusCode.Conflict, FxDiagnostic.Error(DocChecker.InvalidMetadata, new($"{DocChecker.InvalidMetadata}.json", ex.Message)), ex);
 		}
 	}
 
@@ -252,10 +262,13 @@ public sealed record DocSidecar
 	}
 
 	/// <summary>The hash of its metadata, as <see cref="ToJson"/> writes it.</summary>
+	/// <exception cref="InvalidOperationException">It has no canonical form: a text of it that is not Unicode.</exception>
 	public string MetadataHash()
 	{
-		using var json = Parse(ToJson());
-		return DocIntegrity.Metadata(json.RootElement);
+		if (Parse(ToJson()) is not JsonDocument json)
+			throw new InvalidOperationException("fx writes a sidecar as JSON.");
+		using (json)
+			return DocIntegrity.Metadata(json.RootElement) is string hash ? hash : throw new InvalidOperationException($"The sidecar '{Title}' has no canonical form.");
 	}
 
 	/// <summary>The sidecar with its integrity: <paramref name="content"/>, the hash of its Markdown, and the hash of its metadata.</summary>

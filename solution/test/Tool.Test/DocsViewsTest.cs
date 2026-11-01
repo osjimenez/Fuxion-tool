@@ -28,7 +28,7 @@ public sealed class DocsViewsTest
 	static string View(Space space, string title, string profile, string recipe, string scope, string? folder = null)
 	{
 		var change = DocEditor.New(space.Catalog(), Display(space), space.Root, "view", title, null, profile, folder, [], "editor", DocsCheckTest.At, new(recipe, scope));
-		Assert.True(change.Write(), string.Join("; ", change.Diagnostics.Select(d => $"{d.Code} {d.Message.English}")));
+		Assert.True(change.Write().IsSuccess, string.Join("; ", change.Diagnostics.Select(d => $"{d.Code} {d.Message.English}")));
 		return change.Documents.Single();
 	}
 
@@ -88,7 +88,7 @@ public sealed class DocsViewsTest
 		var view = View(space, "Estado", "status", DocRecipes.Status, "_docs");
 		Assert.Contains("## Piden atención", space.Read($"_docs/{view}"));
 		Assert.Contains("1 abiertos · 2 vigentes · 1 piden atención · 5 documentos.", space.Read($"_docs/{view}"));
-		Assert.Equal(DocsYamlReader.InvalidYaml, Assert.Throws<DocsConfigException>(() => DocsYamlReader.Read("schema: 1.0.0\nlanguage: fr\n", "docs.yaml")).Diagnostics[0].Code);
+		Assert.Equal(DocsYamlReader.InvalidYaml, DocsYamlReader.Read("schema: 1.0.0\nlanguage: fr\n", "docs.yaml").Diagnostics[0].Code);
 	}
 
 	[Fact(DisplayName = "docs.catalog: the documents of a folder in a table; docs.catalog/<tag>, those with the tag")]
@@ -113,20 +113,20 @@ public sealed class DocsViewsTest
 		string Rows() => string.Join("\n", space.Read($"_docs/{records}").Split('\n').Where(l => l.StartsWith("| [", StringComparison.Ordinal)));
 		// a new name and a new title: another link, another place in the table
 		var change = DocEditor.Rename(space.Catalog(), Display(space), File(space, "_records/2026/10/ADR-open-one.md"), "A first title", "a-first", Now);
-		Assert.True(change.Write(), string.Join("; ", change.Diagnostics.Select(d => $"{d.Code} {d.Message.English}")));
+		Assert.True(change.Write().IsSuccess, string.Join("; ", change.Diagnostics.Select(d => $"{d.Code} {d.Message.English}")));
 		Assert.StartsWith("| [A first title](../_records/2026/10/ADR-a-first.md) | adr | `draft` |", Rows());
 		Assert.Empty(space.Problems());
 		// only the title: no link to rewrite, but the view shows it
-		Assert.True(DocEditor.Rename(space.Catalog(), Display(space), File(space, "_records/2026/10/ADR-a-first.md"), "Another title", null, Now).Write());
+		Assert.True(DocEditor.Rename(space.Catalog(), Display(space), File(space, "_records/2026/10/ADR-a-first.md"), "Another title", null, Now).Write().IsSuccess);
 		Assert.Contains("| [Another title](../_records/2026/10/ADR-a-first.md) |", Rows());
 		Assert.Empty(space.Problems());
-		Assert.True(DocEditor.Move(space.Catalog(), Display(space), File(space, "notes/DESIGN-the-design.md"), "systems", space.Root, Now).Write());
+		Assert.True(DocEditor.Move(space.Catalog(), Display(space), File(space, "notes/DESIGN-the-design.md"), "systems", space.Root, Now).Write().IsSuccess);
 		Assert.Contains("| [The the-design](../systems/DESIGN-the-design.md) | design | `active` |", Rows());
 		Assert.Empty(space.Problems());
 		// a view edited by hand is not made again: fx sync --adopt first
 		space.Write($"_docs/{records}", space.Read($"_docs/{records}") + "\nBy hand.\n");
 		var refused = DocEditor.Rename(space.Catalog(), Display(space), File(space, "_records/2026/10/ADR-a-first.md"), null, "first", Now);
-		Assert.False(refused.Write());
+		Assert.False(refused.Write().IsSuccess);
 		Assert.True(System.IO.File.Exists(space.Full("_docs/_records/2026/10/ADR-a-first.md")));
 	}
 
@@ -137,16 +137,16 @@ public sealed class DocsViewsTest
 		var register = space.Add("register", "ideas", folder: "ideas");
 		var research = space.Add("research", "faces");
 		DocChange Add(string title, DocEntryEdit edit) => DocEditor.AddEntry(space.Catalog(), Display(space), space.Root, File(space, register), title, edit, Now);
-		Assert.True(Add("Diez", new() { Key = "I-10", Status = "backlog", Fields = [new("prioridad", JsonValue("1"))], Relations = [("related-to", research)] }).Write());
-		Assert.True(Add("Dos", new() { Key = "I-2", Status = "backlog", Fields = [new("bloque", JsonValue("\"Hub\"")), new("espera", JsonValue("[\"I-1\"]"))] }).Write());
-		Assert.True(Add("Sin clave", new() { Status = "boceto" }).Write());
-		Assert.True(Add("Uno", new() { Key = "I-1" }).Write());
-		Assert.True(DocEditor.CloseEntry(space.Catalog(), Display(space), File(space, register), "I-1", "hecha", Now).Write());
+		Assert.True(Add("Diez", new() { Key = "I-10", Status = "backlog", Fields = [new("prioridad", JsonValue("1"))], Relations = [("related-to", research)] }).Write().IsSuccess);
+		Assert.True(Add("Dos", new() { Key = "I-2", Status = "backlog", Fields = [new("bloque", JsonValue("\"Hub\"")), new("espera", JsonValue("[\"I-1\"]"))] }).Write().IsSuccess);
+		Assert.True(Add("Sin clave", new() { Status = "boceto" }).Write().IsSuccess);
+		Assert.True(Add("Uno", new() { Key = "I-1" }).Write().IsSuccess);
+		Assert.True(DocEditor.CloseEntry(space.Catalog(), Display(space), File(space, register), "I-1", "hecha", Now).Write().IsSuccess);
 		// documents that point to an entry: with those it points to, each once
 		var report = space.Add("report", "the-report", status: "final");
 		var entries = DocChecker.Read(space.Catalog()).Single(d => d.File.Path == register).Sidecar.Entries;
-		Assert.True(DocEditor.RelateToEntry(space.Catalog(), Display(space), File(space, report), "related-to", entries.Single(e => e.Key == "I-2").Id, false, Now).Write());
-		Assert.True(DocEditor.RelateToEntry(space.Catalog(), Display(space), File(space, research), "informs", entries.Single(e => e.Key == "I-10").Id, false, Now).Write());
+		Assert.True(DocEditor.RelateToEntry(space.Catalog(), Display(space), File(space, report), "related-to", entries.Single(e => e.Key == "I-2").Id, false, Now).Write().IsSuccess);
+		Assert.True(DocEditor.RelateToEntry(space.Catalog(), Display(space), File(space, research), "informs", entries.Single(e => e.Key == "I-10").Id, false, Now).Write().IsSuccess);
 		var text = space.Read($"_docs/{View(space, "Ideas board", "catalog", DocRecipes.Backlog, $"_docs/{register}", folder: "ideas")}");
 		Assert.Contains("3 open · 1 closed.", text);
 		Assert.Contains("""

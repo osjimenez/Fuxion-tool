@@ -257,7 +257,8 @@ public static partial class DocEditor
 		{
 			if (Load(change, file, report) is not { } document)
 				continue;
-			var metadataEdited = DocChecker.Json(file.Sidecar!) is { } json && DocIntegrity.Metadata(json) != document.Sidecar.Integrity!.Metadata;
+			var metadataEdited = DocChecker.Json(file.Sidecar!) is { } json
+			                     && (DocIntegrity.Metadata(json) is not string hash || hash != document.Sidecar.Integrity!.Metadata);
 			if (correction is not null)
 			{
 				// a frozen one needs it; an open one may record one too (plan U, U6); a view, never

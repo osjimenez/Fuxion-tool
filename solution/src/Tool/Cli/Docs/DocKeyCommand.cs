@@ -55,7 +55,7 @@ public static class DocKeyCommand
 			if (confirm)
 			{
 				var change = DocEditor.ConfirmKeys(catalog, display, file, actor!, DateTimeOffset.UtcNow, !dryRun, out var confirmed);
-				var written = !dryRun && change.Write();
+				var written = !dryRun && change.Changed && change.Write().IsSuccess;
 				diagnostics.AddRange(change.Diagnostics);
 				var keys = confirmed.Select(c => new JsonKey(c.To, false, c.From)).ToList();
 				if (console.Settings.IsMachine)

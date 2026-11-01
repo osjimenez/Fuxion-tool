@@ -2,13 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Text.Json;
+using Fuxion.Tool.Core.Results;
 
 namespace Fuxion.Tool.Core.Docs;
-
-/// <summary>A value without a canonical form: a number out of range, a string that is not Unicode, a repeated property.</summary>
-public sealed class JcsException(string message) : Exception(message);
 
 /// <summary>
 /// The JSON Canonicalization Scheme (RFC 8785), the form the integrity of a sidecar is computed on (the standard, its
@@ -19,17 +18,44 @@ public static class Jcs
 {
 	/// <summary>
 	/// The canonical form of <paramref name="value"/>, its UTF-8 bytes; without the property at the JSON pointer
-	/// <paramref name="omit"/>, if there is one (<c>/integrity/metadata</c>).
+	/// <paramref name="omit"/>, if there is one (<c>/integrity/metadata</c>). An error (<see cref="HttpStatusCode.Conflict"/>)
+	/// if it has none: a number out of range, a string that is not Unicode, a repeated property.
 	/// </summary>
-	public static byte[] Canonicalize(JsonElement value, string? omit = null) => Encoding.UTF8.GetBytes(Text(value, omit));
+	public static Response<byte[]> Canonicalize(JsonElement value, string? omit = null)
+		=> Text(value, omit) switch
+		{
+			string text => Encoding.UTF8.GetBytes(text),
+			var failed => (Error)failed
+		};
 
-	/// <summary>The canonical form of <paramref name="value"/>, as text.</summary>
-	public static string Text(JsonElement value, string? omit = null)
+	/// <summary>The canonical form of <paramref name="value"/>, as text; an error if it has none.</summary>
+	public static Response<string> Text(JsonElement value, string? omit = null)
 	{
 		var text = new StringBuilder();
-		Write(text, value, "", omit);
+		try
+		{
+			Write(text, value, "", omit);
+		}
+		catch (NoCanonicalForm ex)
+		{
+			return Fail(ex.Message);
+		}
 		return text.ToString();
 	}
+
+	/// <summary>
+	/// A number as ECMAScript writes it (Number::toString, with its note 2): the shortest digits that read back as the same
+	/// double, in plain notation from 1e-6 to 1e21 and in exponential notation outside; an error if it has no JSON form.
+	/// </summary>
+	public static Response<string> Number(double value)
+		=> double.IsFinite(value) ? Format(value) : Fail($"{value.ToString(CultureInfo.InvariantCulture)} has no JSON form");
+
+	/// <summary>The error of a value without a canonical form: an invalid sidecar.</summary>
+	static Error Fail(string message)
+		=> FxErrors.Of(HttpStatusCode.Conflict, FxDiagnostic.Error(DocChecker.InvalidMetadata, new($"{DocChecker.InvalidMetadata}.json", message)));
+
+	/// <summary>A value without a canonical form, found deep in it: the recursion stops, and <see cref="Text"/> gives its error.</summary>
+	sealed class NoCanonicalForm(string message) : Exception(message);
 
 	static void Write(StringBuilder text, JsonElement value, string pointer, string? omit)
 	{
@@ -43,10 +69,10 @@ public static class Jcs
 				}
 				catch (InvalidOperationException)
 				{
-					throw new JcsException($"A property name at '{pointer}' is not Unicode");
+					throw new NoCanonicalForm($"A property name at '{pointer}' is not Unicode");
 				}
 				if (properties.GroupBy(p => p.Name, StringComparer.Ordinal).FirstOrDefault(g => g.Count() > 1) is { } repeated)
-					throw new JcsException($"The property '{repeated.Key}' is repeated at '{pointer}'");
+					throw new NoCanonicalForm($"The property '{repeated.Key}' is repeated at '{pointer}'");
 				text.Append('{');
 				var first = true;
 				foreach (var property in properties.OrderBy(p => p.Name, StringComparer.Ordinal))
@@ -82,14 +108,14 @@ public static class Jcs
 				}
 				catch (InvalidOperationException)
 				{
-					throw new JcsException($"The string at '{pointer}' is not Unicode");
+					throw new NoCanonicalForm($"The string at '{pointer}' is not Unicode");
 				}
 				String(text, read);
 				break;
 			case JsonValueKind.Number:
 				if (!value.TryGetDouble(out var number) || !double.IsFinite(number))
-					throw new JcsException($"The number at '{pointer}' is not a double ({value.GetRawText()})");
-				text.Append(Number(number));
+					throw new NoCanonicalForm($"The number at '{pointer}' is not a double ({value.GetRawText()})");
+				text.Append(Format(number));
 				break;
 			case JsonValueKind.True:
 				text.Append("true");
@@ -140,7 +166,7 @@ public static class Jcs
 					if (char.IsHighSurrogate(c) && i + 1 < value.Length && char.IsLowSurrogate(value[i + 1]))
 						text.Append(c).Append(value[++i]);
 					else if (char.IsSurrogate(c))
-						throw new JcsException($"The string '{value}' has a lone surrogate");
+						throw new NoCanonicalForm($"The string '{value}' has a lone surrogate");
 					else
 						text.Append(c);
 					break;
@@ -149,14 +175,9 @@ public static class Jcs
 		text.Append('"');
 	}
 
-	/// <summary>
-	/// A number as ECMAScript writes it (Number::toString, with its note 2): the shortest digits that read back as the same
-	/// double, in plain notation from 1e-6 to 1e21 and in exponential notation outside.
-	/// </summary>
-	public static string Number(double value)
+	/// <summary>A finite number as ECMAScript writes it.</summary>
+	static string Format(double value)
 	{
-		if (!double.IsFinite(value))
-			throw new JcsException($"{value.ToString(CultureInfo.InvariantCulture)} has no JSON form");
 		if (value == 0)
 			return "0";
 		// .NET gives the shortest round-trip digits too; only the notation differs

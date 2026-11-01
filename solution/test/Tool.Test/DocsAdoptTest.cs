@@ -23,7 +23,7 @@ public sealed class DocsAdoptTest
 
 	static DocSidecar Sidecar(Space space, string path)
 	{
-		using var json = DocSidecar.Parse(space.Read($"_docs/{Space.Sidecar(path)}"));
+		using var json = DocSidecar.Parse(space.Read($"_docs/{Space.Sidecar(path)}")).SuccessOrThrow();
 		return DocSidecar.From(json.RootElement);
 	}
 
@@ -77,7 +77,7 @@ public sealed class DocsAdoptTest
 		var adr = "_records/2026/10/ADR-una-decision.md";
 		var before = space.Read($"_docs/{adr}");
 		var change = DocAdoption.Bootstrap(space.Catalog(), Display(space), [space.Catalog().Files.Single(f => f.Path == adr)], null, null, null, null, "editor", Now);
-		Assert.True(change.Write(), Ok(change));
+		Assert.True(change.Write().IsSuccess, Ok(change));
 		Assert.Equal(before, space.Read($"_docs/{adr}"));
 		var sidecar = Sidecar(space, adr);
 		Assert.Equal(("adr", "accepted", "Una decisión", "2026-10-18T00:00:00Z", "2026-10-22T10:00:00Z", "editor"),
@@ -103,11 +103,11 @@ public sealed class DocsAdoptTest
 		var space = bootstrap.Space;
 		var change = DocAdoption.Bootstrap(space.Catalog(), Display(space), null, null, null, null, null, "editor", Now);
 		Assert.Equal([DocAdoption.CreatedMissing, DocAdoption.CreatedMissing], Codes(change));
-		Assert.False(change.Write());
+		Assert.False(change.Write().IsSuccess);
 		// the date given goes to all of them: first those without one, then the rest with theirs
 		var undated = space.Catalog().Files.Where(f => f.Path is "_governance/RULE-layout.md" or "README.md").ToList();
-		Assert.True(DocAdoption.Bootstrap(space.Catalog(), Display(space), undated, null, null, null, "2026-08-24", "editor", Now).Write());
-		Assert.True(DocAdoption.Bootstrap(space.Catalog(), Display(space), null, null, null, null, null, "editor", Now).Write());
+		Assert.True(DocAdoption.Bootstrap(space.Catalog(), Display(space), undated, null, null, null, "2026-08-24", "editor", Now).Write().IsSuccess);
+		Assert.True(DocAdoption.Bootstrap(space.Catalog(), Display(space), null, null, null, null, null, "editor", Now).Write().IsSuccess);
 		Assert.Empty(space.Problems());
 		Assert.Equal(("rule", "standard", "active", "2026-08-24T00:00:00Z"),
 			(Sidecar(space, "_governance/RULE-layout.md").Type, Sidecar(space, "_governance/RULE-layout.md").Profile, Sidecar(space, "_governance/RULE-layout.md").Status,
@@ -199,12 +199,11 @@ public sealed class DocsAdoptTest
 
 		public DocChange Apply(string manifest)
 		{
-			var diagnostics = new List<FxDiagnostic>();
-			var targets = DocAdoption.Read(manifest, "adopcion.yaml", diagnostics);
-			if (targets is null)
+			var read = DocAdoption.Read(manifest, "adopcion.yaml");
+			if (read is not IReadOnlyList<DocManifestTarget> targets)
 			{
 				var change = new DocChange(Space.Catalog(), Display(Space));
-				change.Diagnostics.AddRange(diagnostics);
+				change.Diagnostics.AddRange(read.Diagnostics);
 				return change;
 			}
 			return DocAdoption.Apply(Space.Catalog(), Display(Space), targets, "editor", Now);
@@ -223,7 +222,7 @@ public sealed class DocsAdoptTest
 		Assert.True(change.Ok, Ok(change));
 		Assert.Contains(new DocFileMove("_docs/RoadMap.md", "_docs/_records/2026/01/PLAN-hoja-de-ruta.md"), change.Moved);
 		Assert.Equal(["_docs/analyzers/old.md"], change.Removed);
-		Assert.True(change.Write(), Ok(change));
+		Assert.True(change.Write().IsSuccess, Ok(change));
 
 		// the plan: moved, its H1 its title, its links from where it is now, its relation by identity
 		Assert.False(File.Exists(space.Full("_docs/RoadMap.md")));
@@ -265,7 +264,7 @@ public sealed class DocsAdoptTest
 			"""));
 		// two in the faces, one in the design, one in the adr
 		Assert.Equal([DocChecker.BrokenLink, DocChecker.BrokenLink, DocChecker.BrokenLink, DocChecker.BrokenLink], Codes(change));
-		Assert.False(change.Write());
+		Assert.False(change.Write().IsSuccess);
 		Assert.True(File.Exists(batch.Space.Full("_docs/RoadMap.md")));
 	}
 
@@ -294,7 +293,7 @@ public sealed class DocsAdoptTest
 
 			"""));
 		Assert.True(change.Ok, Ok(change));
-		Assert.True(change.Write(), Ok(change));
+		Assert.True(change.Write().IsSuccess, Ok(change));
 		// moved, with their links from where they are now; no sidecar, and out of the catalog
 		Assert.Equal("# Analyzers\n\nThe rule [FX001](../../../../fx/DESIGN-x/FX001.md) and the [old notes](../../../../analyzers/old.md).\n",
 			space.Read("_docs/_records/2026/01/PLAN-hoja-de-ruta/analizadores.md"));
@@ -315,7 +314,7 @@ public sealed class DocsAdoptTest
 
 			"""));
 		Assert.True(change.Ok, Ok(change));
-		Assert.True(change.Write(), Ok(change));
+		Assert.True(change.Write().IsSuccess, Ok(change));
 		Assert.False(File.Exists(space.Full("_docs/analyzers/old.md")));
 		Assert.Equal("# Analyzers\n\nThe rule [FX001](FX001.md) and the [old notes](../fx/DESIGN-x.md).\n", space.Read("_docs/analyzers/README.md"));
 		// to something that is not a document, refused
@@ -350,7 +349,7 @@ public sealed class DocsAdoptTest
 
 			"""));
 		Assert.True(change.Ok, Ok(change));
-		Assert.True(change.Write(), Ok(change));
+		Assert.True(change.Write().IsSuccess, Ok(change));
 		Assert.False(Directory.Exists(space.Full("_docs/notes/kit")));
 		Assert.Equal("# Guide\n\nSee the [roadmap](../../PLAN-hoja-de-ruta.md).\n", space.Read("_docs/_records/2026/01/PLAN-hoja-de-ruta/kit/guide.md"));
 		Assert.Equal("a: 1\n", space.Read("_docs/_records/2026/01/PLAN-hoja-de-ruta/kit/tree/data.yaml"));
@@ -375,7 +374,7 @@ public sealed class DocsAdoptTest
 
 			"""));
 		Assert.True(change.Ok, Ok(change));
-		Assert.True(change.Write(), Ok(change));
+		Assert.True(change.Write().IsSuccess, Ok(change));
 		Assert.False(Directory.Exists(space.Full("_docs/notes/Faces")));
 		Assert.Equal("# Diagram\n\nBack to [faces](../RESEARCH-faces.md), and the [roadmap](../../../../RoadMap.md).\n",
 			space.Read("_docs/_records/2026/01/RESEARCH-faces/diagram.md"));
@@ -404,7 +403,7 @@ public sealed class DocsAdoptTest
 		using var batch = new Batch();
 		var change = batch.Apply(batch.Manifest(targets));
 		Assert.Contains(code, Codes(change));
-		Assert.False(change.Write());
+		Assert.False(change.Write().IsSuccess);
 		Assert.True(File.Exists(batch.Space.Full("_docs/RoadMap.md")));
 	}
 
@@ -422,7 +421,7 @@ public sealed class DocsAdoptTest
 			    created: 2026-01-16
 
 			"""));
-		Assert.True(change.Write(), Ok(change));
+		Assert.True(change.Write().IsSuccess, Ok(change));
 		Assert.Equal("# Las notas de antes\n", batch.Space.Read("_docs/_records/2026/01/RESEARCH-notas-de-antes.md"));
 		Assert.Equal("# Notes\n", batch.Space.Read("lineage/old/repo/notes.md"));
 	}
@@ -440,7 +439,7 @@ public sealed class DocsAdoptTest
 		var other = space.Add("adr", "uses-x", status: "accepted", body: "It uses [x](../../../notes/DESIGN-x.md) and its [extra](<../../../notes/DESIGN-x/extra.md>).");
 		var before = Sidecar(space, other);
 		var change = DocEditor.Move(space.Catalog(), Display(space), space.Catalog().Files.Single(f => f.Path == design), "systems/core", space.Root, DateTimeOffset.UtcNow);
-		Assert.True(change.Write(), Ok(change));
+		Assert.True(change.Write().IsSuccess, Ok(change));
 		Assert.False(Directory.Exists(space.Full("_docs/notes")));
 		Assert.Equal("# The x\n\nSee the [rule](../../norms/RULE-y.md#part) and the [diagram](DESIGN-x/diagram.png).\n", space.Read("_docs/systems/core/DESIGN-x.md"));
 		Assert.Equal("png", space.Read("_docs/systems/core/DESIGN-x/diagram.png"));

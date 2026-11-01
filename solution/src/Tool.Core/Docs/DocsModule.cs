@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using Fuxion.Tool.Core.Git;
 using Fuxion.Tool.Core.Layout;
@@ -30,66 +31,59 @@ public static class DocsModule
 	public static string ConfigFile => FxLayout.ModuleFile(Name);
 
 	/// <summary>
-	/// The configuration of the space at <paramref name="root"/>: null if it has no catalog (no <c>_fx/docs/</c>, or
-	/// <c>enabled: false</c>); without <c>docs.yaml</c>, the defaults. An invalid one throws a <see cref="DocsConfigException"/>.
+	/// The configuration of the space at <paramref name="root"/>, with its warnings: none if it has no catalog (no
+	/// <c>_fx/docs/</c>, or <c>enabled: false</c>); without <c>docs.yaml</c>, the defaults; an error
+	/// (<see cref="HttpStatusCode.Conflict"/>) with every problem of an invalid one.
 	/// </summary>
-	public static DocsConfig? Load(string root, ICollection<FxDiagnostic>? warnings = null)
+	public static ResponseMaybe<DocsConfig> Load(string root)
 	{
 		if (!FxFiles.DirectoryExists(FxLayout.Full(root, Folder)))
-			return null;
+			return None.Value;
 		var file = FxLayout.Full(root, ConfigFile);
-		var config = FxFiles.Exists(file) ? DocsYamlReader.ReadFile(file, warnings) : DocsConfig.Default;
-		return config.Enabled ? config : null;
+		if (!FxFiles.Exists(file))
+			return DocsConfig.Default;
+		var read = DocsYamlReader.ReadFile(file);
+		if (read is not DocsConfig config)
+			return (Error)read;
+		return FxResponse.OutcomeMaybe(config.Enabled ? config : null, read.Diagnostics, HttpStatusCode.Conflict);
 	}
 
 	/// <summary>
 	/// The catalog of the commands run in <paramref name="directory"/>: that of the nearest root of fx that has one, from
 	/// there up (a repository mounted in a space uses the one of the space, if it has none). In a worktree that leaves it
-	/// out, that of its main tree (I-58), said in an info. None, with the problem in <paramref name="diagnostics"/>.
+	/// out, that of its main tree (I-58), said in an info. An error if there is none (<see cref="HttpStatusCode.NotFound"/>)
+	/// or a <c>docs.yaml</c> on the way is invalid (<see cref="HttpStatusCode.Conflict"/>); the warnings found, with it.
 	/// </summary>
-	public static DocCatalog? Find(string directory, ICollection<FxDiagnostic> diagnostics)
+	public static Response<DocCatalog> Find(string directory)
 	{
+		var found = new List<FxDiagnostic>();
 		// a root ends with its separator: its parent is that of the folder without it
 		for (var root = FxLayout.FindRoot(directory); root is not null;
 		     root = Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(root)) is { } parent ? FxLayout.FindRoot(parent) : null)
 		{
-			if (!TryLoad(root, diagnostics, out var config))
-				return null;
-			if (config is null)
+			var loaded = Load(root);
+			if (loaded is Error invalid)
+				return invalid.WithDiagnostics(found);
+			found.AddRange(loaded.Diagnostics);
+			if (loaded is not DocsConfig config)
 				continue;
 			// the main clone of the worktree, at its place or parked: its catalog, if it has one
 			if (LeftOut(root, config) && GitClient.Discover(root)?.MainRoot() is { } main && !FxLayout.SameFolder(main, root))
 			{
-				if (!TryLoad(main, diagnostics, out var shared))
-					return null;
-				if (shared is not null)
+				var shared = Load(main);
+				if (shared is Error sharedInvalid)
+					return sharedInvalid.WithDiagnostics(found);
+				found.AddRange(shared.Diagnostics);
+				if (shared is DocsConfig sharedConfig)
 				{
-					var catalog = DocCatalog.Scan(main, shared, FxLayout.Full(root, config.Catalog));
-					diagnostics.Add(FxDiagnostic.Info(MainTreeCatalog, new(MainTreeCatalog, catalog.Folder)));
-					return catalog;
+					var catalog = DocCatalog.Scan(main, sharedConfig, FxLayout.Full(root, config.Catalog));
+					found.Add(FxDiagnostic.Info(MainTreeCatalog, new(MainTreeCatalog, catalog.Folder)));
+					return FxResponse.Success(catalog, found);
 				}
 			}
-			return DocCatalog.Scan(root, config);
+			return FxResponse.Success(DocCatalog.Scan(root, config), found);
 		}
-		diagnostics.Add(FxDiagnostic.Error(NoCatalog, new(NoCatalog), fix: FxFix.Run($"fx module enable {Name}")));
-		return null;
-	}
-
-	/// <summary><see cref="Load"/>, its problems in <paramref name="diagnostics"/>: false if <c>docs.yaml</c> is invalid.</summary>
-	static bool TryLoad(string root, ICollection<FxDiagnostic> diagnostics, out DocsConfig? config)
-	{
-		try
-		{
-			config = Load(root, diagnostics);
-			return true;
-		}
-		catch (DocsConfigException ex)
-		{
-			foreach (var d in ex.Diagnostics)
-				diagnostics.Add(d);
-			config = null;
-			return false;
-		}
+		return FxErrors.Of(HttpStatusCode.NotFound, FxDiagnostic.Error(NoCatalog, new(NoCatalog), fix: FxFix.Run($"fx module enable {Name}"))).WithDiagnostics(found);
 	}
 
 	/// <summary>
@@ -129,17 +123,9 @@ public static class DocsModule
 			return null;
 		var diagnostics = new FxDiagnostics(context.Progress, repository);
 		string Display(string path) => FxLayout.Relative(context.DisplayRoot, path);
-		var warnings = new List<FxDiagnostic>();
-		DocsConfig? config = null;
-		try
-		{
-			config = Load(node.Root, warnings);
-		}
-		catch (DocsConfigException ex)
-		{
-			warnings.AddRange(ex.Diagnostics);
-		}
-		diagnostics.AddRange(warnings.Select(d => d with { File = d.File is null ? null : Display(d.File) }));
+		var loaded = Load(node.Root);
+		var config = loaded is DocsConfig read ? read : null;
+		diagnostics.AddRange(loaded.Diagnostics.Select(d => d with { File = d.File is null ? null : Display(d.File) }));
 		// nothing to check and no views to make: fx doc uses the catalog of the main tree
 		if (config is not null && LeftOut(node.Root, config))
 			config = null;
@@ -213,7 +199,7 @@ public static class DocsModule
 				var change = new DocChange(catalog, display);
 				change.Set(markdown, expected!);
 				change.Set(view.File.Sidecar!, sidecar.ToJson());
-				if (!change.Write())
+				if (change.Write() is Error)
 				{
 					diagnostics.AddRange(change.Diagnostics);
 					status = SyncFileStatus.Refused;

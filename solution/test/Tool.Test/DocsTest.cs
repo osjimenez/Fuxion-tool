@@ -207,7 +207,7 @@ public sealed class DocsTest
 			bootstrap:
 			  - _governance/README.md
 			  - fx\SPEC-modulo-docs.md
-			""", "docs.yaml");
+			""", "docs.yaml").SuccessOrThrow();
 		Assert.True(config.Enabled);
 		Assert.Equal("docs", config.Catalog);
 		Assert.Equal(["editor", "agent.claude"], config.Actors);
@@ -215,9 +215,9 @@ public sealed class DocsTest
 		Assert.Equal(5, config.Registers[0].Line);
 		Assert.Equal(["_governance/README.md", "fx/SPEC-modulo-docs.md"], config.Bootstrap);
 
-		var empty = DocsYamlReader.Read("schema: 1.0.0\n", "docs.yaml");
+		var empty = DocsYamlReader.Read("schema: 1.0.0\n", "docs.yaml").SuccessOrThrow();
 		Assert.Equal((DocsConfig.DefaultCatalog, 0, 0), (empty.Catalog, empty.Actors.Count, empty.Registers.Count));
-		Assert.False(DocsYamlReader.Read("schema: 1.0.0\nenabled: false\n", "docs.yaml").Enabled);
+		Assert.False(DocsYamlReader.Read("schema: 1.0.0\nenabled: false\n", "docs.yaml").SuccessOrThrow().Enabled);
 	}
 
 	[Theory(DisplayName = "an invalid docs.yaml: each problem with its text and its line")]
@@ -246,18 +246,21 @@ public sealed class DocsTest
 	[InlineData("bootstrap:\n  first: a.md", "list", 3)]
 	public void InvalidConfig(string yaml, string key, int line)
 	{
-		var ex = Assert.Throws<DocsConfigException>(() => DocsYamlReader.Read($"schema: 1.0.0\n{yaml}\n", "docs.yaml"));
-		var diagnostic = Assert.Single(ex.Diagnostics);
+		var read = DocsYamlReader.Read($"schema: 1.0.0\n{yaml}\n", "docs.yaml");
+		Assert.True(read is Error { Type: System.Net.HttpStatusCode.Conflict });
+		var diagnostic = Assert.Single(read.Diagnostics);
 		Assert.Equal((DocsYamlReader.InvalidYaml, $"{DocsYamlReader.InvalidYaml}.{key}", (int?)line), (diagnostic.Code, diagnostic.Message.Key, diagnostic.Line));
 	}
 
 	[Fact(DisplayName = "docs.yaml: an unknown key is an error, a warning with a newer minor of its schema")]
 	public void UnknownKey()
 	{
-		var ex = Assert.Throws<DocsConfigException>(() => DocsYamlReader.Read("schema: 1.0.0\nindex: true\n", "docs.yaml"));
-		Assert.Equal(FxYamlReader.UnknownKey, Assert.Single(ex.Diagnostics).Message.Key);
-		var warnings = new System.Collections.Generic.List<FxDiagnostic>();
-		DocsYamlReader.Read("schema: 1.1.0\nindex: true\n", "docs.yaml", warnings);
+		var unknown = DocsYamlReader.Read("schema: 1.0.0\nindex: true\n", "docs.yaml");
+		Assert.True(unknown is Error);
+		Assert.Equal(FxYamlReader.UnknownKey, Assert.Single(unknown.Diagnostics).Message.Key);
+		var newer = DocsYamlReader.Read("schema: 1.1.0\nindex: true\n", "docs.yaml");
+		Assert.True(newer.IsSuccess);
+		var warnings = newer.Diagnostics;
 		Assert.Equal((FxYamlReader.UnknownKey, FxSeverity.Warning), (Assert.Single(warnings).Code, warnings[0].Severity));
 	}
 
@@ -267,13 +270,15 @@ public sealed class DocsTest
 		var root = TempGitRepository.TempFolder("fx-docs-");
 		try
 		{
-			Assert.Null(DocsModule.Load(root));
+			Assert.True(DocsModule.Load(root) is None);
 			Directory.CreateDirectory(Path.Combine(root, "_fx", "docs"));
-			Assert.Same(DocsConfig.Default, DocsModule.Load(root));
+			Assert.True(DocsModule.Load(root) is DocsConfig config && ReferenceEquals(config, DocsConfig.Default));
 			File.WriteAllText(Path.Combine(root, "_fx", "docs", "docs.yaml"), "schema: 1.0.0\ncatalog: notes\n");
-			Assert.Equal("notes", DocsModule.Load(root)!.Catalog);
+			Assert.True(DocsModule.Load(root) is DocsConfig { Catalog: "notes" });
 			File.WriteAllText(Path.Combine(root, "_fx", "docs", "docs.yaml"), "schema: 1.0.0\nenabled: false\n");
-			Assert.Null(DocsModule.Load(root));
+			Assert.True(DocsModule.Load(root) is None);
+			File.WriteAllText(Path.Combine(root, "_fx", "docs", "docs.yaml"), "schema: 1.0.0\ncatalog: ../out\n");
+			Assert.True(DocsModule.Load(root) is Error { Type: System.Net.HttpStatusCode.Conflict });
 		}
 		finally
 		{

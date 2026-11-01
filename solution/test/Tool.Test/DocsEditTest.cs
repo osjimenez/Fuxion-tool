@@ -30,7 +30,7 @@ public sealed class DocsEditTest
 
 	static DocSidecar Sidecar(Space space, string path)
 	{
-		using var json = DocSidecar.Parse(space.Read($"_docs/{Space.Sidecar(path)}"));
+		using var json = DocSidecar.Parse(space.Read($"_docs/{Space.Sidecar(path)}")).SuccessOrThrow();
 		return DocSidecar.From(json.RootElement);
 	}
 
@@ -47,7 +47,7 @@ public sealed class DocsEditTest
 		Assert.Equal(["_records/2026/10/ADR-usar-sidecars.md"], change.Documents);
 		Assert.Equal(["_docs/_records/2026/10/ADR-usar-sidecars.md", "_docs/_records/2026/10/ADR-usar-sidecars.meta.json"], change.Files.Select(f => f.File));
 		Assert.False(System.IO.File.Exists(space.Full("_docs/_records/2026/10/ADR-usar-sidecars.md")));
-		Assert.True(change.Write());
+		Assert.True(change.Write().IsSuccess);
 		Assert.Equal("# Usar sidecars\n", space.Read("_docs/_records/2026/10/ADR-usar-sidecars.md"));
 		var sidecar = Sidecar(space, "_records/2026/10/ADR-usar-sidecars.md");
 		Assert.Equal(("adr", "draft", "Usar sidecars", "editor", "2026-10-21T10:00:00Z", "2026-10-21T10:00:00Z"),
@@ -79,8 +79,8 @@ public sealed class DocsEditTest
 		Assert.Equal(["notes/RULE-one.md"], New(space, "rule", "One", profile: "standard", folder: ".", currentDirectory: space.Full("_docs/notes")).Documents);
 		var readme = New(space, "readme", "Notes", folder: "notes");
 		Assert.Equal(["notes/README.md"], readme.Documents);
-		Assert.True(readme.Write());
-		Assert.True(New(space, "readme", "Deep", folder: "notes/deep").Write());
+		Assert.True(readme.Write().IsSuccess);
+		Assert.True(New(space, "readme", "Deep", folder: "notes/deep").Write().IsSuccess);
 		Assert.Empty(space.Problems());
 	}
 
@@ -102,7 +102,7 @@ public sealed class DocsEditTest
 		using var space = new Space(Actors);
 		var change = New(space, type, title, slug, profile, folder);
 		Assert.Contains(code, Codes(change));
-		Assert.False(change.Write());
+		Assert.False(change.Write().IsSuccess);
 		Assert.Empty(space.Catalog().Files);
 	}
 
@@ -138,7 +138,7 @@ public sealed class DocsEditTest
 		var change = DocEditor.Finalize(space.Catalog(), Display(space), [File(space, path)], null, Later);
 		var before = space.Read($"_docs/{Space.Sidecar(path)}");
 		System.IO.File.AppendAllText(space.Full($"_docs/{Space.Sidecar(path)}"), " ");
-		Assert.False(change.Write());
+		Assert.False(change.Write().IsSuccess);
 		Assert.Equal(DocChange.ChangedOnDisk, Assert.Single(change.Diagnostics).Code);
 		Assert.Equal(before + " ", space.Read($"_docs/{Space.Sidecar(path)}"));
 	}
@@ -157,7 +157,7 @@ public sealed class DocsEditTest
 		var before = space.Read($"_docs/{Space.Sidecar(untouched)}");
 		var change = DocEditor.Finalize(space.Catalog(), Display(space), null, null, Later);
 		Assert.Equal([edited, tagged], change.Documents.Order());
-		Assert.True(change.Write());
+		Assert.True(change.Write().IsSuccess);
 		Assert.Equal(before, space.Read($"_docs/{Space.Sidecar(untouched)}"));
 		Assert.Equal("2026-10-23T10:00:00Z", Sidecar(space, edited).UpdatedAt);
 		Assert.Equal(["alpha", "zeta"], Sidecar(space, tagged).Tags);
@@ -181,12 +181,12 @@ public sealed class DocsEditTest
 		Assert.Equal([DocChecker.FrozenChanged], Codes(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, frozen)], null, Later)));
 		Assert.Equal([DocChecker.ViewEdited], Codes(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, view)], null, Later)));
 		Assert.Equal([DocEditor.Correction], Codes(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, view)], "A note.", Later)));
-		Assert.True(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, frozen)], "A fix of the text.", Later).Write());
+		Assert.True(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, frozen)], "A fix of the text.", Later).Write().IsSuccess);
 		// the note, in the language of the catalog (English by default), whoever runs it
 		Assert.Equal($"{text}\r\n> Annotated correction (2026-10-23): A fix of the text.\r\n", space.Read($"_docs/{frozen}"));
 		Assert.DoesNotContain(space.Problems(), p => p.File == $"_docs/{frozen}");
 		// an open one may record one too, with or without other edits
-		Assert.True(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, open)], "A note.", Later).Write());
+		Assert.True(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, open)], "A note.", Later).Write().IsSuccess);
 		Assert.EndsWith("Text.\n\n> Annotated correction (2026-10-23): A note.\n", space.Read($"_docs/{open}"));
 		Assert.DoesNotContain(space.Problems(), p => p.File == $"_docs/{open}");
 	}
@@ -203,11 +203,11 @@ public sealed class DocsEditTest
 		var born = space.Add("adr", "born", status: "accepted");
 		System.IO.File.AppendAllText(space.Full($"_docs/{born}"), "Written after its adoption.\n");
 		Assert.Contains(space.Problems(), p => p == (DocChecker.Unfinalized, $"_docs/{born}", (int?)null));
-		Assert.True(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, born)], null, Later).Write());
+		Assert.True(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, born)], null, Later).Write().IsSuccess);
 		// frozen in the working tree only: the same
-		Assert.True(DocEditor.SetStatus(space.Catalog(), Display(space), File(space, draft), "accepted", Later).Write());
+		Assert.True(DocEditor.SetStatus(space.Catalog(), Display(space), File(space, draft), "accepted", Later).Write().IsSuccess);
 		System.IO.File.AppendAllText(space.Full($"_docs/{draft}"), "Decided.\n");
-		Assert.True(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, draft)], null, Later).Write());
+		Assert.True(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, draft)], null, Later).Write().IsSuccess);
 		// frozen in HEAD: only with a correction
 		System.IO.File.AppendAllText(space.Full($"_docs/{committed}"), "Changed.\n");
 		Assert.Contains(space.Problems(), p => p == (DocChecker.FrozenChanged, $"_docs/{committed}", (int?)null));
@@ -230,7 +230,7 @@ public sealed class DocsEditTest
 		Assert.True(change.Ok);
 		using (new FileStream(space.Full($"_docs/{Space.Sidecar(frozen)}"), FileMode.Open, FileAccess.Read, FileShare.None))
 		{
-			Assert.False(change.Write());
+			Assert.False(change.Write().IsSuccess);
 			Assert.Equal(DocChange.FileLocked, Assert.Single(change.Diagnostics).Code);
 		}
 		Assert.Equal((edited, sidecar), (space.Read($"_docs/{frozen}"), space.Read($"_docs/{Space.Sidecar(frozen)}")));
@@ -244,7 +244,7 @@ public sealed class DocsEditTest
 		var frozen = space.Add("adr", "frozen", status: "accepted");
 		var text = space.Read($"_docs/{frozen}") + "Un arreglo.\n";
 		System.IO.File.WriteAllText(space.Full($"_docs/{frozen}"), text);
-		Assert.True(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, frozen)], "Un arreglo del texto.", Later).Write());
+		Assert.True(DocEditor.Finalize(space.Catalog(), Display(space), [File(space, frozen)], "Un arreglo del texto.", Later).Write().IsSuccess);
 		Assert.Equal($"{text}\n> Corrección anotada (2026-10-23): Un arreglo del texto.\n", space.Read($"_docs/{frozen}"));
 	}
 
@@ -258,7 +258,7 @@ public sealed class DocsEditTest
 		space.Write($"_docs/{Space.Sidecar(bad)}", "{");
 		var change = DocEditor.Finalize(space.Catalog(), Display(space), [File(space, good), File(space, bad)], null, Later);
 		Assert.Equal([DocChecker.InvalidMetadata], Codes(change));
-		Assert.False(change.Write());
+		Assert.False(change.Write().IsSuccess);
 	}
 
 	// status
@@ -285,7 +285,7 @@ public sealed class DocsEditTest
 			Assert.Equal([DocEditor.InvalidTransition], Codes(change));
 		else
 		{
-			Assert.True(change.Write());
+			Assert.True(change.Write().IsSuccess);
 			Assert.Equal((to, "2026-10-23T10:00:00Z"), (Sidecar(space, path).Status, Sidecar(space, path).UpdatedAt));
 			Assert.Empty(space.Problems());
 		}
@@ -299,7 +299,7 @@ public sealed class DocsEditTest
 		Assert.Equal($"{DocEditor.Unchanged}.status", Assert.Single(DocEditor.SetStatus(space.Catalog(), Display(space), File(space, adr), "draft", Later).Diagnostics).Message.Key);
 		Assert.Equal([DocChecker.InvalidStatus], Codes(DocEditor.SetStatus(space.Catalog(), Display(space), File(space, adr), "completed", Later)));
 		System.IO.File.AppendAllText(space.Full($"_docs/{adr}"), "Decided.\n");
-		Assert.True(DocEditor.SetStatus(space.Catalog(), Display(space), File(space, adr), "accepted", Later).Write());
+		Assert.True(DocEditor.SetStatus(space.Catalog(), Display(space), File(space, adr), "accepted", Later).Write().IsSuccess);
 		Assert.Empty(space.Problems());
 		System.IO.File.AppendAllText(space.Full($"_docs/{adr}"), "Changed.\n");
 		Assert.Equal([DocChecker.FrozenChanged], Codes(DocEditor.SetStatus(space.Catalog(), Display(space), File(space, adr), "superseded", Later)));
@@ -317,7 +317,7 @@ public sealed class DocsEditTest
 		var targetBefore = space.Read($"_docs/{Space.Sidecar(adr)}");
 		var add = DocEditor.Relate(space.Catalog(), Display(space), File(space, rfc), "decided-by", File(space, adr), false, Later);
 		Assert.Equal([rfc], add.Documents);
-		Assert.True(add.Write());
+		Assert.True(add.Write().IsSuccess);
 		Assert.Equal(targetBefore, space.Read($"_docs/{Space.Sidecar(adr)}"));
 		Assert.Equal([new DocRelation("decided-by", space.Ids[adr])], Sidecar(space, rfc).Relations);
 		Assert.Empty(space.Problems());
@@ -325,7 +325,7 @@ public sealed class DocsEditTest
 			Assert.Single(DocEditor.Relate(space.Catalog(), Display(space), File(space, rfc), "decided-by", File(space, adr), false, Later).Diagnostics).Message.Key);
 		Assert.Equal([DocChecker.InvalidRelation], Codes(DocEditor.Relate(space.Catalog(), Display(space), File(space, rfc), "decided-by", File(space, design), false, Later)));
 		Assert.Equal([DocChecker.InvalidRelation], Codes(DocEditor.Relate(space.Catalog(), Display(space), File(space, rfc), "related-to", File(space, rfc), false, Later)));
-		Assert.True(DocEditor.Relate(space.Catalog(), Display(space), File(space, rfc), "decided-by", File(space, adr), true, Later).Write());
+		Assert.True(DocEditor.Relate(space.Catalog(), Display(space), File(space, rfc), "decided-by", File(space, adr), true, Later).Write().IsSuccess);
 		Assert.Empty(Sidecar(space, rfc).Relations);
 		Assert.Equal($"{DocEditor.Unchanged}.no-relation",
 			Assert.Single(DocEditor.Relate(space.Catalog(), Display(space), File(space, rfc), "decided-by", File(space, adr), true, Later).Diagnostics).Message.Key);
@@ -339,7 +339,7 @@ public sealed class DocsEditTest
 		var @new = space.Add("adr", "new", status: "accepted");
 		var change = DocEditor.Relate(space.Catalog(), Display(space), File(space, @new), "supersedes", File(space, old), false, Later);
 		Assert.Equal([@new, old], change.Documents.Order());
-		Assert.True(change.Write());
+		Assert.True(change.Write().IsSuccess);
 		Assert.Equal("superseded", Sidecar(space, old).Status);
 		Assert.Empty(space.Problems());
 		// a plan has no status of the class replaced: only the relation
@@ -357,15 +357,15 @@ public sealed class DocsEditTest
 		var @new = space.Add("adr", "new", status: "accepted");
 		git.CommitAll("two adrs");
 		var before = space.Read($"_docs/{Space.Sidecar(old)}");
-		Assert.True(DocEditor.Relate(space.Catalog(), Display(space), File(space, @new), "supersedes", File(space, old), false, Later).Write());
+		Assert.True(DocEditor.Relate(space.Catalog(), Display(space), File(space, @new), "supersedes", File(space, old), false, Later).Write().IsSuccess);
 		Assert.Equal("superseded", Sidecar(space, old).Status);
-		Assert.True(DocEditor.Relate(space.Catalog(), Display(space), File(space, @new), "supersedes", File(space, old), true, Later).Write());
+		Assert.True(DocEditor.Relate(space.Catalog(), Display(space), File(space, @new), "supersedes", File(space, old), true, Later).Write().IsSuccess);
 		Assert.Equal(before, space.Read($"_docs/{Space.Sidecar(old)}"));
-		Assert.True(DocEditor.Relate(space.Catalog(), Display(space), File(space, @new), "supersedes", File(space, old), false, Later).Write());
+		Assert.True(DocEditor.Relate(space.Catalog(), Display(space), File(space, @new), "supersedes", File(space, old), false, Later).Write().IsSuccess);
 		git.CommitAll("superseded");
 		var removed = DocEditor.Relate(space.Catalog(), Display(space), File(space, @new), "supersedes", File(space, old), true, Later);
 		Assert.Equal([DocEditor.StillReplaced], Codes(removed));
-		Assert.True(removed.Write());
+		Assert.True(removed.Write().IsSuccess);
 		Assert.Equal("superseded", Sidecar(space, old).Status);
 		Assert.Empty(space.Problems());
 	}
@@ -381,7 +381,7 @@ public sealed class DocsEditTest
 		space.Write($"{annexes}/diagram.md", "# A diagram\n\n[Back](../RESEARCH-old-name.md)\n");
 		var pointing = space.Add("design", "a-design", folder: "notes", body: "See [the research](../_records/2026/10/RESEARCH-old-name.md#a-section).");
 		var change = DocEditor.Rename(space.Catalog(), Display(space), File(space, research), "The new title", "new-name", Later);
-		Assert.True(change.Write(), string.Join("; ", change.Diagnostics.Select(d => d.Message.English)));
+		Assert.True(change.Write().IsSuccess, string.Join("; ", change.Diagnostics.Select(d => d.Message.English)));
 		const string renamed = "_records/2026/10/RESEARCH-new-name.md";
 		Assert.False(System.IO.File.Exists(space.Full($"_docs/{research}")));
 		Assert.StartsWith("# The new title\n", space.Read($"_docs/{renamed}"));
@@ -399,7 +399,7 @@ public sealed class DocsEditTest
 		using var space = new Space(Actors);
 		var adr = space.Add("adr", "decision", status: "accepted");
 		Assert.Equal([DocEditor.RenameFrozen], Codes(DocEditor.Rename(space.Catalog(), Display(space), File(space, adr), "Another title", null, Later)));
-		Assert.True(DocEditor.Rename(space.Catalog(), Display(space), File(space, adr), null, "the-decision", Later).Write());
+		Assert.True(DocEditor.Rename(space.Catalog(), Display(space), File(space, adr), null, "the-decision", Later).Write().IsSuccess);
 		const string renamed = "_records/2026/10/ADR-the-decision.md";
 		Assert.Equal(("The decision", "2026-10-21T10:00:00Z"), (Sidecar(space, renamed).Title, Sidecar(space, renamed).UpdatedAt));
 		Assert.Empty(space.Problems());
@@ -416,7 +416,7 @@ public sealed class DocsEditTest
 		space.Add("adr", "taken");
 		var change = DocEditor.Rename(space.Catalog(), Display(space), File(space, adr), title, slug, Later);
 		Assert.Contains(code, Codes(change));
-		Assert.False(change.Write());
+		Assert.False(change.Write().IsSuccess);
 		Assert.Equal($"{DocEditor.Unchanged}.rename",
 			Assert.Single(DocEditor.Rename(space.Catalog(), Display(space), File(space, adr), "The decision", "decision", Later).Diagnostics).Message.Key);
 	}
@@ -446,10 +446,10 @@ public sealed class DocsEditTest
 		var @new = space.Add("adr", "new", status: "accepted");
 		var annexes = $"_docs/{@new[..^".md".Length]}";
 		space.Write($"{annexes}/diagram.svg", "<svg/>");
-		Assert.True(DocEditor.Relate(space.Catalog(), Display(space), File(space, @new), "supersedes", File(space, old), false, Later).Write());
+		Assert.True(DocEditor.Relate(space.Catalog(), Display(space), File(space, @new), "supersedes", File(space, old), false, Later).Write().IsSuccess);
 		var change = DocEditor.Discard(space.Catalog(), Display(space), File(space, @new), Later);
 		Assert.Equal([$"_docs/{@new}", $"_docs/{Space.Sidecar(@new)}", $"{annexes}/diagram.svg"], change.Removed.Order());
-		Assert.True(change.Write(), string.Join("; ", change.Diagnostics.Select(d => d.Message.English)));
+		Assert.True(change.Write().IsSuccess, string.Join("; ", change.Diagnostics.Select(d => d.Message.English)));
 		Assert.False(System.IO.File.Exists(space.Full($"_docs/{@new}")));
 		Assert.False(Directory.Exists(space.Full(annexes)));
 		Assert.Equal(before, space.Read($"_docs/{Space.Sidecar(old)}"));

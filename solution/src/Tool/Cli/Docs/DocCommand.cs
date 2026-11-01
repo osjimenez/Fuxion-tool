@@ -214,8 +214,10 @@ public static class DocCommand
 							console.ErrorLine($"[red]{FxConsole.Escape(Texts.Get("doc.adopt.no-manifest", file))}[/]");
 							return null;
 						}
-						if (DocAdoption.Read(file, display(file), change.Diagnostics) is { } read)
-							targets.AddRange(read);
+						var read = DocAdoption.Read(file, display(file));
+						change.Diagnostics.AddRange(read.Diagnostics);
+						if (read is IReadOnlyList<DocManifestTarget> manifest)
+							targets.AddRange(manifest);
 					}
 					return change.Ok ? DocAdoption.Apply(catalog, display, targets, by, DateTimeOffset.UtcNow) : change;
 				}
@@ -283,13 +285,14 @@ public static class DocCommand
 	/// </summary>
 	internal static DocCatalog? Find(FxConsole console, List<FxDiagnostic> diagnostics)
 	{
-		var catalog = DocsModule.Find(console.Settings.Directory, diagnostics);
+		var found = DocsModule.Find(console.Settings.Directory);
+		diagnostics.AddRange(found.Diagnostics);
 		if (!console.Settings.IsMachine && diagnostics.FirstOrDefault(d => d.Code == DocsModule.MainTreeCatalog) is { } said)
 		{
 			console.ErrorLine($"[gray]{FxConsole.Escape(said.Message.ToString())}[/]");
 			diagnostics.Remove(said);
 		}
-		return catalog;
+		return found is DocCatalog catalog ? catalog : null;
 	}
 
 	/// <summary>The one document <paramref name="selector"/> names; null (said on stderr) if it names none or several.</summary>
@@ -331,7 +334,7 @@ public static class DocCommand
 		var check = new DocChange(catalog, Display(catalog));
 		if ((actor is null || DocEditor.Actor(check, actor) ? work(catalog, Display(catalog)) : check) is not { } change)
 			return FxConsole.UsageError;
-		var written = !dryRun && change.Write();
+		var written = !dryRun && change.Changed && change.Write().IsSuccess;
 		if (console.Settings.IsMachine)
 		{
 			Json(change, written);

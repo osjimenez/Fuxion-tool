@@ -35,8 +35,13 @@ public static class DocIntegrity
 	/// <summary>The hash of the content of a Markdown, from its text.</summary>
 	public static string Content(string markdown) => Hash(Utf8.GetBytes(Normalize(markdown)));
 
-	/// <summary>The hash of the metadata of a sidecar: its canonical form (RFC 8785) without <c>integrity.metadata</c>.</summary>
-	public static string Metadata(JsonElement sidecar) => Hash(Jcs.Canonicalize(sidecar, MetadataPointer));
+	/// <summary>The hash of the metadata of a sidecar: its canonical form (RFC 8785) without <c>integrity.metadata</c>; an error if it has none.</summary>
+	public static Response<string> Metadata(JsonElement sidecar)
+		=> Jcs.Canonicalize(sidecar, MetadataPointer) switch
+		{
+			byte[] canonical => Hash(canonical),
+			var failed => (Error)failed
+		};
 
 	public static string Hash(ReadOnlySpan<byte> bytes) => Algorithm + Convert.ToHexStringLower(SHA256.HashData(bytes));
 }

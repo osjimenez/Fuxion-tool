@@ -63,8 +63,9 @@ public sealed class DocsWorktreeTest
 	{
 		using var tree = new Tree();
 		Assert.False(Directory.Exists(Path.Combine(tree.Root, "_docs")));
-		var diagnostics = new List<FxDiagnostic>();
-		var catalog = DocsModule.Find(tree.Root, diagnostics)!;
+		var found = DocsModule.Find(tree.Root);
+		var diagnostics = found.Diagnostics;
+		var catalog = found.SuccessOrThrow();
 		Assert.True(FxLayout.SameFolder(tree.Git.Path, catalog.Root));
 		Assert.True(FxLayout.SameFolder(Path.Combine(tree.Root, "_docs"), catalog.WorktreeFolder!));
 		var info = Assert.Single(diagnostics);
@@ -78,11 +79,15 @@ public sealed class DocsWorktreeTest
 		Assert.Equal("ideas/REGISTER-ideas.md", Assert.Single(catalog.Select(Path.Combine(tree.Root, Register), deep)).Path);
 		Assert.Equal("ideas", catalog.RelativeFolder("_docs/ideas", tree.Root));
 		// from deeper in the worktree, the same catalog
-		Assert.True(FxLayout.SameFolder(tree.Git.Path, DocsModule.Find(deep, diagnostics = [])!.Root));
+		found = DocsModule.Find(deep);
+		Assert.True(FxLayout.SameFolder(tree.Git.Path, found.SuccessOrThrow().Root));
+		diagnostics = found.Diagnostics;
 		Assert.Equal(DocsModule.MainTreeCatalog, Assert.Single(diagnostics).Code);
 
 		// in the main tree, its own, as always
-		var main = DocsModule.Find(tree.Git.Path, diagnostics = [])!;
+		found = DocsModule.Find(tree.Git.Path);
+		var main = found.SuccessOrThrow();
+		diagnostics = found.Diagnostics;
 		Assert.Null(main.WorktreeFolder);
 		Assert.Empty(diagnostics);
 	}
@@ -133,8 +138,9 @@ public sealed class DocsWorktreeTest
 
 		Ok(WorktreeModule.Mount(tree.Git.Path, Branch, ["_docs/"], false, cancellationToken: Token));
 		Assert.True(File.Exists(Path.Combine(tree.Root, Register)));
-		var diagnostics = new List<FxDiagnostic>();
-		var catalog = DocsModule.Find(tree.Root, diagnostics)!;
+		var found = DocsModule.Find(tree.Root);
+		var diagnostics = found.Diagnostics;
+		var catalog = found.SuccessOrThrow();
 		Assert.True(FxLayout.SameFolder(tree.Root, catalog.Root));
 		Assert.Null(catalog.WorktreeFolder);
 		Assert.Empty(diagnostics);

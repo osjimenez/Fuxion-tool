@@ -25,7 +25,7 @@ public sealed class DocsRegisterTest
 
 	static DocSidecar Sidecar(Space space, string path)
 	{
-		using var json = DocSidecar.Parse(space.Read($"_docs/{Space.Sidecar(path)}"));
+		using var json = DocSidecar.Parse(space.Read($"_docs/{Space.Sidecar(path)}")).SuccessOrThrow();
 		return DocSidecar.From(json.RootElement);
 	}
 
@@ -71,7 +71,7 @@ public sealed class DocsRegisterTest
 				KeyValuePair.Create("espera", (JsonElement?)Json("[\"I-19\"]"))],
 			Relations = [("related-to", research)]
 		});
-		Assert.True(change.Write(), Ok(change));
+		Assert.True(change.Write().IsSuccess, Ok(change));
 		var entry = Assert.Single(Sidecar(space, register).Entries);
 		Assert.Equal(("fuxion-mcp-un-servidor-mcp", "I-64", "boceto", "2026-01-16T00:00:00Z", true), (entry.Name, entry.Key, entry.Status, entry.CreatedAt, entry.Open));
 		Assert.Equal(["bloque", "espera", "prioridad"], JsonNode.Parse(space.Read($"_docs/{Space.Sidecar(register)}"))!["entries"]![0]!["fields"]!.AsObject().Select(f => f.Key));
@@ -92,7 +92,7 @@ public sealed class DocsRegisterTest
 	{
 		var (space, register, _) = Ideas();
 		using var _ = space;
-		Assert.True(Add(space, register, "An idea").Write());
+		Assert.True(Add(space, register, "An idea").Write().IsSuccess);
 		space.Change(register, s =>
 		{
 			var entry = s["entries"]![0]!.AsObject();
@@ -109,8 +109,8 @@ public sealed class DocsRegisterTest
 	{
 		var (space, register, research) = Ideas();
 		using var _ = space;
-		Assert.True(Add(space, register, "One", new() { Key = "I-1" }).Write());
-		Assert.True(Add(space, register, "Two", new() { Key = "I-2" }).Write());
+		Assert.True(Add(space, register, "One", new() { Key = "I-1" }).Write().IsSuccess);
+		Assert.True(Add(space, register, "Two", new() { Key = "I-2" }).Write().IsSuccess);
 		space.Change(register, s =>
 		{
 			var entries = s["entries"]!.AsArray();
@@ -146,7 +146,7 @@ public sealed class DocsRegisterTest
 	{
 		var (space, register, _) = Ideas();
 		using var _ = space;
-		Assert.True(Add(space, register, "Una idea", new() { Key = "I-7" }).Write());
+		Assert.True(Add(space, register, "Una idea", new() { Key = "I-7" }).Write().IsSuccess);
 		Assert.Equal(("una-idea", "open"), (Sidecar(space, register).Entries[0].Name, Sidecar(space, register).Entries[0].Status));
 		Assert.Equal([DocEditor.EntryTaken], Codes(Add(space, register, "Una idea")));
 		Assert.Equal([DocEditor.EntryTaken], Codes(Add(space, register, "Otra", new() { Key = "I-7" })));
@@ -155,7 +155,7 @@ public sealed class DocsRegisterTest
 		Assert.Equal([DocChecker.InvalidMetadata], Codes(Add(space, register, "Otra", new() { Status = "En diseño" })));
 		// a long title: its name, cut at a dash to fit a tag
 		const string title = "Las sobrecargas textuales de JsonNamingTranscoder.Transcode, públicas y sin uso: corrompen las claves";
-		Assert.True(Add(space, register, title).Write());
+		Assert.True(Add(space, register, title).Write().IsSuccess);
 		Assert.Equal("las-sobrecargas-textuales-de-jsonnamingtranscoder-transcode", Sidecar(space, register).Entries[^1].Name);
 		Assert.DoesNotContain(space.Problems(), p => p.Code == DocChecker.InvalidMetadata);
 	}
@@ -180,8 +180,8 @@ public sealed class DocsRegisterTest
 			Key = "I-7",
 			Tags = ["a"],
 			Fields = [KeyValuePair.Create("prioridad", (JsonElement?)Json("2")), KeyValuePair.Create("tema", (JsonElement?)Json("\"Docs\""))]
-		}).Write());
-		Assert.True(Add(space, register, "Otra idea").Write());
+		}).Write().IsSuccess);
+		Assert.True(Add(space, register, "Otra idea").Write().IsSuccess);
 		var set = DocEditor.SetEntry(space.Catalog(), Display(space), space.Root, File(space, register), "I-7", new()
 		{
 			Title = "La idea",
@@ -201,17 +201,17 @@ public sealed class DocsRegisterTest
 			Tags = ["b"],
 			Fields = [KeyValuePair.Create<string, JsonElement?>("prioridad", null), KeyValuePair.Create("bloque", (JsonElement?)Json("\"Hub\""))],
 			Relations = [("informs", research), ("depends-on", other)]
-		}, Now).Write());
+		}, Now).Write().IsSuccess);
 		var entry = Sidecar(space, register).Entries[0];
 		Assert.Equal(("una-idea", "La idea", "en-diseno"), (entry.Name, entry.Title, entry.Status));
 		Assert.Equal(["a", "b"], entry.Tags.Order());
 		Assert.Equal(["bloque", "tema"], entry.Fields.Select(f => f.Key).Order());
 		Assert.Equal(2, entry.Relations.Count);
 		Assert.Empty(space.Problems());
-		Assert.True(DocEditor.SetEntry(space.Catalog(), Display(space), space.Root, File(space, register), "una-idea", new() { Unrelate = [("depends-on", other)] }, Now).Write());
+		Assert.True(DocEditor.SetEntry(space.Catalog(), Display(space), space.Root, File(space, register), "una-idea", new() { Unrelate = [("depends-on", other)] }, Now).Write().IsSuccess);
 		Assert.Single(Sidecar(space, register).Entries[0].Relations);
 
-		Assert.True(DocEditor.CloseEntry(space.Catalog(), Display(space), File(space, register), "I-7", "hecha", Now).Write());
+		Assert.True(DocEditor.CloseEntry(space.Catalog(), Display(space), File(space, register), "I-7", "hecha", Now).Write().IsSuccess);
 		Assert.Equal(("hecha", "2026-10-22T10:00:00Z", false), (Sidecar(space, register).Entries[0].Status, Sidecar(space, register).Entries[0].ClosedAt, Sidecar(space, register).Entries[0].Open));
 		Assert.Equal($"{DocEditor.Unchanged}.closed",
 			Assert.Single(DocEditor.CloseEntry(space.Catalog(), Display(space), File(space, register), "I-7", null, Now).Diagnostics).Message.Key);
@@ -224,9 +224,9 @@ public sealed class DocsRegisterTest
 	{
 		var (space, register, research) = Ideas();
 		using var _ = space;
-		Assert.True(Add(space, register, "Una idea", new() { Key = "I-7" }).Write());
+		Assert.True(Add(space, register, "Una idea", new() { Key = "I-7" }).Write().IsSuccess);
 		var entry = DocEditor.EntryTarget(space.Catalog(), "I-7", space.Root)!;
-		Assert.True(DocEditor.RelateToEntry(space.Catalog(), Display(space), File(space, research), "informs", entry, false, Now).Write());
+		Assert.True(DocEditor.RelateToEntry(space.Catalog(), Display(space), File(space, research), "informs", entry, false, Now).Write().IsSuccess);
 		Assert.Equal([new DocRelation("informs", entry)], Sidecar(space, research).Relations);
 		Assert.Empty(space.Problems());
 		var adr = space.Add("rfc", "x");
@@ -239,9 +239,9 @@ public sealed class DocsRegisterTest
 		var (space, register, research) = Ideas();
 		using var _ = space;
 		var debts = space.Add("register", "debts", folder: "notes");
-		Assert.True(Add(space, register, "Una idea").Write());
-		Assert.True(Add(space, register, "Otra idea", new() { Key = "I-7" }).Write());
-		Assert.True(Add(space, debts, "Una idea").Write());
+		Assert.True(Add(space, register, "Una idea").Write().IsSuccess);
+		Assert.True(Add(space, register, "Otra idea", new() { Key = "I-7" }).Write().IsSuccess);
+		Assert.True(Add(space, debts, "Una idea").Write().IsSuccess);
 		var ideas = Sidecar(space, register).Entries;
 		var debt = Sidecar(space, debts).Entries[0];
 		Assert.Equal(ideas[0].Id, DocEditor.EntryTarget(space.Catalog(), $"{register}#una-idea", space.Root));
@@ -252,7 +252,7 @@ public sealed class DocsRegisterTest
 		Assert.Null(DocEditor.EntryTarget(space.Catalog(), "una-idea", space.Root));
 		Assert.Null(DocEditor.EntryTarget(space.Catalog(), $"{register}#nada", space.Root));
 		// in the relations of an entry, and in fx doc relate
-		Assert.True(Add(space, register, "Una tercera", new() { Relations = [("depends-on", $"{debts}#una-idea")] }).Write());
+		Assert.True(Add(space, register, "Una tercera", new() { Relations = [("depends-on", $"{debts}#una-idea")] }).Write().IsSuccess);
 		Assert.Equal([new DocRelation("depends-on", debt.Id)], Sidecar(space, register).Entries[2].Relations);
 		Assert.Equal([DocEditor.UnknownTarget], Codes(Add(space, register, "Una cuarta", new() { Relations = [("depends-on", "una-idea")] })));
 		Assert.Equal(0, DocsCheckTest.Fx(space.Root, "doc", "relate", research, "informs", "otra-idea").ExitCode);
@@ -267,7 +267,7 @@ public sealed class DocsRegisterTest
 	{
 		using var space = new Space(Actors);
 		var existing = space.Add("register", "debts", folder: "notes");
-		Assert.True(DocEditor.AddEntry(space.Catalog(), Display(space), space.Root, File(space, existing), "A debt", new() { Key = "D-1" }, Now).Write());
+		Assert.True(DocEditor.AddEntry(space.Catalog(), Display(space), space.Root, File(space, existing), "A debt", new() { Key = "D-1" }, Now).Write().IsSuccess);
 		space.Write("_docs/ideas/README.md", "# Ideas\n\nThe board.\n");
 		space.Write("adopcion.yaml", """
 			schema: 1.0.0
@@ -316,10 +316,9 @@ public sealed class DocsRegisterTest
 			        to: _docs/ideas/REGISTER-ideas.md#una-idea-de-enero
 
 			""");
-		var diagnostics = new List<FxDiagnostic>();
-		var targets = DocAdoption.Read(space.Full("adopcion.yaml"), "adopcion.yaml", diagnostics)!;
+		var targets = DocAdoption.Read(space.Full("adopcion.yaml"), "adopcion.yaml").SuccessOrThrow();
 		var change = DocAdoption.Apply(space.Catalog(), Display(space), targets, "editor", Now);
-		Assert.True(change.Write(), Ok(change));
+		Assert.True(change.Write().IsSuccess, Ok(change));
 		var ideas = Sidecar(space, "ideas/REGISTER-ideas.md").Entries;
 		Assert.Equal(("licencias-y-proteccion-comercial", "I-20", "en-diseno"), (ideas[0].Name, ideas[0].Key, ideas[0].Status));
 		var fields = ideas[0].Fields.ToDictionary(f => f.Key, f => f.Value.ValueKind);
@@ -345,12 +344,11 @@ public sealed class DocsRegisterTest
 		using var space = new Space(Actors);
 		var existing = space.Add("register", "debts", folder: "notes");
 		space.Add("adr", "x", folder: "notes", created: DocsCheckTest.At);
-		Assert.True(DocEditor.AddEntry(space.Catalog(), Display(space), space.Root, File(space, existing), "A debt", new() { Key = "D-1" }, Now).Write());
+		Assert.True(DocEditor.AddEntry(space.Catalog(), Display(space), space.Root, File(space, existing), "A debt", new() { Key = "D-1" }, Now).Write().IsSuccess);
 		space.Write("adopcion.yaml", $"schema: 1.0.0\ntargets:\n{targets}");
-		var diagnostics = new List<FxDiagnostic>();
-		var change = DocAdoption.Apply(space.Catalog(), Display(space), DocAdoption.Read(space.Full("adopcion.yaml"), "adopcion.yaml", diagnostics)!, "editor", Now);
+		var change = DocAdoption.Apply(space.Catalog(), Display(space), DocAdoption.Read(space.Full("adopcion.yaml"), "adopcion.yaml").SuccessOrThrow(), "editor", Now);
 		Assert.Contains(DocAdoption.InvalidManifest, Codes(change));
-		Assert.False(change.Write());
+		Assert.False(change.Write().IsSuccess);
 	}
 
 	// the command line

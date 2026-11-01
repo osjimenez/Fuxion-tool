@@ -3,6 +3,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using Fuxion.Tool.Core.Docs;
+using Fuxion.Tool.Core.Results;
 using Xunit;
 
 namespace Fuxion.Tool.Test;
@@ -34,14 +35,14 @@ public sealed class DocsIntegrityTest
 
 	static string Canonical(string json)
 	{
-		using var document = DocSidecar.Parse(json);
-		return Jcs.Text(document.RootElement);
+		using var document = DocSidecar.Parse(json).SuccessOrThrow();
+		return Jcs.Text(document.RootElement).SuccessOrThrow();
 	}
 
 	static string Metadata(string json)
 	{
-		using var document = DocSidecar.Parse(json);
-		return DocIntegrity.Metadata(document.RootElement);
+		using var document = DocSidecar.Parse(json).SuccessOrThrow();
+		return DocIntegrity.Metadata(document.RootElement).SuccessOrThrow();
 	}
 
 	// identity
@@ -119,11 +120,11 @@ public sealed class DocsIntegrityTest
 			5d 2c 22 73 74 72 69 6e 67 22 3a 22 e2 82 ac 24 5c 75 30 30
 			30 66 5c 6e 41 27 42 5c 22 5c 5c 5c 5c 5c 22 2f 22 7d
 			""";
-		using var document = DocSidecar.Parse(input);
+		using var document = DocSidecar.Parse(input).SuccessOrThrow();
 		Assert.Equal(string.Concat(bytes.Split([' ', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries)),
-			Convert.ToHexStringLower(Jcs.Canonicalize(document.RootElement)));
+			Convert.ToHexStringLower(Jcs.Canonicalize(document.RootElement).SuccessOrThrow()));
 		Assert.Equal("""{"literals":[null,true,false],"numbers":[333333333.3333333,1e+30,4.5,0.002,1e-27],"string":"€$\u000f\nA'B\"\\\\\"/"}""",
-			Jcs.Text(document.RootElement));
+			Jcs.Text(document.RootElement).SuccessOrThrow());
 	}
 
 	[Fact(DisplayName = "RFC 8785, 3.2.3: the properties sorted by their UTF-16 code units, at every level")]
@@ -140,8 +141,8 @@ public sealed class DocsIntegrityTest
 			  "\u00f6": "Latin Small Letter O With Diaeresis"
 			}
 			""";
-		using var document = DocSidecar.Parse($"[{input}]");
-		using var sorted = JsonDocument.Parse(Jcs.Canonicalize(document.RootElement));
+		using var document = DocSidecar.Parse($"[{input}]").SuccessOrThrow();
+		using var sorted = JsonDocument.Parse(Jcs.Canonicalize(document.RootElement).SuccessOrThrow());
 		Assert.Equal(["Carriage Return", "One", "Control", "Latin Small Letter O With Diaeresis", "Euro Sign", "Emoji: Grinning Face", "Hebrew Letter Dalet With Dagesh"],
 			sorted.RootElement[0].EnumerateObject().Select(p => p.Value.GetString()));
 		Assert.Equal("""{"a":{"b":1,"c":[{"d":2,"e":3}]}}""", Canonical("""{ "a": { "c": [ { "e": 3, "d": 2 } ], "b": 1 } }"""));
@@ -172,13 +173,13 @@ public sealed class DocsIntegrityTest
 	[InlineData("41b3de4355555557", "333333333.33333343")]
 	[InlineData("becbf647612f3696", "-0.0000033333333333333333")]
 	[InlineData("43143ff3c1cb0959", "1424953923781206.2")]
-	public void RfcNumbers(string ieee, string json) => Assert.Equal(json, Jcs.Number(BitConverter.Int64BitsToDouble(Convert.ToInt64(ieee, 16))));
+	public void RfcNumbers(string ieee, string json) => Assert.Equal(json, Jcs.Number(BitConverter.Int64BitsToDouble(Convert.ToInt64(ieee, 16))).SuccessOrThrow());
 
 	[Theory(DisplayName = "RFC 8785, appendix B: NaN and Infinity have no canonical form")]
 	[InlineData("7fffffffffffffff")]
 	[InlineData("7ff0000000000000")]
 	[InlineData("fff0000000000000")]
-	public void RfcNotNumbers(string ieee) => Assert.Throws<JcsException>(() => Jcs.Number(BitConverter.Int64BitsToDouble(Convert.ToInt64(ieee, 16))));
+	public void RfcNotNumbers(string ieee) => Assert.True(Jcs.Number(BitConverter.Int64BitsToDouble(Convert.ToInt64(ieee, 16))) is Error { Type: System.Net.HttpStatusCode.Conflict });
 
 	[Theory(DisplayName = "without canonical form: a number beyond a double, a lone surrogate in a value or in a name, a repeated property")]
 	[InlineData("[1e400]")]
@@ -189,20 +190,20 @@ public sealed class DocsIntegrityTest
 	{
 		// read without the checks of a sidecar, as JSON may come from elsewhere
 		using var document = JsonDocument.Parse(json);
-		Assert.Throws<JcsException>(() => Jcs.Text(document.RootElement));
+		Assert.Equal(DocChecker.InvalidMetadata, Assert.Single(Jcs.Text(document.RootElement).Diagnostics).Code);
 	}
 
 	[Theory(DisplayName = "a sidecar that repeats a property, or with a name that is not Unicode, is not read")]
 	[InlineData("""{ "a": 1, "b": { "c": 1, "c": 2 } }""")]
 	[InlineData("""{ "a": 1, "\ud83d": 2 }""")]
-	public void NotRead(string json) => Assert.ThrowsAny<JsonException>(() => DocSidecar.Parse(json).Dispose());
+	public void NotRead(string json) => Assert.True(DocSidecar.Parse(json) is Error { Type: System.Net.HttpStatusCode.Conflict });
 
 	[Fact(DisplayName = "the canonical form leaves out the property at a pointer, and only it")]
 	public void Omit()
 	{
-		using var document = DocSidecar.Parse("""{ "integrity": { "metadata": "m", "content": "c" }, "metadata": 1, "a/b": { "metadata": 2 } }""");
-		Assert.Equal("""{"a/b":{"metadata":2},"integrity":{"content":"c"},"metadata":1}""", Jcs.Text(document.RootElement, DocIntegrity.MetadataPointer));
-		Assert.Equal("""{"a/b":{},"integrity":{"content":"c","metadata":"m"},"metadata":1}""", Jcs.Text(document.RootElement, "/a~1b/metadata"));
+		using var document = DocSidecar.Parse("""{ "integrity": { "metadata": "m", "content": "c" }, "metadata": 1, "a/b": { "metadata": 2 } }""").SuccessOrThrow();
+		Assert.Equal("""{"a/b":{"metadata":2},"integrity":{"content":"c"},"metadata":1}""", Jcs.Text(document.RootElement, DocIntegrity.MetadataPointer).SuccessOrThrow());
+		Assert.Equal("""{"a/b":{},"integrity":{"content":"c","metadata":"m"},"metadata":1}""", Jcs.Text(document.RootElement, "/a~1b/metadata").SuccessOrThrow());
 	}
 
 	// the hash of the metadata
@@ -220,7 +221,7 @@ public sealed class DocsIntegrityTest
 	{
 		var json = Register().ToJson();
 		var hash = Metadata(json);
-		using (var document = DocSidecar.Parse(json))
+		using (var document = DocSidecar.Parse(json).SuccessOrThrow())
 		{
 			var reordered = "{" + string.Join(",", document.RootElement.EnumerateObject().Reverse().Select(p => $"\"{p.Name}\":{p.Value.GetRawText()}")) + "}";
 			Assert.Equal(hash, Metadata(reordered));
@@ -303,7 +304,7 @@ public sealed class DocsIntegrityTest
 	public void RoundTrip()
 	{
 		var json = Register().ToJson();
-		using var document = DocSidecar.Parse(json);
+		using var document = DocSidecar.Parse(json).SuccessOrThrow();
 		Assert.Empty(DocsSchemas.Validate(document.RootElement));
 		Assert.Equal(json, DocSidecar.From(document.RootElement).ToJson());
 	}
@@ -325,10 +326,10 @@ public sealed class DocsIntegrityTest
 			CreatedBy = "editor"
 		}.Seal(DocIntegrity.Content(markdown));
 		var json = sealedOne.ToJson();
-		using var document = DocSidecar.Parse(json);
+		using var document = DocSidecar.Parse(json).SuccessOrThrow();
 		Assert.Empty(DocsSchemas.Validate(document.RootElement));
 		Assert.Equal(DocIntegrity.Content(markdown), sealedOne.Integrity!.Content);
-		Assert.Equal(DocIntegrity.Metadata(document.RootElement), sealedOne.Integrity.Metadata);
+		Assert.Equal(DocIntegrity.Metadata(document.RootElement).SuccessOrThrow(), sealedOne.Integrity.Metadata);
 		Assert.Equal(json, sealedOne.Seal(sealedOne.Integrity.Content).ToJson());
 		Assert.NotEqual(sealedOne.Integrity.Metadata, sealedOne.Seal(DocIntegrity.Content(markdown + "Más.\n")).Integrity!.Metadata);
 	}

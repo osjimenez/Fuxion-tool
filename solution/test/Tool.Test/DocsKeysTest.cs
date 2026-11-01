@@ -28,7 +28,7 @@ public sealed class DocsKeysTest
 
 	static DocSidecar Sidecar(Space space)
 	{
-		using var json = DocSidecar.Parse(space.Read($"_docs/{Space.Sidecar(Register)}"));
+		using var json = DocSidecar.Parse(space.Read($"_docs/{Space.Sidecar(Register)}")).SuccessOrThrow();
 		return DocSidecar.From(json.RootElement);
 	}
 
@@ -50,16 +50,16 @@ public sealed class DocsKeysTest
 	{
 		var (git, space) = Repository("repo");
 		using var repository = git;
-		Assert.True(Add(space, "One", "I-1").Write());
-		Assert.True(Add(space, "Three", "I-3").Write());
+		Assert.True(Add(space, "One", "I-1").Write().IsSuccess);
+		Assert.True(Add(space, "Three", "I-3").Write().IsSuccess);
 		git.CommitAll("two ideas");
 		git.Branch("other");
-		Assert.True(Add(space, "Seven", "I-7").Write());
+		Assert.True(Add(space, "Seven", "I-7").Write().IsSuccess);
 		git.CommitAll("another idea, in another branch");
 		git.Checkout("main");
 		Assert.Equal(["I-1", "I-3"], Sidecar(space).Entries.Select(e => e.Key));
 		var change = Add(space, "Eight");
-		Assert.True(change.Write());
+		Assert.True(change.Write().IsSuccess);
 		Assert.Equal("I-8", Sidecar(space).Entries.Last().Key);
 		Assert.Empty(space.Problems());
 	}
@@ -72,7 +72,7 @@ public sealed class DocsKeysTest
 		using var remote = new TempGitRepository(init: false);
 		remote.Git("init", "--quiet", "--bare");
 		git.SetOrigin(remote.Path);
-		Assert.True(Add(space, "Una idea").Write());
+		Assert.True(Add(space, "Una idea").Write().IsSuccess);
 		Assert.Equal("I-1", Sidecar(space).Entries[0].Key);
 		Assert.Contains("refs/fx/keys/I-1", remote.Git("for-each-ref", "--format=%(refname)"));
 		Assert.Equal("editor\nfx: I-1, of ideas/REGISTER-ideas.md: Una idea", remote.Git("log", "-1", "--format=%an%n%s", "refs/fx/keys/I-1").Trim());
@@ -83,7 +83,7 @@ public sealed class DocsKeysTest
 		var dry = Add(space, "Otra", reserve: false);
 		Assert.True(dry.Ok);
 		Assert.DoesNotContain("refs/fx/keys/I-2", remote.Git("for-each-ref", "--format=%(refname)"));
-		Assert.True(Add(space, "Otra").Write());
+		Assert.True(Add(space, "Otra").Write().IsSuccess);
 		Assert.Equal("I-2", Sidecar(space).Entries[1].Key);
 		Assert.Empty(space.Problems());
 	}
@@ -96,7 +96,7 @@ public sealed class DocsKeysTest
 		git.SetOrigin(Path.Combine(git.Path, "..", "no-such-remote-" + Guid.NewGuid().ToString("N")[..8]));
 		var change = Add(space, "Sin red");
 		Assert.Equal(DocKeys.ProvisionalKey, Assert.Single(change.Diagnostics).Code);
-		Assert.True(change.Write());
+		Assert.True(change.Write().IsSuccess);
 		var key = Sidecar(space).Entries[0].Key!;
 		Assert.Matches("^I-~[0-9a-f]{4}$", key);
 		Assert.Equal((DocKeys.ProvisionalKey, FxSeverity.Warning), space.Check().Diagnostics.Select(d => (d.Code, d.Severity)).Single());
@@ -106,7 +106,7 @@ public sealed class DocsKeysTest
 		remote.Git("init", "--quiet", "--bare");
 		git.Git("remote", "set-url", "origin", remote.Path);
 		var confirm = DocEditor.ConfirmKeys(space.Catalog(), Display(space), File(space), "editor", Now, true, out var confirmed);
-		Assert.True(confirm.Write());
+		Assert.True(confirm.Write().IsSuccess);
 		Assert.Equal((key, "I-1"), confirmed.Single());
 		Assert.Equal("I-1", Sidecar(space).Entries[0].Key);
 		Assert.Empty(space.Problems());
@@ -122,9 +122,9 @@ public sealed class DocsKeysTest
 		// refused as it is written
 		var refused = DocEditor.AddEntry(space.Catalog(), Display(space), space.Root, File(space), "Otra", new() { Key = "X-1" }, Now);
 		Assert.Contains(DocKeys.InvalidKey, refused.Diagnostics.Select(d => d.Code));
-		Assert.False(refused.Write());
+		Assert.False(refused.Write().IsSuccess);
 		// and found, if it gets there
-		Assert.True(DocEditor.AddEntry(space.Catalog(), Display(space), space.Root, File(space), "Otra", new() { Key = "I-1" }, Now).Write());
+		Assert.True(DocEditor.AddEntry(space.Catalog(), Display(space), space.Root, File(space), "Otra", new() { Key = "I-1" }, Now).Write().IsSuccess);
 		space.Change(Register, s => s["entries"]![0]!["key"] = "X-1");
 		var problems = space.Problems();
 		Assert.Contains(problems, p => p.Code == DocKeys.InvalidKey && p.File == $"_docs/{Space.Sidecar(Register)}");

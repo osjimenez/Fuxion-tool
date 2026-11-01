@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -178,17 +179,15 @@ public static partial class DocAdoption
 		return change;
 	}
 
-	/// <summary>The targets of the manifest at <paramref name="path"/>; null, with its problems, if it cannot be read.</summary>
-	public static IReadOnlyList<DocManifestTarget>? Read(string path, string display, ICollection<FxDiagnostic> diagnostics)
+	/// <summary>
+	/// The targets of the manifest at <paramref name="path"/>, with its warnings; an error (<see cref="HttpStatusCode.Conflict"/>)
+	/// with every problem found if it cannot be read.
+	/// </summary>
+	public static Response<IReadOnlyList<DocManifestTarget>> Read(string path, string display)
 	{
 		var reader = new FxYamlReader(InvalidManifest, display);
-		var map = reader.Load(FxFiles.ReadAllText(path)) is YamlMapping loaded ? loaded : null;
-		if (map is null)
-		{
-			foreach (var d in reader.Diagnostics)
-				diagnostics.Add(d);
-			return null;
-		}
+		if (reader.Load(FxFiles.ReadAllText(path)) is not YamlMapping map)
+			return reader.Fail(HttpStatusCode.Conflict);
 		reader.Keys(map, "schema", "batch", "sources", "targets", "synergies", "doubts", "editorial");
 		var targets = new List<DocManifestTarget>();
 		if (map["targets"] is not YamlSequence list)
@@ -244,9 +243,7 @@ public static partial class DocAdoption
 						: []
 				});
 			}
-		foreach (var d in reader.Diagnostics)
-			diagnostics.Add(d);
-		return reader.HasErrors ? null : targets;
+		return reader.Outcome<IReadOnlyList<DocManifestTarget>>(targets, HttpStatusCode.Conflict);
 	}
 
 	/// <summary>A value of a field, from YAML: a number, true or false, or text (what is quoted, always text); a list, of them.</summary>

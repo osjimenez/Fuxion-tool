@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using Fuxion.Tool.Core.Layout;
 
 namespace Fuxion.Tool.Core.Docs;
@@ -93,8 +94,11 @@ public static class DocLinks
 			// a sidecar the change writes already (a register that gets entries): sealed again as the change leaves it
 			if (change.Touches(file.Sidecar))
 			{
-				using var json = DocSidecar.Parse(change.Text(file.Sidecar)!);
-				change.Set(file.Sidecar, DocSidecar.From(json.RootElement).Seal(DocIntegrity.Content(after)).ToJson());
+				// fx wrote it: it is JSON
+				if (DocSidecar.Parse(change.Text(file.Sidecar)!) is not JsonDocument json)
+					throw new InvalidOperationException($"The sidecar '{file.Sidecar}' a change writes is not JSON.");
+				using (json)
+					change.Set(file.Sidecar, DocSidecar.From(json.RootElement).Seal(DocIntegrity.Content(after)).ToJson());
 			}
 			else if (Resealed(file, after) is { } sidecar)
 				change.Set(file.Sidecar, sidecar);
@@ -107,12 +111,14 @@ public static class DocLinks
 		if (DocChecker.Json(file.Sidecar!) is not { } json || DocsSchemas.Validate(json).Count > 0)
 			return null;
 		var sidecar = DocSidecar.From(json);
+		if (DocIntegrity.Metadata(json) is not string metadata || metadata != sidecar.Integrity!.Metadata)
+			return null;
 		try
 		{
-			if (sidecar.Integrity!.Content != DocIntegrity.Content(FxFiles.ReadAllBytes(file.Markdown!)) || DocIntegrity.Metadata(json) != sidecar.Integrity.Metadata)
+			if (sidecar.Integrity.Content != DocIntegrity.Content(FxFiles.ReadAllBytes(file.Markdown!)))
 				return null;
 		}
-		catch (Exception ex) when (ex is DecoderFallbackException or JcsException)
+		catch (DecoderFallbackException)
 		{
 			return null;
 		}

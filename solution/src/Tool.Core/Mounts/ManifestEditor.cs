@@ -381,15 +381,8 @@ public static partial class ManifestEditor
 		var enabled = EnableModule(root, module, tags);
 		if (module != Docs.DocsModule.Name || !enabled.Ok || !MountsManifest.HasMounts(root))
 			return [enabled];
-		Docs.DocsConfig config;
-		try
-		{
-			config = Docs.DocsYamlReader.Read(enabled.After.Text, enabled.File);
-		}
-		catch (Docs.DocsConfigException)
-		{
+		if (Docs.DocsYamlReader.Read(enabled.After.Text, enabled.File) is not Docs.DocsConfig config)
 			return [enabled];
-		}
 		var folder = $"{config.Catalog}/";
 		var space = SpaceConfig.Load(root);
 		if (space.LeavesOut(folder) || space.Entry(folder) is { Exclude: true })
@@ -442,23 +435,18 @@ public static partial class ManifestEditor
 		}
 
 		if (text != before)
-			try
-			{
-				if (file == MountsManifest.RelativePath)
-					diagnostics.AddRange(MountsManifest.Read(root, text) is Error invalid ? invalid.Diagnostics : []);
-				else if (file == FxLayout.ModuleFile(DotnetModule.Name))
-					diagnostics.AddRange(DotnetYamlReader.Read(text, file) is Error invalid ? invalid.Diagnostics : []);
-				else if (file == FxLayout.ModuleFile(Harness.HarnessModule.Name))
-					diagnostics.AddRange(Harness.HarnessYamlReader.Read(text, file) is Error invalid ? invalid.Diagnostics : []);
-				else if (file == FxLayout.ModuleFile(Docs.DocsModule.Name))
-					Docs.DocsYamlReader.Read(text, file);
-				else if (file == FxLayout.ConfigFile)
-					diagnostics.AddRange(SpaceConfig.Read(text, file).Diagnostics);
-			}
-			catch (Docs.DocsConfigException ex)
-			{
-				diagnostics.AddRange(ex.Diagnostics);
-			}
+		{
+			if (file == MountsManifest.RelativePath)
+				diagnostics.AddRange(MountsManifest.Read(root, text) is Error invalid ? invalid.Diagnostics : []);
+			else if (file == FxLayout.ModuleFile(DotnetModule.Name))
+				diagnostics.AddRange(DotnetYamlReader.Read(text, file) is Error invalid ? invalid.Diagnostics : []);
+			else if (file == FxLayout.ModuleFile(Harness.HarnessModule.Name))
+				diagnostics.AddRange(Harness.HarnessYamlReader.Read(text, file) is Error invalid ? invalid.Diagnostics : []);
+			else if (file == FxLayout.ModuleFile(Docs.DocsModule.Name))
+				diagnostics.AddRange(Docs.DocsYamlReader.Read(text, file) is Error invalid ? invalid.Diagnostics : []);
+			else if (file == FxLayout.ConfigFile)
+				diagnostics.AddRange(SpaceConfig.Read(text, file).Diagnostics);
+		}
 		return new(file, before, after, text == before ? [] : ["by hand"], diagnostics) { Root = root };
 	}
 
@@ -635,21 +623,14 @@ public static partial class ManifestEditor
 
 		protected override void Validate(string text)
 		{
-			try
-			{
-				if (Module == DotnetModule.Name)
-					Diagnostics.AddRange(DotnetYamlReader.Read(text, File) is Error invalid ? invalid.Diagnostics : []);
-				else if (Module == Harness.HarnessModule.Name)
-					Diagnostics.AddRange(Harness.HarnessYamlReader.Read(text, File) is Error invalid ? invalid.Diagnostics : []);
-				else if (Module == MountsModule.Name)
-					Diagnostics.AddRange(MountsManifest.Read(_root, text) is Error invalid ? invalid.Diagnostics : []);
-				else if (Module == Docs.DocsModule.Name)
-					Docs.DocsYamlReader.Read(text, File);
-			}
-			catch (Docs.DocsConfigException ex)
-			{
-				Diagnostics.AddRange(ex.Diagnostics);
-			}
+			if (Module == DotnetModule.Name)
+				Diagnostics.AddRange(DotnetYamlReader.Read(text, File) is Error invalid ? invalid.Diagnostics : []);
+			else if (Module == Harness.HarnessModule.Name)
+				Diagnostics.AddRange(Harness.HarnessYamlReader.Read(text, File) is Error invalid ? invalid.Diagnostics : []);
+			else if (Module == MountsModule.Name)
+				Diagnostics.AddRange(MountsManifest.Read(_root, text) is Error invalid ? invalid.Diagnostics : []);
+			else if (Module == Docs.DocsModule.Name)
+				Diagnostics.AddRange(Docs.DocsYamlReader.Read(text, File) is Error invalid ? invalid.Diagnostics : []);
 		}
 	}
 }

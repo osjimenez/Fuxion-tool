@@ -98,7 +98,7 @@ public sealed class DocsCheckTest
 
 		public static string Sidecar(string path) => path[..^".md".Length] + DocSidecar.Extension;
 
-		public DocCatalog Catalog() => DocCatalog.Scan(Root, DocsModule.Load(Root)!);
+		public DocCatalog Catalog() => DocCatalog.Scan(Root, DocsModule.Load(Root) is DocsConfig config ? config : throw new InvalidOperationException("No catalog."));
 
 		public DocReport Check(params string[] only)
 		{

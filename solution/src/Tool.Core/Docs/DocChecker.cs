@@ -97,15 +97,14 @@ public static partial class DocChecker
 		}
 		if (text.StartsWith('﻿'))
 			text = text[1..];
-		try
+		var parsed = DocSidecar.Parse(text);
+		if (parsed is not JsonDocument json)
 		{
-			using var json = DocSidecar.Parse(text);
+			var problem = parsed.Diagnostics[0];
+			return new(null, text, problem.Message, problem.Code, problem.Line);
+		}
+		using (json)
 			return new(json.RootElement.Clone(), text, null);
-		}
-		catch (JsonException ex)
-		{
-			return new(null, text, new($"{InvalidMetadata}.json", ex.Message), InvalidMetadata, ex.LineNumber is { } line ? (int)line + 1 : null);
-		}
 	}
 
 	/// <summary>The code of a problem of the schema, by the property it is in.</summary>
@@ -386,16 +385,10 @@ public static partial class DocChecker
 							fix: FxFix.Do(new FxText($"{FrozenChanged}.fix", file.Path)))
 						: FxDiagnostic.Warning(Unfinalized, new(Unfinalized, file.Path), markdownFile, fix: FxFix.Run($"fx doc finalize {file.Path}")));
 			}
-			string? metadata = null;
-			try
-			{
-				metadata = DocIntegrity.Metadata(json);
-			}
-			catch (JcsException ex)
-			{
-				Add(FxDiagnostic.Error(InvalidMetadata, new($"{InvalidMetadata}.json", ex.Message), sidecarFile));
-			}
-			if (metadata is not null && metadata != sidecar.Integrity!.Metadata)
+			var metadata = DocIntegrity.Metadata(json);
+			if (metadata is Error noCanonicalForm)
+				Add(noCanonicalForm.Diagnostics[0] with { File = sidecarFile });
+			else if (metadata is string hash && hash != sidecar.Integrity!.Metadata)
 				Add(FxDiagnostic.Error(IntegrityMismatch, new(IntegrityMismatch, file.Path), sidecarFile, Line("/integrity/metadata")));
 
 			// 6. A view: its recipe and its scope, and whether it is as fx sync would leave it (one edited by hand, said above)

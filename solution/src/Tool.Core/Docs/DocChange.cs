@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading;
 using Fuxion.Tool.Core.Layout;
@@ -205,12 +206,16 @@ public sealed class DocChange(DocCatalog catalog, Func<string, string> display)
 	/// nothing (the SPEC of the module, 14): first it opens, for itself alone, every file it changes that exists, and if
 	/// another process has one open, it writes nothing (<see cref="FileLocked"/>); if writing fails halfway, what it wrote
 	/// goes back to what it was (<see cref="WriteFailed"/>). A file it writes is UTF-8 without a byte order mark, its folder
-	/// made if missing; a folder a removal leaves empty, in the catalog, goes too.
+	/// made if missing; a folder a removal leaves empty, in the catalog, goes too. Its error is also a finding of the change
+	/// (<see cref="Diagnostics"/>): <see cref="HttpStatusCode.Conflict"/> (it has errors, a file changed on disk or is open,
+	/// writing failed) or <see cref="HttpStatusCode.Forbidden"/> (the system denies it). Nothing to change is no failure.
 	/// </summary>
-	public bool Write()
+	public Response<Unit> Write()
 	{
-		if (!Ok || !Changed)
-			return false;
+		if (!Ok)
+			return FxErrors.Of(HttpStatusCode.Conflict, Diagnostics);
+		if (!Changed)
+			return Unit.Value;
 		var changes = _files.Where(f => !Same(f.Value.Before, f.Value.After)).Select(f => (Path: f.Key, f.Value.Before, f.Value.After)).ToList();
 		var held = new Dictionary<string, FileStream>(Paths);
 		try
@@ -228,13 +233,11 @@ public sealed class DocChange(DocCatalog catalog, Func<string, string> display)
 					}
 					catch (UnauthorizedAccessException ex)
 					{
-						Error(WriteFailed, new(WriteFailed, display(path), ex.Message));
-						return false;
+						return Failed(HttpStatusCode.Forbidden, WriteFailed, new(WriteFailed, display(path), ex.Message), ex);
 					}
 					if (stream is null)
 					{
-						Error(File.Exists(path) ? FileLocked : ChangedOnDisk, new(File.Exists(path) ? FileLocked : ChangedOnDisk, display(path)));
-						return false;
+						return Failed(HttpStatusCode.Conflict, File.Exists(path) ? FileLocked : ChangedOnDisk, new(File.Exists(path) ? FileLocked : ChangedOnDisk, display(path)));
 					}
 					held[path] = stream;
 					now = ReadAll(stream);
@@ -243,8 +246,7 @@ public sealed class DocChange(DocCatalog catalog, Func<string, string> display)
 					now = File.Exists(path) ? File.ReadAllBytes(path) : null;
 				if (!Same(before, now))
 				{
-					Error(ChangedOnDisk, new(ChangedOnDisk, display(path)));
-					return false;
+					return Failed(HttpStatusCode.Conflict, ChangedOnDisk, new(ChangedOnDisk, display(path)));
 				}
 			}
 
@@ -278,21 +280,28 @@ public sealed class DocChange(DocCatalog catalog, Func<string, string> display)
 			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
 			{
 				Undo(done, held);
-				Error(WriteFailed, new(WriteFailed, display(current), ex.Message));
-				return false;
+				return Failed(ex is UnauthorizedAccessException ? HttpStatusCode.Forbidden : HttpStatusCode.Conflict, WriteFailed, new(WriteFailed, display(current), ex.Message), ex);
 			}
 			foreach (var (path, _, _) in changes.Where(c => c.After is null))
 				for (var folder = Path.GetDirectoryName(path); folder is not null && catalog.Contains(folder) && !Paths.Equals(Path.TrimEndingDirectorySeparator(folder),
 					     Path.TrimEndingDirectorySeparator(catalog.Folder)) && Directory.Exists(folder) && !Directory.EnumerateFileSystemEntries(folder).Any();
 				     folder = Path.GetDirectoryName(folder))
 					Directory.Delete(folder);
-			return true;
+			return Unit.Value;
 		}
 		finally
 		{
 			foreach (var stream in held.Values)
 				stream.Dispose();
 		}
+	}
+
+	/// <summary>Its error, as <see cref="Write"/> gives it and as a finding of the change.</summary>
+	Error Failed(HttpStatusCode category, string code, FxText message, Exception? exception = null)
+	{
+		var diagnostic = FxDiagnostic.Error(code, message);
+		Diagnostics.Add(diagnostic);
+		return FxErrors.Of(category, diagnostic, exception);
 	}
 
 	/// <summary>What <see cref="Write"/> did before it failed, back to what it was, as far as it can.</summary>

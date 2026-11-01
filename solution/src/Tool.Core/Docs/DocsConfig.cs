@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Text.RegularExpressions;
 using Fuxion.Tool.Core.Layout;
 using Fuxion.Tool.Core.Results;
@@ -47,14 +48,10 @@ public sealed record DocsConfig(string Catalog, IReadOnlyList<string> Actors, IR
 	public static DocsConfig Default { get; } = new(DefaultCatalog, [], []);
 }
 
-/// <summary>An invalid <c>docs.yaml</c>: every problem found, each with its line.</summary>
-public sealed class DocsConfigException(IReadOnlyList<FxDiagnostic> diagnostics)
-	: Exception(string.Join(Environment.NewLine, diagnostics.Select(d => d.WhereIn(CultureInfo.InvariantCulture))))
-{
-	public IReadOnlyList<FxDiagnostic> Diagnostics { get; } = diagnostics;
-}
-
-/// <summary>Reads <c>docs.yaml</c>: its warnings go to the list of <see cref="Read"/>; its errors, in a <see cref="DocsConfigException"/>.</summary>
+/// <summary>
+/// Reads <c>docs.yaml</c>: the configuration with its warnings, or an error (<see cref="HttpStatusCode.Conflict"/>) with every
+/// problem found, each with its line.
+/// </summary>
 public static partial class DocsYamlReader
 {
 	public const string InvalidYaml = "docs.invalid-yaml";
@@ -68,14 +65,13 @@ public static partial class DocsYamlReader
 	[GeneratedRegex("^[A-Z][A-Z0-9]*$")]
 	private static partial Regex PrefixPattern();
 
-	public static DocsConfig ReadFile(string path, ICollection<FxDiagnostic>? warnings = null) => Read(FxFiles.ReadAllText(path), path, warnings);
+	public static Response<DocsConfig> ReadFile(string path) => Read(FxFiles.ReadAllText(path), path);
 
-	public static DocsConfig Read(string yaml, string source, ICollection<FxDiagnostic>? warnings = null)
+	public static Response<DocsConfig> Read(string yaml, string source)
 	{
 		var reader = new FxYamlReader(InvalidYaml, source);
-		var map = reader.Load(yaml) is YamlMapping loaded ? loaded : null;
-		if (map is null)
-			throw new DocsConfigException(reader.Diagnostics);
+		if (reader.Load(yaml) is not YamlMapping map)
+			return reader.Fail(HttpStatusCode.Conflict);
 		reader.Keys(map, "schema", "enabled", "catalog", "actors", "registers", "bootstrap", "language");
 
 		var written = FxYamlReader.Scalar(map["catalog"]);
@@ -127,17 +123,11 @@ public static partial class DocsYamlReader
 			reader.Error(map["bootstrap"], "duplicate-bootstrap", duplicate.Key);
 
 		var enabled = reader.Enabled(map);
-
-		if (reader.HasErrors)
-			throw new DocsConfigException(reader.Diagnostics);
-		foreach (var warning in reader.Diagnostics)
-			warnings?.Add(warning);
 		var language = FxYamlReader.Scalar(map["language"]) ?? DocsConfig.DefaultLanguage;
-		if (!DocsConfig.Languages.Contains(language))
+		// the language is checked once the rest is valid
+		if (!reader.HasErrors && !DocsConfig.Languages.Contains(language))
 			reader.Error(map["language"], "language", language, string.Join(", ", DocsConfig.Languages));
-		if (reader.HasErrors)
-			throw new DocsConfigException(reader.Diagnostics);
-		return new(catalog, actors, registers) { Enabled = enabled, Bootstrap = bootstrap, Language = language };
+		return reader.Outcome(new DocsConfig(catalog, actors, registers) { Enabled = enabled, Bootstrap = bootstrap, Language = language }, HttpStatusCode.Conflict);
 	}
 
 	/// <summary>
