@@ -74,62 +74,75 @@ public static class SelfUpdater
 			diagnostics.Add(Error(Platform, RuntimeInformation.OSDescription, RuntimeInformation.OSArchitecture));
 			return Result();
 		}
-		if (Find(http, version, current, diagnostics, cancellationToken) is not { } found)
-			return Result();
-		var (release, assets) = found;
-
-		// the latest, if newer than this one; the one asked for, if another
-		var order = FxToolVersion.Compare(release, current);
-		if (order is null || (version is null ? order <= 0 : order == 0) || check)
-			return Result(release);
-		var name = ArchiveName(release, rid);
-		if (!assets.TryGetValue(name, out var archiveUrl) || !assets.TryGetValue("SHA256SUMS", out var sumsUrl))
+		var found = Find(http, version, current, cancellationToken);
+		if (found is not Release release)
 		{
-			diagnostics.Add(Error(NoArchive, $"release/{release}", assets.ContainsKey(name) ? "SHA256SUMS" : name));
-			return Result(release);
+			diagnostics.AddRange(found.Diagnostics);
+			return Result();
 		}
 
+		// the latest, if newer than this one; the one asked for, if another
+		var order = FxToolVersion.Compare(release.Version, current);
+		if (order is null || (version is null ? order <= 0 : order == 0) || check)
+			return Result(release.Version);
+		var name = ArchiveName(release.Version, rid);
+		if (!release.Assets.TryGetValue(name, out var archiveUrl) || !release.Assets.TryGetValue("SHA256SUMS", out var sumsUrl))
+		{
+			diagnostics.Add(Error(NoArchive, $"release/{release.Version}", release.Assets.ContainsKey(name) ? "SHA256SUMS" : name));
+			return Result(release.Version);
+		}
+		downloading?.Invoke(release.Version, rid);
+		var installed = Install(http, install.Executable, rid, name, archiveUrl, sumsUrl, current, cancellationToken);
+		diagnostics.AddRange(installed.Diagnostics);
+		return Result(release.Version, updated: installed.IsSuccess);
+	}
+
+	/// <summary>A release: its version and its assets by name.</summary>
+	sealed record Release(string Version, IReadOnlyDictionary<string, string> Assets);
+
+	/// <summary>
+	/// The archive <paramref name="name"/> downloaded, checked against <c>SHA256SUMS</c>, and its fx in the place of
+	/// <paramref name="executable"/>, with the rest of the archive next to it. An error if the network fails
+	/// (<see cref="HttpStatusCode.ServiceUnavailable"/>), the archive is not as it should
+	/// (<see cref="HttpStatusCode.Conflict"/>) or the system denies the change (<see cref="HttpStatusCode.Forbidden"/>;
+	/// another failure to write, <see cref="HttpStatusCode.Conflict"/>).
+	/// </summary>
+	static Response<Unit> Install(HttpClient http, string executable, string rid, string name, string archiveUrl, string sumsUrl, string current,
+		CancellationToken cancellationToken)
+	{
 		// in the folder of fx, so that moving is renaming
-		var folder = Path.GetDirectoryName(install.Executable)!;
+		var folder = Path.GetDirectoryName(executable)!;
 		var temp = Path.Combine(folder, $".fx-update-{Guid.NewGuid():N}");
 		var url = archiveUrl;
 		try
 		{
 			Directory.CreateDirectory(temp);
-			downloading?.Invoke(release, rid);
 			var archive = Path.Combine(temp, name);
 			Download(http, archiveUrl, archive, current, cancellationToken);
 			url = sumsUrl;
 			var sums = Path.Combine(temp, "SHA256SUMS");
 			Download(http, sumsUrl, sums, current, cancellationToken);
 			if (ExpectedHash(File.ReadAllText(sums), name) is not { } expected || expected != Hash(archive))
-			{
-				diagnostics.Add(Error(Checksum, name));
-				return Result(release);
-			}
+				return FxErrors.Of(HttpStatusCode.Conflict, Error(Checksum, name));
 			var extracted = Path.Combine(temp, "fx");
 			Extract(archive, extracted);
-			var executable = Path.Combine(extracted, ExecutableName(rid));
-			if (!File.Exists(executable))
-			{
-				diagnostics.Add(Error(NoArchive, name, ExecutableName(rid)));
-				return Result(release);
-			}
+			var fresh = Path.Combine(extracted, ExecutableName(rid));
+			if (!File.Exists(fresh))
+				return FxErrors.Of(HttpStatusCode.Conflict, Error(NoArchive, name, ExecutableName(rid)));
 			// the rest of the archive (its license), next to it
-			foreach (var file in Directory.EnumerateFiles(extracted).Where(f => f != executable))
+			foreach (var file in Directory.EnumerateFiles(extracted).Where(f => f != fresh))
 				File.Copy(file, Path.Combine(folder, Path.GetFileName(file)), overwrite: true);
-			Replace(executable, install.Executable);
-			return Result(release, updated: true);
+			Replace(fresh, executable);
+			return Unit.Value;
 		}
 		catch (Exception ex) when (ex is HttpRequestException || (ex is TaskCanceledException && !cancellationToken.IsCancellationRequested))
 		{
-			diagnostics.Add(Error(Network, url, ex.Message));
-			return Result(release);
+			return FxErrors.Of(HttpStatusCode.ServiceUnavailable, Error(Network, url, ex.Message), ex);
 		}
 		catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
 		{
-			diagnostics.Add(FxDiagnostic.Error(ReplaceFailed, new(ReplaceFailed, ex.Message), install.Executable));
-			return Result(release);
+			return FxErrors.Of(ex is UnauthorizedAccessException ? HttpStatusCode.Forbidden : HttpStatusCode.Conflict,
+				FxDiagnostic.Error(ReplaceFailed, new(ReplaceFailed, ex.Message), executable), ex);
 		}
 		finally
 		{
@@ -212,7 +225,8 @@ public static class SelfUpdater
 			{
 				File.Move(file, executable);
 			}
-			catch
+			// the one that ran goes back, and whoever called says why it failed
+			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
 			{
 				File.Move(old, executable);
 				throw;
@@ -225,9 +239,11 @@ public static class SelfUpdater
 		}
 	}
 
-	/// <summary>The release of <paramref name="version"/> (its tag is <c>release/&lt;version&gt;</c>), or the latest: its version and its assets by name.</summary>
-	static (string Version, IReadOnlyDictionary<string, string> Assets)? Find(HttpClient http, string? version, string current, List<FxDiagnostic> diagnostics,
-		CancellationToken cancellationToken)
+	/// <summary>
+	/// The release of <paramref name="version"/> (its tag is <c>release/&lt;version&gt;</c>), or the latest: an error if there is
+	/// none (<see cref="HttpStatusCode.NotFound"/>) or GitHub cannot be asked (<see cref="HttpStatusCode.ServiceUnavailable"/>).
+	/// </summary>
+	static Response<Release> Find(HttpClient http, string? version, string current, CancellationToken cancellationToken)
 	{
 		var url = $"https://api.github.com/repos/{Repository}/releases/" + (version is null ? "latest" : $"tags/release/{version}");
 		try
@@ -236,21 +252,19 @@ public static class SelfUpdater
 			using var response = http.Send(request, cancellationToken);
 			if (response.StatusCode == HttpStatusCode.NotFound)
 			{
-				diagnostics.Add(Error(NoRelease, version is null ? (object)new FxText(Latest) : $"release/{version}"));
-				return null;
+				return FxErrors.Of(HttpStatusCode.NotFound, Error(NoRelease, version is null ? (object)new FxText(Latest) : $"release/{version}"));
 			}
 			response.EnsureSuccessStatusCode();
 			using var json = JsonDocument.Parse(response.Content.ReadAsStream(cancellationToken));
 			var tag = json.RootElement.GetProperty("tag_name").GetString() ?? "";
 			var assets = json.RootElement.GetProperty("assets").EnumerateArray()
 				.ToDictionary(a => a.GetProperty("name").GetString() ?? "", a => a.GetProperty("browser_download_url").GetString() ?? "");
-			return (tag.StartsWith("release/", StringComparison.Ordinal) ? tag["release/".Length..] : tag, assets);
+			return new Release(tag.StartsWith("release/", StringComparison.Ordinal) ? tag["release/".Length..] : tag, assets);
 		}
 		catch (Exception ex) when (ex is HttpRequestException or JsonException or KeyNotFoundException or InvalidOperationException
 			                           || (ex is TaskCanceledException && !cancellationToken.IsCancellationRequested))
 		{
-			diagnostics.Add(Error(Network, url, ex.Message));
-			return null;
+			return FxErrors.Of(HttpStatusCode.ServiceUnavailable, Error(Network, url, ex.Message), ex);
 		}
 	}
 

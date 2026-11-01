@@ -30,7 +30,8 @@ public static class RepositoryInfoReader
 			// a detached HEAD is named as LibGit2Sharp named it, so the generated metadata does not change
 			return new(git.CurrentBranch() ?? "(no branch)", head, originUrlSha256, firstCommit, head is null ? null : git.CommitDate(head)?.ToUniversalTime());
 		}
-		catch
+		// a path that is not one, or a folder that cannot be read: no repository
+		catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
 		{
 			return RepositoryInfo.None;
 		}
