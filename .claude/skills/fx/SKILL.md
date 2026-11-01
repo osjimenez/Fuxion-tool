@@ -36,7 +36,7 @@ In a space with `_fx/docs/`, its catalog (`_docs` by default) follows a document
 
 - **Create with `fx doc new <type> <title>`**, never by hand: it names the pair, puts it in its place (`_records/YYYY/MM/` for a historical type) and seals its sidecar. `fx doc schema` gives the types, their statuses and profiles.
 - **Edit the Markdown, then `fx doc finalize <document>`**. Never edit a sidecar by hand: its hash says so. A frozen document (historical, no longer open, once that state is committed) only takes a correction: `fx doc finalize <document> --correction <note>`; until then, it is finalized like an open one. Any other document but a view may record a correction too.
-- **Statuses and relations with `fx doc status` and `fx doc relate`**; the entries of a register with `fx doc entry add|set|close`; a short key with `fx doc key`; a stable document moves with `fx doc move`. As the target of a relation, an entry is named by its key, its identity, `<register>#<name>`, or its name if no other entry has it.
+- **Statuses and relations with `fx doc status` and `fx doc relate`**; the entries of a register with `fx doc entry add|set|close`; a short key with `fx doc key`; a stable document moves with `fx doc move`, and any document changes its title or its name with `fx doc rename`. As the target of a relation, an entry is named by its key, its identity, `<register>#<name>`, or its name if no other entry has it.
 - **A document created since the last commit is removed with `fx doc discard <document>`**, never by hand: it also undoes what its `supersedes` did.
 - **Check with `fx doc check [<documents>]`** after a change (`--branches`, also against the remote branches); `fx doctor` checks the whole catalog.
 - **The actor of a change**: `fx doc --actor`, or `FX_DOCS_ACTOR`, one of the `actors` of `_fx/docs/docs.yaml`; `new`, `adopt` and `key` need it, and `entry add` when it reserves a key.
@@ -74,6 +74,7 @@ In a space with `_fx/docs/`, its catalog (`_docs` by default) follows a document
 | `fx doc adopt` | Adopts documents: Markdown without a sidecar gets it where it is (the bootstrap ones by default); with --manifest, the batches of the adoption manifests, at once. | `fx-doc-edit/1` | yes |  | yes |
 | `fx doc move` | Moves a stable document to another folder of the catalog, with its annexes, and rewrites the links to them. | `fx-doc-edit/1` | yes |  | yes |
 | `fx doc discard` | Discards a document born since the last commit: its pair, its annexes, and what its supersedes did to their targets. | `fx-doc-edit/1` | yes |  | yes |
+| `fx doc rename` | Renames a document: another title (its H1 and its sidecar), another name (in its same folder, with its annexes), or both, and rewrites the links to it. | `fx-doc-edit/1` | yes |  | yes |
 | `fx doc entry add` | Adds an entry at the end of a register. | `fx-doc-edit/1` | yes |  | yes |
 | `fx doc entry set` | Changes an entry of a register: its title, status, summary, tags, fields and relations. | `fx-doc-edit/1` | yes |  | yes |
 | `fx doc entry close` | Closes an entry of a register, now. | `fx-doc-edit/1` | yes |  | yes |
@@ -331,6 +332,16 @@ Moves a stable document to another folder of the catalog, with its annexes, and 
 Discards a document born since the last commit: its pair, its annexes, and what its supersedes did to their targets.
 
 - `<document>` (required): The document: its path or its identity.
+- `--dry-run`: Shows what would change, with its diff, without writing.
+- `--actor` <string>: Who makes the change, one of the actors of docs.yaml; by default, the variable FX_DOCS_ACTOR. new, adopt and key need it, and entry add when it reserves a key.
+
+### `fx doc rename <document>`
+
+Renames a document: another title (its H1 and its sidecar), another name (in its same folder, with its annexes), or both, and rewrites the links to it.
+
+- `<document>` (required): The document: its path or its identity.
+- `--title` <string>: The new title.
+- `--slug` <string>: The new slug of its name (TYPE-slug).
 - `--dry-run`: Shows what would change, with its diff, without writing.
 - `--actor` <string>: Who makes the change, one of the actors of docs.yaml; by default, the variable FX_DOCS_ACTOR. new, adopt and key need it, and entry add when it reserves a key.
 
