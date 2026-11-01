@@ -1,6 +1,6 @@
 ---
 name: comment-tags
-description: Find, list or count the ReSharper to-do tags the user writes in code comments (TODO, PEND, INFO, IDEA, ASK, BUG and any other tag configured in ReSharper). Use it whenever the user mentions those tags or says they left comments, ideas or questions in the code ("he dejado IDEAS y ASK", "mira los PEND", "¿cuántos TODO quedan?"), before reviewing or refactoring an area (to see its pending notes), and when collecting ideas for `_docs/ideas/`.
+description: Find, list or count the ReSharper to-do tags the user writes in code comments (TODO, PEND, INFO, IDEA, ASK, BUG and any other tag configured in ReSharper). Use it whenever the user mentions those tags or says they left comments, ideas or questions in the code ("he dejado IDEAS y ASK", "mira los PEND", "¿cuántos TODO quedan?"), before reviewing or refactoring an area (to see its pending notes), and when collecting ideas for the register of ideas of the space.
 ---
 
 # Comment tags (ReSharper to-do items)
@@ -18,8 +18,9 @@ script in this folder, which reads the tags from the ReSharper settings and matc
 - A tag starts an entry: `// IDEA - text…`. An entry can continue on the following comment lines
   (`// - point`, `//    - sub-point`) and may be closed with `// FIN IDEA` (or `FIN ASK`…).
 - `ASK` = a question for the agent: answer it in the conversation.
-- `IDEA` = something to keep. Before moving it to the register of ideas (`_docs/ideas/REGISTER-ideas.md`, a new entry with `fx doc entry add`), show the user the list with the
-  **original text** and wait; do not remove the comment from the code until the user says so.
+- `IDEA` = something to keep. Before moving it to the register of ideas of the space (a new entry with
+  `fx doc entry add`, from the root of the space), show the user the list with the **original text** and wait; do not
+  remove the comment from the code until the user says so.
 - `PEND`/`TODO` = pending work in that spot; `INFO` = an explanation worth keeping.
 
 ## Script

@@ -21,12 +21,11 @@ there. To work across repositories, open the root of the space.
 
 ## Build and tests
 
-- **How the build works** (plan N, decisions 15-18; plan P): each repository imports `Fuxion.Tool.Sdk` in its
-  `Directory.Build.props`; what the repositories share is in the space's `_fx/dotnet/` (`dotnet.yaml` and its
-  files), which `fx sync` gives each repository it applies to (`applies-to: tags [fuxion-build]`) in its
-  `_fx/.inherited/` (versioned, so a loose clone builds; `inherited.yaml` says who the repository is and where each file
-  comes from) and turns into its `_fx/dotnet/*.g.*`. Change the shared build there and run `fx sync`; never edit `.g.`
-  files or `_fx/.inherited/`. A repository's own `_fx/dotnet/dotnet.yaml` adds to it (`oss`, `plus` and `tool`:
+- **How the build works**: each repository imports `Fuxion.Tool.Sdk` in its `Directory.Build.props`; what the
+  repositories share is in the space's `_fx/dotnet/` (`dotnet.yaml` and its files), which `fx sync` gives each
+  repository it applies to (`applies-to: tags [fuxion-build]`) in its `_fx/.inherited/` (versioned, so a loose clone
+  builds; `inherited.yaml` says who the repository is and where each file comes from) and turns into its
+  `_fx/dotnet/*.g.*`. Change the shared build there and run `fx sync`; never edit `.g.` files or `_fx/.inherited/`. A repository's own `_fx/dotnet/dotnet.yaml` adds to it (`oss`, `plus` and `tool`:
   `standalone: true`). Cross-repository references are `<FxReference Include="Project" />`; test projects say
   `<IsTestProject>true</IsTestProject>`. The packages go to `~$publish/<repo>/nupkgs` of the space.
 - **Build and test** each repository with the solution at its root (`dotnet build <solution>.slnx`,
@@ -44,6 +43,6 @@ settings and searches the root it is in (in the space, every mounted repository)
 not see comments.
 
 - `ASK` is a question for the agent: answer it.
-- `IDEA` goes to the register of ideas of the space (`_docs/ideas/REGISTER-ideas.md`, an entry with `fx doc entry
-  add`), but show the user the list with the original text first, and do not remove the comment from the code until
-  the user says so.
+- `IDEA` goes to the register of ideas of the space (an entry with `fx doc entry add`, from the root of the space),
+  but show the user the list with the original text first, and do not remove the comment from the code until the
+  user says so.

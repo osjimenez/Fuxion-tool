@@ -4,7 +4,7 @@
 <Project>
 
 	<!-- The packages of Fuxion that are open source (FuxionPackage=oss, in the area or the project): MIT. The repository
-	     comes from git (PublishRepositoryUrl, in packable.props); from oss's Nuget.Config.OpenSource.props (plan R). -->
+	     comes from git (PublishRepositoryUrl, in packable.props); it was oss's Nuget.Config.OpenSource.props. -->
 	<PropertyGroup>
 		<PackageLicenseExpression Condition="'$(PackageLicenseExpression)' == ''">MIT</PackageLicenseExpression>
 		<PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
